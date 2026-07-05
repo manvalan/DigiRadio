@@ -1,0 +1,19 @@
+---
+description: Secure storage and secret handling
+globs: **/*Secret*, **/*Store*, **/secure/**, **/*Credential*, **/*Config*
+alwaysApply: false
+---
+
+# Secure storage
+
+Full spec: @AGENTS.md §7.5.
+
+- Stores Wi-Fi SSID/password, user credentials, station list. Encrypted
+  at rest (NVS encryption on an encrypted partition, or a device key in
+  eFuse). Confirm the mechanism against current ESP-IDF security docs
+  before implementing.
+- A `Secret` wrapper: no operator<<, no implicit conversion to a loggable
+  string, buffer zeroised on destruction.
+- Secrets are never logged, never placed in URLs, never serialised to
+  plaintext. Access goes through `ISecureStore` so core and tests never
+  touch real flash or real keys.

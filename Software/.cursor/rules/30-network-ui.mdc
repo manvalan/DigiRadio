@@ -1,0 +1,21 @@
+---
+description: Network provisioning and web UI rules
+globs: **/net/**, **/network/**, **/web/**, **/ui/**, **/*.html, **/*.css, **/*.js
+alwaysApply: false
+---
+
+# Network config + Web UI
+
+Full spec: @AGENTS.md §7.4.
+
+- Provisioning: SoftAP/captive portal first, then STA. State machine is
+  an explicit `enum class NetState` — no ad-hoc flags.
+- UI: minimal single-page app served gzipped from flash. No heavy
+  frameworks. Design tokens (spacing, type scale, one accent) defined
+  once and reused — consistency over decoration. The UI is a thin client
+  over a typed JSON API and holds no business logic.
+- API: typed DTOs. Parse every request body into a domain type at the
+  boundary before use; reject malformed input with a clear status; never
+  partially apply.
+- No raw filesystem or debug endpoint in a shipping build (guard behind a
+  build flag).

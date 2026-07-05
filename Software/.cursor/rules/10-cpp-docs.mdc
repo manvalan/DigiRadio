@@ -1,0 +1,59 @@
+---
+description: C++ typing, style, file headers and mandatory doc blocks
+globs: **/*.hpp, **/*.h, **/*.cpp
+alwaysApply: false
+---
+
+# C++ typing, headers and documentation
+
+Full spec: @AGENTS.md §2 and §3.
+
+## Typing
+- No primitive obsession: a frequency, a gain, a station id are their own
+  types, not int/float/uint8_t. Validate at construction.
+- `enum class` always; never a bare enum. No bool for mode selection
+  (`setBand(Band::Dab)`, not `setBand(true)`).
+- Parse untrusted input (network, UART, flash) once at the boundary into
+  a domain type; trust it downstream.
+- `const` by default; `[[nodiscard]]` on status/value returns.
+- Rule of zero: wrap every HW/OS handle in RAII. No raw new/delete.
+- Borrow with `std::span`, never pointer+length.
+- Command Query Separation. Functional core (pure, host-testable) /
+  imperative shell (all I2C/SPI/UART/flash). Core includes no ESP-IDF.
+
+## File header (every .hpp/.cpp) — Apache-2.0
+```cpp
+/**
+ * @file    <name>
+ * @brief   <one line>
+ *
+ * DigiRadio firmware — https://github.com/manvalan/DigiRadio
+ *
+ * Copyright 2026 Michele Bigi
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * @author  Michele Bigi
+ * @date    <YYYY-MM-DD of creation>
+ */
+```
+
+## Doc block — every class AND every method
+Fields, in order, using Doxygen tags (aliases @dname/@pubstate defined
+in Doxyfile):
+```cpp
+/**
+ * @brief    <name> — one-line intent.
+ *
+ * @dname    <name>
+ * @param    <p>  <meaning>            // per parameter; none -> "none"
+ * @return   <success + each error cause>   // or void / n/a
+ * @pubstate <member state read/written; injected deps used; or none>
+ *
+ * Description: intent and contract, NOT a restatement of the code.
+ *
+ * @author   Michele Bigi
+ * @date     <YYYY-MM-DD>
+ */
+```
+`doxygen Doxyfile` must exit 0 with an empty warnings log. Do not use
+`EXTRACT_ALL = YES` to silence missing-doc warnings.

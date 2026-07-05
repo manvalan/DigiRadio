@@ -1,0 +1,77 @@
+# Doxyfile — DigiRadio firmware
+# Curated (non-default settings only; Doxygen fills the rest with defaults).
+# Verified against Doxygen 1.9.x.
+
+#---------------------------------------------------------------------------
+# Project
+#---------------------------------------------------------------------------
+PROJECT_NAME           = "DigiRadio Firmware"
+PROJECT_BRIEF          = "Open-source Hi-Fi DAB+/FM receiver firmware (ESP32-S3)"
+OUTPUT_DIRECTORY       = docs/api
+CREATE_SUBDIRS         = YES
+
+#---------------------------------------------------------------------------
+# Input
+#---------------------------------------------------------------------------
+INPUT                  = src include
+FILE_PATTERNS          = *.hpp *.h *.cpp
+RECURSIVE              = YES
+# Exclude vendored / generated code from the doc requirement:
+EXCLUDE_PATTERNS       = */vendor/* */generated/* */build/*
+
+#---------------------------------------------------------------------------
+# Build: enforce documentation (this is what makes the rule real)
+#---------------------------------------------------------------------------
+# Do NOT auto-document everything: we want undocumented symbols to warn.
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+#---------------------------------------------------------------------------
+# Warnings: fail the build on any missing or malformed documentation
+#---------------------------------------------------------------------------
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_NO_PARAMDOC       = YES
+# FAIL_ON_WARNINGS turns any of the above into a non-zero exit -> CI fails.
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+WARN_LOGFILE           = docs/api/doxygen-warnings.log
+
+#---------------------------------------------------------------------------
+# Custom field aliases — map the DigiRadio doc-block fields to Doxygen
+#---------------------------------------------------------------------------
+# ^^ is a newline inside an alias. These render as titled sections in the
+# generated docs, so "Public state used" becomes a real doc section.
+ALIASES += "dname=\par Name:^^"
+ALIASES += "pubstate=\par Public state used:^^"
+
+#---------------------------------------------------------------------------
+# C++ language handling
+#---------------------------------------------------------------------------
+OPTIMIZE_OUTPUT_FOR_C  = NO
+BUILTIN_STL_SUPPORT    = YES
+JAVADOC_AUTOBRIEF      = YES
+MARKDOWN_SUPPORT       = YES
+
+#---------------------------------------------------------------------------
+# Output formats
+#---------------------------------------------------------------------------
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+# XML is handy if you later feed the docs to another tool (e.g. Sphinx):
+GENERATE_XML           = NO
+
+#---------------------------------------------------------------------------
+# Diagrams (optional, needs Graphviz 'dot'; great for "fits in your head")
+#---------------------------------------------------------------------------
+HAVE_DOT               = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DOT_IMAGE_FORMAT       = svg

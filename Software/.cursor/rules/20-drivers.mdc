@@ -1,0 +1,34 @@
+---
+description: Chip driver rules (Si4684, ADAU1701, FSC-BT1035)
+globs: **/*Driver.*, **/drivers/**, **/*Adau*, **/*Si4684*, **/*Bt1035*
+alwaysApply: false
+---
+
+# Chip drivers
+
+Full spec: @AGENTS.md §7.1–7.3.
+
+## Si4684 (DAB+/FM tuner)
+- Boot flow POWER_UP -> load patch -> load image -> BOOT must follow the
+  AN649 sequence exactly; cite the section per step in a comment.
+- Stream firmware images in bounded chunks from flash via an injected
+  `IFirmwareSource`; never load a whole image into a heap buffer.
+- Opcodes/property IDs are `enum class`; validate the CTS/STATUS byte
+  before trusting any payload. Public API is intent-level; registers
+  are private. One driver owns one SPI/I2C handle via RAII.
+
+## ADAU1701 (SigmaDSP, RAM boot, no EEPROM)
+- ESP32 writes the SigmaStudio export to DSP RAM at every boot. Model the
+  export as an ordered list of RegisterWrite{address, bytes} parsed in
+  the pure core, replayed by the shell over I2C.
+- EQ and mixer runtime changes use safeload (click-free). A raw param
+  write while audio runs is a bug.
+- Typed control surfaces: setEqBand(EqBandIndex, GainDb, FrequencyHz, Q);
+  setInputMix(MixSource, GainDb) with enum class MixSource {Si4684,Esp32}.
+- Biquad/gain math lives in the pure core with host tests vs reference.
+
+## FSC-BT1035 (QCC3056, AT over UART)
+- Typed command builder; explicit OK/ERROR/timeout parsing.
+- AT+AUXCFG=1 (Line-In) is mandatory in the init sequence and covered by
+  a test on the command string. Unknown responses are an error, not
+  ignored.
