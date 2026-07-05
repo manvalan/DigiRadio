@@ -10,8 +10,7 @@
 ![Firmware](https://img.shields.io/badge/firmware-in%20development-orange)
 ![PCB](https://img.shields.io/badge/PCB-6--layer-blue)
 ![Hardware License](https://img.shields.io/badge/hardware-CERN--OHL--S-lightgrey)
-![Firmware License](https://img.shields.io/badge/firmware-MIT-lightgrey)
-
+[![Firmware License: Apache 2.0](https://img.shields.io/badge/Firmware%20License-Apache%202.0-blue.svg)](Software/LICENSE)
 </div>
 
 ---
@@ -115,9 +114,8 @@ notes, impedance-control settings and MSL-3 handling of the BT module.
 ---
 
 ## License
-
-- **Hardware** (schematic, PCB, Gerber): [CERN-OHL-S](https://ohwr.org/cern_ohl_s_v2.txt)
-- **Firmware / software**: [MIT](https://opensource.org/licenses/MIT)
+- **Hardware** (schematics, PCB, Gerbers, BOM): CERN-OHL-S v2 — see [`LICENSE`](LICENSE)
+- **Firmware / Software**: Apache-2.0 — see [`Software/LICENSE`](Software/LICENSE)
 - **Documentation**: CC BY 4.0
 
 Intellectual property of the design remains with the author. You are free to study,
