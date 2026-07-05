@@ -1,0 +1,19 @@
+---
+description: Testing conventions (host-first, TDD for the pure core)
+globs: **/test/**, **/tests/**, **/*Test*, **/*_test.*
+alwaysApply: false
+---
+
+# Testing
+
+Full spec: @AGENTS.md §8.
+
+- Pure core is developed test-first (red -> green -> refactor):
+  coefficient math, blob framing, config parsing, station-list logic —
+  all host-tested, zero hardware.
+- Arrange-Act-Assert; one behaviour per test; names state the behaviour
+  (`tuneTo_rejectsFrequencyOutsideFmBand`).
+- Fakes over mocks for driver interfaces; assert on observable behaviour,
+  not internal call order.
+- Hardware-in-the-loop tests are separate, explicitly marked, and never
+  block the host suite.

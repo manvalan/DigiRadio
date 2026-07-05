@@ -1,0 +1,45 @@
+---
+description: DigiRadio core non-negotiables (always on)
+alwaysApply: true
+---
+
+# DigiRadio — core rules
+
+Firmware for ESP32-S3 on ESP-IDF v5.5.x. C++23 (-std=gnu++23),
+strongly typed, class-based. C++ exceptions disabled. Companion chips:
+Si4684 (DAB+/FM), ADAU1701 (SigmaDSP), FSC-BT1035 (Bluetooth).
+Full spec: @AGENTS.md
+
+## Behaviour
+- Blockers first: state what breaks the build or the hardware before the
+  solution.
+- Never invent a register address, opcode, bit field, or boot sequence.
+  If it is not in the datasheet, say so and stop. Cite the doc section.
+- No silent failure: every fallible op returns a typed error.
+- Ask when a hardware invariant is unclear — don't assume.
+
+## Code That Fits in Your Head (hard limits)
+- Cyclomatic complexity <= 7 per method; at 8, decompose.
+- Method fits an 80x24 box: <= 80 cols wide, <= 24 lines tall.
+- One method does one thing at one level of abstraction.
+- Name for intent (`tuneTo`), not mechanism (`writeReg0x30`).
+- Delete before you add.
+
+## Errors
+- Typed result `std::expected<T, Error>` (native under C++23), never a
+  bare int code. Every timeout is an explicit error value. No C++
+  exceptions (disabled in ESP-IDF).
+
+## Embedded
+- No dynamic allocation in audio or ISR paths, ever.
+- No virtual calls in IRAM-safe ISRs (vtables live in flash).
+- Every wait has a timeout and a defined failure path.
+
+## Version control
+- Small commits, each compiles and keeps tests green.
+- Commit messages: 50/72 (summary <= 50 chars, body wrapped at 72).
+
+## Definition of Done (summary — full list in @AGENTS.md §10)
+Compiles warnings-as-errors; clang-tidy clean; Apache header on every
+file; doc block on every class/method; `doxygen Doxyfile` exits 0;
+typed errors; host tests green; no plaintext secrets.
