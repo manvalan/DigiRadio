@@ -1,0 +1,239 @@
+% ============================================================
+%  DigiRadio — Manual chapter: FSC-BT1035 Bluetooth
+% ============================================================
+
+\chapter{FSC-BT1035 Bluetooth Transmitter}
+\label{ch:bt1035}
+
+The Feasycom FSC-BT1035 (Qualcomm QCC3056) is the wireless output stage of
+DigiRadio: it receives PCM from the ADAU1701 over I\textsuperscript{2}S and
+streams Bluetooth audio with aptX, aptX~HD, and aptX~Adaptive. This chapter
+documents how the ESP32-S3 controls the module over UART (AT commands with
+RTS/CTS), why Line-In mode is mandatory, and how \texttt{bt1035::Bt1035Driver}
+implements the bring-up sequence.
+
+\begin{drref}[Hardware context]
+Board wiring (UART pins, I\textsuperscript{2}S to the module, flow control)
+is in Chapter~\ref{ch:hardware}, Section~\ref{sec:hw-bt1035}. The ADAU1701
+master clock and limiter settings that feed the module are in
+Chapter~\ref{ch:adau1701} and Chapter~\ref{ch:sigmastudio}.
+\end{drref}
+
+\section{Role in the audio chain}
+\label{sec:bt1035-role}
+
+The BT1035 is an I\textsuperscript{2}S \textbf{slave} at 48\,kHz: LRCLK and
+BCLK come from the ADAU1701; PCM arrives on \texttt{SDATA\_OUT0}
+(ADAU MP6 $\rightarrow$ module pin~5). The ESP32 does not process audio
+samples for Bluetooth; it only configures the module so the wired path is
+accepted and encoded for transmission.
+
+Without firmware init the module may stay in a default mode that ignores the
+Line-In from the DSP. The mandatory \texttt{AT+AUXCFG=1} command selects
+auxiliary/Line-In input --- omitting it silently breaks the entire wireless
+output (Section~\ref{sec:bt1035-linein}).
+
+\section{Control interface}
+\label{sec:bt1035-uart}
+
+\subsection{UART parameters}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \drhead Setting & Value \\
+    \midrule
+    Port            & UART2 (not the console UART) \\
+    Baud rate       & 115200 \\
+    Data format     & 8N1 \\
+    Flow control    & Hardware RTS/CTS (required) \\
+    Reset           & GPIO active-low pulse at boot \\
+    SYS\_CTL        & Held active to enable the module \\
+    \bottomrule
+  \end{tabular}
+  \caption{FSC-BT1035 UART and control lines (\texttt{board\_pins.hpp}).}
+  \label{tab:bt1035-uart}
+\end{table}
+
+\subsection{Response handling}
+
+Every command expects a module reply containing \texttt{OK} or
+\texttt{ERROR}. The driver:
+
+\begin{itemize}
+  \item builds lines in the pure core via \texttt{core::buildBt1035AtLine()};
+  \item classifies replies with \texttt{core::parseBt1035AtResponse()};
+  \item treats timeouts and unexpected payloads as errors (never ignored).
+\end{itemize}
+
+Host tests in \texttt{components/core/test/bt1035\_at\_test.cpp} lock the
+init sequence (including \texttt{AT+AUXCFG=1}) and the parser.
+
+\section{Mandatory Line-In mode}
+\label{sec:bt1035-linein}
+
+\begin{drcaution}[AT+AUXCFG=1 is not optional]
+The documented init sequence must include \texttt{AT+AUXCFG=1} after a
+successful \texttt{AT} ping. This tells the QCC3056 firmware to take audio
+from the wired I\textsuperscript{2}S/Line-In port (the ADAU1701 output)
+rather than an internal source. AGENTS.md and the hardware manual both treat
+skipping this step as a production bug.
+\end{drcaution}
+
+\section{Boot sequence}
+\label{sec:bt1035-boot}
+
+At power-up \texttt{HardwareBootstrap::boot()} runs the Si4684 and ADAU1701
+first, applies the saved audio profile, then initialises the BT1035 so the
+Line-In path is ready before Wi-Fi starts.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      step/.style={draw, rounded corners, minimum width=9.5cm,
+        minimum height=0.9cm, align=center, font=\small},
+      >={Latex}, node distance=3mm]
+    \node[step, fill=black!6] (sys) {SYS\_CTL high, RESET\# pulse};
+    \node[step, fill=black!6, below=of sys] (uart)
+      {Install UART2 @ 115200, RTS/CTS};
+    \node[step, fill=black!8, below=of uart] (at)
+      {Send \texttt{AT} --- expect OK};
+    \node[step, fill=black!10, below=of at] (aux)
+      {Send \texttt{AT+AUXCFG=1} --- expect OK (Line-In)};
+    \node[step, fill=black!6, below=of aux] (done)
+      {\texttt{Bt1035Driver::isBooted()} = true};
+    \foreach \a/\b in {sys/uart, uart/at, at/aux, aux/done} {
+      \draw[->] (\a) -- (\b);
+    }
+  \end{tikzpicture}
+  \caption{FSC-BT1035 AT init on DigiRadio.}
+  \label{fig:bt1035-boot}
+\end{figure}
+
+Pairing, codec selection, and volume over Bluetooth are handled by the
+module's own firmware and NVS; DigiRadio firmware currently implements
+only the Line-In bring-up required for the wired audio path.
+
+\section{Software architecture}
+\label{sec:bt1035-stack}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}llp{5.8cm}@{}}
+    \drhead Layer & Type & Responsibility \\
+    \midrule
+    Bootstrap     & \texttt{HardwareBootstrap} &
+      Constructs driver, calls \texttt{boot()} after ADAU1701 \\
+    Driver        & \texttt{bt1035::Bt1035Driver} &
+      UART, reset, AT init sequence \\
+    Pure core     & \texttt{core::Bt1035AtCommand}, parser &
+      Host-testable command strings and OK/ERROR classification \\
+    \bottomrule
+  \end{tabular}
+  \caption{BT1035 control stack (Slice~6). Future HTTP/UI for pairing will
+    sit above the driver without changing the init contract.}
+  \label{tab:bt1035-stack}
+\end{table}
+
+\section{Supported AT command subset}
+\label{sec:bt1035-at}
+
+The firmware enumerates every command it sends. Extending the subset requires
+updating \texttt{core::Bt1035AtCommand}, the manual, and a host test.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Enum & Line sent & Purpose \\
+    \midrule
+    \texttt{Ping}      & \texttt{AT}           & Verify UART link \\
+    \texttt{AuxLineIn}   & \texttt{AT+AUXCFG=1}  & Enable Line-In from ADAU \\
+    \bottomrule
+  \end{tabular}
+  \caption{AT commands used at boot (\texttt{core::bootInitSequence()}).}
+  \label{tab:bt1035-at}
+\end{table}
+
+\section{Bt1035Driver API}
+\label{sec:bt1035-driver}
+
+\texttt{Bt1035Driver} owns UART and GPIO reset. All methods return
+\texttt{std::expected<T, Bt1035Error>}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Method} & \textbf{Purpose} \\
+    \midrule
+    \texttt{boot()} & Reset, UART init, run \texttt{bootInitSequence()} \\
+    \texttt{isBooted()} & \texttt{true} after Line-In init succeeded \\
+    \texttt{sendCommand(cmd)} & Send one typed command, expect OK \\
+    \bottomrule
+  \end{tabular}
+  \caption{Public driver API.}
+  \label{tab:bt1035-api}
+\end{table}
+
+\subsection{Error codes}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}ll@{}}
+    \drhead \texttt{Bt1035Error} & Typical cause \\
+    \midrule
+    \texttt{ResetFailed}         & GPIO configuration failure \\
+    \texttt{UartInitFailed}      & \texttt{uart\_driver\_install} / pins \\
+    \texttt{NotBooted}           & \texttt{sendCommand} before \texttt{boot()} \\
+    \texttt{AtTimeout}           & No OK/ERROR within 2\,s \\
+    \texttt{AtError}             & Module returned ERROR \\
+    \texttt{UnexpectedResponse}  & Unrecognised payload (future use) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Driver error enumeration.}
+  \label{tab:bt1035-errors}
+\end{table}
+
+\section{Integration at power-up}
+\label{sec:bt1035-integration}
+
+\texttt{main/hardware\_bootstrap.cpp} constructs a static
+\texttt{Bt1035Driver} and calls \texttt{boot()} after
+\texttt{AudioService::loadAndApply()}. Failure returns
+\texttt{HardwareBootError::Bt1035BootFailed} and \texttt{app\_main} halts
+before network bring-up (fail-closed, same as Si4684/ADAU1701).
+
+Boot order:
+\begin{enumerate}
+  \item Si4684 \texttt{boot(Dab)} --- tuner image in RAM.
+  \item ADAU1701 \texttt{boot()} --- SigmaStudio program in RAM.
+  \item \texttt{AudioService::loadAndApply()} --- user mixer/EQ profile.
+  \item BT1035 \texttt{boot()} --- Line-In enabled for wireless output.
+\end{enumerate}
+
+\section{Typical usage (firmware developer)}
+\label{sec:bt1035-usage}
+
+After a successful \texttt{HardwareBootstrap::boot()}, the module is ready;
+no further calls are required for basic listening. To re-send Line-In config
+after a module reset:
+
+\begin{verbatim}
+bt1035::Bt1035Driver& bt = ...;
+if (auto r = bt.sendCommand(core::Bt1035AtCommand::AuxLineIn); !r) {
+  // handle Bt1035Error
+}
+\end{verbatim}
+
+\section{Further reading}
+\label{sec:bt1035-reading}
+
+\begin{itemize}
+  \item Feasycom FSC-BT1035 AT command manual (vendor) --- full command set
+        for pairing, name, and codec options not yet wrapped by firmware.
+  \item Chapter~\ref{ch:hardware} --- pin map and I\textsuperscript{2}S routing.
+  \item Chapter~\ref{ch:adau1701} --- DSP output that feeds the module.
+  \item \texttt{components/core/test/bt1035\_at\_test.cpp} --- init sequence test.
+\end{itemize}

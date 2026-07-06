@@ -147,10 +147,11 @@ safeload registers.
 \end{drcaution}
 
 \paragraph{FSC-BT1035 (Bluetooth).}
-The module is controlled by AT commands over UART. The initialisation
-sequence includes enabling Line-In mode (\texttt{AT+AUXCFG=1}), which is
-required for the wired audio path from the DSP; command responses are
-parsed explicitly, with timeouts treated as errors.
+The module is controlled by AT commands over UART with hardware flow control.
+The initialisation sequence includes enabling Line-In mode
+(\texttt{AT+AUXCFG=1}), which is required for the wired audio path from the
+DSP; command responses are parsed explicitly, with timeouts treated as errors.
+Full driver API, boot flow, and error codes are in Chapter~\ref{ch:bt1035}.
 
 \section{Configuration, storage, and user interface}
 \label{sec:fw-config}
@@ -203,6 +204,9 @@ bring-up:
   \item \textbf{Audio profile}: \texttt{audio::AudioService::loadAndApply()}
     restores the saved \texttt{core::AudioProfile} from NVS (or factory
     defaults) via ADAU1701 safeload before network bring-up.
+  \item \textbf{FSC-BT1035} (UART): \texttt{bt1035::Bt1035Driver::boot()}
+    enables Line-In (\texttt{AT+AUXCFG=1}) after the DSP path is configured
+    (Chapter~\ref{ch:bt1035}).
 \end{enumerate}
 
 If either driver returns an error, the firmware logs the failure and stops

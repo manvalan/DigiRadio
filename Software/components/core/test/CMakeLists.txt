@@ -34,6 +34,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/EnhancementsDesign.cpp"
     "${CORE_SRC_DIR}/AudioProfile.cpp"
     "${CORE_SRC_DIR}/AudioProfileJson.cpp"
+    "${CORE_SRC_DIR}/Bt1035At.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -70,3 +71,7 @@ add_test(NAME audio_profile_json_test COMMAND audio_profile_json_test)
 add_executable(enhancements_design_test enhancements_design_test.cpp)
 target_link_libraries(enhancements_design_test PRIVATE digiradio_core)
 add_test(NAME enhancements_design_test COMMAND enhancements_design_test)
+
+add_executable(bt1035_at_test bt1035_at_test.cpp)
+target_link_libraries(bt1035_at_test PRIVATE digiradio_core)
+add_test(NAME bt1035_at_test COMMAND bt1035_at_test)

@@ -224,17 +224,103 @@ after boot.
 \end{table}
 
 \subsection{Typical DAB session}
+\label{sec:si4684-dab-session}
 
 \begin{enumerate}
   \item \texttt{boot(Dab)} at power-up (already done in
     \texttt{HardwareBootstrap}).
-  \item \texttt{tuneDab(index)} for the desired ensemble.
+  \item \texttt{tuneDab(index)} for the desired ensemble (Band III index
+    0--37, Table~\ref{tab:si4684-dab-plan}).
   \item Poll \texttt{readDabDigRadStatus()} until FIC quality $> 0$.
   \item \texttt{fetchDabServiceList()} when
     \texttt{readDabEventStatus().serviceListReady}.
   \item \texttt{startDabService(serviceId, componentId)} for the chosen
-    programme; audio appears on I\textsuperscript{2}S.
+    programme; PCM appears on I\textsuperscript{2}S to the ADAU1701.
 \end{enumerate}
+
+\begin{drnote}[DAB, not DVB]
+DigiRadio receives \textbf{DAB/DAB+} (Digital \emph{Audio} Broadcasting),
+not DVB-T/T2 video. Tuning is by ensemble frequency index and digital
+service/component IDs --- there is no transport-stream PAT/PMT scan like
+DVB-T.
+\end{drnote}
+
+\subsection{Typical FM session}
+\label{sec:si4684-fm-session}
+
+FM requires the FM application image loaded at boot
+(\texttt{boot(Si4684Band::Fm)}). DigiRadio defaults to DAB at power-up;
+switching to FM reloads patch + \texttt{fm\_firmware.bin} (full HOST\_LOAD).
+
+\begin{enumerate}
+  \item \texttt{boot(Fm)} --- resets the chip and loads the FM image.
+  \item \texttt{tuneFm(frequencyKhz)} --- e.g.\ 101500 for 101.5\,MHz;
+        waits for seek/tune complete (STC).
+  \item \texttt{readFmRsq()} --- RSSI, SNR, stereo flag, validity.
+  \item Optional: \texttt{seekFm(up, wrap)} --- scan to next station.
+  \item Optional: \texttt{readFmRds()} --- last RDS group (PI, PS, RT).
+\end{enumerate}
+
+FM audio is emitted on the same I\textsuperscript{2}S pins as DAB once the
+FM image is running.
+
+\subsection{Choosing DAB or FM}
+\label{sec:si4684-band-choice}
+
+Only one application image runs at a time. \texttt{Si4684Driver::boot(band)}
+selects the blob:
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Band & Image loaded & Primary API \\
+    \midrule
+    \texttt{Si4684Band::Dab} & \texttt{dab\_firmware.bin} &
+      \texttt{tuneDab}, service list, \texttt{startDabService} \\
+    \texttt{Si4684Band::Fm}  & \texttt{fm\_firmware.bin} &
+      \texttt{tuneFm}, \texttt{seekFm}, RSQ, RDS \\
+    \bottomrule
+  \end{tabular}
+  \caption{Band-specific firmware and driver entry points.}
+  \label{tab:si4684-band-api}
+\end{table}
+
+Calling an FM method while the DAB image is loaded (or vice versa) returns
+\texttt{Si4684Error::WrongBand}. Switching band performs reset and a complete
+HOST\_LOAD of patch + the other image ($\sim$1\,s).
+
+\subsection{HTTP API mapping (web UI)}
+\label{sec:si4684-http}
+
+The setup UI and REST clients use \texttt{tuner::TunerService}, which wraps
+\texttt{Si4684Tuner} (Chapter~\ref{ch:api}). Summary:
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}llp{5.5cm}@{}}
+    \drhead Endpoint & Band & Action \\
+    \midrule
+    \texttt{POST /api/tuner/tune} &
+      DAB & \texttt{\{"band":"dab","freq\_index":0..37\}} \\
+    \texttt{POST /api/tuner/tune} &
+      FM  & \texttt{\{"band":"fm","frequency\_khz":64000..108000\}} \\
+    \texttt{GET /api/tuner/services} & DAB only & Programme list for ensemble \\
+    \texttt{POST /api/tuner/play}    & DAB only & Start \texttt{service\_id}/\texttt{component\_id} \\
+    \texttt{POST /api/tuner/seek}    & FM only  & Seek up, return new kHz \\
+    \texttt{GET /api/tuner/status}   & both     & Locked state, RSQ or DIGRAD \\
+    \bottomrule
+  \end{tabular}
+  \caption{Tuner HTTP routes vs band (full schemas in Chapter~\ref{ch:api}).}
+  \label{tab:si4684-http}
+\end{table}
+
+\begin{drnote}[FM tune via HTTP today]
+\texttt{POST /api/tuner/tune} with \texttt{band:"fm"} calls
+\texttt{TunerService::tuneFm}, which may trigger a band reload if the device
+booted in DAB. Plan station presets and automatic band selection in a later
+slice.
+\end{drnote}
 
 \section{Integration at power-up}
 \label{sec:si4684-integration}

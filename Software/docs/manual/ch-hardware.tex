@@ -131,7 +131,8 @@ in the module's own non-volatile memory.
 \begin{drcaution}[Line-In mode]
 The initialisation sequence must enable Line-In mode (\texttt{AT+AUXCFG=1})
 so the module accepts the wired audio coming from the DSP. Omitting it
-silently breaks the audio path.
+silently breaks the audio path. Driver boot flow and AT subset are documented
+in Chapter~\ref{ch:bt1035}.
 \end{drcaution}
 
 \section{The host: ESP32-S3}

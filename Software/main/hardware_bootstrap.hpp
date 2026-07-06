@@ -37,6 +37,7 @@ namespace hardware {
 enum class HardwareBootError {
     Si4684BootFailed,
     Adau1701BootFailed,
+    Bt1035BootFailed,
 };
 
 /**
@@ -57,7 +58,7 @@ public:
      *
      * @dname    boot
      * @return   Ok on success, or HardwareBootError.
-     * @pubstate constructs static Si4684 and ADAU1701 drivers on first call.
+     * @pubstate constructs static Si4684, ADAU1701, and BT1035 drivers on first call.
      *
      * Fail-closed: callers must not start Wi-Fi when this returns an error.
      *
