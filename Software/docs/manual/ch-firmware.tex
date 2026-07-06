@@ -1,0 +1,202 @@
+% ============================================================
+%  DigiRadio — Manual section: Firmware Architecture
+%  Drop this into the manual as a \section (or \chapter).
+%
+%  Required packages (add to the preamble if not present):
+%    \usepackage{tikz}
+%    \usetikzlibrary{positioning, arrows.meta, fit, backgrounds}
+%    \usepackage{booktabs}   % for the interface table
+%
+%  The environments used here are standard. Replace itemize / framed
+%  blocks with your own box taxonomy where you prefer.
+% ============================================================
+
+\chapter{Firmware Architecture}
+\label{sec:firmware-architecture}
+
+The DigiRadio firmware runs on the ESP32-S3 and orchestrates three
+companion chips into a single high-fidelity audio path: the Si4684
+DAB+/FM tuner, the ADAU1701 SigmaDSP, and the FSC-BT1035 Bluetooth
+transmitter. This section describes how the firmware is organised, how
+audio flows through the system, and how each chip is controlled. The
+day-to-day coding conventions (style, documentation, review rules) are
+intentionally kept out of this manual and live in the repository's
+\texttt{CONTRIBUTING.md} and \texttt{AGENTS.md}.
+
+\section{Design principles}
+\label{sec:fw-principles}
+
+Two ideas shape the whole codebase:
+
+\begin{itemize}
+  \item \textbf{Strong typing.} Domain quantities (frequency, gain,
+    station identifier, band) are dedicated types rather than raw
+    integers or floats. Invalid states are made unrepresentable: input
+    from the network, UART, or flash is validated once at the boundary
+    into a domain type, and trusted thereafter.
+  \item \textbf{Functional core, imperative shell.} All hardware-free
+    logic --- coefficient math, boot-image framing, configuration
+    parsing, station-list operations --- lives in a pure \emph{core}
+    that compiles and is unit-tested on the host, with no dependency on
+    ESP-IDF. Every access to the hardware (I\textsuperscript{2}C, SPI,
+    UART, flash) lives in a thin \emph{shell} around that core. This
+    keeps the logic testable without a board attached.
+\end{itemize}
+
+\section{Layered structure}
+\label{sec:fw-layers}
+
+The firmware is organised in three layers, with dependencies pointing
+inward only (Figure~\ref{fig:fw-layers}). The outer shell may depend on
+the services and the core; the pure core depends on nothing outside
+itself.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      layer/.style={draw, rounded corners, minimum width=10cm,
+        minimum height=1.5cm, align=center, font=\small},
+      node distance=4mm]
+    \node[layer, fill=black!5] (shell) {%
+      \textbf{Imperative shell}\\[2pt]
+      chip drivers \textbullet\ web server \textbullet\ NVS \textbullet\
+      FreeRTOS tasks \textbullet\ ISRs};
+    \node[layer, fill=black!8, below=of shell] (services) {%
+      \textbf{Application services}\\[2pt]
+      TunerService \textbullet\ AudioService \textbullet\
+      ConfigService \textbullet\ NetworkService};
+    \node[layer, fill=black!12, below=of services] (core) {%
+      \textbf{Domain core (pure, host-tested)}\\[2pt]
+      Station \textbullet\ Frequency \textbullet\ EqProfile \textbullet\
+      MixerState \textbullet\ Credential \textbullet\ validation};
+    \draw[-{Latex}] (shell) -- (services);
+    \draw[-{Latex}] (services) -- (core);
+  \end{tikzpicture}
+  \caption{Firmware layering. Dependencies point inward; the pure core
+    has no hardware dependencies.}
+  \label{fig:fw-layers}
+\end{figure}
+
+Application services take driver \emph{interfaces}
+(\texttt{ITuner}, \texttt{IDsp}, \texttt{IBtModule},
+\texttt{ISecureStore}) injected at construction. Because the services
+depend on abstractions rather than concrete hardware, the same logic can
+be exercised against fakes in host tests and against real silicon on the
+device.
+
+\section{Audio signal path}
+\label{sec:fw-audio}
+
+The audio chain is built around sound quality. The Si4684 produces the
+DAB+/FM audio stream; the ADAU1701 applies equalisation and mixes it
+with the ESP32 audio source; the FSC-BT1035 streams the result over
+Bluetooth with aptX Adaptive (Figure~\ref{fig:fw-audio}).
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      block/.style={draw, rounded corners, minimum height=1cm,
+        minimum width=2.4cm, align=center, font=\small},
+      >={Latex}, node distance=8mm]
+    \node[block] (si) {Si4684\\\scriptsize DAB+/FM};
+    \node[block, right=16mm of si] (dsp) {ADAU1701\\\scriptsize EQ + mixer};
+    \node[block, right=16mm of dsp] (bt) {FSC-BT1035\\\scriptsize aptX Adaptive};
+    \node[block, below=12mm of dsp] (esp) {ESP32-S3\\\scriptsize audio src};
+    \draw[->] (si) -- (dsp) node[midway, above, font=\scriptsize]{audio};
+    \draw[->] (dsp) -- (bt) node[midway, above, font=\scriptsize]{out};
+    \draw[->] (esp) -- (dsp) node[midway, right, font=\scriptsize]{mix in};
+  \end{tikzpicture}
+  \caption{Audio signal path. The ADAU1701 input mixer selects/blends
+    the Si4684 and ESP32 sources; equalisation is applied before the
+    Bluetooth output stage.}
+  \label{fig:fw-audio}
+\end{figure}
+
+Equalisation and input mixing are exposed to the rest of the firmware as
+typed operations --- setting an EQ band from a gain, centre frequency,
+and Q, or setting the mix level of a given source --- never as raw DSP
+cell addresses. The biquad coefficient math runs in the pure core and is
+verified against reference values in host tests.
+
+\section{Chip control and boot}
+\label{sec:fw-chips}
+
+\paragraph{Si4684 (tuner).}
+At power-up the driver follows the documented boot sequence: power on,
+load the patch/bootloader, load the firmware image (FM or DAB), then
+boot. Firmware images are large and are streamed to the chip in bounded
+chunks from flash rather than buffered whole in RAM.
+
+\begin{drref}[Datasheet]
+The exact power-up, patch, image-load, and boot command sequence follows
+the Si468x programming guide (AN649). Each step in the driver cites the
+relevant section; no command byte is issued without a documented source.
+\end{drref} The public
+interface is intent-level (\texttt{powerUp}, \texttt{loadImage},
+\texttt{tuneTo}, \texttt{readRsq}); register-level detail is private to
+the driver.
+
+\paragraph{ADAU1701 (DSP).}
+The board carries no self-boot EEPROM. Instead, the ESP32 writes the
+SigmaStudio-exported program into the DSP's RAM at \emph{every} boot.
+Runtime changes to equalisation and mixing use the ADAU1701 safeload
+mechanism, so parameter updates are click-free while audio is playing.
+
+\begin{drcaution}[Safeload]
+Writing DSP parameter cells directly while audio is running produces
+audible clicks. All runtime EQ and mixer changes must go through the
+safeload registers.
+\end{drcaution}
+
+\paragraph{FSC-BT1035 (Bluetooth).}
+The module is controlled by AT commands over UART. The initialisation
+sequence includes enabling Line-In mode (\texttt{AT+AUXCFG=1}), which is
+required for the wired audio path from the DSP; command responses are
+parsed explicitly, with timeouts treated as errors.
+
+\section{Configuration, storage, and user interface}
+\label{sec:fw-config}
+
+Network provisioning uses a SoftAP/captive-portal for first-time setup,
+then joins the configured network as a station. Configuration is exposed
+through an elegant, minimal web interface served from flash, backed by a
+typed JSON API; the interface holds no business logic.
+
+Sensitive data --- Wi-Fi credentials, user credentials, and the
+station/frequency list --- is held in encrypted storage at rest. Secrets
+are wrapped in a dedicated type that cannot be logged or implicitly
+converted to a string, and buffers are cleared after use.
+
+\section{Error-handling model}
+\label{sec:fw-errors}
+
+Every operation that can fail returns a typed result
+(\texttt{std::expected<T, Error>}); nothing fails silently and every
+timeout is an explicit error value. Errors propagate to the layer that
+can act on them --- a driver reports, a service decides (retry, degrade,
+or surface to the UI), and the top level logs. C++ exceptions are
+disabled.
+
+\section{Toolchain}
+\label{sec:fw-toolchain}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Item} & \textbf{Choice} \\
+    \midrule
+    Framework        & ESP-IDF v5.5.x (native) \\
+    Language          & C++23 (\texttt{-std=gnu++23}) \\
+    Error model       & \texttt{std::expected}; exceptions off \\
+    Hardware licence  & CERN-OHL-S v2 \\
+    Firmware licence  & Apache-2.0 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Firmware toolchain and licensing summary.}
+  \label{tab:fw-toolchain}
+\end{table}
+
+The firmware source, build instructions, and development conventions are
+maintained in the \texttt{Software/} directory of the project
+repository.

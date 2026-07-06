@@ -259,6 +259,40 @@ version rather than assuming.
 
 ---
 
+### 3.4 Manual synchronisation
+
+The LaTeX manual documents the firmware at the **design level** and must
+never fall behind the code. The split of duties is strict:
+
+- **Doxygen** documents the API — exact signatures, parameters, returns,
+  per §3.2. Generated from the code.
+- **The manual** documents design — what a component is for, its
+  responsibility, its collaborators and invariants, and how it fits the
+  system. Written prose plus diagrams. It does **not** repeat the
+  per-method API.
+
+Rule: **every public, architecturally-significant class has a matching
+manual section.** These are the classes with a public interface —
+drivers, application services, and public domain-core types (the ones
+declared under an `include/` directory). Each gets a `\subsection` (or
+`\subsubsection`) in the manual, tagged with a stable label
+`\label{cls:ClassName}`, describing its responsibility, collaborators,
+key invariants, and how it is used.
+
+- When a public class is **added**, its manual section is written in the
+  same change.
+- When its **public interface changes**, the manual section is updated in
+  the same change.
+- When it is **removed**, its manual section is removed.
+- Internal / private helper classes (declared only in `src/`, not
+  exposed through `include/`) do **not** require a manual section.
+
+This is enforceable, not aspirational: `tools/check-manual-sync.py`
+lists the public classes and fails if any lacks a `\label{cls:...}` in
+the manual sources. Wire it into CI alongside the Doxygen check.
+
+---
+
 ## 4. Architecture
 
 Layered, dependencies point inward only:
@@ -444,6 +478,8 @@ Before a slice is considered complete:
 - [ ] Every file has the Apache-2.0 header block (§3.1).
 - [ ] Every class and method has its documentation block (§3.2).
 - [ ] `doxygen Doxyfile` exits 0 with an empty warnings log (§3.3).
+- [ ] Manual section exists/updated for any added or changed public
+      class; `tools/check-manual-sync.py` passes (§3.4).
 - [ ] Every method <= 80x24, complexity <= 7.
 - [ ] No primitive obsession in public interfaces.
 - [ ] Fallible paths return typed results; no silent failure.
@@ -459,6 +495,7 @@ Before a slice is considered complete:
 
 - Ship a file without the Apache-2.0 licence header.
 - Ship a class or method without its documentation block.
+- Add or change a public class without updating its manual section.
 - Invent register addresses, opcodes, bit fields, or boot sequences.
 - Put business logic in a driver or in an ISR.
 - Return a bare error code or swallow a failure.
