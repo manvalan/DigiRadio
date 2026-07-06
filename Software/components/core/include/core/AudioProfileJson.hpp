@@ -15,6 +15,8 @@
 #include "core/AudioProfile.hpp"
 #include "core/ParseError.hpp"
 
+#include "core/EnhanceLevel.hpp"
+
 #include <expected>
 #include <string>
 #include <string_view>
@@ -73,5 +75,19 @@ namespace core {
  * @date     2026-07-06
  */
 [[nodiscard]] std::string serializeAudioErrorJson(std::string_view reason);
+
+/**
+ * @brief    parseEnhanceLevelJson — parse POST body \texttt{\{"level":0..100\}}.
+ *
+ * @dname    parseEnhanceLevelJson
+ * @param    json  Untrusted request body.
+ * @return   EnhanceLevel on success, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+[[nodiscard]] std::expected<EnhanceLevel, ParseError> parseEnhanceLevelJson(
+    std::string_view json);
 
 } // namespace core

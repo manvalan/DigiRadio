@@ -207,6 +207,10 @@
       <input id="si4684-db" type="range" min="-60" max="12" step="0.5" value="0">
       <label for="esp32-db">ESP32 path (dB)</label>
       <input id="esp32-db" type="range" min="-60" max="12" step="0.5" value="0">
+      <label for="stereo-level">Stereo depth (0–100)</label>
+      <input id="stereo-level" type="range" min="0" max="100" step="1" value="0">
+      <label for="bass-level">Bass enhance (0–100)</label>
+      <input id="bass-level" type="range" min="0" max="100" step="1" value="0">
       <div class="row">
         <button type="button" id="save-audio">Save profile</button>
         <button type="button" class="secondary" id="reset-audio">Reset flat</button>
@@ -426,6 +430,10 @@
           document.getElementById("master-db").value = d.master.left_db;
           document.getElementById("si4684-db").value = d.mixer.si4684_left_db;
           document.getElementById("esp32-db").value = d.mixer.esp32_left_db;
+          if (d.enhancements) {
+            document.getElementById("stereo-level").value = d.enhancements.stereo_level;
+            document.getElementById("bass-level").value = d.enhancements.bass_level;
+          }
           showMsg(msg, "", true);
         })
         .catch(function () { showMsg(msg, "Audio profile load failed.", false); });
@@ -446,6 +454,13 @@
       audioProfile.mixer.si4684_right_db = si4684;
       audioProfile.mixer.esp32_left_db = esp32;
       audioProfile.mixer.esp32_right_db = esp32;
+      if (!audioProfile.enhancements) {
+        audioProfile.enhancements = { stereo_level: 0, bass_level: 0 };
+      }
+      audioProfile.enhancements.stereo_level =
+        parseInt(document.getElementById("stereo-level").value, 10);
+      audioProfile.enhancements.bass_level =
+        parseInt(document.getElementById("bass-level").value, 10);
       fetch("/api/audio/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -460,6 +475,35 @@
           }
         })
         .catch(function () { showMsg(msg, "Save request failed.", false); });
+    });
+
+    function postEnhance(url, level, msg) {
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level: level })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.status === "saved") {
+            showMsg(msg, "Enhancement applied.", true);
+          } else {
+            showMsg(msg, "Enhance failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Enhance request failed.", false); });
+    }
+
+    document.getElementById("stereo-level").addEventListener("change", function () {
+      var msg = document.getElementById("audio-msg");
+      var level = parseInt(document.getElementById("stereo-level").value, 10);
+      postEnhance("/api/audio/stereo-enhance", level, msg);
+    });
+
+    document.getElementById("bass-level").addEventListener("change", function () {
+      var msg = document.getElementById("audio-msg");
+      var level = parseInt(document.getElementById("bass-level").value, 10);
+      postEnhance("/api/audio/bass-enhance", level, msg);
     });
 
     document.getElementById("reset-audio").addEventListener("click", function () {

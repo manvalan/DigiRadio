@@ -13,6 +13,7 @@
 
 #include "core/AudioProfile.hpp"
 #include "core/AudioProfileJson.hpp"
+#include "core/EnhanceLevel.hpp"
 #include "core/EqBandIndex.hpp"
 #include "core/FrequencyHz.hpp"
 #include "core/GainDb.hpp"
@@ -50,6 +51,22 @@ namespace {
     if (b.gain.value() != 3.0F || b.center.value() != 500U
         || b.q != 2.0F) {
         std::cerr << "round-trip mismatch\n";
+        return EXIT_FAILURE;
+    }
+
+    if (parsed->enhancements.stereo.value() != 0U
+        || parsed->enhancements.bass.value() != 0U) {
+        std::cerr << "default enhancements mismatch\n";
+        return EXIT_FAILURE;
+    }
+
+    profile.enhancements.stereo = *core::EnhanceLevel::tryFromLevel(40U);
+    profile.enhancements.bass = *core::EnhanceLevel::tryFromLevel(75U);
+    const std::string json2 = core::serializeAudioProfileJson(profile);
+    const auto parsed2 = core::parseAudioProfileJson(json2);
+    if (!parsed2 || parsed2->enhancements.stereo.value() != 40U
+        || parsed2->enhancements.bass.value() != 75U) {
+        std::cerr << "enhancements round-trip mismatch\n";
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

@@ -15,6 +15,19 @@
 
 namespace audio {
 
+namespace {
+
+[[nodiscard]] core::AudioProfile profileForHardware(
+    const core::AudioProfile& profile) noexcept
+{
+    core::AudioProfile hardware = profile;
+    hardware.eq =
+        core::applyEnhancementsToEq(profile.eq, profile.enhancements);
+    return hardware;
+}
+
+} // namespace
+
 AudioService::AudioService(core::IDsp& dsp, core::IAudioProfileStore* store)
     : dsp_(dsp)
     , store_(store)
@@ -30,8 +43,8 @@ std::expected<void, core::DspError> AudioService::loadAndApply()
         }
     }
 
-    if (auto applied = dsp_.applyProfile(profile_); !applied) {
-        return applied;
+    if (auto applied = applyProfileToDsp(profile_); !applied) {
+        return std::unexpected(core::DspError::SafeloadFailed);
     }
     return {};
 }
@@ -49,11 +62,35 @@ std::expected<void, core::StoreError> AudioService::persistProfile() const
     return store_->saveProfile(profile_);
 }
 
+std::expected<void, core::StoreError> AudioService::applyProfileToDsp(
+    const core::AudioProfile& profile)
+{
+    const core::AudioProfile hardware = profileForHardware(profile);
+    if (auto applied = dsp_.applyProfile(hardware); !applied) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    return {};
+}
+
+std::expected<void, core::StoreError> AudioService::applyEffectiveEq(
+    bool persist)
+{
+    const core::EqProfile effective = core::applyEnhancementsToEq(
+        profile_.eq, profile_.enhancements);
+    if (auto applied = dsp_.applyEq(effective); !applied) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    if (persist) {
+        return persistProfile();
+    }
+    return {};
+}
+
 std::expected<void, core::StoreError> AudioService::applyProfile(
     const core::AudioProfile& profile, bool persist)
 {
-    if (auto applied = dsp_.applyProfile(profile); !applied) {
-        return std::unexpected(core::StoreError::IoFailed);
+    if (auto applied = applyProfileToDsp(profile); !applied) {
+        return applied;
     }
     profile_ = profile;
     if (persist) {
@@ -101,18 +138,26 @@ std::expected<void, core::StoreError> AudioService::setEqBand(
     core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center, float q,
     bool persist)
 {
-    if (auto applied = dsp_.setEqBand(band, gain, center, q); !applied) {
-        return std::unexpected(core::StoreError::IoFailed);
-    }
     profile_.eq.setBand(band, core::EqBandSettings{
                                  .gain = gain,
                                  .center = center,
                                  .q = q,
                              });
-    if (persist) {
-        return persistProfile();
-    }
-    return {};
+    return applyEffectiveEq(persist);
+}
+
+std::expected<void, core::StoreError> AudioService::setStereoEnhance(
+    core::EnhanceLevel level, bool persist)
+{
+    profile_.enhancements.stereo = level;
+    return applyEffectiveEq(persist);
+}
+
+std::expected<void, core::StoreError> AudioService::setBassEnhance(
+    core::EnhanceLevel level, bool persist)
+{
+    profile_.enhancements.bass = level;
+    return applyEffectiveEq(persist);
 }
 
 } // namespace audio
