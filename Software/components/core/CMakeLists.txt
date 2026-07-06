@@ -7,6 +7,9 @@ idf_component_register(
         "src/WifiSsid.cpp"
         "src/WifiCredentials.cpp"
         "src/WifiProvisionJson.cpp"
+        "src/EmbeddedBlobReader.cpp"
+        "src/TunerJson.cpp"
+        "src/FrequencyKHz.cpp"
     INCLUDE_DIRS "include"
 )
 
