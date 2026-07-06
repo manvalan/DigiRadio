@@ -64,7 +64,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::ensureBooted() const
     return {};
 }
 
-std::expected<void, Bt1035Error> Bt1035Driver::transmitAndExpectOk(
+std::expected<std::string, Bt1035Error> Bt1035Driver::transmitAndCollect(
     std::string_view commandLine)
 {
     const int written = uart_write_bytes(static_cast<uart_port_t>(uartPort_),
@@ -89,7 +89,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::transmitAndExpectOk(
             const core::Bt1035AtResponseKind kind =
                 core::parseBt1035AtResponse(accumulated);
             if (kind == core::Bt1035AtResponseKind::Ok) {
-                return {};
+                return accumulated;
             }
             if (kind == core::Bt1035AtResponseKind::Error) {
                 return std::unexpected(Bt1035Error::AtError);
@@ -100,6 +100,15 @@ std::expected<void, Bt1035Error> Bt1035Driver::transmitAndExpectOk(
     return std::unexpected(Bt1035Error::AtTimeout);
 }
 
+std::expected<void, Bt1035Error> Bt1035Driver::transmitAndExpectOk(
+    std::string_view commandLine)
+{
+    if (auto collected = transmitAndCollect(commandLine); collected) {
+        return {};
+    }
+    return std::unexpected(collected.error());
+}
+
 std::expected<void, Bt1035Error> Bt1035Driver::sendCommand(
     core::Bt1035AtCommand command)
 {
@@ -107,6 +116,49 @@ std::expected<void, Bt1035Error> Bt1035Driver::sendCommand(
         return ready;
     }
     return transmitAndExpectOk(core::buildBt1035AtLine(command));
+}
+
+std::expected<void, Bt1035Error> Bt1035Driver::enterPairingMode()
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    return sendCommand(core::Bt1035AtCommand::PairDiscoverable);
+}
+
+std::expected<void, Bt1035Error> Bt1035Driver::leavePairingMode()
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    return sendCommand(core::Bt1035AtCommand::PairHidden);
+}
+
+std::expected<core::Bt1035A2dpState, Bt1035Error> Bt1035Driver::queryA2dpState()
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return std::unexpected(ready.error());
+    }
+
+    auto response =
+        transmitAndCollect(core::buildBt1035AtLine(core::Bt1035AtCommand::A2dpStat));
+    if (!response) {
+        return std::unexpected(response.error());
+    }
+
+    auto parsed = core::parseBt1035A2dpStatResponse(*response);
+    if (!parsed) {
+        return std::unexpected(Bt1035Error::UnexpectedResponse);
+    }
+    return *parsed;
+}
+
+std::expected<void, Bt1035Error> Bt1035Driver::disconnectA2dp()
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    return sendCommand(core::Bt1035AtCommand::A2dpDisconnect);
 }
 
 std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()

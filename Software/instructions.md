@@ -47,10 +47,12 @@ Repository: https://github.com/manvalan/DigiRadio
 1. **Walking skeleton** — done (Slice 1).
 2. **Secure store + Wi-Fi provisioning** — done (Slice 2).
 3. **Companion-chip boot** — done (Slice 3): Si4684 DAB + ADAU1701 RAM load.
-4. Station/frequency list model + persistence + UI.
+4. **Station/frequency list model + persistence + UI** — done (fw 0.7.0):
+   `Station`/`StationList`, NVS key `station_list`, `/api/stations/*`, Presets UI.
 5. Si4684 tuning: RSQ, station list, DAB properties.
 6. **ADAU1701 runtime** — done (Slice 5): safeload EQ + input mixer + HTTP.
-7. FSC-BT1035 driver: AT init (incl. `AT+AUXCFG=1`), audio out.
+7. **FSC-BT1035 driver** — init + pairing (AT+PAIR, A2DP stat/disconnect) done;
+   name/plist/reconnect AT still open.
 8. Integration: TunerService + AudioService end to end.
 
 ## Slice 1 — Walking skeleton (complete)

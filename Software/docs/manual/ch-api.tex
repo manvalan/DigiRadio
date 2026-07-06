@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.6.0",
+{"status":"ok","fw":"0.7.0",
  "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}
@@ -252,11 +252,70 @@ Adjusts bass emphasis via a PEQ overlay on bands 1--2 (100\,Hz /
 400\,Hz). Request and response schema match
 \texttt{POST /api/audio/stereo-enhance} (Section~\ref{sec:api-audio-stereo-enhance}).
 
+% ------------------------------------------------------------------
+% Bluetooth (Slice 7)
+% ------------------------------------------------------------------
+
+\subsection{\texttt{GET /api/bluetooth/status}}
+\label{sec:api-bluetooth-status}
+
+Returns BT1035 boot flag, whether discoverable mode was requested, and the
+last read A2DP state. Serialised by
+\texttt{core::serializeBluetoothStatusJson()}.
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"booted":true,"pairing":false,"a2dp":"standby"}
+\end{drcode}
+\end{drnote}
+
+\subsection{\texttt{POST /api/bluetooth/pair}}
+\label{sec:api-bluetooth-pair}
+
+Enters discoverable mode (\texttt{AT+PAIR=1}). Success:
+\texttt{\{"status":"pairing"\}}.
+
+\subsection{\texttt{POST /api/bluetooth/pair/stop}}
+\label{sec:api-bluetooth-pair-stop}
+
+Leaves discoverable mode (\texttt{AT+PAIR=0}). Success:
+\texttt{\{"status":"idle"\}}.
+
+\subsection{\texttt{POST /api/bluetooth/disconnect}}
+\label{sec:api-bluetooth-disconnect}
+
+Releases the current A2DP session (\texttt{AT+A2DPDISC}).
+
+% ------------------------------------------------------------------
+% Station presets (Slice 4)
+% ------------------------------------------------------------------
+
+\subsection{\texttt{GET /api/stations}}
+\label{sec:api-stations-get}
+
+Returns presets serialised by \texttt{core::serializeStationListJson()}.
+
+\subsection{\texttt{POST /api/stations}}
+\label{sec:api-stations-post}
+
+Adds one preset (\texttt{core::parseStationJson()}); persists via
+\texttt{ISecureStore::saveStationListJson()}.
+
+\subsection{\texttt{POST /api/stations/remove}}
+\label{sec:api-stations-remove}
+
+Removes a preset by list index (\texttt{\{"index":0\}}).
+
+\subsection{\texttt{POST /api/stations/tune}}
+\label{sec:api-stations-tune}
+
+Recalls a preset via \texttt{station::StationService::tuneToIndex()}.
+
 \section{Boot and network state machine}
 \label{sec:api-boot-flow}
 
-At boot, \texttt{net::NetBootstrap::start(store, tuner, audio)} consults
-\texttt{ISecureStore::hasWifiCredentials()}:
+At boot, \texttt{net::NetBootstrap::start(store, tuner, audio, bluetooth,
+stations)} consults \texttt{ISecureStore::hasWifiCredentials()}:
 
 \begin{enumerate}
   \item \textbf{Credentials present} --- create STA netif, connect via
@@ -275,7 +334,8 @@ This explicit \texttt{enum class NetState} replaces ad-hoc flags; see
 Wi-Fi credentials are stored in NVS namespace \texttt{digiradio}, keys
 \texttt{wifi\_ssid} and \texttt{wifi\_pwd}. Audio profiles (non-secret) use
 the same namespace, key \texttt{audio\_profile\_json}, via
-\texttt{secure\_store::NvsAudioProfileStore}. Passwords are wrapped in
+\texttt{secure\_store::NvsAudioProfileStore}. Station presets use key
+\texttt{station\_list} (JSON blob). Passwords are wrapped in
 \texttt{core::Secret} in RAM and are never logged or returned by the API.
 
 \begin{drcaution}[Encryption at rest]

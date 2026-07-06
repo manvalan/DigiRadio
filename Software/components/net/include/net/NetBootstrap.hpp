@@ -32,6 +32,14 @@ namespace audio {
 class AudioService;
 } // namespace audio
 
+namespace bluetooth {
+class BluetoothService;
+} // namespace bluetooth
+
+namespace station {
+class StationService;
+} // namespace station
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -66,7 +74,8 @@ public:
      */
     [[nodiscard]] static std::expected<NetBootstrap, NetError>
     start(core::ISecureStore& store, tuner::TunerService& tuner,
-          audio::AudioService& audio,
+          audio::AudioService& audio, bluetooth::BluetoothService& bluetooth,
+          station::StationService& stations,
           core::CompanionChipStatus companionChips);
 
     NetBootstrap(const NetBootstrap&) = delete;
