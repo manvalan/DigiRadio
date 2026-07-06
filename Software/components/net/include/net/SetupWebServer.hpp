@@ -38,6 +38,10 @@ namespace station {
 class StationService;
 } // namespace station
 
+namespace integration {
+class IntegrationService;
+} // namespace integration
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -63,6 +67,7 @@ struct HttpRouteContext {
     audio::AudioService* audio;       ///< Audio service for ADAU1701 REST routes.
     bluetooth::BluetoothService* bluetooth; ///< Bluetooth pairing REST routes.
     station::StationService* stations; ///< Preset list REST routes.
+    integration::IntegrationService* integration; ///< Preset recall orchestration.
     core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
 };
 
@@ -139,6 +144,7 @@ public:
      * @param    audio     Audio service for the audio REST routes.
      * @param    bluetooth       Bluetooth service for pairing REST routes.
      * @param    stations        Station preset service for list REST routes.
+     * @param    integration     Application orchestration for preset recall.
      * @param    companionChips  Boot flags for GET /api/health.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
      * @pubstate writes server_, store_, netState_, and service pointers on success.
@@ -151,6 +157,7 @@ public:
         tuner::TunerService& tuner, audio::AudioService& audio,
         bluetooth::BluetoothService& bluetooth,
         station::StationService& stations,
+        integration::IntegrationService& integration,
         core::CompanionChipStatus companionChips);
 
 private:
@@ -161,6 +168,7 @@ private:
     audio::AudioService* audio_;
     bluetooth::BluetoothService* bluetooth_;
     station::StationService* stations_;
+    integration::IntegrationService* integration_;
     HttpRouteContext routeContext_;
 };
 

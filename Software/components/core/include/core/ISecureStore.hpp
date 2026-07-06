@@ -20,6 +20,7 @@
 #include "core/StoreError.hpp"
 #include "core/WifiCredentials.hpp"
 
+#include <cstdint>
 #include <expected>
 #include <string>
 #include <string_view>
@@ -157,6 +158,58 @@ public:
      */
     [[nodiscard]] virtual std::expected<void, StoreError>
     clearStationList() = 0;
+
+    /**
+     * @brief    hasLastPresetIndex — check whether a last-recalled preset exists.
+     *
+     * @dname    hasLastPresetIndex
+     * @return   true when loadLastPresetIndex would succeed.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual bool hasLastPresetIndex() const = 0;
+
+    /**
+     * @brief    saveLastPresetIndex — persist the last recalled preset index.
+     *
+     * @dname    saveLastPresetIndex
+     * @param    index  Zero-based preset list position (0–19).
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate writes backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual std::expected<void, StoreError>
+    saveLastPresetIndex(std::uint8_t index) = 0;
+
+    /**
+     * @brief    loadLastPresetIndex — read the last recalled preset index.
+     *
+     * @dname    loadLastPresetIndex
+     * @return   Preset index on success, or StoreError.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual std::expected<std::uint8_t, StoreError>
+    loadLastPresetIndex() const = 0;
+
+    /**
+     * @brief    clearLastPresetIndex — erase the last-recalled preset marker.
+     *
+     * @dname    clearLastPresetIndex
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate clears backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual std::expected<void, StoreError>
+    clearLastPresetIndex() = 0;
 };
 
 } // namespace core

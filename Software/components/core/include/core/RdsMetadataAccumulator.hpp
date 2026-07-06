@@ -36,7 +36,6 @@ public:
      * @brief    reset — clear accumulated PS and radiotext.
      *
      * @dname    reset
-     * @return   n/a
      * @pubstate clears internal buffers.
      *
      * @author   Michele Bigi
@@ -52,7 +51,6 @@ public:
      * @param    blockB  RDS block B (group type and address).
      * @param    blockC  RDS block C (text payload).
      * @param    blockD  RDS block D (text payload for RT).
-     * @return   n/a
      * @pubstate updates PS/RT buffers for group types 0A and 2A.
      *
      * @author   Michele Bigi

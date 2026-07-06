@@ -31,6 +31,7 @@ constexpr char kNamespace[] = "digiradio";
 constexpr char kSsidKey[] = "wifi_ssid";
 constexpr char kPasswordKey[] = "wifi_pwd";
 constexpr char kStationListKey[] = "station_list";
+constexpr char kLastPresetKey[] = "last_preset";
 } // namespace
 
 bool NvsSecureStore::hasWifiCredentials() const
@@ -218,6 +219,77 @@ std::expected<void, core::StoreError> NvsSecureStore::clearStationList()
     }
 
     esp_err_t err = nvs_erase_key(handle, kStationListKey);
+    if (err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND) {
+        err = nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    return {};
+}
+
+bool NvsSecureStore::hasLastPresetIndex() const
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) {
+        return false;
+    }
+
+    std::uint8_t value = 0U;
+    const esp_err_t err = nvs_get_u8(handle, kLastPresetKey, &value);
+    nvs_close(handle);
+
+    return err == ESP_OK;
+}
+
+std::expected<void, core::StoreError>
+NvsSecureStore::saveLastPresetIndex(std::uint8_t index)
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+
+    esp_err_t err = nvs_set_u8(handle, kLastPresetKey, index);
+    if (err == ESP_OK) {
+        err = nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    if (err != ESP_OK) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    return {};
+}
+
+std::expected<std::uint8_t, core::StoreError>
+NvsSecureStore::loadLastPresetIndex() const
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) {
+        return std::unexpected(core::StoreError::NotFound);
+    }
+
+    std::uint8_t value = 0U;
+    const esp_err_t err = nvs_get_u8(handle, kLastPresetKey, &value);
+    nvs_close(handle);
+
+    if (err != ESP_OK) {
+        return std::unexpected(core::StoreError::NotFound);
+    }
+    return value;
+}
+
+std::expected<void, core::StoreError> NvsSecureStore::clearLastPresetIndex()
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+
+    esp_err_t err = nvs_erase_key(handle, kLastPresetKey);
     if (err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND) {
         err = nvs_commit(handle);
     }

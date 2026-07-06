@@ -104,3 +104,19 @@ add_test(NAME bt1035_at_test COMMAND bt1035_at_test)
 add_executable(broadcast_metadata_test broadcast_metadata_test.cpp)
 target_link_libraries(broadcast_metadata_test PRIVATE digiradio_core)
 add_test(NAME broadcast_metadata_test COMMAND broadcast_metadata_test)
+
+add_executable(integration_service_test integration_service_test.cpp)
+target_include_directories(integration_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/integration/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/station/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/tuner/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/include"
+)
+target_sources(integration_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/integration/src/IntegrationService.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/station/src/StationService.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/tuner/src/TunerService.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/src/AudioService.cpp"
+)
+target_link_libraries(integration_service_test PRIVATE digiradio_core)
+add_test(NAME integration_service_test COMMAND integration_service_test)

@@ -40,6 +40,10 @@ namespace station {
 class StationService;
 } // namespace station
 
+namespace integration {
+class IntegrationService;
+} // namespace integration
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -68,6 +72,7 @@ public:
      * @param    audio           Audio service exposed by the HTTP API.
      * @param    bluetooth       Bluetooth pairing service for REST routes.
      * @param    stations        Station preset service for REST routes.
+     * @param    integration     Application orchestration for preset recall.
      * @param    companionChips  Boot flags exposed on GET /api/health.
      * @return   NetBootstrap on success, or a NetError.
      * @pubstate none
@@ -79,6 +84,7 @@ public:
     start(core::ISecureStore& store, tuner::TunerService& tuner,
           audio::AudioService& audio, bluetooth::BluetoothService& bluetooth,
           station::StationService& stations,
+          integration::IntegrationService& integration,
           core::CompanionChipStatus companionChips);
 
     NetBootstrap(const NetBootstrap&) = delete;

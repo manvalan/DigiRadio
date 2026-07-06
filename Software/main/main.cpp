@@ -13,6 +13,7 @@
 
 #include "hardware_bootstrap.hpp"
 #include "bluetooth/BluetoothService.hpp"
+#include "integration/IntegrationService.hpp"
 #include "net/NetBootstrap.hpp"
 #include "secure_store/NvsSecureStore.hpp"
 #include "station/StationService.hpp"
@@ -42,14 +43,14 @@ void heartbeatTask(void* arg)
  * @brief    app_main — ESP-IDF entry point for DigiRadio firmware.
  *
  * @dname    app_main
- * @pubstate boots companion chips, network stack, and heartbeat task.
+ * @pubstate boots companion chips, integration layer, network, and heartbeat.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
  */
 extern "C" void app_main()
 {
-    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 7");
+    ESP_LOGI(kTag, "DigiRadio firmware boot");
 
     auto hwResult = hardware::HardwareBootstrap::boot();
     if (!hwResult) {
@@ -57,22 +58,33 @@ extern "C" void app_main()
         return;
     }
 
+    static secure_store::NvsSecureStore store;
+
     static tuner::TunerService tunerService(
         hardware::HardwareBootstrap::si4684Tuner());
 
-    static secure_store::NvsSecureStore store;
-
     static station::StationService stationService(store, tunerService);
-    if (auto loaded = stationService.loadFromStore(); !loaded) {
-        ESP_LOGW(kTag, "station list load failed");
+
+    static integration::IntegrationService integration(
+        store,
+        tunerService,
+        hardware::HardwareBootstrap::audioService(),
+        stationService);
+
+    if (auto started = integration.startup(); !started) {
+        ESP_LOGW(kTag, "integration startup failed — continuing without recall");
     }
 
     static bluetooth::BluetoothService bluetoothService(
         hardware::HardwareBootstrap::bt1035Driver());
 
     auto netResult = net::NetBootstrap::start(
-        store, tunerService, hardware::HardwareBootstrap::audioService(),
-        bluetoothService, stationService,
+        store,
+        tunerService,
+        hardware::HardwareBootstrap::audioService(),
+        bluetoothService,
+        stationService,
+        integration,
         hardware::HardwareBootstrap::companionChipStatus());
     if (!netResult) {
         ESP_LOGE(kTag, "network bootstrap failed");

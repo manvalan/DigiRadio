@@ -25,6 +25,7 @@
 #include "core/FirmwareVersion.hpp"
 #include "core/HealthStatus.hpp"
 #include "core/HealthStatusJson.hpp"
+#include "core/IntegrationError.hpp"
 #include "core/ParseError.hpp"
 #include "core/SeekDirection.hpp"
 #include "core/StationListJson.hpp"
@@ -35,6 +36,7 @@
 #include "audio/AudioService.hpp"
 #include "bluetooth/BluetoothService.hpp"
 #include "station/StationService.hpp"
+#include "integration/IntegrationService.hpp"
 #include "bt1035/Bt1035Error.hpp"
 
 #include "esp_http_server.h"
@@ -50,7 +52,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.8.0";
+constexpr char kFirmwareVersion[] = "0.8.1";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t www_index_html_gz_start[] asm(
@@ -134,6 +136,22 @@ void rebootTask(void* arg)
         return "hardware_failed";
     }
     return "tuner_error";
+}
+
+[[nodiscard]] const char* integrationErrorToken(
+    core::IntegrationError error) noexcept
+{
+    switch (error) {
+    case core::IntegrationError::StoreFailed:
+        return "store_failed";
+    case core::IntegrationError::PresetNotFound:
+        return "not_found";
+    case core::IntegrationError::TuneFailed:
+        return "tune_failed";
+    case core::IntegrationError::AudioFailed:
+        return "audio_failed";
+    }
+    return "integration_error";
 }
 
 [[nodiscard]] const char* bt1035ErrorToken(bt1035::Bt1035Error error) noexcept
@@ -831,7 +849,7 @@ esp_err_t stationsReorderPostHandler(httpd_req_t* req)
 esp_err_t stationsTunePostHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
-    if (ctx == nullptr || ctx->stations == nullptr || ctx->tuner == nullptr) {
+    if (ctx == nullptr || ctx->integration == nullptr) {
         httpd_resp_set_status(req, "503 Service Unavailable");
         return httpd_resp_send(req, nullptr, 0);
     }
@@ -848,17 +866,14 @@ esp_err_t stationsTunePostHandler(httpd_req_t* req)
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
     }
-    if (parsed->index >= ctx->stations->list().stations().size()) {
-        const std::string json =
-            core::serializeStationListErrorJson("not_found");
-        httpd_resp_set_status(req, "404 Not Found");
-        httpd_resp_set_type(req, "application/json");
-        return httpd_resp_send(req, json.c_str(), json.size());
-    }
-    if (auto tuned = ctx->stations->tuneToIndex(parsed->index); !tuned) {
-        const std::string json =
-            core::serializeTunerErrorJson(tunerErrorToken(tuned.error()));
-        httpd_resp_set_status(req, "500 Internal Server Error");
+    if (auto tuned = ctx->integration->recallPreset(parsed->index); !tuned) {
+        const std::string json = core::serializeTunerErrorJson(
+            integrationErrorToken(tuned.error()));
+        if (tuned.error() == core::IntegrationError::PresetNotFound) {
+            httpd_resp_set_status(req, "404 Not Found");
+        } else {
+            httpd_resp_set_status(req, "500 Internal Server Error");
+        }
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
     }
@@ -876,7 +891,8 @@ SetupWebServer::SetupWebServer()
     , audio_(nullptr)
     , bluetooth_(nullptr)
     , stations_(nullptr)
-    , routeContext_{nullptr, nullptr, nullptr, nullptr, nullptr, {}}
+    , integration_(nullptr)
+    , routeContext_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, {}}
 {
 }
 
@@ -888,6 +904,7 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     , audio_(other.audio_)
     , bluetooth_(other.bluetooth_)
     , stations_(other.stations_)
+    , integration_(other.integration_)
     , routeContext_(other.routeContext_)
 {
     other.server_ = nullptr;
@@ -897,7 +914,9 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     other.audio_ = nullptr;
     other.bluetooth_ = nullptr;
     other.stations_ = nullptr;
-    other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, {}};
+    other.integration_ = nullptr;
+    other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
+                           nullptr, {}};
 }
 
 SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
@@ -913,6 +932,7 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         audio_ = other.audio_;
         bluetooth_ = other.bluetooth_;
         stations_ = other.stations_;
+        integration_ = other.integration_;
         routeContext_ = other.routeContext_;
         other.server_ = nullptr;
         other.store_ = nullptr;
@@ -921,7 +941,9 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         other.audio_ = nullptr;
         other.bluetooth_ = nullptr;
         other.stations_ = nullptr;
-        other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, {}};
+        other.integration_ = nullptr;
+        other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
+                               nullptr, {}};
     }
     return *this;
 }
@@ -932,7 +954,7 @@ SetupWebServer::~SetupWebServer()
         httpd_stop(server_);
         server_ = nullptr;
     }
-    routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, {}};
+    routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, {}};
 }
 
 std::expected<void, NetError> SetupWebServer::start(
@@ -942,6 +964,7 @@ std::expected<void, NetError> SetupWebServer::start(
     audio::AudioService& audio,
     bluetooth::BluetoothService& bluetooth,
     station::StationService& stations,
+    integration::IntegrationService& integration,
     core::CompanionChipStatus companionChips)
 {
     if (server_ != nullptr) {
@@ -954,11 +977,13 @@ std::expected<void, NetError> SetupWebServer::start(
     audio_ = &audio;
     bluetooth_ = &bluetooth;
     stations_ = &stations;
+    integration_ = &integration;
     routeContext_.store = &store;
     routeContext_.tuner = &tuner;
     routeContext_.audio = &audio;
     routeContext_.bluetooth = &bluetooth;
     routeContext_.stations = &stations;
+    routeContext_.integration = &integration;
     routeContext_.companionChips = companionChips;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -967,7 +992,8 @@ std::expected<void, NetError> SetupWebServer::start(
 
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
-        routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, {}};
+        routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                         {}};
         return std::unexpected(NetError::HttpServerStartFailed);
     }
 

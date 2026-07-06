@@ -143,8 +143,37 @@ public:
         return {};
     }
 
+    [[nodiscard]] bool hasLastPresetIndex() const override
+    {
+        return lastPresetIndex_.has_value();
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError> saveLastPresetIndex(
+        std::uint8_t index) override
+    {
+        lastPresetIndex_ = index;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<std::uint8_t, core::StoreError>
+    loadLastPresetIndex() const override
+    {
+        if (!lastPresetIndex_) {
+            return std::unexpected(core::StoreError::NotFound);
+        }
+        return *lastPresetIndex_;
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError> clearLastPresetIndex()
+        override
+    {
+        lastPresetIndex_.reset();
+        return {};
+    }
+
 private:
     std::optional<std::string> stationJson_;
+    std::optional<std::uint8_t> lastPresetIndex_;
 };
 
 [[nodiscard]] core::Station makeFmStation(const char* name, std::uint32_t khz)
