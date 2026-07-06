@@ -47,9 +47,10 @@ doxygen Doxyfile
 python3 tools/check-manual-sync.py
 ```
 
-The LaTeX manual (`docs/manual/`) documents design and the HTTP JSON API
-(`ch-api.tex`); Doxygen documents C++ signatures. Rebuild the PDF with
-`latexmk -lualatex manual.tex` inside `docs/manual/`.
+The LaTeX manual lives in `Software/docs/manual/` (canonical). The repository
+root `docs/` is a symbolic link to that folder for convenience and Overleaf
+/GitHub browsing. Design and HTTP JSON API: `ch-api.tex`; rebuild the PDF with
+`latexmk -lualatex manual.tex` inside `docs/` or `Software/docs/manual/`.
 
 ## Coding conventions
 
