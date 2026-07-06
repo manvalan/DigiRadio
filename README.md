@@ -57,8 +57,9 @@ no analogue conversions are introduced between the tuner and the wireless link.
 
 ```
 DigiRadio/
-├── docs/                     Technical Reference Manual (LaTeX source + PDF)
-│   └── DigiRadio_Manual.pdf
+├── docs/                     → symlink to Software/docs/manual (canonical LaTeX manual)
+│   ├── manual.tex            build with: cd docs && latexmk -lualatex manual.tex
+│   └── manual.pdf
 ├── Hardware/
 │   ├── schematics/           Schematic (PDF)
 │   ├── gerber/               Gerber + drill files (fabrication)
@@ -73,10 +74,11 @@ DigiRadio/
 
 ## Documentation
 
-The full design is described in the **[Technical Reference Manual](docs/DigiRadio_Manual.pdf)**,
-covering the system architecture, signal chain, clock and power design, the 6-layer
-stack-up and controlled-impedance strategy, the functional blocks, and the design
-decisions behind the key choices.
+The full design is described in the **[Technical Manual](docs/manual.pdf)**,
+covering hardware, firmware architecture, companion-chip drivers (Si4684,
+ADAU1701, FSC-BT1035), the HTTP JSON API, and build instructions. LaTeX
+sources live in `Software/docs/manual/`; the repository root `docs/` entry
+is a symbolic link to that folder (single source of truth).
 
 ---
 
@@ -107,9 +109,9 @@ decisions behind the key choices.
 
 The board is manufactured with **PCBWay** as a 6-layer, impedance-controlled PCB
 with turnkey assembly. The FSC-BT1035 Bluetooth module is sourced from Feasycom
-(the footprint uses a BT806-compatible, pin-identical land pattern). See the
-[Manufacturing chapter](docs/DigiRadio_Manual.pdf) of the manual for fabrication
-notes, impedance-control settings and MSL-3 handling of the BT module.
+(the footprint uses a BT806-compatible, pin-identical land pattern). See
+[Chapter Hardware](docs/manual.pdf) and manufacturing notes in the manual for
+fabrication settings and MSL-3 handling of the BT module.
 
 ---
 

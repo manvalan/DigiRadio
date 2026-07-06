@@ -17,17 +17,20 @@ DigiRadio/                          <- repo root
     ├── tools/
     │   └── check-manual-sync.py    enforces "a section per public class"
     └── docs/
-        └── manual/                 the technical manual (LaTeX)
+        └── manual/                 the technical manual (LaTeX) — canonical
             ├── manual.tex          main file
             ├── digiradio-manual.sty style (Optima-like, boxes, listings)
             ├── ch-*.tex            chapters
             └── manual.pdf          compiled preview
+
+At the **repository root**, `docs/` is a **symbolic link** to
+`Software/docs/manual/` (one source of truth; do not duplicate .tex here).
 ```
 
 ## Build the manual
-    cd Software/docs/manual
-    latexmk -lualatex manual.tex      # real Optima on macOS
-    # or: pdflatex manual.tex x3      # Biolinum fallback
+    cd docs                              # symlink → Software/docs/manual
+    latexmk -lualatex manual.tex         # real Optima on macOS
+    # or: cd Software/docs/manual && latexmk -lualatex manual.tex
 
 ## Enforcement in CI (run from Software/)
     doxygen Doxyfile                              # API docs must pass

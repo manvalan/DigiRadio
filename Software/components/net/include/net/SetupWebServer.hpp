@@ -17,6 +17,7 @@
  */
 #pragma once
 
+#include "core/CompanionChipStatus.hpp"
 #include "core/ISecureStore.hpp"
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
@@ -52,6 +53,7 @@ struct HttpRouteContext {
     core::ISecureStore* store;        ///< Secure store for Wi-Fi provisioning.
     tuner::TunerService* tuner;       ///< Tuner service for tuner REST routes.
     audio::AudioService* audio;       ///< Audio service for ADAU1701 REST routes.
+    core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
 };
 
 /**
@@ -131,10 +133,10 @@ public:
      * @author   Michele Bigi
      * @date     2026-07-06
      */
-    [[nodiscard]] std::expected<void, NetError> start(core::ISecureStore& store,
-                                                      NetState netState,
-                                                      tuner::TunerService& tuner,
-                                                      audio::AudioService& audio);
+    [[nodiscard]] std::expected<void, NetError> start(
+        core::ISecureStore& store, NetState netState,
+        tuner::TunerService& tuner, audio::AudioService& audio,
+        core::CompanionChipStatus companionChips);
 
 private:
     httpd_handle* server_;
