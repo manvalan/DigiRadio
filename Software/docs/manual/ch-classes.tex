@@ -30,6 +30,11 @@ Used by \texttt{HealthStatus} and the \texttt{/api/health} endpoint so
 version strings are never passed as bare \texttt{char*} across module
 boundaries. Invariant: non-empty at construction.
 
+\section{FrequencyKHz}\label{cls:FrequencyKHz}
+Validated FM centre frequency in kilohertz (64\,000–108\,000). Parsed once
+from JSON at the HTTP boundary via \texttt{FrequencyKHz::tryFromKhz()};
+trusted downstream by \texttt{ITuner}, \texttt{Si4684Driver}, and status DTOs.
+
 \section{HealthStatus}\label{cls:HealthStatus}
 Immutable health-check DTO returned by \texttt{GET /api/health}. Built via
 \texttt{HealthStatus::ok(FirmwareVersion)} in the pure core; JSON
