@@ -6,7 +6,7 @@ implemented in \texttt{SetupWebServer}. Request bodies are parsed into
 domain types in the pure core (\texttt{components/core}) before any
 persistence or driver call. Exact C++ signatures live in the generated
 Doxygen output under \texttt{docs/api/}; this chapter documents the
-wire protocol and behaviour as shipped in firmware~0.2.0 (Slices~1--2).
+wire protocol and behaviour as shipped in firmware~0.4.0 (Slices~1--4).
 
 \section{Transport and reachability}
 
@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.2.0"}
+{"status":"ok","fw":"0.4.0"}
 \end{drcode}
 \begin{itemize}
   \item \texttt{status} --- coarse indicator; \texttt{ok} when the
@@ -93,10 +93,89 @@ HTTP status: \textbf{200 OK} on save success; \textbf{400 Bad Request} for
 parse/validation failures; \textbf{500 Internal Server Error} when NVS
 persistence fails.
 
+\subsection{\texttt{GET /api/tuner/status}}
+\label{sec:api-tuner-status}
+
+Returns a tuner snapshot serialised by
+\texttt{core::serializeTunerStatusJson()} from \texttt{core::TunerStatus}.
+The handler calls \texttt{tuner::TunerService::refreshStatus()}.
+
+\begin{drnote}[Response schema (DAB example)]
+\begin{drcode}[JSON]
+{"booted":true,"band":"dab","locked":true,"volume":63,
+ "dab":{"freq_index":12,"fic_quality":80,"cnr_db":25},"fm":null}
+\end{drcode}
+For FM, \texttt{fm} carries \texttt{frequency\_khz}, \texttt{rssi\_dbuv},
+\texttt{snr\_db}, and \texttt{stereo}; \texttt{dab} is \texttt{null}.
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{500} with
+\texttt{\{"status":"error","reason":...\}} on driver failure;
+\textbf{503} when the tuner service is unavailable.
+
+\subsection{\texttt{GET /api/tuner/services}}
+\label{sec:api-tuner-services}
+
+Lists DAB programmes for the current ensemble via
+\texttt{TunerService::listDabServices()}.
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"services":[{"service_id":12345,"component_id":1,"label":"BBC R1"}]}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{409 Conflict} when the list cannot be
+fetched (wrong band, empty ensemble, hardware error).
+
+\subsection{\texttt{POST /api/tuner/tune}}
+\label{sec:api-tuner-tune}
+
+Tunes to a DAB ensemble or FM frequency. Body parsed by
+\texttt{core::parseTunerTuneJson()}.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"band":"dab","freq_index":12}
+\end{drcode}
+or
+\begin{drcode}[JSON]
+{"band":"fm","frequency_khz":101500}
+\end{drcode}
+DAB \texttt{freq\_index} is 0--37; FM \texttt{frequency\_khz} is
+64\,000--108\,000.
+\end{drnote}
+
+On success returns the updated status JSON (same shape as
+\texttt{GET /api/tuner/status}). HTTP status: \textbf{200 OK};
+\textbf{400} for invalid JSON; \textbf{409} for tune failures.
+
+\subsection{\texttt{POST /api/tuner/play}}
+\label{sec:api-tuner-play}
+
+Starts a DAB audio service. Body parsed by
+\texttt{core::parseTunerPlayJson()}.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"service_id":12345,"component_id":1}
+\end{drcode}
+\end{drnote}
+
+Success response: \texttt{\{"status":"playing"\}}. HTTP status:
+\textbf{200 OK}; \textbf{409} when playback cannot start.
+
+\subsection{\texttt{POST /api/tuner/seek}}
+\label{sec:api-tuner-seek}
+
+Seeks FM upward (no request body). Returns
+\texttt{\{"frequency\_khz":...\}} on success. HTTP status: \textbf{200 OK};
+\textbf{409} on seek failure.
+
 \section{Boot and network state machine}
 \label{sec:api-boot-flow}
 
-At boot, \texttt{net::NetBootstrap::start()} consults
+At boot, \texttt{net::NetBootstrap::start(store, tuner)} consults
 \texttt{ISecureStore::hasWifiCredentials()}:
 
 \begin{enumerate}

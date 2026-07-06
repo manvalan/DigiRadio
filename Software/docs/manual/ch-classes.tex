@@ -50,15 +50,17 @@ RAII wrapper around the ESP-IDF Wi-Fi stack that starts and stops the
 configured SoftAP. Imperative shell; no business logic.
 
 \section{SetupWebServer}\label{cls:SetupWebServer}
-Minimal HTTP server: gzipped setup UI, \texttt{GET /api/health}, and
-\texttt{POST /api/wifi} for provisioning. JSON parsing and serialisation
-delegate to the pure core; credentials persist via \texttt{ISecureStore}.
+Minimal HTTP server: gzipped setup UI, \texttt{GET /api/health},
+\texttt{POST /api/wifi}, and tuner routes (\texttt{/api/tuner/*}).
+JSON parsing and serialisation delegate to the pure core; credentials
+persist via \texttt{ISecureStore}; tuner operations via
+\texttt{tuner::TunerService}.
 
 \section{NetBootstrap}\label{cls:NetBootstrap}
-Owns network resources for setup or STA mode. \texttt{start(store)}
-initialises the platform, joins stored Wi-Fi when credentials exist, or
-falls back to the \texttt{DigiRadio-setup} SoftAP. Must outlive
-\texttt{app\_main} for the process lifetime.
+Owns network resources for setup or STA mode.
+\texttt{start(store, tuner)} initialises the platform, joins stored Wi-Fi
+when credentials exist, or falls back to the \texttt{DigiRadio-setup}
+SoftAP. Must outlive \texttt{app\_main} for the process lifetime.
 
 % ------------------------------------------------------------------
 % Domain core + secure store (Slice 2)
@@ -92,8 +94,60 @@ are stored as NVS strings and never logged. Production should enable NVS
 encryption using the reserved \texttt{nvs\_keys} partition.
 
 % ------------------------------------------------------------------
-% Future slices (drivers, services)
+% Hardware drivers (Slice 3)
 % ------------------------------------------------------------------
-% \section{Si4684Driver}\label{cls:Si4684Driver}
-% \section{TunerService}\label{cls:TunerService}
-% ...
+
+\section{IFirmwareBlobReader}\label{cls:IFirmwareBlobReader}
+Abstract streaming reader for firmware blobs embedded in flash. The Si4684
+driver uses it to HOST\_LOAD patch and application images in bounded SPI
+chunks without allocating the full image on the heap. Host tests use the
+same interface over in-memory buffers.
+
+\section{EmbeddedBlobReader}\label{cls:EmbeddedBlobReader}
+Non-owning \texttt{IFirmwareBlobReader} over a contiguous byte range (linker
+symbols from \texttt{EMBED\_FILES} or test data). Implements offset-based
+\texttt{read()} with truncation at end-of-blob.
+
+\section{Si4684EmbeddedImages}\label{cls:Si4684EmbeddedImages}
+Owns \texttt{EmbeddedBlobReader} views over \texttt{rom\_patch\_016.bin},
+\texttt{dab\_firmware.bin}, and \texttt{fm\_firmware.bin}. Constructed once;
+passed to \texttt{Si4684Driver}. \texttt{applicationImage(Si4684Band)} selects
+DAB or FM.
+
+\section{Si4684Driver}\label{cls:Si4684Driver}
+Full SPI driver for the Si4684 DAB+/FM tuner (Chapter~\ref{ch:si4684}).
+
+\texttt{boot(Si4684Band)} runs AN649 HOST\_LOAD, configures I\textsuperscript{2}S
+and band-specific properties, and records \texttt{loadedBand()}. After boot the
+driver exposes FM tuning/seek/RSQ/RDS, DAB ensemble tuning, digital service list
+fetch, and \texttt{startDabService}. Property access (\texttt{setProperty},
+\texttt{setVolume}) and diagnostics (\texttt{getPartInfo}, \texttt{getSysState})
+are included. Wrong-band calls return \texttt{Si4684Error::WrongBand}.
+Register-level opcodes remain private; see \texttt{Si4684Types.hpp} for status
+DTOs.
+
+\section{Adau1701Driver}\label{cls:Adau1701Driver}
+RAII I2C driver for the ADAU1701 SigmaDSP. \texttt{boot()} asserts RESET\#,
+initialises the shared I2C bus, and replays the SigmaStudio export from
+\texttt{Firmware/ADAU1701-Firmware/} on every power-up (no EEPROM self-boot
+on DigiRadio).
+
+% ------------------------------------------------------------------
+% Application services (Slice 4)
+% ------------------------------------------------------------------
+
+\section{ITuner}\label{cls:ITuner}
+Abstract tuner boundary in the pure core. Defines boot, band selection,
+status readout, FM/DAB tuning, service list, playback, and volume without
+ESP-IDF types. \texttt{si4684::Si4684Tuner} implements it on device; host
+tests can use fakes.
+
+\section{TunerService}\label{cls:TunerService}
+Application service exposing intent-level tuner operations to HTTP and
+future UI. Holds a reference to \texttt{core::ITuner}, tracks last tune
+target and volume, and maps driver failures to \texttt{core::TunerError}.
+
+\section{Si4684Tuner}\label{cls:Si4684Tuner}
+\texttt{ITuner} adapter over \texttt{Si4684Driver}. Translates domain calls
+into SPI commands and maps \texttt{Si4684Error} to \texttt{TunerError}.
+Constructed once in \texttt{HardwareBootstrap} alongside the driver.
