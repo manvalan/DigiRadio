@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DigiRadio Setup</title>
+  <title>DigiRadio</title>
   <style>
     :root {
       --space-1: 0.5rem;
@@ -30,7 +30,7 @@
       color: var(--text);
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       padding: var(--space-3);
     }
@@ -38,19 +38,20 @@
       background: var(--surface);
       border-radius: var(--radius);
       padding: var(--space-4);
-      max-width: 28rem;
+      max-width: 36rem;
       width: 100%;
       border-top: 3px solid var(--accent);
     }
     h1 { font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--space-2); }
-    p { color: var(--muted); margin-bottom: var(--space-3); }
+    h2 { font-size: var(--text-lg); font-weight: 600; margin-bottom: var(--space-2); }
+    p { color: var(--muted); margin-bottom: var(--space-2); }
     label {
       display: block;
       font-size: 0.875rem;
       color: var(--muted);
       margin-bottom: var(--space-1);
     }
-    input {
+    input, select {
       width: 100%;
       padding: var(--space-1) var(--space-2);
       margin-bottom: var(--space-2);
@@ -70,6 +71,11 @@
       font: inherit;
       font-weight: 600;
       cursor: pointer;
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
     }
     button:disabled { opacity: 0.6; cursor: wait; }
     .status {
@@ -94,26 +100,128 @@
       padding: 0.1em 0.35em;
       border-radius: 0.25rem;
     }
+    section + section {
+      margin-top: var(--space-4);
+      padding-top: var(--space-3);
+      border-top: 1px solid #333;
+    }
+    .row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+    .row button { flex: 1; }
+    .tuner-status {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: var(--space-2);
+      font-size: 0.875rem;
+      margin-bottom: var(--space-2);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    ul.services {
+      list-style: none;
+      margin-bottom: var(--space-2);
+      max-height: 12rem;
+      overflow-y: auto;
+    }
+    ul.services li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-1) 0;
+      border-bottom: 1px solid #2a2d33;
+      font-size: 0.875rem;
+    }
+    ul.services button {
+      width: auto;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+    }
   </style>
 </head>
 <body>
   <main>
     <h1>DigiRadio</h1>
-    <p>Connect this radio to your Wi‑Fi network.</p>
     <div class="status" id="health">
       <span class="dot" aria-hidden="true"></span>
       <span>Checking health…</span>
     </div>
-    <form id="wifi-form">
-      <label for="ssid">Network name (SSID)</label>
-      <input id="ssid" name="ssid" autocomplete="off" required maxlength="32">
-      <label for="password">Password</label>
-      <input id="password" name="password" type="password" autocomplete="off" maxlength="63">
-      <button type="submit" id="save-btn">Save &amp; connect</button>
-    </form>
-    <p class="msg" id="msg" aria-live="polite"></p>
+
+    <section id="wifi-section">
+      <h2>Wi‑Fi</h2>
+      <p>Connect this radio to your network (setup mode).</p>
+      <form id="wifi-form">
+        <label for="ssid">Network name (SSID)</label>
+        <input id="ssid" name="ssid" autocomplete="off" required maxlength="32">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="off" maxlength="63">
+        <button type="submit" id="save-btn">Save &amp; connect</button>
+      </form>
+      <p class="msg" id="wifi-msg" aria-live="polite"></p>
+    </section>
+
+    <section id="tuner-section">
+      <h2>Radio</h2>
+      <p>Control the DAB/FM tuner (available after companion chips boot).</p>
+      <div class="tuner-status" id="tuner-status">No status yet.</div>
+      <div class="row">
+        <button type="button" class="secondary" id="refresh-status">Refresh status</button>
+      </div>
+
+      <label for="band">Band</label>
+      <select id="band">
+        <option value="dab">DAB</option>
+        <option value="fm">FM</option>
+      </select>
+
+      <div id="panel-dab" class="panel active">
+        <label for="dab-index">Ensemble index (0–37)</label>
+        <input id="dab-index" type="number" min="0" max="37" value="12">
+        <button type="button" id="tune-dab">Tune DAB</button>
+        <div class="row" style="margin-top: var(--space-2);">
+          <button type="button" class="secondary" id="load-services">Load services</button>
+        </div>
+        <ul class="services" id="service-list"></ul>
+      </div>
+
+      <div id="panel-fm" class="panel">
+        <label for="fm-khz">Frequency (kHz)</label>
+        <input id="fm-khz" type="number" min="64000" max="108000" step="100" value="101500">
+        <button type="button" id="tune-fm">Tune FM</button>
+        <div class="row" style="margin-top: var(--space-2);">
+          <button type="button" class="secondary" id="seek-fm">Seek up</button>
+        </div>
+      </div>
+
+      <p class="msg" id="tuner-msg" aria-live="polite"></p>
+    </section>
   </main>
   <script>
+    function showMsg(el, text, ok) {
+      el.textContent = text;
+      el.className = "msg " + (ok ? "ok" : "err");
+    }
+
+    function formatTunerStatus(s) {
+      var lines = [
+        "Booted: " + s.booted,
+        "Band: " + s.band,
+        "Locked: " + s.locked,
+        "Volume: " + s.volume
+      ];
+      if (s.dab) {
+        lines.push("DAB index: " + (s.dab.freq_index != null ? s.dab.freq_index : "—"));
+        if (s.dab.fic_quality != null) lines.push("FIC: " + s.dab.fic_quality);
+      }
+      if (s.fm) {
+        if (s.fm.frequency_khz != null) lines.push("FM: " + s.fm.frequency_khz + " kHz");
+        if (s.fm.rssi_dbuv != null) lines.push("RSSI: " + s.fm.rssi_dbuv + " dBµV");
+        if (s.fm.stereo != null) lines.push("Stereo: " + s.fm.stereo);
+      }
+      return lines.join("\n");
+    }
+
     fetch("/api/health")
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -128,10 +236,9 @@
     document.getElementById("wifi-form").addEventListener("submit", function (e) {
       e.preventDefault();
       var btn = document.getElementById("save-btn");
-      var msg = document.getElementById("msg");
+      var msg = document.getElementById("wifi-msg");
       btn.disabled = true;
-      msg.textContent = "Saving…";
-      msg.className = "msg";
+      showMsg(msg, "Saving…", true);
       fetch("/api/wifi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,20 +250,153 @@
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           if (res.ok && res.d.status === "saved") {
-            msg.textContent = "Saved. Rebooting in " + res.d.reboot_in_sec + "s…";
-            msg.className = "msg ok";
+            showMsg(msg, "Saved. Rebooting in " + res.d.reboot_in_sec + "s…", true);
           } else {
-            msg.textContent = "Error: " + (res.d.reason || "unknown");
-            msg.className = "msg err";
+            showMsg(msg, "Error: " + (res.d.reason || "unknown"), false);
             btn.disabled = false;
           }
         })
         .catch(function () {
-          msg.textContent = "Request failed.";
-          msg.className = "msg err";
+          showMsg(msg, "Request failed.", false);
           btn.disabled = false;
         });
     });
+
+    document.getElementById("band").addEventListener("change", function () {
+      var dab = document.getElementById("panel-dab");
+      var fm = document.getElementById("panel-fm");
+      if (this.value === "dab") {
+        dab.classList.add("active");
+        fm.classList.remove("active");
+      } else {
+        fm.classList.add("active");
+        dab.classList.remove("active");
+      }
+    });
+
+    function refreshTunerStatus() {
+      var msg = document.getElementById("tuner-msg");
+      return fetch("/api/tuner/status")
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.booted != null) {
+            document.getElementById("tuner-status").textContent = formatTunerStatus(res.d);
+            if (res.d.band === "fm") {
+              document.getElementById("band").value = "fm";
+              document.getElementById("band").dispatchEvent(new Event("change"));
+            }
+            showMsg(msg, "", true);
+          } else {
+            showMsg(msg, "Status error: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Status request failed.", false); });
+    }
+
+    document.getElementById("refresh-status").addEventListener("click", refreshTunerStatus);
+
+    document.getElementById("tune-dab").addEventListener("click", function () {
+      var msg = document.getElementById("tuner-msg");
+      var idx = parseInt(document.getElementById("dab-index").value, 10);
+      fetch("/api/tuner/tune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ band: "dab", freq_index: idx })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.booted != null) {
+            document.getElementById("tuner-status").textContent = formatTunerStatus(res.d);
+            showMsg(msg, "DAB tuned.", true);
+          } else {
+            showMsg(msg, "Tune failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Tune request failed.", false); });
+    });
+
+    document.getElementById("tune-fm").addEventListener("click", function () {
+      var msg = document.getElementById("tuner-msg");
+      var khz = parseInt(document.getElementById("fm-khz").value, 10);
+      fetch("/api/tuner/tune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ band: "fm", frequency_khz: khz })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.booted != null) {
+            document.getElementById("tuner-status").textContent = formatTunerStatus(res.d);
+            showMsg(msg, "FM tuned.", true);
+          } else {
+            showMsg(msg, "Tune failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Tune request failed.", false); });
+    });
+
+    document.getElementById("seek-fm").addEventListener("click", function () {
+      var msg = document.getElementById("tuner-msg");
+      fetch("/api/tuner/seek", { method: "POST" })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.frequency_khz != null) {
+            document.getElementById("fm-khz").value = res.d.frequency_khz;
+            showMsg(msg, "Seeked to " + res.d.frequency_khz + " kHz.", true);
+            refreshTunerStatus();
+          } else {
+            showMsg(msg, "Seek failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Seek request failed.", false); });
+    });
+
+    document.getElementById("load-services").addEventListener("click", function () {
+      var msg = document.getElementById("tuner-msg");
+      var list = document.getElementById("service-list");
+      list.innerHTML = "";
+      fetch("/api/tuner/services")
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (!res.ok || !res.d.services) {
+            showMsg(msg, "Services error: " + (res.d.reason || "unknown"), false);
+            return;
+          }
+          res.d.services.forEach(function (svc) {
+            var li = document.createElement("li");
+            var label = document.createElement("span");
+            label.textContent = svc.label || ("SID " + svc.service_id);
+            var btn = document.createElement("button");
+            btn.textContent = "Play";
+            btn.addEventListener("click", function () {
+              fetch("/api/tuner/play", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  service_id: svc.service_id,
+                  component_id: svc.component_id
+                })
+              })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                  if (d.status === "playing") {
+                    showMsg(msg, "Playing " + (svc.label || svc.service_id), true);
+                  } else {
+                    showMsg(msg, "Play failed: " + (d.reason || "unknown"), false);
+                  }
+                })
+                .catch(function () { showMsg(msg, "Play request failed.", false); });
+            });
+            li.appendChild(label);
+            li.appendChild(btn);
+            list.appendChild(li);
+          });
+          showMsg(msg, res.d.services.length + " service(s).", true);
+        })
+        .catch(function () { showMsg(msg, "Services request failed.", false); });
+    });
+
+    refreshTunerStatus();
   </script>
 </body>
 </html>
