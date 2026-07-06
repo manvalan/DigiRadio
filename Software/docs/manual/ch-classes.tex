@@ -261,6 +261,12 @@ Application service loading/saving presets from NVS and recalling them via
 \texttt{TunerService}. Exposed on \texttt{/api/stations/*} and the Presets
 web UI section.
 
+\section{IntegrationService}\label{cls:IntegrationService}
+End-to-end orchestration at boot and on preset recall: loads the station
+list, reapplies the saved \texttt{AudioProfile} after tune, and persists
+the last preset index (NVS key \texttt{last\_preset}). Used by
+\texttt{app\_main} and \texttt{POST /api/stations/tune}.
+
 \section{BluetoothService}\label{cls:BluetoothService}
 Application service for BT1035 pairing and A2DP status
 (Chapter~\ref{ch:bt1035}). Delegates to \texttt{Bt1035Driver}; tracks

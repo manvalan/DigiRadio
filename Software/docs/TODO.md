@@ -12,15 +12,15 @@ errors, no plaintext secrets.
 
 Working directory for all commands is `Software/`.
 
-**Current firmware:** `0.8.0` — broadcast metadata (RDS PS/RT, DAB DLS),
-preset reorder, CI gate (Doxygen + host tests + manual sync).
+**Current firmware:** `0.8.1` — integration service (preset recall +
+audio profile), RDS/DLS metadata, CI gate.
 
 ---
 
 ## Completed (fw 0.7.0–0.7.2)
 
-- **Broadcast metadata (T4)** — RDS PS/RT and DAB DLS in
-  `/api/tuner/status`, core parsers, Si4684 driver hook, UI lines.
+- **Integration service (T5)** — preset recall with audio profile re-apply,
+  last-preset NVS, \texttt{app\_main} orchestration.
 - **BT1035 pairing** — `AT+PAIR`, `AT+A2DPSTAT`, `AT+A2DPDISC`,
   `BluetoothService`, REST + UI (not numbered below; landed with Slice 7).
 
@@ -50,16 +50,10 @@ status and preset save, UI Up/Dn, host tests. **Remaining:** device HIL
 `BroadcastLabel`, RDS accumulator, DAB DLS accumulator, driver
 `readDabServiceData`, status JSON fields, UI now-playing lines, host tests.
 
-### T5. Remove the services stub — integration service
-**Why:** `components/services/src/component_stub.cpp` is a Slice-7
-placeholder. Tuner and Audio services exist separately but nothing
-orchestrates them together.
-**What:** implement the integration layer that binds `TunerService`,
-`AudioService`, the station list, and the network layer into the
-application flow (e.g. "select a preset → tune → apply the stored audio
-profile"). Replace the stub file.
-**Done when:** `app_main` drives a real end-to-end flow through this
-service; the stub is gone; a manual section documents the new class.
+### T5. Remove the services stub — integration service — **DONE (fw 0.8.1)**
+`integration::IntegrationService` orchestrates startup, preset recall,
+audio profile re-apply, and last-preset NVS. Stub removed; `app_main` and
+`POST /api/stations/tune` delegate here.
 
 ---
 

@@ -38,7 +38,6 @@ public:
      * @brief    reset — discard accumulated DLS segments.
      *
      * @dname    reset
-     * @return   n/a
      * @pubstate clears buffer and segment flags.
      *
      * @author   Michele Bigi
@@ -53,7 +52,6 @@ public:
      * @param    segmentIndex  Zero-based segment index from the chip.
      * @param    segmentCount  Total segments advertised for this label.
      * @param    payload       Raw UTF-8 bytes for this segment.
-     * @return   n/a
      * @pubstate copies payload into buffer_ at the computed offset.
      *
      * @author   Michele Bigi

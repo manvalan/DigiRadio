@@ -105,6 +105,7 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
                audio::AudioService& audio,
                bluetooth::BluetoothService& bluetooth,
                station::StationService& stations,
+               integration::IntegrationService& integration,
                core::CompanionChipStatus companionChips)
 {
     esp_netif_create_default_wifi_ap();
@@ -117,7 +118,7 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::SoftApSetup, tuner, audio,
-                            bluetooth, stations, companionChips);
+                            bluetooth, stations, integration, companionChips);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -143,6 +144,7 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
              audio::AudioService& audio,
              bluetooth::BluetoothService& bluetooth,
              station::StationService& stations,
+             integration::IntegrationService& integration,
              core::CompanionChipStatus companionChips)
 {
     auto credsResult = store.loadWifiCredentials();
@@ -161,7 +163,7 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::StaConnected, tuner, audio,
-                            bluetooth, stations, companionChips);
+                            bluetooth, stations, integration, companionChips);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -178,6 +180,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
                     audio::AudioService& audio,
                     bluetooth::BluetoothService& bluetooth,
                     station::StationService& stations,
+                    integration::IntegrationService& integration,
                     core::CompanionChipStatus companionChips)
 {
     if (auto platform = initPlatform(); !platform) {
@@ -190,14 +193,14 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
 
     if (store.hasWifiCredentials()) {
         auto staResult = startStaMode(store, tuner, audio, bluetooth, stations,
-                                      companionChips);
+                                      integration, companionChips);
         if (staResult) {
             return staResult;
         }
         ESP_LOGW(kTag, "STA join failed — falling back to setup SoftAP");
     }
 
-    return startSetupMode(store, tuner, audio, bluetooth, stations,
+    return startSetupMode(store, tuner, audio, bluetooth, stations, integration,
                           companionChips);
 }
 

@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.8.0",
+{"status":"ok","fw":"0.8.1",
  "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}
@@ -320,13 +320,16 @@ Reorders presets using \texttt{StationList::move()}. Body:
 \subsection{\texttt{POST /api/stations/tune}}
 \label{sec:api-stations-tune}
 
-Recalls a preset via \texttt{station::StationService::tuneToIndex()}.
+Recalls a preset via \texttt{integration::IntegrationService::recallPreset()}
+(tune, re-apply saved audio profile, persist last index).
 
 \section{Boot and network state machine}
 \label{sec:api-boot-flow}
 
-At boot, \texttt{net::NetBootstrap::start(store, tuner, audio, bluetooth,
-stations)} consults \texttt{ISecureStore::hasWifiCredentials()}:
+At boot, \texttt{integration::IntegrationService::startup()} loads presets
+and best-effort recalls the last station. Then
+\texttt{net::NetBootstrap::start(store, tuner, audio, bluetooth, stations,
+integration)} consults \texttt{ISecureStore::hasWifiCredentials()}:
 
 \begin{enumerate}
   \item \textbf{Credentials present} --- create STA netif, connect via
@@ -346,7 +349,8 @@ Wi-Fi credentials are stored in NVS namespace \texttt{digiradio}, keys
 \texttt{wifi\_ssid} and \texttt{wifi\_pwd}. Audio profiles (non-secret) use
 the same namespace, key \texttt{audio\_profile\_json}, via
 \texttt{secure\_store::NvsAudioProfileStore}. Station presets use key
-\texttt{station\_list} (JSON blob). Passwords are wrapped in
+\texttt{station\_list} (JSON blob). The last recalled preset index is stored
+as \texttt{last\_preset} (u8). Passwords are wrapped in
 \texttt{core::Secret} in RAM and are never logged or returned by the API.
 
 \begin{drcaution}[Encryption at rest]

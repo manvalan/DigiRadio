@@ -2,8 +2,8 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.8.0** — RDS/DLS now-playing metadata in tuner status;
-preset reorder, CI on `main` (host tests, Doxygen, manual sync).
+**Status:** fw **0.8.1** — integration service for preset recall + audio;
+RDS/DLS metadata; CI on `main`.
 See [`docs/TODO.md`](docs/TODO.md) for the agent task list.
 
 ## Quick start
@@ -39,7 +39,7 @@ Manual PDF (design + HTTP API + class reference):
 cd docs/manual && latexmk -lualatex manual.tex
 ```
 
-## HTTP API (fw 0.8.0)
+## HTTP API (fw 0.8.1)
 
 | Method | Path | Purpose |
 |--------|------|---------|

@@ -1,6 +1,6 @@
 /**
- * @file    station_service_test.cpp
- * @brief   Host tests for StationService with in-memory fake store.
+ * @file    integration_service_test.cpp
+ * @brief   Host tests for IntegrationService preset recall flow.
  *
  * DigiRadio firmware — https://github.com/manvalan/DigiRadio
  *
@@ -11,11 +11,13 @@
  * @date    2026-07-06
  */
 
+#include "audio/AudioService.hpp"
 #include "core/FrequencyKHz.hpp"
+#include "core/IDsp.hpp"
 #include "core/ISecureStore.hpp"
-#include "core/StationListJson.hpp"
 #include "core/StationName.hpp"
 #include "core/TunerBand.hpp"
+#include "integration/IntegrationService.hpp"
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
 
@@ -26,8 +28,52 @@
 
 namespace {
 
-class FakeTuner final : public core::ITuner {
+class FakeDsp final : public core::IDsp {
 public:
+    std::size_t applyProfileCalls{0U};
+
+    [[nodiscard]] std::expected<void, core::DspError> applyProfile(
+        const core::AudioProfile&) override
+    {
+        ++applyProfileCalls;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> applyMixer(
+        const core::MixerState&) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> applyEq(
+        const core::EqProfile&) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> setInputVolume(
+        core::MixSource, core::GainDb, core::GainDb) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> setMasterVolume(
+        core::GainDb, core::GainDb) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> setEqBand(
+        core::EqBandIndex, core::GainDb, core::FrequencyHz, float) override
+    {
+        return {};
+    }
+};
+
+class TrackingTuner final : public core::ITuner {
+public:
+    bool tunedFm{false};
+
     [[nodiscard]] std::expected<void, core::TunerError> boot(
         core::TunerBand) override
     {
@@ -37,7 +83,7 @@ public:
     [[nodiscard]] std::expected<core::TunerBand, core::TunerError> currentBand()
         const override
     {
-        return core::TunerBand::Dab;
+        return core::TunerBand::Fm;
     }
 
     [[nodiscard]] std::expected<core::TunerStatus, core::TunerError> readStatus()
@@ -45,10 +91,9 @@ public:
     {
         core::TunerStatus status = {};
         status.booted = true;
-        status.band = core::TunerBand::Dab;
+        status.band = core::TunerBand::Fm;
         status.locked = true;
         status.volume = 40;
-        status.dabFreqIndex = 12U;
         return status;
     }
 
@@ -61,6 +106,7 @@ public:
     [[nodiscard]] std::expected<void, core::TunerError> tuneFm(
         core::FrequencyKHz) override
     {
+        tunedFm = true;
         return {};
     }
 
@@ -188,54 +234,42 @@ private:
         std::nullopt);
 }
 
-[[nodiscard]] int runPersistRoundTripTest()
+[[nodiscard]] int runRecallPresetTest()
 {
     FakeSecureStore store;
-    FakeTuner tuner;
-    tuner::TunerService tunerService(tuner);
-    station::StationService service(store, tunerService);
+    TrackingTuner tunerHw;
+    FakeDsp dsp;
+    tuner::TunerService tunerService(tunerHw);
+    audio::AudioService audioService(dsp, nullptr);
+    station::StationService stationService(store, tunerService);
+    integration::IntegrationService integration(
+        store, tunerService, audioService, stationService);
 
-    if (auto added = service.add(makeFmStation("Jazz", 101500U)); !added) {
-        std::cerr << "add failed\n";
-        return EXIT_FAILURE;
-    }
-
-    station::StationService reloaded(store, tunerService);
-    if (auto loaded = reloaded.loadFromStore(); !loaded) {
-        std::cerr << "load failed\n";
-        return EXIT_FAILURE;
-    }
-    if (reloaded.list().stations().size() != 1U) {
-        std::cerr << "expected one preset after reload\n";
-        return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
-}
-
-[[nodiscard]] int runReorderPersistTest()
-{
-    FakeSecureStore store;
-    FakeTuner tuner;
-    tuner::TunerService tunerService(tuner);
-    station::StationService service(store, tunerService);
-
-    if (auto a = service.add(makeFmStation("A", 88000U)); !a) {
-        return EXIT_FAILURE;
-    }
-    if (auto b = service.add(makeFmStation("B", 90000U)); !b) {
-        return EXIT_FAILURE;
-    }
-    if (auto moved = service.reorder(1U, 0U); !moved) {
-        std::cerr << "reorder failed\n";
+    if (auto added = stationService.add(makeFmStation("Jazz", 101500U)); !added) {
+        std::cerr << "add preset failed\n";
         return EXIT_FAILURE;
     }
 
-    station::StationService reloaded(store, tunerService);
-    if (auto loaded = reloaded.loadFromStore(); !loaded) {
+    if (auto recalled = integration.recallPreset(0U); !recalled) {
+        std::cerr << "recallPreset failed\n";
         return EXIT_FAILURE;
     }
-    if (reloaded.list().stations()[0U].name().value() != "B") {
-        std::cerr << "reorder not persisted\n";
+    if (!tunerHw.tunedFm || dsp.applyProfileCalls == 0U
+        || !store.hasLastPresetIndex()) {
+        std::cerr << "recallPreset side effects missing\n";
+        return EXIT_FAILURE;
+    }
+
+    tunerHw.tunedFm = false;
+    dsp.applyProfileCalls = 0U;
+    integration::IntegrationService rebooted(
+        store, tunerService, audioService, stationService);
+    if (auto started = rebooted.startup(); !started) {
+        std::cerr << "startup failed\n";
+        return EXIT_FAILURE;
+    }
+    if (!tunerHw.tunedFm || dsp.applyProfileCalls == 0U) {
+        std::cerr << "startup did not recall last preset\n";
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
@@ -245,10 +279,7 @@ private:
 
 int main()
 {
-    if (runPersistRoundTripTest() != EXIT_SUCCESS) {
-        return EXIT_FAILURE;
-    }
-    if (runReorderPersistTest() != EXIT_SUCCESS) {
+    if (runRecallPresetTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

@@ -111,6 +111,17 @@ public:
 
     [[nodiscard]] std::expected<void, core::StoreError>
     clearStationList() override;
+
+    [[nodiscard]] bool hasLastPresetIndex() const override;
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    saveLastPresetIndex(std::uint8_t index) override;
+
+    [[nodiscard]] std::expected<std::uint8_t, core::StoreError>
+    loadLastPresetIndex() const override;
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    clearLastPresetIndex() override;
 };
 
 } // namespace secure_store
