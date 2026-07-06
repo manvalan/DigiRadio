@@ -10,6 +10,15 @@ idf_component_register(
         "src/EmbeddedBlobReader.cpp"
         "src/TunerJson.cpp"
         "src/FrequencyKHz.cpp"
+        "src/GainDb.cpp"
+        "src/FrequencyHz.cpp"
+        "src/EqBandIndex.cpp"
+        "src/BiquadCoefficients.cpp"
+        "src/BiquadDesign.cpp"
+        "src/MixerState.cpp"
+        "src/EqProfile.cpp"
+        "src/AudioProfile.cpp"
+        "src/AudioProfileJson.cpp"
     INCLUDE_DIRS "include"
 )
 

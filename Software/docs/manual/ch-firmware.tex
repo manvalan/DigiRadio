@@ -194,6 +194,9 @@ bring-up:
     (\texttt{DigiRadio\_IC\_1.h}) replayed through
     \texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} after hardware reset. The DSP
     program lives in RAM only; download runs on every boot.
+  \item \textbf{Audio profile}: \texttt{audio::AudioService::loadAndApply()}
+    restores the saved \texttt{core::AudioProfile} from NVS (or factory
+    defaults) via ADAU1701 safeload before network bring-up.
 \end{enumerate}
 
 If either driver returns an error, the firmware logs the failure and stops

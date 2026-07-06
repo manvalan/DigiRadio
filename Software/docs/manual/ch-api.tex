@@ -6,7 +6,7 @@ implemented in \texttt{SetupWebServer}. Request bodies are parsed into
 domain types in the pure core (\texttt{components/core}) before any
 persistence or driver call. Exact C++ signatures live in the generated
 Doxygen output under \texttt{docs/api/}; this chapter documents the
-wire protocol and behaviour as shipped in firmware~0.4.0 (Slices~1--4).
+wire protocol and behaviour as shipped in firmware~0.5.0 (Slices~1--5).
 
 \section{Transport and reachability}
 
@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.4.0"}
+{"status":"ok","fw":"0.5.0"}
 \end{drcode}
 \begin{itemize}
   \item \texttt{status} --- coarse indicator; \texttt{ok} when the
@@ -172,10 +172,55 @@ Seeks FM upward (no request body). Returns
 \texttt{\{"frequency\_khz":...\}} on success. HTTP status: \textbf{200 OK};
 \textbf{409} on seek failure.
 
+\subsection{\texttt{GET /api/audio/profile}}
+\label{sec:api-audio-profile-get}
+
+Returns the current ADAU1701 audio snapshot serialised by
+\texttt{core::serializeAudioProfileJson()} from \texttt{core::AudioProfile}.
+The handler reads \texttt{audio::AudioService::currentProfile()}.
+
+\begin{drnote}[Response schema (excerpt)]
+\begin{drcode}[JSON]
+{"mixer":{"si4684_left_db":0,"si4684_right_db":0,"esp32_left_db":0,
+ "esp32_right_db":0,"mix_left_db":0,"mix_right_db":0},
+ "master":{"left_db":0,"right_db":0},
+ "eq":[{"gain_db":0,"center_hz":40,"q":1.414}, ...]}
+\end{drcode}
+Six EQ bands are always present (\texttt{eq} array length~6).
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{503} when the audio service is
+unavailable.
+
+\subsection{\texttt{PUT /api/audio/profile}}
+\label{sec:api-audio-profile-put}
+
+Applies a full audio profile. Body parsed by
+\texttt{core::parseAudioProfileJson()}; on success
+\texttt{audio::AudioService::applyProfile(..., persist=true)} safeloads
+the ADAU1701 and writes NVS key \texttt{audio\_profile\_json}.
+
+\begin{drnote}[Success response]
+\begin{drcode}[JSON]
+{"status":"saved"}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{400} for parse/validation failures;
+\textbf{500} when safeload or NVS persistence fails.
+
+\subsection{\texttt{POST /api/audio/reset}}
+\label{sec:api-audio-reset}
+
+Restores \texttt{AudioProfile::factoryDefault()} (flat EQ, 0\,dB gains),
+applies it to the DSP, and persists to NVS. Success response:
+\texttt{\{"status":"saved"\}}. HTTP status: \textbf{200 OK}; \textbf{500}
+on apply/persist failure.
+
 \section{Boot and network state machine}
 \label{sec:api-boot-flow}
 
-At boot, \texttt{net::NetBootstrap::start(store, tuner)} consults
+At boot, \texttt{net::NetBootstrap::start(store, tuner, audio)} consults
 \texttt{ISecureStore::hasWifiCredentials()}:
 
 \begin{enumerate}
@@ -193,7 +238,9 @@ This explicit \texttt{enum class NetState} replaces ad-hoc flags; see
 \label{sec:api-storage}
 
 Wi-Fi credentials are stored in NVS namespace \texttt{digiradio}, keys
-\texttt{wifi\_ssid} and \texttt{wifi\_pwd}. Passwords are wrapped in
+\texttt{wifi\_ssid} and \texttt{wifi\_pwd}. Audio profiles (non-secret) use
+the same namespace, key \texttt{audio\_profile\_json}, via
+\texttt{secure\_store::NvsAudioProfileStore}. Passwords are wrapped in
 \texttt{core::Secret} in RAM and are never logged or returned by the API.
 
 \begin{drcaution}[Encryption at rest]

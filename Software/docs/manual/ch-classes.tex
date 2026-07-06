@@ -56,16 +56,17 @@ configured SoftAP. Imperative shell; no business logic.
 
 \section{SetupWebServer}\label{cls:SetupWebServer}
 Minimal HTTP server: gzipped setup UI, \texttt{GET /api/health},
-\texttt{POST /api/wifi}, and tuner routes (\texttt{/api/tuner/*}).
-JSON parsing and serialisation delegate to the pure core; credentials
-persist via \texttt{ISecureStore}; tuner operations via
-\texttt{tuner::TunerService}.
+\texttt{POST /api/wifi}, tuner routes (\texttt{/api/tuner/*}), and audio
+routes (\texttt{/api/audio/*}). JSON parsing and serialisation delegate to
+the pure core; credentials persist via \texttt{ISecureStore}; tuner via
+\texttt{tuner::TunerService}; audio via \texttt{audio::AudioService}.
 
 \section{NetBootstrap}\label{cls:NetBootstrap}
 Owns network resources for setup or STA mode.
 \texttt{start(store, tuner)} initialises the platform, joins stored Wi-Fi
 when credentials exist, or falls back to the \texttt{DigiRadio-setup}
 SoftAP. Must outlive \texttt{app\_main} for the process lifetime.
+\texttt{start(store, tuner, audio)} also wires the audio REST routes.
 
 % ------------------------------------------------------------------
 % Domain core + secure store (Slice 2)
@@ -135,10 +136,47 @@ DTOs.
 RAII I2C driver for the ADAU1701 SigmaDSP. \texttt{boot()} asserts RESET\#,
 initialises the shared I2C bus, and replays the SigmaStudio export from
 \texttt{Firmware/ADAU1701-Firmware/} on every power-up (no EEPROM self-boot
-on DigiRadio).
+on DigiRadio). Runtime mixer, EQ, and master volume updates use the
+ADAU1701 safeload mechanism via \texttt{applyProfile()} and related methods.
+
+\section{Adau1701Dsp}\label{cls:Adau1701Dsp}
+\texttt{core::IDsp} adapter over \texttt{Adau1701Driver}. Maps domain-level
+audio control to safeload I2C transactions without exposing parameter RAM
+addresses to services.
 
 % ------------------------------------------------------------------
-% Application services (Slice 4)
+% Domain core — audio (Slice 5)
+% ------------------------------------------------------------------
+
+\section{GainDb}\label{cls:GainDb}
+Validated decibel gain/attenuation ($-96$\,dB to $+12$\,dB). Used for
+input volumes, master level, and EQ band gain. Converted to ADAU 8.23
+fixpoint via \texttt{gainDbToLinearFixpoint()} before safeload.
+
+\section{FrequencyHz}\label{cls:FrequencyHz}
+Validated PEQ centre frequency (20--20\,000\,Hz) for the 48\,kHz
+SigmaStudio project. Parsed at the HTTP boundary before coefficient design.
+
+\section{EqBandIndex}\label{cls:EqBandIndex}
+Strong index into the six-band \texttt{Param EQ1} module (0--5). Maps to
+parameter RAM via \texttt{adau1701::paramAddrEqBandBase()}.
+
+\section{EqProfile}\label{cls:EqProfile}
+Six-band parametric EQ snapshot with default centre frequencies
+(40\,Hz--12\,kHz). Designed in the pure core; coefficients safeloaded by
+\texttt{Adau1701Driver::applyEq()}.
+
+\section{IDsp}\label{cls:IDsp}
+Abstract ADAU1701 control boundary. Defines \texttt{applyProfile()},
+\texttt{setInputVolume()}, \texttt{setEqBand()}, and related intent-level
+operations without ESP-IDF types.
+
+\section{IAudioProfileStore}\label{cls:IAudioProfileStore}
+Persistence boundary for \texttt{AudioProfile} (mixer, EQ, master). Device
+implementation: \texttt{NvsAudioProfileStore}; host tests use fakes.
+
+% ------------------------------------------------------------------
+% Application services (Slice 4–5)
 % ------------------------------------------------------------------
 
 \section{ITuner}\label{cls:ITuner}
@@ -156,3 +194,13 @@ target and volume, and maps driver failures to \texttt{core::TunerError}.
 \texttt{ITuner} adapter over \texttt{Si4684Driver}. Translates domain calls
 into SPI commands and maps \texttt{Si4684Error} to \texttt{TunerError}.
 Constructed once in \texttt{HardwareBootstrap} alongside the driver.
+
+\section{AudioService}\label{cls:AudioService}
+Application service for ADAU1701 mixer, EQ, and master volume. Holds a
+reference to \texttt{core::IDsp}, tracks the in-memory \texttt{AudioProfile},
+loads from \texttt{IAudioProfileStore} after boot, and applies changes via
+safeload. Exposed on \texttt{/api/audio/*} and the web UI Audio section.
+
+\section{NvsAudioProfileStore}\label{cls:NvsAudioProfileStore}
+\texttt{IAudioProfileStore} implementation storing serialised
+\texttt{AudioProfile} JSON in NVS namespace \texttt{digiradio}.

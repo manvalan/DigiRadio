@@ -25,6 +25,10 @@
 
 struct httpd_req;
 
+namespace audio {
+class AudioService;
+} // namespace audio
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -45,8 +49,9 @@ namespace net {
  * @date     2026-07-06
  */
 struct HttpRouteContext {
-    core::ISecureStore* store;     ///< Secure store for Wi-Fi provisioning.
-    tuner::TunerService* tuner;    ///< Tuner service for tuner REST routes.
+    core::ISecureStore* store;        ///< Secure store for Wi-Fi provisioning.
+    tuner::TunerService* tuner;       ///< Tuner service for tuner REST routes.
+    audio::AudioService* audio;       ///< Audio service for ADAU1701 REST routes.
 };
 
 /**
@@ -119,21 +124,24 @@ public:
      * @param    store     Secure store for POST /api/wifi persistence.
      * @param    netState  Active network phase exposed to handlers.
      * @param    tuner     Tuner service for the tuner REST routes.
+     * @param    audio     Audio service for the audio REST routes.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
-     * @pubstate writes server_, store_, netState_, and tuner_ on success.
+     * @pubstate writes server_, store_, netState_, tuner_, and audio_ on success.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, NetError> start(core::ISecureStore& store,
                                                       NetState netState,
-                                                      tuner::TunerService& tuner);
+                                                      tuner::TunerService& tuner,
+                                                      audio::AudioService& audio);
 
 private:
     httpd_handle* server_;
     core::ISecureStore* store_;
     NetState netState_;
     tuner::TunerService* tuner_;
+    audio::AudioService* audio_;
     HttpRouteContext routeContext_;
 };
 

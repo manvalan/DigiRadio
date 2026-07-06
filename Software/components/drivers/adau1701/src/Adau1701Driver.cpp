@@ -13,6 +13,11 @@
 
 #include "adau1701/Adau1701Driver.hpp"
 
+#include "adau1701/Adau1701ParamMap.hpp"
+
+#include "core/BiquadDesign.hpp"
+
+#include "DigiRadio_IC_1_PARAM.h"
 #include "SigmaStudioFW.h"
 
 #include "driver/gpio.h"
@@ -113,6 +118,141 @@ std::expected<void, Adau1701Error> Adau1701Driver::boot()
 bool Adau1701Driver::isBooted() const noexcept
 {
     return booted_;
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::ensureBooted() const
+{
+    if (!booted_) {
+        return std::unexpected(Adau1701Error::NotBooted);
+    }
+    return {};
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::safeloadFixpoint(
+    unsigned paramAddr, std::int32_t fixpoint)
+{
+    if (sigma_safeload_param(paramAddr, fixpoint) != 0) {
+        return std::unexpected(Adau1701Error::SafeloadFailed);
+    }
+    return {};
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::safeloadGain(
+    unsigned paramAddr, core::GainDb gain)
+{
+    return safeloadFixpoint(paramAddr, core::gainDbToLinearFixpoint(gain));
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::setInputVolume(
+    core::MixSource source, core::GainDb left, core::GainDb right)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    if (auto result = safeloadGain(paramAddrInputLeft(source), left); !result) {
+        return result;
+    }
+    return safeloadGain(paramAddrInputRight(source), right);
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::setMasterVolume(
+    core::GainDb left, core::GainDb right)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    if (auto result = safeloadGain(static_cast<unsigned>(ADDR_MULTIPLE1), left);
+        !result) {
+        return result;
+    }
+    return safeloadGain(static_cast<unsigned>(ADDR_MULTIPLE1_1), right);
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::applyMixer(
+    const core::MixerState& mixer)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    if (auto result = setInputVolume(core::MixSource::Si4684, mixer.si4684Left,
+                                     mixer.si4684Right);
+        !result) {
+        return result;
+    }
+    if (auto result = setInputVolume(core::MixSource::Esp32, mixer.esp32Left,
+                                     mixer.esp32Right);
+        !result) {
+        return result;
+    }
+    if (auto result =
+            safeloadGain(static_cast<unsigned>(ADDR_STMIXER1_ST0_VOLUME),
+                         mixer.mixLeft);
+        !result) {
+        return result;
+    }
+    return safeloadGain(static_cast<unsigned>(ADDR_STMIXER1_ST1_VOLUME),
+                        mixer.mixRight);
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::setEqBand(
+    core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center, float q)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+
+    const core::BiquadCoefficients coeffs =
+        core::designPeakingEq(center, gain, q);
+    const auto fixpoints = coeffs.toFixpoint823();
+    const unsigned baseAddr = paramAddrEqBandBase(band.value());
+
+    unsigned addrs[5U];
+    int values[5U];
+    for (unsigned i = 0U; i < 5U; ++i) {
+        addrs[i] = baseAddr + i;
+        values[i] = fixpoints[i];
+    }
+
+    if (sigma_safeload_block(5U, addrs, values) != 0) {
+        return std::unexpected(Adau1701Error::SafeloadFailed);
+    }
+    return {};
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::applyEq(
+    const core::EqProfile& eq)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+
+    for (std::uint8_t i = 0; i < core::EqBandIndex::kBandCount; ++i) {
+        const auto index = core::EqBandIndex::tryFromIndex(i);
+        if (!index) {
+            return std::unexpected(Adau1701Error::SafeloadFailed);
+        }
+        const core::EqBandSettings& band = eq.band(*index);
+        if (auto result = setEqBand(*index, band.gain, band.center, band.q);
+            !result) {
+            return result;
+        }
+    }
+    return {};
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::applyProfile(
+    const core::AudioProfile& profile)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    if (auto result = applyMixer(profile.mixer); !result) {
+        return result;
+    }
+    if (auto result = applyEq(profile.eq); !result) {
+        return result;
+    }
+    return setMasterVolume(profile.masterLeft, profile.masterRight);
 }
 
 } // namespace adau1701

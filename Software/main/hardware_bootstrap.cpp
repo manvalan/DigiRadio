@@ -14,7 +14,10 @@
 #include "hardware_bootstrap.hpp"
 
 #include "adau1701/Adau1701Driver.hpp"
+#include "adau1701/Adau1701Dsp.hpp"
+#include "audio/AudioService.hpp"
 #include "board_pins.hpp"
+#include "secure_store/NvsAudioProfileStore.hpp"
 #include "si4684/Si4684Band.hpp"
 #include "si4684/Si4684Driver.hpp"
 #include "si4684/Si4684EmbeddedImages.hpp"
@@ -51,6 +54,9 @@ adau1701::Adau1701Driver gAdau1701(
         .resetGpio = board::pins::Adau1701Reset,
         .i2cAddr7 = board::pins::Adau1701Addr,
     });
+adau1701::Adau1701Dsp gAdau1701Dsp(gAdau1701);
+secure_store::NvsAudioProfileStore gAudioStore;
+audio::AudioService gAudioService(gAdau1701Dsp, &gAudioStore);
 
 bool gReady = false;
 } // namespace
@@ -74,6 +80,10 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         }
     }
 
+    if (auto audioResult = gAudioService.loadAndApply(); !audioResult) {
+        ESP_LOGW(kTag, "ADAU1701 profile apply failed");
+    }
+
     gReady = true;
     ESP_LOGI(kTag, "companion chips ready");
     return {};
@@ -82,6 +92,11 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
 si4684::Si4684Tuner& HardwareBootstrap::si4684Tuner()
 {
     return gSi4684Tuner;
+}
+
+audio::AudioService& HardwareBootstrap::audioService()
+{
+    return gAudioService;
 }
 
 } // namespace hardware

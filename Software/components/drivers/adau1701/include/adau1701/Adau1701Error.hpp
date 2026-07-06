@@ -28,6 +28,8 @@ enum class Adau1701Error {
     I2cInitFailed,
     ResetFailed,
     DownloadFailed,
+    NotBooted,
+    SafeloadFailed,
 };
 
 } // namespace adau1701
