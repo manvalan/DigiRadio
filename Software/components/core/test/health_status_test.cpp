@@ -17,6 +17,7 @@
  */
 
 #include "core/FirmwareVersion.hpp"
+#include "core/CompanionChipStatus.hpp"
 #include "core/HealthStatus.hpp"
 #include "core/HealthStatusJson.hpp"
 
@@ -85,5 +86,22 @@ namespace {
  */
 int main()
 {
-    return runHealthStatusJsonTest();
+    if (runHealthStatusJsonTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+
+    const core::HealthStatus withChips = core::HealthStatus::ok(
+        core::FirmwareVersion("0.6.0"),
+        core::CompanionChipStatus{
+            .si4684Ready = true,
+            .adau1701Ready = true,
+            .bt1035Ready = true,
+        });
+    const std::string chipsJson = core::serializeHealthStatusJson(withChips);
+    if (!expectEqual(
+            chipsJson,
+            R"({"status":"ok","fw":"0.6.0","chips":{"si4684":true,"adau1701":true,"bt1035":true}})")) {
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }

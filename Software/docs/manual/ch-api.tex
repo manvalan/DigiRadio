@@ -36,13 +36,16 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.5.0"}
+{"status":"ok","fw":"0.6.0",
+ "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}
   \item \texttt{status} --- coarse indicator; \texttt{ok} when the
         firmware is running normally.
   \item \texttt{fw} --- firmware release string
         (\texttt{core::FirmwareVersion}).
+  \item \texttt{chips} --- companion-chip boot flags after
+        \texttt{HardwareBootstrap::boot()} (Slice~8 integration).
 \end{itemize}
 \end{drnote}
 

@@ -18,21 +18,13 @@
 
 #include "core/HealthStatusJson.hpp"
 
+#include <optional>
+#include <string>
+
 namespace core {
 
 namespace {
 
-/**
- * @brief    healthStateToken — map HealthState to the API status string.
- *
- * @dname    healthStateToken
- * @param    state  Health indicator to encode.
- * @return   JSON string token without quotes (e.g. ok).
- * @pubstate none
- *
- * @author   Michele Bigi
- * @date     2026-07-06
- */
 [[nodiscard]] const char* healthStateToken(HealthState state) noexcept
 {
     switch (state) {
@@ -46,8 +38,16 @@ namespace {
 
 std::string serializeHealthStatusJson(const HealthStatus& status)
 {
-    return std::string("{\"status\":\"") + healthStateToken(status.state())
-           + "\",\"fw\":\"" + std::string(status.firmware().value()) + "\"}";
+    std::string json = std::string("{\"status\":\"") + healthStateToken(status.state())
+                       + "\",\"fw\":\"" + std::string(status.firmware().value()) + "\"";
+    if (const std::optional<CompanionChipStatus>& chips = status.chips(); chips) {
+        json += std::string(",\"chips\":{")
+                + "\"si4684\":" + (chips->si4684Ready ? "true" : "false")
+                + ",\"adau1701\":" + (chips->adau1701Ready ? "true" : "false")
+                + ",\"bt1035\":" + (chips->bt1035Ready ? "true" : "false") + "}";
+    }
+    json += '}';
+    return json;
 }
 
 } // namespace core
