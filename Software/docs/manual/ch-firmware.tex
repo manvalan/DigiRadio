@@ -136,7 +136,9 @@ Runtime changes to equalisation and mixing use the ADAU1701 safeload
 mechanism, so parameter updates are click-free while audio is playing.
 Which blocks are runtime-controllable (source faders, EQ bands 2--6,
 master volume) versus fixed at export (high-pass, limiters) is listed in
-Chapter~\ref{ch:sigmastudio}, Section~\ref{sec:ss-runtime}.
+Chapter~\ref{ch:sigmastudio}, Section~\ref{sec:ss-runtime}. The full driver
+stack, parameter map, \texttt{AudioService}, and HTTP routes are documented
+in Chapter~\ref{ch:adau1701}.
 
 \begin{drcaution}[Safeload]
 Writing DSP parameter cells directly while audio is running produces
@@ -196,7 +198,8 @@ bring-up:
   \item \textbf{ADAU1701} (I\textsuperscript{2}C): SigmaStudio export
     (\texttt{DigiRadio\_IC\_1.h}) replayed through
     \texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} after hardware reset. The DSP
-    program lives in RAM only; download runs on every boot.
+    program lives in RAM only; download runs on every boot
+    (Chapter~\ref{ch:adau1701}, Section~\ref{sec:adau1701-boot}).
   \item \textbf{Audio profile}: \texttt{audio::AudioService::loadAndApply()}
     restores the saved \texttt{core::AudioProfile} from NVS (or factory
     defaults) via ADAU1701 safeload before network bring-up.

@@ -177,7 +177,9 @@ Seeks FM upward (no request body). Returns
 
 Returns the current ADAU1701 audio snapshot serialised by
 \texttt{core::serializeAudioProfileJson()} from \texttt{core::AudioProfile}.
-The handler reads \texttt{audio::AudioService::currentProfile()}.
+The handler reads \texttt{audio::AudioService::currentProfile()}. Driver
+behaviour, domain types, and persistence are documented in
+Chapter~\ref{ch:adau1701}.
 
 \begin{drnote}[Response schema (excerpt)]
 \begin{drcode}[JSON]
