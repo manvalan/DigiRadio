@@ -20,6 +20,7 @@
 
 #include "core/AudioProfile.hpp"
 #include "core/AudioProfileJson.hpp"
+#include "core/CompanionChipStatus.hpp"
 #include "core/FirmwareVersion.hpp"
 #include "core/HealthStatus.hpp"
 #include "core/HealthStatusJson.hpp"
@@ -44,7 +45,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.5.0";
+constexpr char kFirmwareVersion[] = "0.6.0";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t www_index_html_gz_start[] asm(
@@ -165,8 +166,17 @@ template <std::size_t N>
  */
 esp_err_t healthGetHandler(httpd_req_t* req)
 {
-    const core::HealthStatus status =
-        core::HealthStatus::ok(core::FirmwareVersion(kFirmwareVersion));
+    auto* ctx = routeContextFrom(req);
+    const core::CompanionChipStatus chips =
+        ctx != nullptr
+            ? ctx->companionChips
+            : core::CompanionChipStatus{
+                  .si4684Ready = false,
+                  .adau1701Ready = false,
+                  .bt1035Ready = false,
+              };
+    const core::HealthStatus status = core::HealthStatus::ok(
+        core::FirmwareVersion(kFirmwareVersion), chips);
     const std::string json = core::serializeHealthStatusJson(status);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
@@ -622,7 +632,7 @@ SetupWebServer::SetupWebServer()
     , netState_(NetState::Uninitialized)
     , tuner_(nullptr)
     , audio_(nullptr)
-    , routeContext_{nullptr, nullptr, nullptr}
+    , routeContext_{nullptr, nullptr, nullptr, {}}
 {
 }
 
@@ -639,7 +649,7 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     other.netState_ = NetState::Uninitialized;
     other.tuner_ = nullptr;
     other.audio_ = nullptr;
-    other.routeContext_ = {nullptr, nullptr, nullptr};
+    other.routeContext_ = {nullptr, nullptr, nullptr, {}};
 }
 
 SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
@@ -659,7 +669,7 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         other.netState_ = NetState::Uninitialized;
         other.tuner_ = nullptr;
         other.audio_ = nullptr;
-        other.routeContext_ = {nullptr, nullptr, nullptr};
+        other.routeContext_ = {nullptr, nullptr, nullptr, {}};
     }
     return *this;
 }
@@ -670,14 +680,15 @@ SetupWebServer::~SetupWebServer()
         httpd_stop(server_);
         server_ = nullptr;
     }
-    routeContext_ = {nullptr, nullptr, nullptr};
+    routeContext_ = {nullptr, nullptr, nullptr, {}};
 }
 
 std::expected<void, NetError> SetupWebServer::start(
     core::ISecureStore& store,
     NetState netState,
     tuner::TunerService& tuner,
-    audio::AudioService& audio)
+    audio::AudioService& audio,
+    core::CompanionChipStatus companionChips)
 {
     if (server_ != nullptr) {
         return {};
@@ -690,6 +701,7 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext_.store = &store;
     routeContext_.tuner = &tuner;
     routeContext_.audio = &audio;
+    routeContext_.companionChips = companionChips;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = 80;
@@ -697,7 +709,7 @@ std::expected<void, NetError> SetupWebServer::start(
 
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
-        routeContext_ = {nullptr, nullptr, nullptr};
+        routeContext_ = {nullptr, nullptr, nullptr, {}};
         return std::unexpected(NetError::HttpServerStartFailed);
     }
 

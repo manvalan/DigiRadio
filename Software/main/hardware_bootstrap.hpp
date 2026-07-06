@@ -12,6 +12,8 @@
  */
 #pragma once
 
+#include "core/CompanionChipStatus.hpp"
+
 #include <expected>
 
 namespace audio {
@@ -94,6 +96,18 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static audio::AudioService& audioService();
+
+    /**
+     * @brief    companionChipStatus — snapshot of companion-chip boot flags.
+     *
+     * @dname    companionChipStatus
+     * @return   Ready flags for Si4684, ADAU1701, BT1035.
+     * @pubstate reads static driver isBooted() after boot().
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] static core::CompanionChipStatus companionChipStatus() noexcept;
 };
 
 } // namespace hardware

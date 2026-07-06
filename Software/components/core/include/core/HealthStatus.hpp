@@ -18,6 +18,9 @@
 #pragma once
 
 #include "core/FirmwareVersion.hpp"
+#include "core/CompanionChipStatus.hpp"
+
+#include <optional>
 
 namespace core {
 
@@ -65,6 +68,21 @@ public:
     [[nodiscard]] static HealthStatus ok(FirmwareVersion firmware);
 
     /**
+     * @brief    ok — build health response including companion-chip flags.
+     *
+     * @dname    ok
+     * @param    firmware  Active firmware version to report.
+     * @param    chips     Si4684 / ADAU1701 / BT1035 boot snapshot.
+     * @return   HealthStatus with HealthState::Ok and chips populated.
+     * @pubstate none
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] static HealthStatus ok(FirmwareVersion firmware,
+                                       CompanionChipStatus chips);
+
+    /**
      * @brief    state — read the health indicator.
      *
      * @dname    state
@@ -88,11 +106,28 @@ public:
      */
     [[nodiscard]] const FirmwareVersion& firmware() const noexcept;
 
+    /**
+     * @brief    chips — optional companion-chip boot flags.
+     *
+     * @dname    chips
+     * @return   Chip status when set by ok(..., chips); otherwise nullopt.
+     * @pubstate reads chips_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] const std::optional<CompanionChipStatus>& chips() const
+        noexcept;
+
 private:
     explicit HealthStatus(HealthState state, FirmwareVersion firmware);
 
+    explicit HealthStatus(HealthState state, FirmwareVersion firmware,
+                          CompanionChipStatus chips);
+
     HealthState state_;
     FirmwareVersion firmware_;
+    std::optional<CompanionChipStatus> chips_;
 };
 
 } // namespace core

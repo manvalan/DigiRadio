@@ -61,7 +61,8 @@ extern "C" void app_main()
     static secure_store::NvsSecureStore store;
 
     auto netResult = net::NetBootstrap::start(
-        store, tunerService, hardware::HardwareBootstrap::audioService());
+        store, tunerService, hardware::HardwareBootstrap::audioService(),
+        hardware::HardwareBootstrap::companionChipStatus());
     if (!netResult) {
         ESP_LOGE(kTag, "network bootstrap failed");
         return;

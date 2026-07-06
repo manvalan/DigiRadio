@@ -115,4 +115,13 @@ audio::AudioService& HardwareBootstrap::audioService()
     return gAudioService;
 }
 
+core::CompanionChipStatus HardwareBootstrap::companionChipStatus() noexcept
+{
+    return core::CompanionChipStatus{
+        .si4684Ready = gSi4684.isBooted(),
+        .adau1701Ready = gAdau1701.isBooted(),
+        .bt1035Ready = gBt1035.isBooted(),
+    };
+}
+
 } // namespace hardware
