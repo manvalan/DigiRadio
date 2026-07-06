@@ -67,7 +67,7 @@ DigiRadio/
 │   ├── pick-and-place/       Component placement (CPL / centroid)
 │   ├── easyeda/              EasyEDA source project
 │   └── 3d/                   3D renders / STEP
-└── Software/                 Firmware (in development — see Software/README.md)
+└── Software/                 Firmware (ESP-IDF — see Software/README.md, docs/TODO.md)
 ```
 
 ---
@@ -79,6 +79,9 @@ covering hardware, firmware architecture, companion-chip drivers (Si4684,
 ADAU1701, FSC-BT1035), the HTTP JSON API, and build instructions. LaTeX
 sources live in `Software/docs/manual/`; the repository root `docs/` entry
 is a symbolic link to that folder (single source of truth).
+
+Firmware development backlog and agent tasks:
+[`Software/docs/TODO.md`](Software/docs/TODO.md).
 
 ---
 
@@ -101,7 +104,7 @@ is a symbolic link to that folder (single source of truth).
 - ✅ **PCB layout** — 6-layer, DRC clean, plane continuity verified
 - ✅ **BOM** — finalised (manufacturable / sourced)
 - 🔜 **Prototype** — in fabrication (PCBWay)
-- 🛠️ **Firmware** — in active development (released after bring-up)
+- 🛠️ **Firmware** — fw 0.7.0 on `main` (tuner, DSP, BT pairing, presets); see [`Software/docs/TODO.md`](Software/docs/TODO.md)
 
 ---
 
