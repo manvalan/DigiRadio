@@ -44,25 +44,23 @@ Repository: https://github.com/manvalan/DigiRadio
 
 ## Roadmap (slices, in order)
 
-1. **Walking skeleton** — boot, a task, SoftAP, web server, one JSON
-   endpoint, one host test, docs green. No chip drivers yet. (Spec below.)
-2. Secure store (`ISecureStore`) + Wi-Fi provisioning UI (STA join).
+1. **Walking skeleton** — done (Slice 1).
+2. **Secure store + Wi-Fi provisioning** — done (Slice 2).
 3. Station/frequency list model + persistence + UI.
 4. Si4684 driver: power-up, load image, tune, read RSQ.
 5. ADAU1701 driver: RAM boot, then safeload EQ + input mixer.
 6. FSC-BT1035 driver: AT init (incl. `AT+AUXCFG=1`), audio out.
 7. Integration: TunerService + AudioService end to end.
 
-## Slice 1 — Walking skeleton (the first task)
+## Slice 1 — Walking skeleton (complete)
 
 Goal: exercise the whole toolchain end to end with zero chip hardware,
 so every later slice drops into a working frame.
 
 Build:
 - Top-level ESP-IDF project targeting `esp32s3`.
-- `sdkconfig.defaults` sets C++23, exceptions off, and the flash/NVS
-  encryption options (leave encryption keys/enablement documented, not
-  hard-enabled, until we decide on the secure-store slice).
+- `sdkconfig.defaults` sets C++23, exceptions off, and documents flash/NVS
+  encryption options (not hard-enabled until production).
 - The `components/core` component compiles both under ESP-IDF and
   standalone on the host.
 
@@ -71,24 +69,30 @@ Behaviour:
 - Bring up SoftAP with a known SSID (e.g. `DigiRadio-setup`).
 - Start an HTTP server serving one minimal gzipped page from flash.
 - Expose `GET /api/health` returning a typed DTO serialised by the pure
-  core, e.g. `{"status":"ok","fw":"0.1.0"}`.
+  core, e.g. `{"status":"ok","fw":"0.2.0"}`.
+
+Documentation (required):
+- Doxygen doc blocks on every class/method; `doxygen Doxyfile` green.
+- Manual: class sections in `docs/manual/ch-classes.tex`;
+  HTTP API in `docs/manual/ch-api.tex`.
+- `python3 tools/check-manual-sync.py` green.
+
+## Slice 2 — Secure store + Wi-Fi STA (complete)
+
+Goal: persist Wi-Fi credentials and join the configured network after
+provisioning; fall back to SoftAP when no credentials or join fails.
+
+Build on Slice 1:
+- `core::ISecureStore` interface + `secure_store::NvsSecureStore` (NVS).
+- `core::Secret`, `WifiSsid`, `WifiCredentials`, `parseWifiProvisionJson`.
+- `net::StaClient`, `NetBootstrap::start(store)` state machine.
+- `POST /api/wifi` + provisioning form in the web UI; reboot after save.
 
 Acceptance criteria:
-- [ ] `idf.py build` succeeds; `flash monitor` shows the heartbeat.
-- [ ] A phone/laptop can join the SoftAP, load the page, and get a valid
-      JSON response from `/api/health`.
-- [ ] The health DTO is defined and serialised in `components/core`,
-      with a host unit test that passes under `ctest`.
-- [ ] `doxygen Doxyfile` exits 0 with an empty warnings log.
-- [ ] Every file has the Apache header; every class/method its doc block.
-- [ ] No ESP-IDF headers included from `components/core`.
+- [x] Provisioning via SoftAP saves credentials and reboots; next boot joins STA.
+- [x] Host tests for health JSON and Wi-Fi provision parse/serialise.
+- [x] Doxygen green; manual sync green; `ch-api.tex` documents endpoints.
+- [x] No ESP-IDF headers in `components/core`.
 
-Out of scope for Slice 1: any Si4684 / ADAU1701 / BT1035 code, real
-credentials, encryption enablement. Those come in later slices.
-
-## First message to the agent
-
-Ask it to read `AGENTS.md`, `.cursor/rules/`, and this file, then
-respond with: (1) the confirmed stack, (2) the exact repo layout it will
-create, (3) how it will satisfy each Slice 1 acceptance criterion, and
-(4) any blockers or questions — **before** writing code.
+Out of scope: station list, user credentials, NVS encryption enablement
+(production), chip drivers.

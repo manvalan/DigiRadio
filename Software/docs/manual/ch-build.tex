@@ -44,14 +44,34 @@ ctest --test-dir build-host --output-on-failure
 
 \section{Documentation}
 
-The API documentation is generated with Doxygen and must build cleanly;
-an undocumented class, method, or parameter fails the build.
+Documentation has two enforced checks, run from the \texttt{Software/}
+directory:
 
-\begin{drcode}[Docs]
+\begin{enumerate}
+  \item \textbf{Doxygen} --- C++ API reference from source doc blocks.
+        An undocumented public class, method, or parameter fails the build.
+  \item \textbf{Manual sync} --- every public class under an
+        \texttt{include/} tree must have a matching
+        \texttt{\textbackslash label\{cls:ClassName\}} section in
+        \texttt{docs/manual/ch-classes.tex}. Design-level HTTP API
+        documentation lives in Chapter~\ref{ch:api}.
+\end{enumerate}
+
+\begin{drcode}[Docs (from Software/)]
 doxygen Doxyfile
+python3 tools/check-manual-sync.py
+\end{drcode}
+
+To rebuild the PDF manual (requires a LaTeX installation):
+
+\begin{drcode}[Manual PDF]
+cd docs/manual
+latexmk -lualatex manual.tex
 \end{drcode}
 
 \begin{drcaution}[Keep it green]
-The Doxygen build and the manual-synchronisation check are part of the
-definition of done. A change that leaves either failing is not complete.
+Both checks are part of the definition of done. A firmware change that
+adds or modifies a public class, a REST endpoint, or its behaviour must
+update the Doxygen doc blocks, \texttt{ch-classes.tex} (for classes), and
+\texttt{ch-api.tex} (for HTTP) in the same change.
 \end{drcaution}
