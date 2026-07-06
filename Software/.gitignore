@@ -15,3 +15,9 @@ docs/api/
 .vscode/
 .idea/
 .DS_Store
+__pycache__/
+*.pyc
+
+# Proprietary Si4684 firmware blobs (Skyworks / uGreen — local only, not in git)
+Firmware/Si4684-Firmware/*.bin
+Firmware/Si4684-Firmware/.ugreen-extract-*/

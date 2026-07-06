@@ -23,9 +23,31 @@
 
 #include <expected>
 
+struct httpd_req;
+
+namespace tuner {
+class TunerService;
+} // namespace tuner
+
 struct httpd_handle;
 
 namespace net {
+
+/**
+ * @brief    HttpRouteContext — dependencies injected into HTTP handlers.
+ *
+ * @dname    HttpRouteContext
+ * @return   n/a (type)
+ * @pubstate Borrows store and tuner for the lifetime of SetupWebServer.
+ *           Passed as esp_http_server user_ctx (no file-scope globals).
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+struct HttpRouteContext {
+    core::ISecureStore* store;     ///< Secure store for Wi-Fi provisioning.
+    tuner::TunerService* tuner;    ///< Tuner service for tuner REST routes.
+};
 
 /**
  * @brief    SetupWebServer — setup UI, health, and Wi-Fi provisioning API.
@@ -96,19 +118,23 @@ public:
      * @dname    start
      * @param    store     Secure store for POST /api/wifi persistence.
      * @param    netState  Active network phase exposed to handlers.
+     * @param    tuner     Tuner service for the tuner REST routes.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
-     * @pubstate writes server_, store_, and netState_ on success.
+     * @pubstate writes server_, store_, netState_, and tuner_ on success.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, NetError> start(core::ISecureStore& store,
-                                                      NetState netState);
+                                                      NetState netState,
+                                                      tuner::TunerService& tuner);
 
 private:
     httpd_handle* server_;
     core::ISecureStore* store_;
     NetState netState_;
+    tuner::TunerService* tuner_;
+    HttpRouteContext routeContext_;
 };
 
 } // namespace net

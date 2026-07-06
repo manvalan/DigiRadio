@@ -2,7 +2,7 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** Slice 2 — secure store and Wi-Fi STA provisioning.
+**Status:** Slice 3 — Si4684 + ADAU1701 boot at power-up (network from Slice 2).
 
 ## Quick start
 
@@ -37,17 +37,23 @@ Manual PDF (design + HTTP API + class reference):
 cd docs/manual && latexmk -lualatex manual.tex
 ```
 
-## HTTP API (fw 0.2.0)
+## HTTP API (fw 0.3.0)
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/health` | `{"status":"ok","fw":"0.2.0"}` |
+| GET | `/api/health` | `{"status":"ok","fw":"0.3.0"}` |
 | POST | `/api/wifi` | Provision STA credentials; reboot on success |
 
 Full schemas, error tokens, and boot flow: [`docs/manual/ch-api.tex`](docs/manual/ch-api.tex).
 C++ signatures: generate with `doxygen Doxyfile` → `docs/api/html/index.html`.
 
 ## Layout
+
+| Path | Role |
+|------|------|
+| `Firmware/` | Si4684 `.bin` blobs (DAB+FM) + ADAU1701 SigmaStudio export |
+| `components/drivers/si4684/` | AN649 SPI boot driver |
+| `components/drivers/adau1701/` | I2C SigmaStudio RAM download |
 
 See [`AGENTS.md`](AGENTS.md) §12 and [`instructions.md`](instructions.md) for
 the authoritative repo layout, coding rules, and development roadmap.

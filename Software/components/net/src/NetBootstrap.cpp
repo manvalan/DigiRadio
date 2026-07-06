@@ -23,6 +23,7 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
+#include "tuner/TunerService.hpp"
 
 namespace net {
 
@@ -97,7 +98,7 @@ constexpr char kTag[] = "NetBootstrap";
  * @date     2026-07-06
  */
 [[nodiscard]] std::expected<NetBootstrap, NetError>
-startSetupMode(core::ISecureStore& store)
+startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner)
 {
     esp_netif_create_default_wifi_ap();
 
@@ -107,7 +108,7 @@ startSetupMode(core::ISecureStore& store)
     }
 
     SetupWebServer webServer;
-    if (auto webResult = webServer.start(store, NetState::SoftApSetup);
+    if (auto webResult = webServer.start(store, NetState::SoftApSetup, tuner);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -129,7 +130,7 @@ startSetupMode(core::ISecureStore& store)
  * @date     2026-07-06
  */
 [[nodiscard]] std::expected<NetBootstrap, NetError>
-startStaMode(core::ISecureStore& store)
+startStaMode(core::ISecureStore& store, tuner::TunerService& tuner)
 {
     auto credsResult = store.loadWifiCredentials();
     if (!credsResult) {
@@ -145,7 +146,7 @@ startStaMode(core::ISecureStore& store)
     }
 
     SetupWebServer webServer;
-    if (auto webResult = webServer.start(store, NetState::StaConnected);
+    if (auto webResult = webServer.start(store, NetState::StaConnected, tuner);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -158,7 +159,7 @@ startStaMode(core::ISecureStore& store)
 } // namespace
 
 std::expected<NetBootstrap, NetError>
-NetBootstrap::start(core::ISecureStore& store)
+NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner)
 {
     if (auto platform = initPlatform(); !platform) {
         return std::unexpected(platform.error());
@@ -169,14 +170,14 @@ NetBootstrap::start(core::ISecureStore& store)
     }
 
     if (store.hasWifiCredentials()) {
-        auto staResult = startStaMode(store);
+        auto staResult = startStaMode(store, tuner);
         if (staResult) {
             return staResult;
         }
         ESP_LOGW(kTag, "STA join failed — falling back to setup SoftAP");
     }
 
-    return startSetupMode(store);
+    return startSetupMode(store, tuner);
 }
 
 NetBootstrap::NetBootstrap(std::optional<SoftApHost> softAp,

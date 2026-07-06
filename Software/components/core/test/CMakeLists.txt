@@ -19,6 +19,9 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/WifiSsid.cpp"
     "${CORE_SRC_DIR}/WifiCredentials.cpp"
     "${CORE_SRC_DIR}/WifiProvisionJson.cpp"
+    "${CORE_SRC_DIR}/EmbeddedBlobReader.cpp"
+    "${CORE_SRC_DIR}/TunerJson.cpp"
+    "${CORE_SRC_DIR}/FrequencyKHz.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -31,3 +34,15 @@ add_test(NAME health_status_test COMMAND health_status_test)
 add_executable(wifi_provision_test wifi_provision_test.cpp)
 target_link_libraries(wifi_provision_test PRIVATE digiradio_core)
 add_test(NAME wifi_provision_test COMMAND wifi_provision_test)
+
+add_executable(embedded_blob_reader_test embedded_blob_reader_test.cpp)
+target_link_libraries(embedded_blob_reader_test PRIVATE digiradio_core)
+add_test(NAME embedded_blob_reader_test COMMAND embedded_blob_reader_test)
+
+add_executable(tuner_json_test tuner_json_test.cpp)
+target_link_libraries(tuner_json_test PRIVATE digiradio_core)
+add_test(NAME tuner_json_test COMMAND tuner_json_test)
+
+add_executable(frequency_khz_test frequency_khz_test.cpp)
+target_link_libraries(frequency_khz_test PRIVATE digiradio_core)
+add_test(NAME frequency_khz_test COMMAND frequency_khz_test)

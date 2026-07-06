@@ -46,11 +46,12 @@ Repository: https://github.com/manvalan/DigiRadio
 
 1. **Walking skeleton** — done (Slice 1).
 2. **Secure store + Wi-Fi provisioning** — done (Slice 2).
-3. Station/frequency list model + persistence + UI.
-4. Si4684 driver: power-up, load image, tune, read RSQ.
-5. ADAU1701 driver: RAM boot, then safeload EQ + input mixer.
-6. FSC-BT1035 driver: AT init (incl. `AT+AUXCFG=1`), audio out.
-7. Integration: TunerService + AudioService end to end.
+3. **Companion-chip boot** — done (Slice 3): Si4684 DAB + ADAU1701 RAM load.
+4. Station/frequency list model + persistence + UI.
+5. Si4684 tuning: RSQ, station list, DAB properties.
+6. ADAU1701 runtime: safeload EQ + input mixer.
+7. FSC-BT1035 driver: AT init (incl. `AT+AUXCFG=1`), audio out.
+8. Integration: TunerService + AudioService end to end.
 
 ## Slice 1 — Walking skeleton (complete)
 
@@ -69,7 +70,7 @@ Behaviour:
 - Bring up SoftAP with a known SSID (e.g. `DigiRadio-setup`).
 - Start an HTTP server serving one minimal gzipped page from flash.
 - Expose `GET /api/health` returning a typed DTO serialised by the pure
-  core, e.g. `{"status":"ok","fw":"0.2.0"}`.
+  core, e.g. `{"status":"ok","fw":"0.3.0"}`.
 
 Documentation (required):
 - Doxygen doc blocks on every class/method; `doxygen Doxyfile` green.
@@ -96,3 +97,25 @@ Acceptance criteria:
 
 Out of scope: station list, user credentials, NVS encryption enablement
 (production), chip drivers.
+
+## Slice 3 — Companion-chip boot (complete)
+
+Goal: load Si4684 DAB firmware and ADAU1701 SigmaStudio program from
+`Firmware/` on every boot, before network bring-up.
+
+Build:
+- `Firmware/Si4684-Firmware/` — `rom_patch_016.bin`, `dab_firmware.bin`,
+  `fm_firmware.bin` (FM via `tools/fetch_si4684_firmware.py --si46xx-dir`).
+- `Firmware/ADAU1701-Firmware/` — SigmaStudio export (`DigiRadio_IC_1.h`, …).
+- `core::IFirmwareBlobReader` + `EmbeddedBlobReader` for chunked HOST_LOAD.
+- `si4684::Si4684Driver`, `adau1701::Adau1701Driver`, `HardwareBootstrap`.
+
+Behaviour:
+- `app_main` calls `HardwareBootstrap::boot()` first (Si4684, then ADAU1701).
+- On failure, firmware logs and halts before Wi-Fi.
+
+Acceptance criteria:
+- [x] AN649 boot sequence with streaming blobs (no full image on heap).
+- [x] ADAU1701 reset + I2C + `default_download_IC_1()` replay.
+- [x] Host test for `EmbeddedBlobReader`; manual sync green.
+- [ ] Device flash verified (requires ESP-IDF toolchain on build host).

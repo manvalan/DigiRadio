@@ -7,17 +7,14 @@
  * Copyright 2026 Michele Bigi
  * SPDX-License-Identifier: Apache-2.0
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
  * @author  Michele Bigi
  * @date    2026-07-06
  */
 
+#include "hardware_bootstrap.hpp"
 #include "net/NetBootstrap.hpp"
 #include "secure_store/NvsSecureStore.hpp"
+#include "tuner/TunerService.hpp"
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -28,16 +25,6 @@ namespace {
 constexpr char kTag[] = "digiradio";
 constexpr TickType_t kHeartbeatPeriod = pdMS_TO_TICKS(5000);
 
-/**
- * @brief    heartbeatTask — periodic alive log for bring-up verification.
- *
- * @dname    heartbeatTask
- * @param    arg  Unused task parameter.
- * @pubstate none
- *
- * @author   Michele Bigi
- * @date     2026-07-06
- */
 void heartbeatTask(void* arg)
 {
     (void)arg;
@@ -50,24 +37,30 @@ void heartbeatTask(void* arg)
 } // namespace
 
 /**
- * @brief    app_main — ESP-IDF application entry point.
+ * @brief    app_main — ESP-IDF entry point for DigiRadio firmware.
  *
  * @dname    app_main
- * @pubstate starts NvsSecureStore, NetBootstrap, and the heartbeat task.
- *
- * Slice 2: joins a stored Wi-Fi network when credentials exist, otherwise
- * opens the DigiRadio-setup SoftAP for provisioning via the web UI.
+ * @pubstate boots companion chips, network stack, and heartbeat task.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
  */
 extern "C" void app_main()
 {
-    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 2");
+    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 4");
+
+    auto hwResult = hardware::HardwareBootstrap::boot();
+    if (!hwResult) {
+        ESP_LOGE(kTag, "companion chip boot failed — halting");
+        return;
+    }
+
+    static tuner::TunerService tunerService(
+        hardware::HardwareBootstrap::si4684Tuner());
 
     static secure_store::NvsSecureStore store;
 
-    auto netResult = net::NetBootstrap::start(store);
+    auto netResult = net::NetBootstrap::start(store, tunerService);
     if (!netResult) {
         ESP_LOGE(kTag, "network bootstrap failed");
         return;
