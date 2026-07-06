@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: Software
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake g++-14
+      - name: Build and run host tests
+        run: |
+          cmake -S components/core/test -B build-host \
+                -DCMAKE_CXX_COMPILER=g++-14
+          cmake --build build-host
+          ctest --test-dir build-host --output-on-failure
+
+  doxygen:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: Software
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
+      - name: Run Doxygen (fail on warnings)
+        run: doxygen Doxyfile
+
+  manual-sync:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: Software
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check manual class sync
+        run: python3 tools/check-manual-sync.py --src components --manual docs/manual

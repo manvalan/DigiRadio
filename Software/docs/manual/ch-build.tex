@@ -62,6 +62,20 @@ doxygen Doxyfile
 python3 tools/check-manual-sync.py
 \end{drcode}
 
+\section{Continuous integration}
+
+Every push and pull request to \texttt{main} runs
+\texttt{.github/workflows/ci.yml} at the repository root (three parallel
+jobs, all from the \texttt{Software/} directory):
+
+\begin{enumerate}
+  \item \textbf{Host tests} --- \texttt{cmake} + \texttt{ctest} on
+        \texttt{components/core/test} (C++23, \texttt{g++-14} on Ubuntu).
+  \item \textbf{Doxygen} --- must exit 0 with an empty
+        \texttt{docs/api/doxygen-warnings.log}.
+  \item \textbf{Manual sync} --- \texttt{tools/check-manual-sync.py}.
+\end{enumerate}
+
 To rebuild the PDF manual (requires a LaTeX installation):
 
 \begin{drcode}[Manual PDF]

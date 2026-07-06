@@ -59,12 +59,67 @@ public:
             std::optional<FrequencyKHz> fmFrequency,
             std::optional<PresetSlot> presetSlot);
 
+    /**
+     * @brief    name — read the preset display label.
+     *
+     * @dname    name
+     * @return   Station name value.
+     * @pubstate reads name_.
+     */
     [[nodiscard]] const StationName& name() const noexcept;
+
+    /**
+     * @brief    band — read the target RF band.
+     *
+     * @dname    band
+     * @return   Dab or Fm band selector.
+     * @pubstate reads band_.
+     */
     [[nodiscard]] TunerBand band() const noexcept;
+
+    /**
+     * @brief    dabFreqIndex — read the Band III ensemble index.
+     *
+     * @dname    dabFreqIndex
+     * @return   Ensemble index 0–37.
+     * @pubstate reads dabFreqIndex_.
+     */
     [[nodiscard]] std::uint8_t dabFreqIndex() const noexcept;
+
+    /**
+     * @brief    dabServiceId — read optional DAB service id for play().
+     *
+     * @dname    dabServiceId
+     * @return   Service id when stored, otherwise empty.
+     * @pubstate reads dabServiceId_.
+     */
     [[nodiscard]] std::optional<std::uint32_t> dabServiceId() const noexcept;
+
+    /**
+     * @brief    dabComponentId — read optional DAB component id for play().
+     *
+     * @dname    dabComponentId
+     * @return   Component id when stored, otherwise empty.
+     * @pubstate reads dabComponentId_.
+     */
     [[nodiscard]] std::optional<std::uint32_t> dabComponentId() const noexcept;
+
+    /**
+     * @brief    fmFrequency — read FM centre frequency when band is Fm.
+     *
+     * @dname    fmFrequency
+     * @return   Frequency when stored, otherwise empty.
+     * @pubstate reads fmFrequency_.
+     */
     [[nodiscard]] std::optional<FrequencyKHz> fmFrequency() const noexcept;
+
+    /**
+     * @brief    presetSlot — read optional hardware preset button slot.
+     *
+     * @dname    presetSlot
+     * @return   Preset slot when assigned, otherwise empty.
+     * @pubstate reads presetSlot_.
+     */
     [[nodiscard]] std::optional<PresetSlot> presetSlot() const noexcept;
 
     /**

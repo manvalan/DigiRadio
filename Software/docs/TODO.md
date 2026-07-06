@@ -12,9 +12,8 @@ errors, no plaintext secrets.
 
 Working directory for all commands is `Software/`.
 
-**Current firmware:** `0.7.0` — BT1035 pairing (`/api/bluetooth/*`),
-station presets (`/api/stations/*`), host tests green (10/10), manual
-sync green (38 classes).
+**Current firmware:** `0.7.1` — CI green gate (Doxygen + host tests +
+manual sync), BT1035 pairing, station presets.
 
 ---
 
@@ -30,28 +29,14 @@ sync green (38 classes).
 
 ## P0 — Fix the build gate (do this first)
 
-### T1. Clear the 16 Doxygen warnings
-**Why:** `doxygen Doxyfile` currently exits non-zero, so the docs gate is
-red and CI (once added) will fail.
-**What:**
-- Replace the invalid `\texttt{...}` with `` `...` `` (backticks) or
-  `\c word` in: `core/AudioProfileJson.hpp` (l.58, l.80),
-  `core/AudioEnhancements.hpp` (l.25).
-- Fix `\r` interpreted as a command in `core/Bt1035At.hpp` (l.64) —
-  wrap the AT string in `@code ... @endcode` or escape as `\\r`.
-- Add a space after `\ref` in `bt1035/Bt1035Driver.hpp` (l.89) and
-  `core/AudioEnhancements.hpp` (l.24).
-- Document the missing `@param companionChips` in
-  `net/NetBootstrap.hpp` (`start`) and `net/SetupWebServer.hpp` (`start`).
-**Done when:** `doxygen Doxyfile` exits 0 and `docs/api/doxygen-warnings.log`
-is empty.
+### T1. Clear the 16 Doxygen warnings — **DONE (fw 0.7.1)**
+Fixed invalid `\texttt`/`\r`/`\ref` in doc blocks; documented
+`Station` accessors and `NetBootstrap`/`SetupWebServer` parameters.
+`doxygen Doxyfile` exits 0 with an empty warnings log.
 
-### T2. Add the CI workflow
-**Why:** validate every push automatically.
-**What:** add `.github/workflows/ci.yml` with three jobs — host build +
-`ctest`, `doxygen` (fail on warnings), and `check-manual-sync.py`. A ready
-draft was prepared; place it and confirm all three jobs pass.
-**Done when:** the workflow is green on `main` after T1.
+### T2. Add the CI workflow — **DONE (fw 0.7.1)**
+`.github/workflows/ci.yml`: host `ctest`, Doxygen, manual sync on every
+push/PR to `main`.
 
 ---
 

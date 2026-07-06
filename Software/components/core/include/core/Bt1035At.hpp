@@ -85,7 +85,7 @@ inline constexpr std::size_t kBt1035BootInitCommandCount = 2U;
  *
  * @dname    buildBt1035AtLine
  * @param    command  Typed AT command.
- * @return   Full line including \r\n suffix.
+ * @return   Full line including CRLF suffix.
  * @pubstate none
  *
  * @author   Michele Bigi

@@ -137,8 +137,9 @@ public:
      * @param    netState  Active network phase exposed to handlers.
      * @param    tuner     Tuner service for the tuner REST routes.
      * @param    audio     Audio service for the audio REST routes.
-     * @param    bluetooth Bluetooth service for pairing REST routes.
-     * @param    stations  Station preset service for list REST routes.
+     * @param    bluetooth       Bluetooth service for pairing REST routes.
+     * @param    stations        Station preset service for list REST routes.
+     * @param    companionChips  Boot flags for GET /api/health.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
      * @pubstate writes server_, store_, netState_, and service pointers on success.
      *

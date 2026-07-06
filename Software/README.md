@@ -2,8 +2,8 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.7.0** — companion-chip boot (Si4684, ADAU1701, BT1035),
-Wi-Fi provisioning, tuner/audio REST API, Bluetooth pairing, station presets.
+**Status:** fw **0.7.1** — CI on `main` (host tests, Doxygen, manual sync);
+companion-chip boot, REST API, Bluetooth pairing, station presets.
 See [`docs/TODO.md`](docs/TODO.md) for the agent task list.
 
 ## Quick start
@@ -26,7 +26,7 @@ cmake --build build-host
 ctest --test-dir build-host --output-on-failure
 ```
 
-Documentation gates (must exit 0 before merging):
+Documentation gates (must exit 0 before merging; also enforced in CI):
 
 ```bash
 doxygen Doxyfile

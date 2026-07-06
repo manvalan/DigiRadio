@@ -86,7 +86,7 @@ public:
      * @pubstate sets booted_ after Ping + AT+AUXCFG=1 both return OK.
      *
      * Sequence: hardware reset, UART @ 115200 with RTS/CTS, then
-     * core::bootInitSequence() (Chapter~\ref{ch:bt1035}).
+     * core::bootInitSequence() (see manual chapter bt1035).
      *
      * @author   Michele Bigi
      * @date     2026-07-06

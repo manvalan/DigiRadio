@@ -55,7 +55,7 @@ namespace core {
  * @brief    serializeAudioSavedJson — success response after profile apply.
  *
  * @dname    serializeAudioSavedJson
- * @return   JSON object \texttt{\{"status":"saved"\}}.
+ * @return   JSON object with \c status set to \c saved.
  * @pubstate none
  *
  * @author   Michele Bigi
@@ -77,7 +77,7 @@ namespace core {
 [[nodiscard]] std::string serializeAudioErrorJson(std::string_view reason);
 
 /**
- * @brief    parseEnhanceLevelJson — parse POST body \texttt{\{"level":0..100\}}.
+ * @brief    parseEnhanceLevelJson — parse POST body with level 0..100.
  *
  * @dname    parseEnhanceLevelJson
  * @param    json  Untrusted request body.

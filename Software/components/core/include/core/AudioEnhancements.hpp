@@ -21,8 +21,8 @@ namespace core {
  *
  * @dname    AudioEnhancements
  * @return   n/a (type)
- * @pubstate Mapped to PEQ bands at runtime (Chapter~\ref{ch:sigmastudio}).
- *           No dedicated SigmaStudio blocks; see \texttt{applyEnhancementsToEq}.
+ * @pubstate Mapped to PEQ bands at runtime (manual chapter sigmastudio).
+ *           No dedicated SigmaStudio blocks; see \c applyEnhancementsToEq.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
