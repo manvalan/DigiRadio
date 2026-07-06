@@ -21,6 +21,8 @@
 #include "core/WifiCredentials.hpp"
 
 #include <expected>
+#include <string>
+#include <string_view>
 
 namespace core {
 
@@ -103,6 +105,58 @@ public:
      */
     [[nodiscard]] virtual std::expected<void, StoreError>
     clearWifiCredentials() = 0;
+
+    /**
+     * @brief    hasStationList — check whether presets are stored.
+     *
+     * @dname    hasStationList
+     * @return   true when loadStationListJson would succeed.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual bool hasStationList() const = 0;
+
+    /**
+     * @brief    saveStationListJson — persist serialised preset list JSON.
+     *
+     * @dname    saveStationListJson
+     * @param    json  Output of core::serializeStationListJson().
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate writes backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual std::expected<void, StoreError>
+    saveStationListJson(std::string_view json) = 0;
+
+    /**
+     * @brief    loadStationListJson — read stored preset list JSON.
+     *
+     * @dname    loadStationListJson
+     * @return   JSON blob on success, or StoreError.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual std::expected<std::string, StoreError>
+    loadStationListJson() const = 0;
+
+    /**
+     * @brief    clearStationList — erase stored presets.
+     *
+     * @dname    clearStationList
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate clears backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] virtual std::expected<void, StoreError>
+    clearStationList() = 0;
 };
 
 } // namespace core

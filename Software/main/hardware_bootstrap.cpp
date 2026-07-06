@@ -124,4 +124,9 @@ core::CompanionChipStatus HardwareBootstrap::companionChipStatus() noexcept
     };
 }
 
+bt1035::Bt1035Driver& HardwareBootstrap::bt1035Driver()
+{
+    return gBt1035;
+}
+
 } // namespace hardware

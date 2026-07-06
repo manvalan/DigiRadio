@@ -30,6 +30,14 @@ namespace audio {
 class AudioService;
 } // namespace audio
 
+namespace bluetooth {
+class BluetoothService;
+} // namespace bluetooth
+
+namespace station {
+class StationService;
+} // namespace station
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -53,6 +61,8 @@ struct HttpRouteContext {
     core::ISecureStore* store;        ///< Secure store for Wi-Fi provisioning.
     tuner::TunerService* tuner;       ///< Tuner service for tuner REST routes.
     audio::AudioService* audio;       ///< Audio service for ADAU1701 REST routes.
+    bluetooth::BluetoothService* bluetooth; ///< Bluetooth pairing REST routes.
+    station::StationService* stations; ///< Preset list REST routes.
     core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
 };
 
@@ -127,8 +137,10 @@ public:
      * @param    netState  Active network phase exposed to handlers.
      * @param    tuner     Tuner service for the tuner REST routes.
      * @param    audio     Audio service for the audio REST routes.
+     * @param    bluetooth Bluetooth service for pairing REST routes.
+     * @param    stations  Station preset service for list REST routes.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
-     * @pubstate writes server_, store_, netState_, tuner_, and audio_ on success.
+     * @pubstate writes server_, store_, netState_, and service pointers on success.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -136,6 +148,8 @@ public:
     [[nodiscard]] std::expected<void, NetError> start(
         core::ISecureStore& store, NetState netState,
         tuner::TunerService& tuner, audio::AudioService& audio,
+        bluetooth::BluetoothService& bluetooth,
+        station::StationService& stations,
         core::CompanionChipStatus companionChips);
 
 private:
@@ -144,6 +158,8 @@ private:
     NetState netState_;
     tuner::TunerService* tuner_;
     audio::AudioService* audio_;
+    bluetooth::BluetoothService* bluetooth_;
+    station::StationService* stations_;
     HttpRouteContext routeContext_;
 };
 

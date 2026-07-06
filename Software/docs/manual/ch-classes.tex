@@ -56,10 +56,13 @@ configured SoftAP. Imperative shell; no business logic.
 
 \section{SetupWebServer}\label{cls:SetupWebServer}
 Minimal HTTP server: gzipped setup UI, \texttt{GET /api/health},
-\texttt{POST /api/wifi}, tuner routes (\texttt{/api/tuner/*}), and audio
-routes (\texttt{/api/audio/*}). JSON parsing and serialisation delegate to
-the pure core; credentials persist via \texttt{ISecureStore}; tuner via
-\texttt{tuner::TunerService}; audio via \texttt{audio::AudioService}.
+\texttt{POST /api/wifi}, tuner routes (\texttt{/api/tuner/*}), audio
+routes (\texttt{/api/audio/*}), Bluetooth (\texttt{/api/bluetooth/*}), and
+station presets (\texttt{/api/stations/*}). JSON parsing and serialisation
+delegate to the pure core; credentials persist via \texttt{ISecureStore};
+tuner via \texttt{tuner::TunerService}; audio via
+\texttt{audio::AudioService}; Bluetooth via \texttt{bluetooth::BluetoothService};
+presets via \texttt{station::StationService}.
 
 \section{NetBootstrap}\label{cls:NetBootstrap}
 Owns network resources for setup or STA mode.
@@ -222,3 +225,32 @@ Validated at the HTTP boundary by \texttt{core::parseEnhanceLevelJson()}.
 \section{NvsAudioProfileStore}\label{cls:NvsAudioProfileStore}
 \texttt{IAudioProfileStore} implementation storing serialised
 \texttt{AudioProfile} JSON in NVS namespace \texttt{digiradio}.
+
+\section{StationName}\label{cls:StationName}
+Strong type for a preset label (1--32 bytes). Parsed at the HTTP boundary
+via \texttt{StationName::tryFrom()}.
+
+\section{PresetSlot}\label{cls:PresetSlot}
+Optional hardware preset button index (1--20). Validated by
+\texttt{PresetSlot::tryFrom()}.
+
+\section{Station}\label{cls:Station}
+Immutable preset value: name, band (DAB/FM), tune coordinates, optional
+preset slot. FM presets carry \texttt{FrequencyKHz}; DAB presets carry
+ensemble index and optional service/component ids for playback.
+
+\section{StationList}\label{cls:StationList}
+Pure-domain ordered collection (max 20 entries) with add/remove/move and
+duplicate tune-target rejection. Persisted as JSON through
+\texttt{ISecureStore}.
+
+\section{StationService}\label{cls:StationService}
+Application service loading/saving presets from NVS and recalling them via
+\texttt{TunerService}. Exposed on \texttt{/api/stations/*} and the Presets
+web UI section.
+
+\section{BluetoothService}\label{cls:BluetoothService}
+Application service for BT1035 pairing and A2DP status
+(Chapter~\ref{ch:bt1035}). Delegates to \texttt{Bt1035Driver}; tracks
+whether discoverable mode was requested. Exposed on
+\texttt{/api/bluetooth/*}.

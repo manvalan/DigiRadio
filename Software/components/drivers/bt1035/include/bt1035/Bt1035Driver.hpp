@@ -119,9 +119,60 @@ public:
     [[nodiscard]] std::expected<void, Bt1035Error> sendCommand(
         core::Bt1035AtCommand command);
 
+    /**
+     * @brief    enterPairingMode — make module discoverable (AT+PAIR=1).
+     *
+     * @dname    enterPairingMode
+     * @return   Ok on OK response, or Bt1035Error.
+     * @pubstate writes UART; module advertises until paired or leavePairingMode().
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> enterPairingMode();
+
+    /**
+     * @brief    leavePairingMode — stop discoverable advertising (AT+PAIR=0).
+     *
+     * @dname    leavePairingMode
+     * @return   Ok on OK response, or Bt1035Error.
+     * @pubstate writes UART.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> leavePairingMode();
+
+    /**
+     * @brief    queryA2dpState — read current A2DP link state (AT+A2DPSTAT).
+     *
+     * @dname    queryA2dpState
+     * @return   Parsed A2DP state on success, or Bt1035Error.
+     * @pubstate writes UART; parses +A2DPSTAT from the reply.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<core::Bt1035A2dpState, Bt1035Error>
+    queryA2dpState();
+
+    /**
+     * @brief    disconnectA2dp — release the active A2DP session (AT+A2DPDISC).
+     *
+     * @dname    disconnectA2dp
+     * @return   Ok on OK response, or Bt1035Error.
+     * @pubstate writes UART.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> disconnectA2dp();
+
 private:
     [[nodiscard]] std::expected<void, Bt1035Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Bt1035Error> runInitSequence();
+    [[nodiscard]] std::expected<std::string, Bt1035Error> transmitAndCollect(
+        std::string_view commandLine);
     [[nodiscard]] std::expected<void, Bt1035Error> transmitAndExpectOk(
         std::string_view commandLine);
 

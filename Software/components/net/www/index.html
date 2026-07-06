@@ -198,6 +198,33 @@
       <p class="msg" id="tuner-msg" aria-live="polite"></p>
     </section>
 
+    <section id="presets-section">
+      <h2>Presets</h2>
+      <p>Saved DAB/FM stations (persisted in NVS).</p>
+      <ul class="services" id="preset-list"></ul>
+      <label for="preset-name">Name</label>
+      <input id="preset-name" maxlength="32" placeholder="My station">
+      <label for="preset-slot">Preset slot (1–20, optional)</label>
+      <input id="preset-slot" type="number" min="1" max="20">
+      <button type="button" id="save-preset">Save current tune target</button>
+      <p class="msg" id="preset-msg" aria-live="polite"></p>
+    </section>
+
+    <section id="bluetooth-section">
+      <h2>Bluetooth</h2>
+      <p>FSC-BT1035 aptX transmitter — pair headphones or speakers.</p>
+      <div class="tuner-status" id="bt-status">No status yet.</div>
+      <div class="row">
+        <button type="button" id="bt-refresh">Refresh</button>
+        <button type="button" class="secondary" id="bt-pair">Start pairing</button>
+      </div>
+      <div class="row">
+        <button type="button" class="secondary" id="bt-stop-pair">Stop pairing</button>
+        <button type="button" class="secondary" id="bt-disconnect">Disconnect</button>
+      </div>
+      <p class="msg" id="bt-msg" aria-live="polite"></p>
+    </section>
+
     <section id="audio-section">
       <h2>Audio</h2>
       <p>ADAU1701 mixer and master volume (safeload at runtime).</p>
@@ -521,6 +548,149 @@
         .catch(function () { showMsg(msg, "Reset request failed.", false); });
     });
 
+    function formatBtStatus(s) {
+      return [
+        "Booted: " + s.booted,
+        "Pairing: " + s.pairing,
+        "A2DP: " + s.a2dp
+      ].join("\n");
+    }
+
+    function refreshBluetooth() {
+      var msg = document.getElementById("bt-msg");
+      return fetch("/api/bluetooth/status")
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.booted != null) {
+            document.getElementById("bt-status").textContent = formatBtStatus(res.d);
+            showMsg(msg, "", true);
+          } else {
+            showMsg(msg, "BT error: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "BT request failed.", false); });
+    }
+
+    document.getElementById("bt-refresh").addEventListener("click", refreshBluetooth);
+    document.getElementById("bt-pair").addEventListener("click", function () {
+      var msg = document.getElementById("bt-msg");
+      fetch("/api/bluetooth/pair", { method: "POST" })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok) {
+            showMsg(msg, "Discoverable — pair from your phone.", true);
+            refreshBluetooth();
+          } else {
+            showMsg(msg, "Pair failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Pair request failed.", false); });
+    });
+    document.getElementById("bt-stop-pair").addEventListener("click", function () {
+      var msg = document.getElementById("bt-msg");
+      fetch("/api/bluetooth/pair/stop", { method: "POST" })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok) {
+            showMsg(msg, "Pairing stopped.", true);
+            refreshBluetooth();
+          } else {
+            showMsg(msg, "Stop failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Stop request failed.", false); });
+    });
+    document.getElementById("bt-disconnect").addEventListener("click", function () {
+      var msg = document.getElementById("bt-msg");
+      fetch("/api/bluetooth/disconnect", { method: "POST" })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok) {
+            showMsg(msg, "A2DP disconnected.", true);
+            refreshBluetooth();
+          } else {
+            showMsg(msg, "Disconnect failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Disconnect request failed.", false); });
+    });
+
+    function renderPresets(data) {
+      var list = document.getElementById("preset-list");
+      list.innerHTML = "";
+      (data.stations || []).forEach(function (s, idx) {
+        var li = document.createElement("li");
+        var label = s.name + " (" + s.band + ")";
+        if (s.fm_frequency_khz) label += " " + s.fm_frequency_khz + " kHz";
+        if (s.dab_freq_index != null) label += " idx " + s.dab_freq_index;
+        li.textContent = label;
+        var tuneBtn = document.createElement("button");
+        tuneBtn.textContent = "Tune";
+        tuneBtn.addEventListener("click", function () {
+          fetch("/api/stations/tune", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: idx })
+          }).then(function () { refreshTunerStatus(); });
+        });
+        var delBtn = document.createElement("button");
+        delBtn.textContent = "Del";
+        delBtn.className = "secondary";
+        delBtn.addEventListener("click", function () {
+          fetch("/api/stations/remove", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: idx })
+          }).then(function () { loadPresets(); });
+        });
+        li.appendChild(tuneBtn);
+        li.appendChild(delBtn);
+        list.appendChild(li);
+      });
+    }
+
+    function loadPresets() {
+      return fetch("/api/stations")
+        .then(function (r) { return r.json(); })
+        .then(function (d) { renderPresets(d); })
+        .catch(function () {});
+    }
+
+    document.getElementById("save-preset").addEventListener("click", function () {
+      var msg = document.getElementById("preset-msg");
+      var name = document.getElementById("preset-name").value.trim();
+      if (!name) {
+        showMsg(msg, "Enter a name.", false);
+        return;
+      }
+      var band = document.getElementById("band").value;
+      var body = { name: name, band: band };
+      if (band === "fm") {
+        body.fm_frequency_khz = parseInt(document.getElementById("fm-khz").value, 10);
+      } else {
+        body.dab_freq_index = parseInt(document.getElementById("dab-index").value, 10);
+      }
+      var slotVal = document.getElementById("preset-slot").value;
+      if (slotVal) body.preset_slot = parseInt(slotVal, 10);
+      fetch("/api/stations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.status === "saved") {
+            showMsg(msg, "Preset saved.", true);
+            loadPresets();
+          } else {
+            showMsg(msg, "Save failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Save request failed.", false); });
+    });
+
+    refreshBluetooth();
+    loadPresets();
     loadAudioProfile();
   </script>
 </body>

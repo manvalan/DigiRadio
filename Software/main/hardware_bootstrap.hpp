@@ -14,6 +14,8 @@
 
 #include "core/CompanionChipStatus.hpp"
 
+#include "bt1035/Bt1035Driver.hpp"
+
 #include <expected>
 
 namespace audio {
@@ -108,6 +110,20 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static core::CompanionChipStatus companionChipStatus() noexcept;
+
+    /**
+     * @brief    bt1035Driver — borrow the BT1035 driver after boot.
+     *
+     * @dname    bt1035Driver
+     * @return   Reference to the static Bt1035Driver instance.
+     * @pubstate reads static storage initialised by boot().
+     *
+     * Valid only after a successful boot() call in the same process.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] static bt1035::Bt1035Driver& bt1035Driver();
 };
 
 } // namespace hardware

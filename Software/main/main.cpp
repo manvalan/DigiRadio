@@ -12,8 +12,10 @@
  */
 
 #include "hardware_bootstrap.hpp"
+#include "bluetooth/BluetoothService.hpp"
 #include "net/NetBootstrap.hpp"
 #include "secure_store/NvsSecureStore.hpp"
+#include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
 
 #include "esp_log.h"
@@ -47,7 +49,7 @@ void heartbeatTask(void* arg)
  */
 extern "C" void app_main()
 {
-    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 6");
+    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 7");
 
     auto hwResult = hardware::HardwareBootstrap::boot();
     if (!hwResult) {
@@ -60,8 +62,17 @@ extern "C" void app_main()
 
     static secure_store::NvsSecureStore store;
 
+    static station::StationService stationService(store, tunerService);
+    if (auto loaded = stationService.loadFromStore(); !loaded) {
+        ESP_LOGW(kTag, "station list load failed");
+    }
+
+    static bluetooth::BluetoothService bluetoothService(
+        hardware::HardwareBootstrap::bt1035Driver());
+
     auto netResult = net::NetBootstrap::start(
         store, tunerService, hardware::HardwareBootstrap::audioService(),
+        bluetoothService, stationService,
         hardware::HardwareBootstrap::companionChipStatus());
     if (!netResult) {
         ESP_LOGE(kTag, "network bootstrap failed");

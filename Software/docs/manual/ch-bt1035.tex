@@ -131,8 +131,8 @@ only the Line-In bring-up required for the wired audio path.
       Host-testable command strings and OK/ERROR classification \\
     \bottomrule
   \end{tabular}
-  \caption{BT1035 control stack (Slice~6). Future HTTP/UI for pairing will
-    sit above the driver without changing the init contract.}
+  \caption{BT1035 control stack (Slice~6--7). Pairing and A2DP status are
+    exposed on \texttt{/api/bluetooth/*} via \texttt{BluetoothService}.}
   \label{tab:bt1035-stack}
 \end{table}
 
@@ -149,9 +149,14 @@ updating \texttt{core::Bt1035AtCommand}, the manual, and a host test.
     \midrule
     \texttt{Ping}      & \texttt{AT}           & Verify UART link \\
     \texttt{AuxLineIn}   & \texttt{AT+AUXCFG=1}  & Enable Line-In from ADAU \\
+    \texttt{PairDiscoverable} & \texttt{AT+PAIR=1} & Enter discoverable mode \\
+    \texttt{PairHidden}       & \texttt{AT+PAIR=0} & Leave discoverable mode \\
+    \texttt{A2dpStat}         & \texttt{AT+A2DPSTAT} & Read link state \\
+    \texttt{A2dpDisconnect}   & \texttt{AT+A2DPDISC} & Release A2DP session \\
     \bottomrule
   \end{tabular}
-  \caption{AT commands used at boot (\texttt{core::bootInitSequence()}).}
+  \caption{Enumerated AT commands (\texttt{core::Bt1035AtCommand}). Boot
+    uses Ping + AuxLineIn only; pairing commands are runtime.}
   \label{tab:bt1035-at}
 \end{table}
 
@@ -170,6 +175,10 @@ updating \texttt{core::Bt1035AtCommand}, the manual, and a host test.
     \texttt{boot()} & Reset, UART init, run \texttt{bootInitSequence()} \\
     \texttt{isBooted()} & \texttt{true} after Line-In init succeeded \\
     \texttt{sendCommand(cmd)} & Send one typed command, expect OK \\
+    \texttt{enterPairingMode()} & \texttt{AT+PAIR=1} \\
+    \texttt{leavePairingMode()} & \texttt{AT+PAIR=0} \\
+    \texttt{queryA2dpState()} & \texttt{AT+A2DPSTAT}, parse \texttt{+A2DPSTAT=} \\
+    \texttt{disconnectA2dp()} & \texttt{AT+A2DPDISC} \\
     \bottomrule
   \end{tabular}
   \caption{Public driver API.}
@@ -232,7 +241,7 @@ if (auto r = bt.sendCommand(core::Bt1035AtCommand::AuxLineIn); !r) {
 
 \begin{itemize}
   \item Feasycom FSC-BT1035 AT command manual (vendor) --- full command set
-        for pairing, name, and codec options not yet wrapped by firmware.
+        for name, paired-device list, and reconnect not yet wrapped by firmware.
   \item Chapter~\ref{ch:hardware} --- pin map and I\textsuperscript{2}S routing.
   \item Chapter~\ref{ch:adau1701} --- DSP output that feeds the module.
   \item \texttt{components/core/test/bt1035\_at\_test.cpp} --- init sequence test.

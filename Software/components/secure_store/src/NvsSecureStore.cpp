@@ -30,6 +30,7 @@ namespace {
 constexpr char kNamespace[] = "digiradio";
 constexpr char kSsidKey[] = "wifi_ssid";
 constexpr char kPasswordKey[] = "wifi_pwd";
+constexpr char kStationListKey[] = "station_list";
 } // namespace
 
 bool NvsSecureStore::hasWifiCredentials() const
@@ -137,6 +138,86 @@ std::expected<void, core::StoreError> NvsSecureStore::clearWifiCredentials()
     if (err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND) {
         err = nvs_erase_key(handle, kPasswordKey);
     }
+    if (err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND) {
+        err = nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    return {};
+}
+
+bool NvsSecureStore::hasStationList() const
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) {
+        return false;
+    }
+
+    std::size_t len = 0;
+    const esp_err_t err =
+        nvs_get_str(handle, kStationListKey, nullptr, &len);
+    nvs_close(handle);
+
+    return err == ESP_OK && len > 1;
+}
+
+std::expected<void, core::StoreError>
+NvsSecureStore::saveStationListJson(std::string_view json)
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+
+    const std::string payload(json);
+    esp_err_t err = nvs_set_str(handle, kStationListKey, payload.c_str());
+    if (err == ESP_OK) {
+        err = nvs_commit(handle);
+    }
+    nvs_close(handle);
+
+    if (err != ESP_OK) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    return {};
+}
+
+std::expected<std::string, core::StoreError>
+NvsSecureStore::loadStationListJson() const
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) {
+        return std::unexpected(core::StoreError::NotFound);
+    }
+
+    std::size_t len = 0;
+    if (nvs_get_str(handle, kStationListKey, nullptr, &len) != ESP_OK
+        || len == 0) {
+        nvs_close(handle);
+        return std::unexpected(core::StoreError::NotFound);
+    }
+
+    std::vector<char> buffer(len);
+    if (nvs_get_str(handle, kStationListKey, buffer.data(), &len) != ESP_OK) {
+        nvs_close(handle);
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    nvs_close(handle);
+
+    return std::string(buffer.data());
+}
+
+std::expected<void, core::StoreError> NvsSecureStore::clearStationList()
+{
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+
+    esp_err_t err = nvs_erase_key(handle, kStationListKey);
     if (err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND) {
         err = nvs_commit(handle);
     }

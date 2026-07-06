@@ -100,6 +100,17 @@ public:
      */
     [[nodiscard]] std::expected<void, core::StoreError>
     clearWifiCredentials() override;
+
+    [[nodiscard]] bool hasStationList() const override;
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    saveStationListJson(std::string_view json) override;
+
+    [[nodiscard]] std::expected<std::string, core::StoreError>
+    loadStationListJson() const override;
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    clearStationList() override;
 };
 
 } // namespace secure_store

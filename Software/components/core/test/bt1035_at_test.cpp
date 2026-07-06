@@ -54,6 +54,23 @@ namespace {
         std::cerr << "unexpected parse failed\n";
         return EXIT_FAILURE;
     }
+    if (core::parseBt1035AtResponse("+A2DPSTAT=3\r\nOK\r\n")
+        != core::Bt1035AtResponseKind::Ok) {
+        std::cerr << "expected multiline OK detection\n";
+        return EXIT_FAILURE;
+    }
+    const std::string pairOn =
+        core::buildBt1035AtLine(core::Bt1035AtCommand::PairDiscoverable);
+    if (pairOn != "AT+PAIR=1\r\n") {
+        std::cerr << "expected AT+PAIR=1 line\n";
+        return EXIT_FAILURE;
+    }
+    const auto a2dp =
+        core::parseBt1035A2dpStatResponse("+A2DPSTAT=4\r\nOK\r\n");
+    if (!a2dp || *a2dp != core::Bt1035A2dpState::Streaming) {
+        std::cerr << "expected streaming A2DP state\n";
+        return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 

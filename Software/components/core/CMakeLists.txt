@@ -23,6 +23,12 @@ idf_component_register(
         "src/AudioProfile.cpp"
         "src/AudioProfileJson.cpp"
         "src/Bt1035At.cpp"
+        "src/StationName.cpp"
+        "src/PresetSlot.cpp"
+        "src/Station.cpp"
+        "src/StationList.cpp"
+        "src/StationListJson.cpp"
+        "src/BluetoothJson.cpp"
     INCLUDE_DIRS "include"
 )
 
