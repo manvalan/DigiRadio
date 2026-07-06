@@ -104,7 +104,7 @@ Firmware development backlog and agent tasks:
 - ✅ **PCB layout** — 6-layer, DRC clean, plane continuity verified
 - ✅ **BOM** — finalised (manufacturable / sourced)
 - 🔜 **Prototype** — in fabrication (PCBWay)
-- 🛠️ **Firmware** — fw 0.7.0 on `main` (tuner, DSP, BT pairing, presets); see [`Software/docs/TODO.md`](Software/docs/TODO.md)
+- 🛠️ **Firmware** — fw 0.7.1 on `main` (CI + tuner, DSP, BT, presets); see [`Software/docs/TODO.md`](Software/docs/TODO.md)
 
 ---
 

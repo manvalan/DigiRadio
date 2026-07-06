@@ -63,9 +63,12 @@ public:
      * @brief    start — init platform and join stored Wi-Fi or open SoftAP.
      *
      * @dname    start
-     * @param    store  Secure store consulted for saved STA credentials.
-     * @param    tuner  Tuner service exposed by the HTTP API.
-     * @param    audio  Audio service exposed by the HTTP API.
+     * @param    store           Secure store consulted for saved STA credentials.
+     * @param    tuner           Tuner service exposed by the HTTP API.
+     * @param    audio           Audio service exposed by the HTTP API.
+     * @param    bluetooth       Bluetooth pairing service for REST routes.
+     * @param    stations        Station preset service for REST routes.
+     * @param    companionChips  Boot flags exposed on GET /api/health.
      * @return   NetBootstrap on success, or a NetError.
      * @pubstate none
      *
