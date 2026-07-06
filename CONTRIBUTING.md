@@ -40,11 +40,16 @@ cmake --build build-host
 ctest --test-dir build-host --output-on-failure
 ```
 
-Documentation (must exit 0 with an empty warnings log):
+Documentation (must exit 0; run from `Software/`):
 
 ```bash
 doxygen Doxyfile
+python3 tools/check-manual-sync.py
 ```
+
+The LaTeX manual (`docs/manual/`) documents design and the HTTP JSON API
+(`ch-api.tex`); Doxygen documents C++ signatures. Rebuild the PDF with
+`latexmk -lualatex manual.tex` inside `docs/manual/`.
 
 ## Coding conventions
 
@@ -97,6 +102,9 @@ Before opening a PR, confirm:
 - [ ] Every file has the Apache-2.0 header.
 - [ ] Every class and method has its documentation block.
 - [ ] `doxygen Doxyfile` exits 0 with an empty warnings log.
+- [ ] `python3 tools/check-manual-sync.py` passes.
+- [ ] Manual updated: `ch-classes.tex` for new/changed public classes;
+      `ch-api.tex` for new/changed HTTP endpoints.
 - [ ] Every method fits 80x24 and complexity <= 7.
 - [ ] Fallible paths return typed results; no silent failure.
 - [ ] Pure-core logic has passing host unit tests.

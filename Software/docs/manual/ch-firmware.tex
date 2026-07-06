@@ -157,15 +157,32 @@ parsed explicitly, with timeouts treated as errors.
 \section{Configuration, storage, and user interface}
 \label{sec:fw-config}
 
-Network provisioning uses a SoftAP/captive-portal for first-time setup,
-then joins the configured network as a station. Configuration is exposed
-through an elegant, minimal web interface served from flash, backed by a
-typed JSON API; the interface holds no business logic.
+Network provisioning is implemented as an explicit state machine
+(\texttt{net::NetState}): on first boot (or when STA join fails) the
+device opens a setup SoftAP (\texttt{DigiRadio-setup}) and serves a
+minimal gzipped web UI from flash. After the user submits credentials via
+\texttt{POST /api/wifi}, values are validated in the pure core, persisted
+through \texttt{core::ISecureStore}, and the device reboots into STA mode
+on the next boot. The HTTP endpoints and JSON schemas are documented in
+Chapter~\ref{ch:api}.
 
-Sensitive data --- Wi-Fi credentials, user credentials, and the
-station/frequency list --- is held in encrypted storage at rest. Secrets
-are wrapped in a dedicated type that cannot be logged or implicitly
-converted to a string, and buffers are cleared after use.
+\paragraph{Implemented (Slices~1--2).}
+\begin{itemize}
+  \item \texttt{GET /api/health} --- health DTO
+        (\texttt{core::HealthStatus}, serialised in the pure core).
+  \item \texttt{POST /api/wifi} --- Wi-Fi provisioning
+        (\texttt{core::WifiCredentials} via \texttt{parseWifiProvisionJson}).
+  \item \texttt{secure\_store::NvsSecureStore} --- NVS persistence for
+        SSID and PSK (\texttt{core::Secret}); station list and user
+        credentials arrive in later slices on the same
+        \texttt{ISecureStore} interface.
+\end{itemize}
+
+Sensitive data --- Wi-Fi credentials today; user credentials and the
+station/frequency list in later slices --- uses \texttt{core::Secret} so
+values cannot be logged or implicitly converted to a string; buffers are
+cleared on destruction. Production builds should enable NVS encryption
+at rest (see Chapter~\ref{sec:api-storage}).
 
 \section{Error-handling model}
 \label{sec:fw-errors}

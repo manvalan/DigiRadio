@@ -1,0 +1,125 @@
+\chapter{HTTP API}
+\label{ch:api}
+
+The setup web interface is a thin client over a typed JSON REST API
+implemented in \texttt{SetupWebServer}. Request bodies are parsed into
+domain types in the pure core (\texttt{components/core}) before any
+persistence or driver call. Exact C++ signatures live in the generated
+Doxygen output under \texttt{docs/api/}; this chapter documents the
+wire protocol and behaviour as shipped in firmware~0.2.0 (Slices~1--2).
+
+\section{Transport and reachability}
+
+\begin{itemize}
+  \item \textbf{Port:} TCP~80 on the ESP32-S3 HTTP server.
+  \item \textbf{Setup mode (\texttt{NetState::SoftApSetup}):} join the
+        SoftAP \texttt{DigiRadio-setup} (open network), then open
+        \url{http://192.168.4.1/}. The root path serves a gzipped HTML
+        page embedded from flash.
+  \item \textbf{STA mode (\texttt{NetState::StaConnected}):} after
+        successful provisioning and reboot, the same API is available at
+        the device's DHCP address on the configured LAN.
+\end{itemize}
+
+All responses use \texttt{Content-Type: application/json} except
+\texttt{GET /}, which returns gzipped HTML with
+\texttt{Content-Encoding: gzip}.
+
+\section{Endpoints}
+
+\subsection{\texttt{GET /api/health}}
+\label{sec:api-health}
+
+Returns a health-check DTO serialised by
+\texttt{core::serializeHealthStatusJson()} from a
+\texttt{core::HealthStatus} value.
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"status":"ok","fw":"0.2.0"}
+\end{drcode}
+\begin{itemize}
+  \item \texttt{status} --- coarse indicator; \texttt{ok} when the
+        firmware is running normally.
+  \item \texttt{fw} --- firmware release string
+        (\texttt{core::FirmwareVersion}).
+\end{itemize}
+\end{drnote}
+
+HTTP status: \textbf{200 OK} on success.
+
+\subsection{\texttt{POST /api/wifi}}
+\label{sec:api-wifi}
+
+Accepts Wi-Fi credentials for station (STA) join. The body is parsed by
+\texttt{core::parseWifiProvisionJson()} into a \texttt{core::WifiCredentials}
+value (SSID as \texttt{core::WifiSsid}, password as \texttt{core::Secret}).
+On success the credentials are persisted through
+\texttt{core::ISecureStore} (device implementation:
+\texttt{secure\_store::NvsSecureStore}) and the device schedules a reboot
+so the next boot can enter STA mode.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"ssid":"MyNetwork","password":"secret1234"}
+\end{drcode}
+\begin{itemize}
+  \item \texttt{ssid} --- required, 1--32 characters (802.11 SSID limits).
+  \item \texttt{password} --- optional for open networks; for WPA-PSK,
+        8--63 characters. Validated by
+        \texttt{core::WifiCredentials::isPasswordValid()}.
+\end{itemize}
+\end{drnote}
+
+\begin{drnote}[Success response]
+\begin{drcode}[JSON]
+{"status":"saved","reboot_in_sec":3}
+\end{drcode}
+Serialised by \texttt{core::serializeWifiProvisionSavedJson()}. The device
+reboots after the indicated delay.
+\end{drnote}
+
+\begin{drnote}[Error response]
+\begin{drcode}[JSON]
+{"status":"error","reason":"invalid_ssid"}
+\end{drcode}
+Serialised by \texttt{core::serializeWifiProvisionErrorJson()}. Reason
+tokens (never include secrets): \texttt{invalid\_json},
+\texttt{missing\_field}, \texttt{invalid\_ssid}, \texttt{invalid\_password},
+\texttt{store\_failed}.
+\end{drnote}
+
+HTTP status: \textbf{200 OK} on save success; \textbf{400 Bad Request} for
+parse/validation failures; \textbf{500 Internal Server Error} when NVS
+persistence fails.
+
+\section{Boot and network state machine}
+\label{sec:api-boot-flow}
+
+At boot, \texttt{net::NetBootstrap::start()} consults
+\texttt{ISecureStore::hasWifiCredentials()}:
+
+\begin{enumerate}
+  \item \textbf{Credentials present} --- create STA netif, connect via
+        \texttt{net::StaClient} (30\,s timeout). On success:
+        \texttt{NetState::StaConnected} and HTTP on the LAN address.
+  \item \textbf{No credentials, or STA join fails} --- fall back to
+        SoftAP setup mode (\texttt{NetState::SoftApSetup}).
+\end{enumerate}
+
+This explicit \texttt{enum class NetState} replaces ad-hoc flags; see
+\texttt{net/NetState.hpp} in the source tree.
+
+\section{Credential storage (Slice~2)}
+\label{sec:api-storage}
+
+Wi-Fi credentials are stored in NVS namespace \texttt{digiradio}, keys
+\texttt{wifi\_ssid} and \texttt{wifi\_pwd}. Passwords are wrapped in
+\texttt{core::Secret} in RAM and are never logged or returned by the API.
+
+\begin{drcaution}[Encryption at rest]
+Development builds use plain NVS. Production should enable NVS encryption
+using the reserved \texttt{nvs\_keys} partition (see
+\texttt{partitions.csv} and \texttt{sdkconfig.defaults} comments) per
+current ESP-IDF security guidance.
+\end{drcaution}

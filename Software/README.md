@@ -31,6 +31,22 @@ doxygen Doxyfile
 python3 tools/check-manual-sync.py
 ```
 
+Manual PDF (design + HTTP API + class reference):
+
+```bash
+cd docs/manual && latexmk -lualatex manual.tex
+```
+
+## HTTP API (fw 0.2.0)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/health` | `{"status":"ok","fw":"0.2.0"}` |
+| POST | `/api/wifi` | Provision STA credentials; reboot on success |
+
+Full schemas, error tokens, and boot flow: [`docs/manual/ch-api.tex`](docs/manual/ch-api.tex).
+C++ signatures: generate with `doxygen Doxyfile` → `docs/api/html/index.html`.
+
 ## Layout
 
 See [`AGENTS.md`](AGENTS.md) §12 and [`instructions.md`](instructions.md) for
