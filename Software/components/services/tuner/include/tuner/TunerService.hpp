@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <vector>
 
 namespace tuner {
@@ -72,7 +73,7 @@ public:
      * @dname    tuneDab
      * @param    freqIndex  Ensemble index 0–37.
      * @return   Ok on success, or a TunerError from ITuner.
-     * @pubstate writes lastDabIndex_ on success.
+     * @pubstate writes lastDabIndex_ on success; clears last-played DAB ids.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -129,7 +130,7 @@ public:
      * @param    serviceId    Selected service identifier.
      * @param    componentId  Audio component within the service.
      * @return   Ok on success, or a TunerError from ITuner.
-     * @pubstate delegates to tuner_.
+     * @pubstate delegates to tuner_; caches service/component for status JSON.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -168,6 +169,8 @@ private:
     std::uint8_t lastDabIndex_;
     core::FrequencyKHz lastFmFrequency_;
     std::uint8_t volume_;
+    std::optional<std::uint32_t> lastPlayedServiceId_;
+    std::optional<std::uint32_t> lastPlayedComponentId_;
 };
 
 } // namespace tuner

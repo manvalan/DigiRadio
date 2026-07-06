@@ -89,6 +89,19 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         } else {
             return std::unexpected(mapError(dig.error()));
         }
+
+        if (lastDabServiceId_) {
+            if (auto data = driver_.readDabServiceData(false, true); data) {
+                if (*data && (*data)->dataSrc == 2U) {
+                    dabDynamicLabel_.applySegment((*data)->segmentIndex,
+                                                  (*data)->segmentCount,
+                                                  (*data)->payload);
+                    status.dabDynamicLabel = dabDynamicLabel_.label();
+                }
+            } else {
+                return std::unexpected(mapError(data.error()));
+            }
+        }
     } else {
         status.fmFrequency = fmFrequency_;
         if (auto rsq = driver_.readFmRsq(); rsq) {
@@ -101,6 +114,25 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         } else {
             return std::unexpected(mapError(rsq.error()));
         }
+
+        for (int attempt = 0; attempt < 8; ++attempt) {
+            auto rds = driver_.readFmRds();
+            if (!rds) {
+                return std::unexpected(mapError(rds.error()));
+            }
+            if (!rds->received) {
+                break;
+            }
+            rdsMetadata_.applyGroup(rds->blockA,
+                                    rds->blockB,
+                                    rds->blockC,
+                                    rds->blockD);
+            if (rds->fifoUsed <= 1U) {
+                break;
+            }
+        }
+        status.fmStationName = rdsMetadata_.programName();
+        status.fmRadiotext = rdsMetadata_.radiotext();
     }
     return status;
 }
@@ -112,6 +144,9 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
         return std::unexpected(mapError(result.error()));
     }
     dabIndex_ = freqIndex;
+    dabDynamicLabel_.reset();
+    lastDabServiceId_.reset();
+    lastDabComponentId_.reset();
     return {};
 }
 
@@ -122,6 +157,7 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneFm(
         return std::unexpected(mapError(result.error()));
     }
     fmFrequency_ = frequency;
+    rdsMetadata_.reset();
     return {};
 }
 
@@ -132,6 +168,7 @@ std::expected<core::FrequencyKHz, core::TunerError> Si4684Tuner::seekFm(
         return std::unexpected(mapError(result.error()));
     }
     fmFrequency_ = *result;
+    rdsMetadata_.reset();
     return *result;
 }
 
@@ -171,6 +208,9 @@ std::expected<void, core::TunerError> Si4684Tuner::playDabService(
     if (auto result = driver_.startDabService(serviceId, componentId); !result) {
         return std::unexpected(mapError(result.error()));
     }
+    lastDabServiceId_ = serviceId;
+    lastDabComponentId_ = componentId;
+    dabDynamicLabel_.reset();
     return {};
 }
 

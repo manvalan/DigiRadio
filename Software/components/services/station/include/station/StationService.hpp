@@ -103,6 +103,21 @@ public:
         std::size_t index);
 
     /**
+     * @brief    reorder — move a preset within the list and persist.
+     *
+     * @dname    reorder
+     * @param    fromIndex  Current list position.
+     * @param    toIndex    Target list position.
+     * @return   Ok on success, or StationListError.
+     * @pubstate mutates list_ and NVS on success.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, core::StationListError> reorder(
+        std::size_t fromIndex, std::size_t toIndex);
+
+    /**
      * @brief    tuneToIndex — recall a saved preset on the tuner.
      *
      * @dname    tuneToIndex

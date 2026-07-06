@@ -81,6 +81,37 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+[[nodiscard]] int runParseStationReorderJsonTest()
+{
+    const auto parsed =
+        core::parseStationReorderJson(R"({"from":1,"to":0})");
+    if (!parsed || parsed->fromIndex != 1U || parsed->toIndex != 0U) {
+        std::cerr << "reorder parse failed\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+[[nodiscard]] int runStationListReorderTest()
+{
+    core::StationList list;
+    if (auto a = list.add(makeFmStation("A", 88000U, 1U)); !a) {
+        return EXIT_FAILURE;
+    }
+    if (auto b = list.add(makeFmStation("B", 90000U, 2U)); !b) {
+        return EXIT_FAILURE;
+    }
+    if (auto moved = list.move(1U, 0U); !moved) {
+        std::cerr << "move failed\n";
+        return EXIT_FAILURE;
+    }
+    if (list.stations()[0U].name().value() != "B") {
+        std::cerr << "expected B first after reorder\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main()
@@ -92,6 +123,12 @@ int main()
         return EXIT_FAILURE;
     }
     if (runParseStationJsonTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runParseStationReorderJsonTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runStationListReorderTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

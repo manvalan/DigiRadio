@@ -58,6 +58,29 @@ namespace {
     return band == TunerBand::Fm ? "fm" : "dab";
 }
 
+void appendJsonString(std::ostringstream& out, std::string_view value)
+{
+    out << '"';
+    for (char c : value) {
+        if (c == '"' || c == '\\') {
+            out << '\\';
+        }
+        out << c;
+    }
+    out << '"';
+}
+
+void appendOptionalLabel(std::ostringstream& out,
+                         std::string_view key,
+                         const std::optional<BroadcastLabel>& label)
+{
+    if (!label) {
+        return;
+    }
+    out << ",\"" << key << "\":";
+    appendJsonString(out, label->value());
+}
+
 } // namespace
 
 std::string serializeTunerStatusJson(const TunerStatus& status)
@@ -82,6 +105,15 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         if (status.dabCnrDb) {
             out << ",\"cnr_db\":" << static_cast<int>(*status.dabCnrDb);
         }
+        if (status.dabPlayingServiceId) {
+            out << ",\"playing_service_id\":"
+                << *status.dabPlayingServiceId;
+        }
+        if (status.dabPlayingComponentId) {
+            out << ",\"playing_component_id\":"
+                << *status.dabPlayingComponentId;
+        }
+        appendOptionalLabel(out, "dynamic_label", status.dabDynamicLabel);
         out << "},\"fm\":null";
     } else {
         out << ",\"fm\":{";
@@ -100,6 +132,8 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         if (status.fmStereo) {
             out << ",\"stereo\":" << (*status.fmStereo ? "true" : "false");
         }
+        appendOptionalLabel(out, "station_name", status.fmStationName);
+        appendOptionalLabel(out, "radiotext", status.fmRadiotext);
         out << "},\"dab\":null";
     }
     out << '}';
@@ -116,18 +150,15 @@ std::string serializeTunerServicesJson(
             out << ',';
         }
         const auto& s = services[i];
-        out << "{\"service_id\":" << s.serviceId
-            << ",\"component_id\":" << s.componentId << ",\"label\":\"";
-        for (char c : s.label) {
-            if (c == '\0') {
-                break;
-            }
-            if (c == '"' || c == '\\') {
-                out << '\\';
-            }
-            out << c;
+        std::string_view labelText(s.label.data(), s.label.size());
+        const std::size_t nul = labelText.find('\0');
+        if (nul != std::string_view::npos) {
+            labelText = labelText.substr(0U, nul);
         }
-        out << "\"}";
+        out << "{\"service_id\":" << s.serviceId
+            << ",\"component_id\":" << s.componentId << ",\"label\":";
+        appendJsonString(out, labelText);
+        out << "}";
     }
     out << "]}";
     return out.str();

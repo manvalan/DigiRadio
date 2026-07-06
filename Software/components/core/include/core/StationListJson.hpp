@@ -39,6 +39,21 @@ struct StationRemoveRequest {
 };
 
 /**
+ * @brief    StationReorderRequest — parsed POST /api/stations/reorder body.
+ *
+ * @dname    StationReorderRequest
+ * @return   n/a (type)
+ * @pubstate Plain DTO filled by parseStationReorderJson.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+struct StationReorderRequest {
+    std::size_t fromIndex; ///< Current list position.
+    std::size_t toIndex;   ///< Target list position.
+};
+
+/**
  * @brief    serializeStationListJson — serialise all presets for GET /api/stations.
  *
  * @dname    serializeStationListJson
@@ -92,6 +107,20 @@ parseStationListJson(std::string_view json);
  */
 [[nodiscard]] std::expected<StationRemoveRequest, ParseError>
 parseStationRemoveJson(std::string_view json);
+
+/**
+ * @brief    parseStationReorderJson — validate POST /api/stations/reorder body.
+ *
+ * @dname    parseStationReorderJson
+ * @param    json  Untrusted request body with from/to index fields.
+ * @return   StationReorderRequest on success, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+[[nodiscard]] std::expected<StationReorderRequest, ParseError>
+parseStationReorderJson(std::string_view json);
 
 /**
  * @brief    serializeStationListErrorJson — serialise a station API error.

@@ -587,11 +587,66 @@ std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
 
     Si4684FmRdsStatus rds = {};
     rds.received = (raw[4] & 0x01U) != 0U;
+    rds.fifoUsed = raw[10];
     rds.blockA = readLe16(raw.data() + 12);
     rds.blockB = readLe16(raw.data() + 14);
     rds.blockC = readLe16(raw.data() + 16);
     rds.blockD = readLe16(raw.data() + 18);
     return rds;
+}
+
+std::expected<std::optional<Si4684DabServiceData>, Si4684Error>
+Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
+{
+    if (auto band = ensureBand(Si4684Band::Dab); !band) {
+        return std::unexpected(band.error());
+    }
+
+    const std::uint8_t arg1 =
+        static_cast<std::uint8_t>((statusOnly ? 0x08U : 0x00U)
+                                  | (ack ? 0x01U : 0x00U));
+    const std::uint8_t args[] = {arg1};
+    if (auto cmd =
+            writeCommand(Command::GetDigitalServiceData, args, sizeof(args));
+        !cmd) {
+        return std::unexpected(Si4684Error::CommandFailed);
+    }
+
+    std::array<std::uint8_t, 24> header = {};
+    if (auto rd = readRaw(header); !rd) {
+        return std::unexpected(rd.error());
+    }
+
+    if (statusOnly) {
+        if (header[5] == 0U) {
+            return std::optional<Si4684DabServiceData>{};
+        }
+    }
+
+    const std::uint16_t byteCount = readLe16(header.data() + 18);
+    if (byteCount == 0U) {
+        return std::optional<Si4684DabServiceData>{};
+    }
+    if (byteCount + 24U > kSpiBufferSize) {
+        return std::unexpected(Si4684Error::ReplyTooShort);
+    }
+
+    std::vector<std::uint8_t> body(byteCount, 0U);
+    if (byteCount > 0U) {
+        if (auto rd = readRaw(body); !rd) {
+            return std::unexpected(rd.error());
+        }
+    }
+
+    Si4684DabServiceData data = {};
+    data.dataSrc = static_cast<std::uint8_t>((header[7] >> 6U) & 0x03U);
+    data.serviceId = readLe32(header.data() + 8);
+    data.componentId = readLe32(header.data() + 12);
+    data.byteCount = byteCount;
+    data.segmentIndex = readLe16(header.data() + 20);
+    data.segmentCount = readLe16(header.data() + 22);
+    data.payload = std::move(body);
+    return data;
 }
 
 std::expected<void, Si4684Error> Si4684Driver::installDefaultDabFrequencyPlan()

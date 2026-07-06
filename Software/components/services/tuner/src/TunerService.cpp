@@ -37,6 +37,10 @@ std::expected<core::TunerStatus, core::TunerError> TunerService::refreshStatus()
     auto status = tuner_.readStatus();
     if (status) {
         volume_ = status->volume;
+        if (status->band == core::TunerBand::Dab) {
+            status->dabPlayingServiceId = lastPlayedServiceId_;
+            status->dabPlayingComponentId = lastPlayedComponentId_;
+        }
     }
     return status;
 }
@@ -48,6 +52,8 @@ std::expected<void, core::TunerError> TunerService::tuneDab(
         return result;
     }
     lastDabIndex_ = freqIndex;
+    lastPlayedServiceId_.reset();
+    lastPlayedComponentId_.reset();
     return {};
 }
 
@@ -81,7 +87,12 @@ std::expected<void, core::TunerError> TunerService::playDabService(
     std::uint32_t serviceId,
     std::uint32_t componentId)
 {
-    return tuner_.playDabService(serviceId, componentId);
+    if (auto result = tuner_.playDabService(serviceId, componentId); !result) {
+        return result;
+    }
+    lastPlayedServiceId_ = serviceId;
+    lastPlayedComponentId_ = componentId;
+    return {};
 }
 
 std::expected<void, core::TunerError> TunerService::setVolume(std::uint8_t level)

@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -235,6 +236,21 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<Si4684FmRdsStatus, Si4684Error> readFmRds();
+
+    /**
+     * @brief    readDabServiceData — read one queued DAB data-service block.
+     *
+     * @dname    readDabServiceData
+     * @param    statusOnly  Poll queue depth without consuming payload.
+     * @param    ack         Acknowledge DSRVINT when reading payload.
+     * @return   Data block on success, nullopt when queue empty, or Si4684Error.
+     * @pubstate reads GET_DIGITAL_SERVICE_DATA response bytes.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<std::optional<Si4684DabServiceData>, Si4684Error>
+    readDabServiceData(bool statusOnly, bool ack);
 
     /**
      * @brief    installDefaultDabFrequencyPlan — load Band III frequency list.

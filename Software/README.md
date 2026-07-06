@@ -2,8 +2,8 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.7.1** — CI on `main` (host tests, Doxygen, manual sync);
-companion-chip boot, REST API, Bluetooth pairing, station presets.
+**Status:** fw **0.8.0** — RDS/DLS now-playing metadata in tuner status;
+preset reorder, CI on `main` (host tests, Doxygen, manual sync).
 See [`docs/TODO.md`](docs/TODO.md) for the agent task list.
 
 ## Quick start
@@ -39,7 +39,7 @@ Manual PDF (design + HTTP API + class reference):
 cd docs/manual && latexmk -lualatex manual.tex
 ```
 
-## HTTP API (fw 0.7.0)
+## HTTP API (fw 0.8.0)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -61,6 +61,7 @@ cd docs/manual && latexmk -lualatex manual.tex
 | GET | `/api/stations` | List saved presets |
 | POST | `/api/stations` | Add preset |
 | POST | `/api/stations/remove` | Remove preset by index |
+| POST | `/api/stations/reorder` | Move preset (`from`/`to` indices) |
 | POST | `/api/stations/tune` | Recall preset on tuner |
 
 Full schemas, error tokens, and boot flow: [`docs/manual/ch-api.tex`](docs/manual/ch-api.tex).

@@ -16,6 +16,7 @@
 #include "core/TunerBand.hpp"
 #include "core/TunerJson.hpp"
 #include "core/TunerStatus.hpp"
+#include "core/BroadcastLabel.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -102,6 +103,26 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+[[nodiscard]] int runTunerStatusPlayingSerialiseTest()
+{
+    core::TunerStatus status = {};
+    status.booted = true;
+    status.band = core::TunerBand::Dab;
+    status.locked = true;
+    status.volume = 40;
+    status.dabFreqIndex = 12U;
+    status.dabPlayingServiceId = 42U;
+    status.dabPlayingComponentId = 7U;
+
+    const std::string json = core::serializeTunerStatusJson(status);
+    if (json.find("\"playing_service_id\":42") == std::string::npos
+        || json.find("\"playing_component_id\":7") == std::string::npos) {
+        std::cerr << "playing ids missing: " << json << '\n';
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 [[nodiscard]] int runTunerServicesSerialiseTest()
 {
     core::TunerServiceEntry entry = {};
@@ -113,6 +134,36 @@ namespace {
         core::serializeTunerServicesJson({entry});
     if (!expectEqual(json,
                      R"({"services":[{"service_id":1,"component_id":2,"label":"RAI"}]})")) {
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+[[nodiscard]] int runTunerStatusMetadataSerialiseTest()
+{
+    core::TunerStatus status = {};
+    status.booted = true;
+    status.band = core::TunerBand::Fm;
+    status.locked = true;
+    status.volume = 40;
+    status.fmFrequency = *core::FrequencyKHz::tryFromKhz(101500U);
+    status.fmStationName = core::BroadcastLabel::tryFromChipBytes("RADIO 1");
+    status.fmRadiotext = core::BroadcastLabel::tryFromChipBytes("Now playing");
+
+    const std::string json = core::serializeTunerStatusJson(status);
+    if (json.find("\"station_name\":\"RADIO 1\"") == std::string::npos
+        || json.find("\"radiotext\":\"Now playing\"") == std::string::npos) {
+        std::cerr << "FM metadata missing: " << json << '\n';
+        return EXIT_FAILURE;
+    }
+
+    status.band = core::TunerBand::Dab;
+    status.dabFreqIndex = 5U;
+    status.dabDynamicLabel =
+        core::BroadcastLabel::tryFromChipBytes("Live show");
+    const std::string dabJson = core::serializeTunerStatusJson(status);
+    if (dabJson.find("\"dynamic_label\":\"Live show\"") == std::string::npos) {
+        std::cerr << "DAB metadata missing: " << dabJson << '\n';
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
@@ -144,6 +195,12 @@ int main()
         return EXIT_FAILURE;
     }
     if (runTunerStatusSerialiseTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runTunerStatusPlayingSerialiseTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runTunerStatusMetadataSerialiseTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     if (runTunerServicesSerialiseTest() != EXIT_SUCCESS) {

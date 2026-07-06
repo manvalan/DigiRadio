@@ -50,7 +50,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.7.0";
+constexpr char kFirmwareVersion[] = "0.8.0";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t www_index_html_gz_start[] asm(
@@ -796,6 +796,38 @@ esp_err_t stationsRemovePostHandler(httpd_req_t* req)
     return httpd_resp_send(req, "{\"status\":\"removed\"}", 20);
 }
 
+esp_err_t stationsReorderPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->stations == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    auto parsed = core::parseStationReorderJson(body.data());
+    if (!parsed) {
+        const std::string json =
+            core::serializeStationListErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    if (auto moved = ctx->stations->reorder(parsed->fromIndex, parsed->toIndex);
+        !moved) {
+        const std::string json = core::serializeStationListErrorJson(
+            core::stationListErrorToken(moved.error()));
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"reordered\"}", 22);
+}
+
 esp_err_t stationsTunePostHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -1100,6 +1132,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &stationsRemoveUri);
+
+    const httpd_uri_t stationsReorderUri = {
+        .uri = "/api/stations/reorder",
+        .method = HTTP_POST,
+        .handler = stationsReorderPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &stationsReorderUri);
 
     const httpd_uri_t stationsTuneUri = {
         .uri = "/api/stations/tune",

@@ -41,6 +41,9 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/StationList.cpp"
     "${CORE_SRC_DIR}/StationListJson.cpp"
     "${CORE_SRC_DIR}/BluetoothJson.cpp"
+    "${CORE_SRC_DIR}/BroadcastLabel.cpp"
+    "${CORE_SRC_DIR}/RdsMetadataAccumulator.cpp"
+    "${CORE_SRC_DIR}/DabDynamicLabelAccumulator.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -78,6 +81,18 @@ add_executable(enhancements_design_test enhancements_design_test.cpp)
 target_link_libraries(enhancements_design_test PRIVATE digiradio_core)
 add_test(NAME enhancements_design_test COMMAND enhancements_design_test)
 
+add_executable(station_service_test station_service_test.cpp)
+target_include_directories(station_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/station/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/tuner/include"
+)
+target_sources(station_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/station/src/StationService.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/tuner/src/TunerService.cpp"
+)
+target_link_libraries(station_service_test PRIVATE digiradio_core)
+add_test(NAME station_service_test COMMAND station_service_test)
+
 add_executable(station_list_test station_list_test.cpp)
 target_link_libraries(station_list_test PRIVATE digiradio_core)
 add_test(NAME station_list_test COMMAND station_list_test)
@@ -85,3 +100,7 @@ add_test(NAME station_list_test COMMAND station_list_test)
 add_executable(bt1035_at_test bt1035_at_test.cpp)
 target_link_libraries(bt1035_at_test PRIVATE digiradio_core)
 add_test(NAME bt1035_at_test COMMAND bt1035_at_test)
+
+add_executable(broadcast_metadata_test broadcast_metadata_test.cpp)
+target_link_libraries(broadcast_metadata_test PRIVATE digiradio_core)
+add_test(NAME broadcast_metadata_test COMMAND broadcast_metadata_test)

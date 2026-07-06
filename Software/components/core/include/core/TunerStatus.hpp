@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "core/BroadcastLabel.hpp"
 #include "core/FrequencyKHz.hpp"
 #include "core/TunerBand.hpp"
 
@@ -56,10 +57,15 @@ struct TunerStatus {
     std::optional<std::uint8_t> dabFreqIndex; ///< Current Band III ensemble index.
     std::optional<std::uint8_t> dabFicQuality; ///< FIC quality 0–100 when DAB.
     std::optional<std::int8_t> dabCnrDb;    ///< CNR in dB when DAB.
+    std::optional<std::uint32_t> dabPlayingServiceId;    ///< Last played DAB service.
+    std::optional<std::uint32_t> dabPlayingComponentId;  ///< Last played DAB component.
     std::optional<FrequencyKHz> fmFrequency; ///< Tuned FM centre frequency.
     std::optional<std::int8_t> fmRssiDbuV;  ///< FM RSSI in dBµV.
     std::optional<std::int8_t> fmSnrDb;     ///< FM SNR in dB.
     std::optional<bool> fmStereo;           ///< FM stereo pilot detected.
+    std::optional<BroadcastLabel> fmStationName; ///< FM RDS program service name.
+    std::optional<BroadcastLabel> fmRadiotext;   ///< FM RDS radiotext (RT).
+    std::optional<BroadcastLabel> dabDynamicLabel; ///< DAB DLS now-playing label.
 };
 
 } // namespace core

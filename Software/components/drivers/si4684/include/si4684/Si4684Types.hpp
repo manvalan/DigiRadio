@@ -18,6 +18,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace si4684 {
 
@@ -113,6 +114,27 @@ struct Si4684FmRdsStatus {
     std::uint16_t blockC; ///< RDS block C.
     std::uint16_t blockD; ///< RDS block D.
     bool received;        ///< Group received flag.
+    std::uint8_t fifoUsed; ///< Remaining groups in the RDS FIFO.
+};
+
+/**
+ * @brief    Si4684DabServiceData — one GET_DIGITAL_SERVICE_DATA block.
+ *
+ * @dname    Si4684DabServiceData
+ * @return   n/a (type)
+ * @pubstate Plain DTO from GET_DIGITAL_SERVICE_DATA response bytes.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+struct Si4684DabServiceData {
+    std::uint32_t serviceId;    ///< Associated DAB service identifier.
+    std::uint32_t componentId;  ///< Associated component identifier.
+    std::uint8_t dataSrc;       ///< Payload source (2 = DLS PAD).
+    std::uint16_t byteCount;    ///< Payload byte count.
+    std::uint16_t segmentIndex; ///< Zero-based segment index.
+    std::uint16_t segmentCount; ///< Total segments for this label object.
+    std::vector<std::uint8_t> payload; ///< Raw payload bytes.
 };
 
 /**

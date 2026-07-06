@@ -29,6 +29,9 @@ idf_component_register(
         "src/StationList.cpp"
         "src/StationListJson.cpp"
         "src/BluetoothJson.cpp"
+        "src/BroadcastLabel.cpp"
+        "src/RdsMetadataAccumulator.cpp"
+        "src/DabDynamicLabelAccumulator.cpp"
     INCLUDE_DIRS "include"
 )
 

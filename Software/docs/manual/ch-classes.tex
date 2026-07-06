@@ -230,6 +230,18 @@ Validated at the HTTP boundary by \texttt{core::parseEnhanceLevelJson()}.
 Strong type for a preset label (1--32 bytes). Parsed at the HTTP boundary
 via \texttt{StationName::tryFrom()}.
 
+\section{BroadcastLabel}\label{cls:BroadcastLabel}
+Trimmed on-air label from RDS or DAB chip byte buffers (up to 128 bytes).
+Built by \texttt{BroadcastLabel::tryFromChipBytes()} in the pure core.
+
+\section{RdsMetadataAccumulator}\label{cls:RdsMetadataAccumulator}
+Stateful RDS decoder assembling program service name and radiotext from
+raw block~A--D snapshots returned by the Si4684 driver.
+
+\section{DabDynamicLabelAccumulator}\label{cls:DabDynamicLabelAccumulator}
+Reassembles segmented DAB DLS payloads into one dynamic label for
+\texttt{TunerStatus}.
+
 \section{PresetSlot}\label{cls:PresetSlot}
 Optional hardware preset button index (1--20). Validated by
 \texttt{PresetSlot::tryFrom()}.

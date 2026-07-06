@@ -180,7 +180,9 @@ Requires \texttt{boot(Si4684Band::Fm)}.
   \item \texttt{tuneFm(frequencyKhz)} --- FM\_TUNE\_FREQ, waits for STC.
   \item \texttt{seekFm(up, wrap)} --- FM\_SEEK\_START; returns tuned kHz.
   \item \texttt{readFmRsq()} --- RSSI, SNR, stereo flag, validity.
-  \item \texttt{readFmRds()} --- last RDS group blocks A--D.
+  \item \texttt{readFmRds()} --- last RDS group blocks A--D (FIFO depth).
+  \item \texttt{readDabServiceData(statusOnly, ack)} --- DAB data-service
+    payload (DLS when \texttt{DATA\_SRC=2}).
 \end{itemize}
 
 \subsection{DAB operations}

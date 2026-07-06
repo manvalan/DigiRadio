@@ -261,11 +261,14 @@
       if (s.dab) {
         lines.push("DAB index: " + (s.dab.freq_index != null ? s.dab.freq_index : "—"));
         if (s.dab.fic_quality != null) lines.push("FIC: " + s.dab.fic_quality);
+        if (s.dab.dynamic_label) lines.push("Now: " + s.dab.dynamic_label);
       }
       if (s.fm) {
         if (s.fm.frequency_khz != null) lines.push("FM: " + s.fm.frequency_khz + " kHz");
         if (s.fm.rssi_dbuv != null) lines.push("RSSI: " + s.fm.rssi_dbuv + " dBµV");
         if (s.fm.stereo != null) lines.push("Stereo: " + s.fm.stereo);
+        if (s.fm.station_name) lines.push("Station: " + s.fm.station_name);
+        if (s.fm.radiotext) lines.push("Text: " + s.fm.radiotext);
       }
       return lines.join("\n");
     }
@@ -623,6 +626,7 @@
         var label = s.name + " (" + s.band + ")";
         if (s.fm_frequency_khz) label += " " + s.fm_frequency_khz + " kHz";
         if (s.dab_freq_index != null) label += " idx " + s.dab_freq_index;
+      if (s.dab_service_id != null) label += " svc " + s.dab_service_id;
         li.textContent = label;
         var tuneBtn = document.createElement("button");
         tuneBtn.textContent = "Tune";
@@ -643,10 +647,58 @@
             body: JSON.stringify({ index: idx })
           }).then(function () { loadPresets(); });
         });
+        var upBtn = document.createElement("button");
+        upBtn.textContent = "Up";
+        upBtn.className = "secondary";
+        upBtn.disabled = idx === 0;
+        upBtn.addEventListener("click", function () {
+          fetch("/api/stations/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ from: idx, to: idx - 1 })
+          }).then(function () { loadPresets(); });
+        });
+        var downBtn = document.createElement("button");
+        downBtn.textContent = "Dn";
+        downBtn.className = "secondary";
+        downBtn.disabled = idx >= (data.stations.length - 1);
+        downBtn.addEventListener("click", function () {
+          fetch("/api/stations/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ from: idx, to: idx + 1 })
+          }).then(function () { loadPresets(); });
+        });
         li.appendChild(tuneBtn);
+        li.appendChild(upBtn);
+        li.appendChild(downBtn);
         li.appendChild(delBtn);
         list.appendChild(li);
       });
+    }
+
+    function buildPresetBody(name, band, status) {
+      var body = { name: name, band: band };
+      if (band === "fm") {
+        var khz = status && status.fm && status.fm.frequency_khz != null
+          ? status.fm.frequency_khz
+          : parseInt(document.getElementById("fm-khz").value, 10);
+        body.fm_frequency_khz = khz;
+      } else {
+        var idx = status && status.dab && status.dab.freq_index != null
+          ? status.dab.freq_index
+          : parseInt(document.getElementById("dab-index").value, 10);
+        body.dab_freq_index = idx;
+        if (status && status.dab && status.dab.playing_service_id != null) {
+          body.dab_service_id = status.dab.playing_service_id;
+        }
+        if (status && status.dab && status.dab.playing_component_id != null) {
+          body.dab_component_id = status.dab.playing_component_id;
+        }
+      }
+      var slotVal = document.getElementById("preset-slot").value;
+      if (slotVal) body.preset_slot = parseInt(slotVal, 10);
+      return body;
     }
 
     function loadPresets() {
@@ -664,20 +716,18 @@
         return;
       }
       var band = document.getElementById("band").value;
-      var body = { name: name, band: band };
-      if (band === "fm") {
-        body.fm_frequency_khz = parseInt(document.getElementById("fm-khz").value, 10);
-      } else {
-        body.dab_freq_index = parseInt(document.getElementById("dab-index").value, 10);
-      }
-      var slotVal = document.getElementById("preset-slot").value;
-      if (slotVal) body.preset_slot = parseInt(slotVal, 10);
-      fetch("/api/stations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      fetch("/api/tuner/status")
+        .then(function (r) { return r.json(); })
+        .then(function (status) {
+          var body = buildPresetBody(name, band, status);
+          return fetch("/api/stations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          }).then(function (r) {
+            return r.json().then(function (d) { return { ok: r.ok, d: d }; });
+          });
+        })
         .then(function (res) {
           if (res.ok && res.d.status === "saved") {
             showMsg(msg, "Preset saved.", true);
