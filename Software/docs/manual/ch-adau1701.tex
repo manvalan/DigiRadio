@@ -1,0 +1,462 @@
+% ============================================================
+%  DigiRadio — Manual chapter: ADAU1701 DSP
+% ============================================================
+
+\chapter{ADAU1701 Audio DSP}
+\label{ch:adau1701}
+
+The Analog Devices ADAU1701 is the central audio processor of DigiRadio: it
+mixes the Si4684 radio stream with the ESP32 I\textsuperscript{2}S source,
+applies parametric equalisation and master volume, and feeds the
+FSC-BT1035 over I\textsuperscript{2}S. This chapter documents how the
+SigmaStudio program is stored and replayed at boot, how
+\texttt{adau1701::Adau1701Driver} controls the chip over I\textsuperscript{2}C,
+and how application code (\texttt{audio::AudioService}, HTTP, web UI) uses the
+driver without touching parameter RAM addresses directly.
+
+\begin{drref}[Companion chapter]
+The SigmaStudio \emph{design} --- hardware settings, signal chain, EQ bands,
+and export procedure --- is documented in Chapter~\ref{ch:sigmastudio}. This
+chapter covers the \emph{firmware side}: boot, safeload, driver API, domain
+types, persistence, and HTTP integration.
+\end{drref}
+
+\section{Role in the audio chain}
+\label{sec:adau1701-role}
+
+After boot the ADAU1701 runs as the I\textsuperscript{2}S \textbf{master}
+at 48\,kHz, 24-bit stereo. It receives PCM from the Si4684 on serial input~0
+and from the ESP32 on serial input~1, mixes and equalises the result, and
+outputs to the Bluetooth module on \texttt{SDATA\_OUT0}. The ESP32 never
+processes audio samples in software; all tone shaping and mixing happen inside
+the DSP program exported from SigmaStudio.
+
+Every runtime adjustment --- input level, EQ band, master volume, stereo/bass
+enhancement --- flows through typed domain objects in \texttt{components/core}
+and reaches the hardware only via \texttt{Adau1701Driver} safeload writes.
+Board wiring and I\textsuperscript{2}C address are in
+Section~\ref{sec:hw-adau} (Chapter~\ref{ch:hardware}).
+
+\section{Program image (SigmaStudio export)}
+\label{sec:adau1701-firmware}
+
+Unlike the Si4684 blobs (local-only, not in git), the ADAU1701 export is
+\textbf{committed} under \texttt{Firmware/ADAU1701-Firmware/}. It is the
+authoritative DSP program for firmware builds.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}llp{6.5cm}@{}}
+    \toprule
+    \textbf{File} & \textbf{Role} & \textbf{Used by firmware} \\
+    \midrule
+    \texttt{DigiRadio\_IC\_1.h} &
+      Program + parameter RAM init data &
+      \texttt{default\_download\_IC\_1()} replayed at boot \\
+    \texttt{DigiRadio\_IC\_1\_PARAM.h} &
+      Parameter cell indices &
+      \texttt{ADDR\_*} macros; safeload targets \\
+    \texttt{DigiRadio\_IC\_1\_REG.h} &
+      Control register map &
+      Safeload trigger registers \\
+    \texttt{DigiRadio\_NetList.xml} &
+      Schematic netlist &
+      Reference when re-exporting \\
+    \texttt{DigiRadio.params} &
+      Parameter metadata &
+      SigmaStudio round-trip \\
+    \texttt{SigmaStudioFW.h} &
+      Safeload / I2C glue header &
+      \texttt{sigma\_safeload\_*} API \\
+    \bottomrule
+  \end{tabular}
+  \caption{ADAU1701 SigmaStudio export files (in git).}
+  \label{tab:adau1701-files}
+\end{table}
+
+The driver component wraps the generated C in three layers:
+\texttt{adau1701\_program.c} calls \texttt{default\_download\_IC\_1()};
+\texttt{SigmaStudioFW.c} implements \texttt{SIGMA\_WRITE\_REGISTER\_BLOCK}
+and safeload on ESP-IDF I\textsuperscript{2}C; \texttt{Adau1701Driver.cpp}
+adds reset, boot state, and typed runtime control.
+
+\subsection{Refreshing after a SigmaStudio change}
+\label{sec:adau1701-refresh}
+
+When the schematic changes in SigmaStudio (new block, different EQ layout,
+renamed cells):
+
+\begin{enumerate}
+  \item Edit the project offline (Chapter~\ref{ch:sigmastudio},
+        Section~\ref{sec:ss-export}).
+  \item \emph{Action $\rightarrow$ Export System Files} into
+        \texttt{Firmware/ADAU1701-Firmware/}, overwriting the generated headers.
+  \item Copy or reconcile any new \texttt{ADDR\_*} symbols into
+        \texttt{Adau1701ParamMap.hpp} if block names moved (fader/EQ addresses
+        must match \texttt{DigiRadio\_IC\_1\_PARAM.h}).
+  \item Rebuild firmware; the ESP32 will replay the new download on next boot.
+  \item Update Chapter~\ref{ch:sigmastudio} tables if band frequencies or the
+        signal chain changed.
+\end{enumerate}
+
+\begin{drnote}[No USBi download on DigiRadio]
+Do \emph{not} rely on SigmaStudio \emph{Link Compile Download} on this
+hardware path. Export-only workflow is sufficient: the ESP32 is the programmer
+at every power-up.
+\end{drnote}
+
+\section{Boot sequence (I\textsuperscript{2}C RAM load)}
+\label{sec:adau1701-boot}
+
+DigiRadio has no ADAU1701 self-boot EEPROM. The ESP32 holds the only copy of
+the DSP program and writes it into RAM after each reset.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      step/.style={draw, rounded corners, minimum width=9.5cm,
+        minimum height=0.9cm, align=center, font=\small},
+      >={Latex}, node distance=3mm]
+    \node[step, fill=black!6] (rst) {Assert RESET\# (10\,ms), release};
+    \node[step, fill=black!6, below=of rst] (i2c)
+      {Create I\textsuperscript{2}C master @ 100\,kHz, address 0x34};
+    \node[step, fill=black!8, below=of i2c] (dl)
+      {\texttt{default\_download\_IC\_1()} --- control, program, param RAM};
+    \node[step, fill=black!6, below=of dl] (ready)
+      {\texttt{Adau1701Driver::isBooted()} = true};
+    \node[step, fill=black!10, below=of ready] (prof)
+      {\texttt{AudioService::loadAndApply()} --- safeload user profile};
+    \foreach \a/\b in {rst/i2c, i2c/dl, dl/ready, ready/prof} {
+      \draw[->] (\a) -- (\b);
+    }
+  \end{tikzpicture}
+  \caption{ADAU1701 boot flow on DigiRadio (host RAM load).}
+  \label{fig:adau1701-boot}
+\end{figure}
+
+\texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} streams each write in 64-byte I\textsuperscript{2}C
+chunks. After download, \texttt{loadAndApply()} restores the saved
+\texttt{core::AudioProfile} from NVS (or factory defaults) so user settings
+survive power cycles without re-writing the whole program.
+
+\section{Software architecture}
+\label{sec:adau1701-stack}
+
+Application code never includes \texttt{DigiRadio\_IC\_1\_PARAM.h}. The stack
+separates concerns as follows:
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}llp{5.8cm}@{}}
+    \drhead Layer & Type & Responsibility \\
+    \midrule
+    HTTP / UI       & \texttt{SetupWebServer}, web UI &
+      JSON $\rightarrow$ \texttt{AudioService} \\
+    Service         & \texttt{audio::AudioService} &
+      Profile in RAM, NVS, enhancement overlay \\
+    Domain          & \texttt{core::AudioProfile}, \texttt{IDsp} &
+      Host-testable types, no ESP-IDF \\
+    Adapter         & \texttt{adau1701::Adau1701Dsp} &
+      Maps \texttt{DspError} $\leftrightarrow$ \texttt{Adau1701Error} \\
+    Driver          & \texttt{adau1701::Adau1701Driver} &
+      I\textsuperscript{2}C, boot, safeload \\
+    Generated + glue & \texttt{DigiRadio\_IC\_1.h}, \texttt{SigmaStudioFW.c} &
+      SigmaStudio export, register writes \\
+    \bottomrule
+  \end{tabular}
+  \caption{ADAU1701 control stack (Slice~5).}
+  \label{tab:adau1701-stack}
+\end{table}
+
+\texttt{AudioService} merges \texttt{AudioProfile::enhancements} into the
+effective EQ via \texttt{core::applyEnhancementsToEq()} before calling
+\texttt{IDsp::applyEq()} or \texttt{applyProfile()}. Base EQ settings in NVS
+stay unchanged; enhancement bands are overlays (Section~\ref{sec:ss-enhancements}).
+
+\section{Adau1701Driver API}
+\label{sec:adau1701-driver}
+
+\texttt{Adau1701Driver} owns the I\textsuperscript{2}C bus (RAII), drives
+RESET\#, and exposes intent-level methods. All return
+\texttt{std::expected<T, Adau1701Error>}. Runtime methods require a prior
+successful \texttt{boot()}.
+
+\subsection{Bring-up and state}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Method} & \textbf{Purpose} \\
+    \midrule
+    \texttt{boot()} & Reset chip, init I\textsuperscript{2}C, run
+      \texttt{default\_download\_IC\_1()} \\
+    \texttt{isBooted()} & \texttt{true} after successful download \\
+    \bottomrule
+  \end{tabular}
+  \caption{ADAU1701 bring-up.}
+\end{table}
+
+\subsection{Full profile and partial updates}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Method} & \textbf{Purpose} \\
+    \midrule
+    \texttt{applyProfile(profile)} &
+      Safeload mixer + EQ + master in one call \\
+    \texttt{applyMixer(mixer)} &
+      Si4684/ESP32 faders + St Mixer1 L/R \\
+    \texttt{applyEq(eq)} &
+      All six PEQ bands (band~0 skipped, see below) \\
+    \texttt{setInputVolume(source, L, R)} &
+      One source path (\texttt{MixSource::Si4684} or \texttt{Esp32}) \\
+    \texttt{setMasterVolume(L, R)} &
+      Multiple~1 master output \\
+    \texttt{setEqBand(band, gain, center, q)} &
+      Design biquad in core, safeload five coefficients \\
+    \bottomrule
+  \end{tabular}
+  \caption{Runtime safeload entry points.}
+  \label{tab:adau1701-api}
+\end{table}
+
+\begin{drnote}[High-pass band fixed]
+\texttt{setEqBand} and \texttt{applyEq} \emph{skip} band index~0 (SigmaStudio
+band~1, 20\,Hz Butterworth high-pass). Calls with index~0 return
+\texttt{Adau1701Error::InvalidParameter}. Only peaking bands 1--5 are
+runtime-adjustable, matching Table~\ref{tab:ss-runtime}.
+\end{drnote}
+
+\subsection{Gain and EQ coefficient path}
+
+Volume cells (faders, master) store linear gain as ADAU \textbf{8.23 fixpoint}.
+\texttt{core::gainDbToLinearFixpoint()} converts \texttt{GainDb} before
+\texttt{sigma\_safeload\_param()}.
+
+PEQ bands use \texttt{core::designPeakingEq()} at 48\,kHz sample rate to
+produce five biquad coefficients (\texttt{B0..B2, A0..A1}), converted to
+fixpoint and written atomically with \texttt{sigma\_safeload\_block()} (up to
+five parameters per transfer --- one band per call).
+
+Host tests in \texttt{components/core/test/biquad\_design\_test.cpp} lock the
+coefficient math; \texttt{enhancements\_design\_test.cpp} locks enhancement
+curves.
+
+\section{Parameter address map}
+\label{sec:adau1701-parammap}
+
+SigmaStudio assigns small integer indices to parameter RAM cells. The export
+header \texttt{DigiRadio\_IC\_1\_PARAM.h} defines \texttt{ADDR\_*} symbols;
+\texttt{Adau1701ParamMap.hpp} maps domain concepts to those addresses:
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \drhead Domain & \texttt{ADDR\_*} & SigmaStudio block \\
+    \midrule
+    Si4684 L/R   & \texttt{SI4674}, \texttt{SI4674\_1} & Si4674 fader \\
+    ESP32 L/R    & \texttt{ESP32}, \texttt{ESP32\_1}   & ESP32 fader \\
+    Mix L/R      & \texttt{STMIXER1\_ST0/1\_VOLUME}    & St Mixer1 \\
+    EQ band $n$  & \texttt{PARAMEQ1\_ST$n$\_B0} + 0..4 & Param EQ1 coeffs \\
+    Master L/R   & \texttt{MULTIPLE1}, \texttt{MULTIPLE1\_1} & Multiple 1 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Runtime parameter map (current export). Re-verify after
+    SigmaStudio re-export.}
+  \label{tab:adau1701-addr}
+\end{table}
+
+If a schematic rename changes cell names, update \texttt{Adau1701ParamMap.hpp}
+and this table together with \texttt{DigiRadio\_IC\_1\_PARAM.h}.
+
+\section{Safeload mechanism}
+\label{sec:adau1701-safeload}
+
+Direct parameter RAM writes during playback cause audible clicks. The ADAU1701
+provides \emph{safeload} registers: the host stages up to five
+(address, value) pairs, then triggers a single atomic update between
+samples.
+
+DigiRadio implements this in \texttt{SigmaStudioFW.c}:
+
+\begin{enumerate}
+  \item Write each fixpoint value to \texttt{SAFELOAD\_DATA\_0..4}.
+  \item Write each target parameter index to \texttt{SAFELOAD\_ADDR\_0..4}.
+  \item Pulse \texttt{CORE\_CONTROL} with \texttt{IST\_TRIGGER}.
+\end{enumerate}
+
+\texttt{sigma\_safeload\_param()} handles one cell (volume fader).
+\texttt{sigma\_safeload\_block()} handles up to five (full PEQ band).
+\texttt{Adau1701Driver} never writes parameter data registers directly for
+runtime control.
+
+\begin{drcaution}[Safeload only for live changes]
+Boot-time programming uses \texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} to fill
+program and parameter RAM from the export. After audio is running, mixer and
+EQ updates must use safeload only.
+\end{drcaution}
+
+\section{Domain model and persistence}
+\label{sec:adau1701-domain}
+
+\texttt{core::AudioProfile} is the unit of persistence and HTTP serialisation:
+
+\begin{itemize}
+  \item \texttt{MixerState} --- six \texttt{GainDb} fields (Si4684 L/R,
+        ESP32 L/R, St Mixer1 L/R).
+  \item \texttt{EqProfile} --- six bands; index~0 fixed high-pass, 1--5
+        peaking (100\,Hz--8\,kHz defaults per Chapter~\ref{sec:ss-eq}).
+  \item \texttt{masterLeft}, \texttt{masterRight} --- Multiple~1.
+  \item \texttt{AudioEnhancements} --- \texttt{stereo\_level} and
+        \texttt{bass\_level} (0--100), mapped to PEQ overlays at apply time.
+\end{itemize}
+
+JSON parse/serialise lives in \texttt{core::AudioProfileJson} (pure core, host
+tested). NVS key \texttt{audio\_profile\_json} in namespace \texttt{digiradio}
+via \texttt{secure\_store::NvsAudioProfileStore}.
+
+\texttt{AudioProfile::factoryDefault()} is flat EQ, 0\,dB gains, enhancements
+off. \texttt{POST /api/audio/reset} restores and persists this snapshot.
+
+\section{audio::AudioService}
+\label{sec:adau1701-service}
+
+\texttt{AudioService} is the only entry point HTTP and future UI code should
+use for audio path control:
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Method} & \textbf{Effect} \\
+    \midrule
+    \texttt{loadAndApply()} & Load NVS (or default), safeload full profile \\
+    \texttt{applyProfile(p, persist)} & Replace profile, safeload, optional NVS \\
+    \texttt{setInputVolume(source, L, R, persist)} & One input path \\
+    \texttt{setMasterVolume(L, R, persist)} & Master fader \\
+    \texttt{setEqBand(band, ...)} & Update base EQ + effective overlay \\
+    \texttt{setStereoEnhance(level, persist)} & PEQ overlay bands 3--5 \\
+    \texttt{setBassEnhance(level, persist)} & PEQ overlay bands 1--2 \\
+    \texttt{currentProfile()} & Snapshot for \texttt{GET /api/audio/profile} \\
+    \bottomrule
+  \end{tabular}
+  \caption{\texttt{AudioService} intent-level API.}
+  \label{tab:adau1701-service}
+\end{table}
+
+On boot, \texttt{HardwareBootstrap::boot()} runs Si4684 boot, then
+\texttt{Adau1701Driver::boot()}, then \texttt{loadAndApply()}. ADAU boot
+failure is fail-closed (no network start); profile apply failure is logged as
+warning but boot continues.
+
+\section{HTTP and web UI}
+\label{sec:adau1701-http}
+
+REST routes (Chapter~\ref{ch:api}, Section~\ref{sec:api-audio-profile-get})
+delegate to \texttt{AudioService}:
+
+\begin{itemize}
+  \item \texttt{GET/PUT /api/audio/profile} --- full JSON profile.
+  \item \texttt{POST /api/audio/reset} --- factory flat profile.
+  \item \texttt{POST /api/audio/stereo-enhance} --- body
+        \texttt{\{"level":0..100\}}.
+  \item \texttt{POST /api/audio/bass-enhance} --- same schema.
+\end{itemize}
+
+The gzipped setup page (\texttt{components/net/www/index.html}) exposes master
+volume, Si4684/ESP32 path levels, and enhancement sliders; saving sends
+\texttt{PUT /api/audio/profile}, while slider release on enhancements sends
+the dedicated POST routes for immediate safeload + persist.
+
+\section{Typical usage patterns}
+\label{sec:adau1701-patterns}
+
+\subsection{C++ firmware (direct service access)}
+
+\begin{enumerate}
+  \item After \texttt{HardwareBootstrap::boot()}, obtain
+        \texttt{HardwareBootstrap::audioService()}.
+  \item Adjust levels:
+        \texttt{setMasterVolume(GainDb::tryFromDb(-3), ..., true)}.
+  \item Tune one EQ band (index 2 = 400\,Hz peaking in default map):
+        \texttt{setEqBand(band, gain, center, q, true)}.
+  \item Read back: \texttt{currentProfile()} for logging or display.
+\end{enumerate}
+
+\subsection{HTTP client}
+
+\begin{verbatim}
+# Read current snapshot:
+curl http://digiradio.local/api/audio/profile
+
+# Boost bass enhance to 60%:
+curl -X POST http://digiradio.local/api/audio/bass-enhance \
+  -H "Content-Type: application/json" -d '{"level":60}'
+
+# Restore factory flat:
+curl -X POST http://digiradio.local/api/audio/reset
+\end{verbatim}
+
+\subsection{After SigmaStudio EQ layout change}
+
+Re-export, rebuild firmware, flash ESP32. Existing NVS profiles remain valid
+only if band indices and centre frequencies still match; otherwise reset via
+\texttt{POST /api/audio/reset} or migrate JSON manually.
+
+\section{Error handling}
+\label{sec:adau1701-errors}
+
+\texttt{Adau1701Error} values and typical causes:
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}ll@{}}
+    \drhead Error & Typical cause \\
+    \midrule
+    \texttt{ResetFailed}        & GPIO reset line configuration \\
+    \texttt{I2cInitFailed}      & Bus or device add on ESP32 \\
+    \texttt{DownloadFailed}     & I\textsuperscript{2}C failure during boot download \\
+    \texttt{NotBooted}          & Runtime call before \texttt{boot()} \\
+    \texttt{SafeloadFailed}     & I\textsuperscript{2}C or safeload trigger failure \\
+    \texttt{InvalidParameter}   & EQ band~0 or out-of-range domain input \\
+    \bottomrule
+  \end{tabular}
+  \caption{ADAU1701 driver errors.}
+  \label{tab:adau1701-errors}
+\end{table}
+
+\texttt{Adau1701Dsp} maps these to \texttt{core::DspError} for
+\texttt{AudioService}. HTTP handlers map store/DSP failures to
+\texttt{\{"status":"error","reason":"store\_failed"\}} with HTTP~500.
+
+\section{Integration at power-up}
+\label{sec:adau1701-integration}
+
+Static instances in \texttt{main/hardware\_bootstrap.cpp}:
+
+\begin{verbatim}
+Adau1701Driver  -> Adau1701Dsp -> AudioService(NvsAudioProfileStore)
+\end{verbatim}
+
+Boot order: Si4684 \texttt{boot(Dab)} $\rightarrow$ ADAU1701 \texttt{boot()}
+$\rightarrow$ \texttt{loadAndApply()} $\rightarrow$ network stack.
+\texttt{main/main.cpp} passes \texttt{audioService()} to
+\texttt{NetBootstrap::start()} for HTTP registration.
+
+\section{Further reading}
+\label{sec:adau1701-reading}
+
+\begin{itemize}
+  \item Chapter~\ref{ch:sigmastudio} --- schematic, EQ bands, export workflow.
+  \item Chapter~\ref{ch:api} --- JSON schemas for \texttt{/api/audio/*}.
+  \item \texttt{Firmware/ADAU1701-Firmware/README.md} --- export file cheatsheet.
+  \item Analog Devices ADAU1701 datasheet --- safeload and I\textsuperscript{2}C protocol.
+  \item \texttt{components/core/test/} --- biquad and profile JSON host tests.
+\end{itemize}
