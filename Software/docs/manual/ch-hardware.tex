@@ -95,7 +95,9 @@ the signal reaches the Bluetooth stage.
 \subsection{Control and program loading}
 The DSP is controlled over I\textsuperscript{2}C. Its signal-processing
 program is designed in SigmaStudio and exported as a sequence of register
-writes (control settings, program RAM, and parameter RAM).
+writes (control settings, program RAM, and parameter RAM). The full
+SigmaStudio schematic, signal chain, and runtime parameter map are
+documented in Chapter~\ref{ch:sigmastudio}.
 
 \begin{drkey}[RAM boot, no EEPROM]
 The board deliberately omits the ADAU1701 self-boot EEPROM. Instead, the

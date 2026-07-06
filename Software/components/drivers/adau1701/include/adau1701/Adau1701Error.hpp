@@ -30,6 +30,7 @@ enum class Adau1701Error {
     DownloadFailed,
     NotBooted,
     SafeloadFailed,
+    InvalidParameter,
 };
 
 } // namespace adau1701

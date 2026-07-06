@@ -162,9 +162,11 @@ Strong index into the six-band \texttt{Param EQ1} module (0--5). Maps to
 parameter RAM via \texttt{adau1701::paramAddrEqBandBase()}.
 
 \section{EqProfile}\label{cls:EqProfile}
-Six-band parametric EQ snapshot with default centre frequencies
-(40\,Hz--12\,kHz). Designed in the pure core; coefficients safeloaded by
-\texttt{Adau1701Driver::applyEq()}.
+Six-band parametric EQ snapshot aligned with the SigmaStudio map
+(Chapter~\ref{ch:sigmastudio}): band index~0 is the fixed 20\,Hz
+high-pass; bands 1--5 are peaking at 100\,Hz--8\,kHz. Designed in the
+pure core; peaking bands are safeloaded by \texttt{Adau1701Driver::applyEq()}
+(band~0 is skipped).
 
 \section{IDsp}\label{cls:IDsp}
 Abstract ADAU1701 control boundary. Defines \texttt{applyProfile()},

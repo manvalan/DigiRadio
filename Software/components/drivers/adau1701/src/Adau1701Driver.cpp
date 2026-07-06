@@ -38,6 +38,8 @@ namespace adau1701 {
 namespace {
 constexpr char kTag[] = "Adau1701";
 constexpr int kI2cPort = 0;
+/** Index 0 is the fixed high-pass band (SigmaStudio band 1); not safeloaded. */
+constexpr std::uint8_t kFixedHighPassBandIndex = 0U;
 } // namespace
 
 Adau1701Driver::Adau1701Driver(Adau1701Pins pins)
@@ -197,6 +199,10 @@ std::expected<void, Adau1701Error> Adau1701Driver::applyMixer(
 std::expected<void, Adau1701Error> Adau1701Driver::setEqBand(
     core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center, float q)
 {
+    if (band.value() == kFixedHighPassBandIndex) {
+        return std::unexpected(Adau1701Error::InvalidParameter);
+    }
+
     if (auto ready = ensureBooted(); !ready) {
         return ready;
     }
@@ -227,6 +233,9 @@ std::expected<void, Adau1701Error> Adau1701Driver::applyEq(
     }
 
     for (std::uint8_t i = 0; i < core::EqBandIndex::kBandCount; ++i) {
+        if (i == kFixedHighPassBandIndex) {
+            continue;
+        }
         const auto index = core::EqBandIndex::tryFromIndex(i);
         if (!index) {
             return std::unexpected(Adau1701Error::SafeloadFailed);

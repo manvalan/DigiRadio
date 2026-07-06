@@ -25,6 +25,8 @@ core::DspError Adau1701Dsp::mapError(Adau1701Error error) noexcept
     switch (error) {
     case Adau1701Error::NotBooted:
         return core::DspError::NotBooted;
+    case Adau1701Error::InvalidParameter:
+        return core::DspError::InvalidParameter;
     case Adau1701Error::SafeloadFailed:
         return core::DspError::SafeloadFailed;
     default:
