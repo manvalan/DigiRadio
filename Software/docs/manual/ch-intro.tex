@@ -1,0 +1,41 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+DigiRadio is an open-source, high-fidelity digital radio receiver. It
+receives DAB+ and FM broadcasts, processes the audio through a dedicated
+signal processor, and streams the result over Bluetooth using a
+high-resolution codec. The whole project --- hardware and firmware --- is
+released as open source for the maker and audio community to study,
+build, and improve.
+
+\section{What DigiRadio is}
+
+Most DAB+/FM hobby projects stop at basic reception. DigiRadio adds two
+things that lift it into hi-fi territory: a real audio DSP stage for
+equalisation and mixing, and a premium-codec Bluetooth output. The result
+is a genuine wireless audio source rather than a bench demo, and, being
+fully documented, a practical reference for anyone learning multi-chip
+audio design or RF-aware PCB layout.
+
+\begin{drkey}[At a glance]
+A four-chip design --- Si4684 tuner, ADAU1701 DSP, ESP32-S3 host, and an
+FSC-BT1035 Bluetooth transmitter --- on a six-layer board, powered from
+USB-C, configured through an elegant web interface.
+\end{drkey}
+
+\section{Who this manual is for}
+
+This manual documents the system for someone building, flashing, or
+extending DigiRadio: the hardware at a block level
+(Chapter~\ref{ch:hardware}), the firmware architecture
+(Chapter~\ref{ch:firmware}), the per-class reference that grows with the
+code (Chapter~\ref{ch:classes}), and how to build and flash
+(Chapter~\ref{ch:build}). The exact register-level programming of each
+chip lives in the source code and its generated API documentation; this
+manual explains the design and the reasoning behind it.
+
+\section{Licensing summary}
+
+The hardware is licensed under CERN-OHL-S v2 and the firmware under
+Apache-2.0; full details are in Chapter~\ref{ch:licensing}. The project
+repository is at \url{https://github.com/manvalan/DigiRadio}.

@@ -1,0 +1,40 @@
+\chapter{Licensing}
+\label{ch:licensing}
+
+DigiRadio is dual-licensed, with hardware and firmware under separate but
+compatible open-source licences.
+
+\section{Hardware}
+
+The hardware --- schematics, PCB layout, Gerbers, and bill of materials
+--- is licensed under the \textbf{CERN Open Hardware Licence Version~2,
+Strongly Reciprocal (CERN-OHL-S v2)}. Anyone who modifies and distributes
+the hardware must release their changes under the same terms.
+
+\section{Firmware}
+
+The firmware is licensed under the \textbf{Apache License 2.0}. It grants
+patent rights explicitly and pairs naturally with the ESP-IDF ecosystem,
+which is Apache-licensed as well. Every source file carries the Apache
+header with an SPDX identifier.
+
+\section{Documentation and project pages}
+
+Where a hosting platform does not offer the CERN-OHL-S licence in its
+selector, the closest share-alike option is used for that page, with the
+authoritative licence stated as CERN-OHL-S v2. The definitive licensing
+is always the one declared in the project repository.
+
+\section{Third-party components}
+
+The design integrates third-party silicon (Silicon Labs, Analog Devices,
+Espressif, Feasycom/Qualcomm) whose datasheets, firmware images, and DSP
+tools remain subject to their respective vendors' terms. Those terms are
+unaffected by the DigiRadio licences and must be observed when
+redistributing vendor-supplied binaries.
+
+\begin{drnote}[Manufacturing partner]
+Prototype fabrication and assembly are supported by PCBWay. Their
+contribution is acknowledged in the project documentation and on the
+board.
+\end{drnote}

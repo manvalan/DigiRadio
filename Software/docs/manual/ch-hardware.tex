@@ -1,0 +1,53 @@
+\chapter{Hardware Overview}
+\label{ch:hardware}
+
+This chapter describes the board at a block level. The complete hardware
+design --- schematics, PCB, Gerbers, and bill of materials --- is
+published in the repository under the CERN-OHL-S v2 licence.
+
+\section{System block diagram}
+
+DigiRadio is built around four devices coordinated by the ESP32-S3. The
+tuner produces the audio stream, the DSP conditions and mixes it, and the
+Bluetooth module transmits it; the host manages all three and provides
+the network interface.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Device & Role & Interface \\
+    \midrule
+    Si4684            & DAB+/FM tuner              & SPI / I\textsuperscript{2}C \\
+    ADAU1701          & Audio DSP (EQ + mixer)     & I\textsuperscript{2}C \\
+    ESP32-S3-WROOM-1  & Host controller, Wi-Fi/BLE & ---            \\
+    FSC-BT1035         & Bluetooth 5.2 (aptX Adaptive) & UART (AT)  \\
+    \bottomrule
+  \end{tabular}
+  \caption{Principal integrated circuits and their roles.}
+  \label{tab:hw-ics}
+\end{table}
+
+\section{Power}
+
+The board is powered from USB-C. An AP63203 buck converter generates the
+main rails from the USB input, feeding the digital and analogue sections.
+The tuner's sensitive supplies are derived and filtered separately to
+keep RF performance clean.
+
+\section{RF and antennas}
+
+Two 2.4\,GHz radios are present --- the ESP32-S3 and the Bluetooth module.
+Their antennas are placed on opposite diagonal corners of the board to
+maximise separation and minimise mutual desense. Each module keeps its
+antenna keep-out clear of copper on all layers.
+
+\begin{drnote}[Board]
+The PCB is a six-layer stack-up with controlled impedance on the USB and
+RF sections. The full fabrication data is in the repository.
+\end{drnote}
+
+\section{User interface and connectors}
+
+Configuration is done over Wi-Fi through a built-in web interface (see
+Chapter~\ref{ch:firmware}); no display is required on the board itself.
+Audio reaches the listener wirelessly over Bluetooth.

@@ -1,0 +1,35 @@
+\chapter{Class Reference}
+\label{ch:classes}
+
+This chapter documents the firmware's public classes at the design level:
+what each class is responsible for, which collaborators it depends on, its
+key invariants, and how it fits the system. It complements --- and does
+not duplicate --- the generated API documentation, which carries the exact
+method signatures.
+
+\begin{drnote}[How this chapter grows]
+Per the development rules, every public, architecturally-significant class
+(the drivers, the application services, and the public domain-core types)
+gets a section here, tagged \texttt{\textbackslash label\{cls:ClassName\}},
+added in the same change that introduces the class. A tooling check keeps
+this chapter in step with the code, so it is always current.
+\end{drnote}
+
+The firmware is under active development. As each public class lands, its
+section appears below, grouped by layer: domain core, application
+services, and hardware drivers.
+
+% ------------------------------------------------------------------
+% Per-class sections are added here as classes are implemented, e.g.:
+%
+% \section{Si4684Driver}\label{cls:Si4684Driver}
+%   Responsibility, collaborators, invariants, usage.
+%
+% \section{Adau1701Driver}\label{cls:Adau1701Driver}
+% \section{Bt1035Driver}\label{cls:Bt1035Driver}
+% \section{TunerService}\label{cls:TunerService}
+% ...
+% ------------------------------------------------------------------
+
+\section*{(No public classes documented yet)}
+Sections will appear here as the firmware is implemented.

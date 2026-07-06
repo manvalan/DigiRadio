@@ -1,0 +1,57 @@
+\chapter{Building and Flashing}
+\label{ch:build}
+
+The firmware is built with ESP-IDF; the hardware-free domain core also
+builds and is unit-tested on the host machine.
+
+\section{Toolchain}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \drhead Item & Choice \\
+    \midrule
+    Framework        & ESP-IDF v5.5.x (native) \\
+    Language          & C++23 (\texttt{-std=gnu++23}) \\
+    Error model       & \texttt{std::expected}; exceptions off \\
+    Documentation     & Doxygen (build must pass) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Firmware toolchain.}
+  \label{tab:build-toolchain}
+\end{table}
+
+\section{Device build}
+
+\begin{drcode}[Build, flash, monitor]
+idf.py set-target esp32s3
+idf.py build
+idf.py -p <port> flash monitor
+\end{drcode}
+
+\section{Host unit tests}
+
+The pure core is tested on the host, with no board attached. On macOS the
+tests need a C++23 standard library --- use a Homebrew LLVM (>= 18) or
+GCC~14 rather than the system Apple Clang.
+
+\begin{drcode}[Host tests]
+cmake -S components/core/test -B build-host \
+      -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++"
+cmake --build build-host
+ctest --test-dir build-host --output-on-failure
+\end{drcode}
+
+\section{Documentation}
+
+The API documentation is generated with Doxygen and must build cleanly;
+an undocumented class, method, or parameter fails the build.
+
+\begin{drcode}[Docs]
+doxygen Doxyfile
+\end{drcode}
+
+\begin{drcaution}[Keep it green]
+The Doxygen build and the manual-synchronisation check are part of the
+definition of done. A change that leaves either failing is not complete.
+\end{drcaution}

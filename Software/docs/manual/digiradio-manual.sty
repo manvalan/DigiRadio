@@ -1,0 +1,169 @@
+% ============================================================
+%  digiradio-manual.sty — visual style for the DigiRadio manual
+%  Optima-like humanist sans, 12pt, 1.3 leading, restrained colour,
+%  and clear at-a-glance tcolorbox callouts.
+%
+%  Use with a 12pt KOMA class, e.g.:
+%     \documentclass[12pt,a4paper]{scrartcl}
+%     \usepackage{digiradio-manual}
+%
+%  FONT: compile with LuaLaTeX or XeLaTeX to get the real Optima
+%  (a system font on macOS). With pdfLaTeX it falls back to Linux
+%  Biolinum, a humanist sans in the same spirit. The package detects
+%  the engine automatically.
+% ============================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{digiradio-manual}[2026/07/06 DigiRadio manual style]
+
+\RequirePackage[table,dvipsnames]{xcolor}
+\RequirePackage{iftex}
+\RequirePackage{geometry}
+\RequirePackage{microtype}
+\RequirePackage{setspace}
+\RequirePackage{titlesec}
+\RequirePackage{booktabs}
+\RequirePackage{array}
+\RequirePackage{enumitem}
+\RequirePackage[most]{tcolorbox}
+\RequirePackage{graphicx}
+
+% ---------- Fonts (engine-aware) ---------------------------------------
+\ifPDFTeX
+  \RequirePackage[T1]{fontenc}
+  \RequirePackage[utf8]{inputenc}
+  \RequirePackage{libertine}            % Linux Libertine + Biolinum
+  \renewcommand{\familydefault}{\sfdefault} % Biolinum as body (Optima-like)
+\else
+  \RequirePackage{fontspec}
+  % Real Optima on macOS; change the name if yours differs.
+  \IfFontExistsTF{Optima}{%
+    \setmainfont{Optima}%
+  }{%
+    \setmainfont{Linux Biolinum O}% fallback if Optima not installed
+  }
+\fi
+
+% ---------- Colour palette (elegant, restrained) -----------------------
+% Two signature colours (petrol + amber), a muted red reserved for
+% cautions, plus ink and neutral. Backgrounds are light tints of these.
+\definecolor{drPetrol}{HTML}{0F4C5C}   % primary — headings, notes
+\definecolor{drAmber} {HTML}{C46210}   % accent  — key ideas, emphasis
+\definecolor{drTeal}  {HTML}{1A7F72}   % secondary — references
+\definecolor{drRed}   {HTML}{A4303F}   % caution only
+\definecolor{drInk}   {HTML}{1B1B1D}   % body text
+\definecolor{drGray}  {HTML}{5A5F63}   % captions, rules
+
+\color{drInk}
+
+% ---------- Page geometry & spacing ------------------------------------
+\geometry{a4paper, top=2.6cm, bottom=2.6cm, inner=2.6cm, outer=3.2cm,
+          marginparwidth=2.4cm}
+\setstretch{1.3}
+\setlength{\parskip}{0.5\baselineskip}
+\setlength{\parindent}{0pt}
+
+% ---------- Links -------------------------------------------------------
+\RequirePackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=drPetrol, urlcolor=drAmber,
+            citecolor=drTeal}
+
+% ---------- Chapter heading (for report-class manuals) -----------------
+\titleformat{\chapter}[display]
+  {\color{drPetrol}\bfseries}
+  {\filright\color{drAmber}\large\MakeUppercase{\chaptertitlename}\ \thechapter}
+  {6pt}{\Huge}
+  [\vspace{3pt}{\color{drAmber}\titlerule[1.5pt]}]
+\titlespacing*{\chapter}{0pt}{0pt}{22pt}
+
+% ---------- Section headings (coloured, sans, distinctive) -------------
+\titleformat{\section}
+  {\color{drPetrol}\Large\bfseries}
+  {\color{drAmber}\thesection\quad}{0pt}{}
+  [{\color{drAmber}\titlerule[1.2pt]}]
+\titleformat{\subsection}
+  {\color{drPetrol}\large\bfseries}
+  {\color{drAmber}\thesubsection\quad}{0pt}{}
+\titleformat{\subsubsection}
+  {\color{drPetrol}\normalsize\bfseries}
+  {\thesubsubsection\quad}{0pt}{}
+\titleformat{\paragraph}[runin]
+  {\bfseries\color{drPetrol}}{}{0pt}{}[\;]
+\titlespacing*{\paragraph}{0pt}{0.6\baselineskip}{0.8em}
+\titlespacing*{\section}{0pt}{1.4\baselineskip}{0.5\baselineskip}
+
+% ---------- List markers (coloured) ------------------------------------
+\setlist[itemize,1]{label=\textcolor{drAmber}{\textbullet}, leftmargin=*}
+\setlist[itemize,2]{label=\textcolor{drTeal}{\textendash}}
+\setlist[enumerate,1]{label=\textcolor{drAmber}{\bfseries\arabic*.},
+                      leftmargin=*}
+
+% ---------- Callout boxes (clear at a glance) --------------------------
+\tcbuselibrary{skins,breakable}
+
+% Shared base: rounded, light tinted body, bold coloured title bar
+% clipped to the top-left, and an accent rule down the left edge.
+\tcbset{dr@base/.style={
+  enhanced, breakable, boxrule=0pt, frame hidden, sharp corners=downhill,
+  arc=1.4mm, left=3.5mm, right=3.5mm, top=3mm, bottom=3mm,
+  fonttitle=\bfseries\small, coltitle=white,
+  attach boxed title to top left={xshift=3mm, yshift=-2.4mm},
+  boxed title style={boxrule=0pt, arc=0.8mm,
+                     left=2.2mm, right=2.2mm, top=0.6mm, bottom=0.6mm},
+  before skip=8pt, after skip=8pt,
+}}
+
+\newtcolorbox{drnote}[1][Note]{dr@base,
+  colback=drPetrol!6, colbacktitle=drPetrol,
+  borderline west={2.6pt}{0pt}{drPetrol}, title={#1}}
+
+\newtcolorbox{drkey}[1][Key idea]{dr@base,
+  colback=drAmber!9, colbacktitle=drAmber,
+  borderline west={2.6pt}{0pt}{drAmber}, title={#1}}
+
+\newtcolorbox{drcaution}[1][Caution]{dr@base,
+  colback=drRed!7, colbacktitle=drRed,
+  borderline west={2.6pt}{0pt}{drRed}, title={#1}}
+
+\newtcolorbox{drref}[1][Datasheet]{dr@base,
+  colback=drTeal!7, colbacktitle=drTeal,
+  borderline west={2.6pt}{0pt}{drTeal}, title={#1}}
+
+\newtcolorbox{drdecision}[1][Design decision]{dr@base,
+  colback=drPetrol!5, colbacktitle=drGray,
+  borderline west={2.6pt}{0pt}{drGray}, title={#1}}
+
+% ---------- Table helpers ----------------------------------------------
+% A coloured header row for booktabs tables. Usage:
+%   \begin{tabular}{...}
+%     \drhead Col A & Col B \\   % coloured header row
+%     \midrule ...
+\newcommand{\drhead}{\rowcolor{drPetrol}\color{white}\bfseries}
+% Subtle zebra striping if wanted: \rowcolors{2}{drPetrol!5}{white}
+% ---------- Code listings (styled to match the callouts) ---------------
+\tcbuselibrary{listings}
+\lstdefinestyle{drcpp}{%
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{drPetrol}\bfseries,
+  commentstyle=\color{drGray}\itshape,
+  stringstyle=\color{drTeal},
+  numberstyle=\color{drGray}\scriptsize,
+  numbers=left, numbersep=9pt,
+  showstringspaces=false,
+  tabsize=2, breaklines=true, keepspaces=true,
+  morekeywords={constexpr,noexcept,nullptr,override,final,explicit,
+                enum,class,namespace,using,co_await,std,expected,span,
+                uint32_t,uint8_t},
+}
+% drcode: a code block with the same title bar + left accent as the boxes
+\newtcblisting{drcode}[1][Listing]{%
+  dr@base,
+  colback=drPetrol!4, colbacktitle=drGray,
+  borderline west={2.6pt}{0pt}{drGray},
+  title={#1},
+  listing only, listing style=drcpp,
+}
+% inline code: \drcode|std::expected<T,E>|
+\newcommand{\code}[1]{{\ttfamily\color{drPetrol}#1}}
+
+\endinput
