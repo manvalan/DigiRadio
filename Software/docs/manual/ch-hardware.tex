@@ -1,53 +1,324 @@
 \chapter{Hardware Overview}
 \label{ch:hardware}
 
-This chapter describes the board at a block level. The complete hardware
-design --- schematics, PCB, Gerbers, and bill of materials --- is
-published in the repository under the CERN-OHL-S v2 licence.
+This chapter describes the board in detail: the design choices behind it,
+each integrated circuit and how it is controlled, the bus architecture,
+and the inter-chip connections. The complete hardware design ---
+schematics, PCB, Gerbers, and bill of materials --- is published in the
+repository under the CERN-OHL-S v2 licence.
+
+\section{Design philosophy}
+\label{sec:hw-philosophy}
+
+Every major choice on the board serves audio quality and
+reproducibility.
+
+\begin{drkey}[The four-chip split]
+Rather than a single all-in-one radio IC, DigiRadio separates concerns:
+a dedicated tuner for reception, a dedicated DSP for audio conditioning,
+a dedicated Bluetooth module for the wireless codec, and a general-purpose
+host to coordinate them. Each stage can be understood, measured, and
+improved on its own.
+\end{drkey}
+
+The consequences of that split run through the rest of the board: a
+control host that speaks several buses, a clean power tree that keeps the
+tuner's analogue supplies away from digital noise, and careful RF layout
+so the two 2.4\,GHz radios do not interfere.
 
 \section{System block diagram}
+\label{sec:hw-block}
 
-DigiRadio is built around four devices coordinated by the ESP32-S3. The
-tuner produces the audio stream, the DSP conditions and mixes it, and the
-Bluetooth module transmits it; the host manages all three and provides
-the network interface.
+Four devices are coordinated by the ESP32-S3. The tuner produces the
+audio stream, the DSP conditions and mixes it, and the Bluetooth module
+transmits it; the host manages all three and provides the network
+interface.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}llll@{}}
+    \drhead Device & Role & Control bus & Firmware \\
+    \midrule
+    Si4684           & DAB+/FM tuner            & SPI            & host-loaded image \\
+    ADAU1701         & Audio DSP (EQ + mixer)   & I\textsuperscript{2}C & host-loaded RAM \\
+    ESP32-S3-WROOM-1 & Host, Wi-Fi/BLE          & ---            & application FW \\
+    FSC-BT1035        & Bluetooth 5.2 (aptX Ad.) & UART (AT)     & vendor FW + config \\
+    \bottomrule
+  \end{tabular}
+  \caption{Principal integrated circuits, their control bus, and how each
+    receives its firmware or configuration.}
+  \label{tab:hw-ics}
+\end{table}
+
+\section{The tuner: Si4684}
+\label{sec:hw-si4684}
+
+The Si4684 is a single-chip DAB+/FM receiver front-end. It delivers the
+decoded audio stream to the DSP and reports signal-quality metrics to the
+host.
+
+\subsection{Control interface}
+The device is controlled through a command/response protocol over its
+host bus. The host issues a command, then polls a clear-to-send (CTS)
+status bit before reading the response; the driver validates that status
+byte before trusting any returned payload.
+
+\begin{drkey}[SPI for the tuner]
+The tuner needs a large firmware image loaded at every power-up
+(Section~\ref{sec:hw-si4684-fw}). SPI offers substantially higher
+throughput than I\textsuperscript{2}C, so on DigiRadio the tuner uses
+\textbf{SPI}, keeping boot time short, while the low-rate DSP control uses
+a separate I\textsuperscript{2}C bus.
+\end{drkey}
+
+\subsection{Firmware image upload}
+\label{sec:hw-si4684-fw}
+The Si4684 holds no application firmware of its own at reset. At power-up
+the host loads a bootloader/patch and then the firmware image for the
+desired mode (FM or DAB). These images are large, so the driver streams
+them to the chip in bounded chunks read from the ESP32's flash, rather
+than buffering a whole image in RAM.
+
+\begin{drref}[Datasheet]
+The exact power-up, patch, image-load, and boot command sequence follows
+the Si468x programming guide (AN649). No command byte is issued without a
+documented source, and each step in the driver cites its section.
+\end{drref}
+
+\section{The audio DSP: ADAU1701}
+\label{sec:hw-adau}
+
+The ADAU1701 is a SigmaDSP audio processor. In DigiRadio it performs
+equalisation and mixes the tuner audio with the ESP32 audio source before
+the signal reaches the Bluetooth stage.
+
+\subsection{Control and program loading}
+The DSP is controlled over I\textsuperscript{2}C. Its signal-processing
+program is designed in SigmaStudio and exported as a sequence of register
+writes (control settings, program RAM, and parameter RAM).
+
+\begin{drkey}[RAM boot, no EEPROM]
+The board deliberately omits the ADAU1701 self-boot EEPROM. Instead, the
+ESP32 writes the exported program into the DSP's RAM at \emph{every} boot.
+This keeps the audio processing under host control and field-updatable ---
+a new EQ or mixer configuration is a firmware update, not a chip
+re-programming.
+\end{drkey}
+
+\subsection{Click-free parameter updates}
+Runtime changes --- adjusting an EQ band, changing a mix level --- are
+applied through the ADAU1701 safeload mechanism, which updates parameter
+cells atomically between audio samples. Writing parameter cells directly
+while audio plays would produce audible clicks and is not done.
+
+\section{The Bluetooth module: FSC-BT1035}
+\label{sec:hw-bt1035}
+
+The FSC-BT1035 (Qualcomm QCC3056) is a Bluetooth~5.2 audio transmitter
+with aptX, aptX~HD, and aptX~Adaptive support --- the high-resolution
+codecs that make the wireless output hi-fi rather than merely convenient.
+
+\subsection{Control interface}
+The module is controlled with AT commands over UART, with hardware flow
+control (RTS/CTS). The host sends commands and parses the module's
+responses explicitly, treating timeouts as errors. Some settings are held
+in the module's own non-volatile memory.
+
+\begin{drcaution}[Line-In mode]
+The initialisation sequence must enable Line-In mode (\texttt{AT+AUXCFG=1})
+so the module accepts the wired audio coming from the DSP. Omitting it
+silently breaks the audio path.
+\end{drcaution}
+
+\section{The host: ESP32-S3}
+\label{sec:hw-esp32}
+
+The ESP32-S3-WROOM-1 coordinates the whole system. It loads the tuner and
+DSP firmware at boot, controls all three companion chips over their
+respective buses, serves the configuration web interface, and provides
+Wi-Fi connectivity. Its dual-core processor and generous RAM comfortably
+handle the firmware images and the network stack alongside the control
+tasks.
+
+\section{Bus architecture}
+\label{sec:hw-buses}
+
+The host speaks several interfaces, each chosen for its traffic:
 
 \begin{table}[htbp]
   \centering
   \begin{tabular}{@{}lll@{}}
-    \drhead Device & Role & Interface \\
+    \drhead Bus & Devices & Purpose \\
     \midrule
-    Si4684            & DAB+/FM tuner              & SPI / I\textsuperscript{2}C \\
-    ADAU1701          & Audio DSP (EQ + mixer)     & I\textsuperscript{2}C \\
-    ESP32-S3-WROOM-1  & Host controller, Wi-Fi/BLE & ---            \\
-    FSC-BT1035         & Bluetooth 5.2 (aptX Adaptive) & UART (AT)  \\
+    SPI    & Si4684                    & fast firmware-image upload, tuner control \\
+    I\textsuperscript{2}C & ADAU1701, 24AA025E48 EEPROM & DSP control, device identity \\
+    UART   & FSC-BT1035                & AT command / response (with RTS/CTS) \\
+    I\textsuperscript{2}S & Si4684, ESP32, ADAU1701, BT1035 & audio (ADAU is master) \\
     \bottomrule
   \end{tabular}
-  \caption{Principal integrated circuits and their roles.}
-  \label{tab:hw-ics}
+  \caption{Interface assignment and rationale.}
+  \label{tab:hw-buses}
 \end{table}
 
 \section{Power}
+\label{sec:hw-power}
 
 The board is powered from USB-C. An AP63203 buck converter generates the
-main rails from the USB input, feeding the digital and analogue sections.
-The tuner's sensitive supplies are derived and filtered separately to
-keep RF performance clean.
+main rail from the USB input, feeding the digital and analogue sections.
+The tuner's sensitive supplies are derived and filtered separately to keep
+RF performance clean.
 
 \section{RF and antennas}
+\label{sec:hw-rf}
 
 Two 2.4\,GHz radios are present --- the ESP32-S3 and the Bluetooth module.
 Their antennas are placed on opposite diagonal corners of the board to
 maximise separation and minimise mutual desense. Each module keeps its
-antenna keep-out clear of copper on all layers.
+antenna keep-out clear of copper on all layers. The PCB is a six-layer
+stack-up with controlled impedance on the USB and RF sections.
 
-\begin{drnote}[Board]
-The PCB is a six-layer stack-up with controlled impedance on the USB and
-RF sections. The full fabrication data is in the repository.
+\section{Inter-chip connections (GPIO map)}
+\label{sec:hw-gpio}
+
+This section is the authoritative wiring reference between the ESP32-S3
+and the companion chips. The firmware pin definitions
+(\texttt{board\_pins.hpp}) must match these tables exactly.
+
+\subsection{System and control lines}
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Signal & ESP32-S3 GPIO & Notes \\
+    \midrule
+    USB D$-$          & GPIO19 & native USB \\
+    USB D$+$          & GPIO20 & native USB \\
+    Reset / boot button & GPIO0 & strapping pin \\
+    \bottomrule
+  \end{tabular}
+  \caption{System and control lines.}
+  \label{tab:hw-sys}
+\end{table}
+
+\subsection{Si4684 tuner (SPI)}
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}llll@{}}
+    \drhead Signal & Si4684 pin & ESP32-S3 GPIO & Notes \\
+    \midrule
+    SCLK                    & pin 30 & GPIO13 & \\
+    MOSI                    & pin 31 & GPIO12 & \\
+    MISO                    & pin 32 & GPIO9  & \\
+    SSB (CS)                & pin 29 & GPIO8  & chip select, active-low \\
+    RSTB\#                  & pin 4  & GPIO38 & active-low, ext.\ pull-down \\
+    INTB\#                  & pin 3  & GPIO39 & active-low, ext.\ pull-up \\
+    \bottomrule
+  \end{tabular}
+  \caption{Si4684 control and SPI lines.}
+  \label{tab:hw-si4684}
+\end{table}
+
+\subsection{ADAU1701 DSP (I\textsuperscript{2}C)}
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Signal & ADAU1701 pin & ESP32-S3 GPIO \\
+    \midrule
+    SDA     & --- & GPIO4 \\
+    SCL     & --- & GPIO5 \\
+    RESET\# & pin 5 & GPIO47 (active-low, ext.\ pull-up) \\
+    \bottomrule
+  \end{tabular}
+  \caption{ADAU1701 control (I\textsuperscript{2}C) and reset. The 7-bit
+    I\textsuperscript{2}C address is 0x34 (ADDR0 and ADDR1 tied to GND).}
+  \label{tab:hw-adau}
+\end{table}
+
+\subsection{Device-identity EEPROM (24AA025E48)}
+A 24AA025E48 EEPROM shares the DSP's I\textsuperscript{2}C bus. Besides a
+small general-purpose memory, it carries a factory-programmed, globally
+unique EUI-48 identifier, which the firmware can read to give each unit a
+stable identity --- for example a unique Bluetooth name or a device
+serial number. Its 7-bit address is 0x52 (A0 to GND, A1 to 3V3).
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Device & 7-bit address & Set by \\
+    \midrule
+    ADAU1701          & 0x34 & ADDR0, ADDR1 = GND \\
+    24AA025E48 EEPROM & 0x52 & A0 = GND, A1 = 3V3 (no A2 pin) \\
+    \bottomrule
+  \end{tabular}
+  \caption{I\textsuperscript{2}C address map (shared bus).}
+  \label{tab:hw-i2c-addr}
+\end{table}
+
+\subsection{FSC-BT1035 Bluetooth}
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}llll@{}}
+    \drhead Signal & BT1035 pin & ESP32-S3 GPIO & Direction \\
+    \midrule
+    SYS\_CTL & pin 34 & GPIO15 & ESP32 $\rightarrow$ BT \\
+    BT\_CTS  & pin 15 & GPIO21 & flow control \\
+    BT\_RTS  & pin 16 & GPIO14 & flow control \\
+    BT\_RX   & pin 14 & GPIO40 & ESP32 TX $\rightarrow$ BT RX \\
+    BT\_TX   & pin 13 & GPIO41 & BT TX $\rightarrow$ ESP32 RX \\
+    RESET    & pin 8  & GPIO17 & ESP32 $\rightarrow$ BT \\
+    \bottomrule
+  \end{tabular}
+  \caption{FSC-BT1035 UART, control, and reset lines.}
+  \label{tab:hw-bt1035}
+\end{table}
+
+\subsection{Audio bus (I\textsuperscript{2}S)}
+The audio path is a chip-to-chip I\textsuperscript{2}S bus with the
+ADAU1701 acting as master. Table~\ref{tab:hw-i2s} lists the chip-to-chip
+routing; Table~\ref{tab:hw-i2s-esp} lists the ESP32's own
+I\textsuperscript{2}S source lines that feed the mixer.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \drhead Signal & Path & ADAU1701 / BT1035 pins \\
+    \midrule
+    SDATA\_IN0  & Si4684 $\rightarrow$ ADAU & MP0 (pin 11) \\
+    SDATA\_IN1  & ESP32 $\rightarrow$ ADAU  & MP1 (pin 10) \\
+    SDATA\_OUT0 & ADAU $\rightarrow$ BT1035 & MP6 (pin 15) $\rightarrow$ pin 5 \\
+    LRCLK       & ADAU $\rightarrow$ BT1035 & MP4 (pin 8) + MP10 (pin 16) $\rightarrow$ pin 7 \\
+    BCLK        & ADAU $\rightarrow$ BT1035 & MP5 (pin 9) + MP11 (pin 19) $\rightarrow$ pin 4 \\
+    \bottomrule
+  \end{tabular}
+  \caption{I\textsuperscript{2}S audio routing (chip-to-chip). The
+    MP4/MP10 and MP5/MP11 pairs are electrically connected on the board.}
+  \label{tab:hw-i2s}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Signal & ESP32-S3 GPIO & Direction \\
+    \midrule
+    BCLK       & GPIO6  & in from ADAU (master) \\
+    LRCLK      & GPIO7  & in from ADAU (master) \\
+    SDATA\_IN1 & GPIO16 & out $\rightarrow$ ADAU MP1 \\
+    \bottomrule
+  \end{tabular}
+  \caption{ESP32 I\textsuperscript{2}S source lines feeding the mixer. The
+    ESP32 is an I\textsuperscript{2}S slave (clocks in), transmitting
+    audio data. SDATA\_IN1 lands on ADAU MP1 (pin 10); GPIO16 is the
+    ESP32 module's physical pin 9.}
+  \label{tab:hw-i2s-esp}
+\end{table}
+
+\subsection{Completeness}
+\label{sec:hw-gpio-open}
+
+\begin{drnote}[Map complete]
+The GPIO and I\textsuperscript{2}C maps are complete and match
+\texttt{board\_pins.hpp}. No values remain open.
 \end{drnote}
 
-\section{User interface and connectors}
-
-Configuration is done over Wi-Fi through a built-in web interface (see
-Chapter~\ref{ch:firmware}); no display is required on the board itself.
-Audio reaches the listener wirelessly over Bluetooth.
+This section is the authoritative wiring reference for firmware bring-up:
+the pin definitions in the source code must match it exactly.
