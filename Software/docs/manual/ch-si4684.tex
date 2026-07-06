@@ -1,0 +1,258 @@
+% ============================================================
+%  DigiRadio — Manual chapter: Si4684 tuner
+% ============================================================
+
+\chapter{Si4684 DAB+/FM Tuner}
+\label{ch:si4684}
+
+The Skyworks Si4684 is the primary RF front-end of DigiRadio: it demodulates
+DAB/DAB+ and FM, decodes RDS, and delivers PCM over I\textsuperscript{2}S to
+the ADAU1701. This chapter documents how firmware images are obtained and kept
+local, how the chip is booted on the ESP32-S3, and how \texttt{Si4684Driver}
+exposes every day-to-day operation without leaking register-level details to
+application code.
+
+\section{Role in the audio chain}
+\label{sec:si4684-role}
+
+After boot the Si4684 runs as an I\textsuperscript{2}S master at
+44.1\,kHz stereo. The ESP32 loads proprietary application firmware into chip
+RAM at every cold start (there is no self-boot EEPROM on DigiRadio). Tuning,
+service selection, and signal-quality reads all go through
+\texttt{si4684::Si4684Driver}; higher layers (\texttt{TunerService}, web UI)
+will depend on that class rather than issuing SPI transactions directly.
+
+\begin{drref}[Programming guide]
+Command opcodes, property IDs, and reply layouts follow Skyworks application
+note \textbf{AN649} (Si468x programming guide). The DigiRadio driver aligns
+with the PE5PVB/SI4684-DAB-Receiver reference for DAB and with community FM
+images for the FM application blob.
+\end{drref}
+
+\section{Firmware images}
+\label{sec:si4684-firmware}
+
+Three binary blobs live under \texttt{Firmware/Si4684-Firmware/}. They are
+\textbf{not} committed to the public Git repository (proprietary Skyworks /
+uGreen licence); \texttt{.gitignore} keeps them on the developer machine only.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}llp{6.2cm}@{}}
+    \toprule
+    \textbf{Local file} & \textbf{Typ.\ size} & \textbf{Source} \\
+    \midrule
+    \texttt{rom\_patch\_016.bin} & 5796 B &
+      ROM patch (\texttt{rom00\_patch.016.bin}); refreshed from
+      PE5PVB or uGreen \texttt{radio\_cli}. \\
+    \texttt{dab\_firmware.bin} & $\sim$517--497 KB &
+      DAB application image; default from PE5PVB header extract; optional
+      uGreen \texttt{dab\_radio\_6\_0\_6.bin}. \\
+    \texttt{fm\_firmware.bin} & $\sim$530 KB &
+      FM/HD application; eval CD, dabpi \texttt{si46xx\_firmware/}, or uGreen
+      \texttt{fmhd\_radio\_5\_1\_3.bin}. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Si4684 firmware blobs (local only).}
+  \label{tab:si4684-blobs}
+\end{table}
+
+\subsection{Where images come from}
+\label{sec:si4684-sources}
+
+Community projects name the same Skyworks files differently; none of them
+redistribute the binaries in git:
+
+\begin{itemize}
+  \item \textbf{PE5PVB/SI4684-DAB-Receiver} --- DAB image and ROM patch as
+    C arrays (\texttt{firmware.h}, \texttt{Si468xROM.h}). Safe to automate.
+  \item \textbf{uGreen DABBoard} (\url{https://ugreen.eu/downloads/}) ---
+    \texttt{Files\_v16.zip} embeds FM, DAB, and patch inside
+    \texttt{radio\_cli}; use \texttt{tools/extract\_ugreen\_radio\_cli.py}.
+  \item \textbf{hitech95/si468x\_dab\_receiver} --- Linux driver only; device
+    tree references \texttt{si468x/fmhd\_radio\_5\_1\_0.bin} but does not
+    ship the files (closed source).
+  \item \textbf{PhilBladen/Radio} --- STM32 reference using \emph{external}
+    SPI flash (\texttt{FLASH\_LOAD}); different hardware path from DigiRadio's
+    \texttt{HOST\_LOAD} flow.
+\end{itemize}
+
+\begin{drcaution}[Licence]
+Do not push \texttt{*.bin} firmware to GitHub. Obtain images from your own
+eval board, uGreen customer download, or dabpi folder; keep them in
+\texttt{Firmware/Si4684-Firmware/} locally.
+\end{drcaution}
+
+\subsection{Refreshing blobs}
+\label{sec:si4684-refresh}
+
+\begin{verbatim}
+# DAB + patch from PE5PVB (always safe to re-run):
+python3 tools/fetch_si4684_firmware.py --dab-only
+
+# FM from uGreen radio_cli (Files_v16.zip):
+python3 tools/fetch_si4684_firmware.py \
+    --from-ugreen-radio-cli ~/Downloads/Files_v16.zip
+
+# All three blobs from uGreen (overrides PE5PVB DAB):
+python3 tools/fetch_si4684_firmware.py \
+    --from-ugreen-radio-cli ~/Downloads/Files_v16.zip --ugreen-all
+
+# FM from dabpi / Skyworks eval folder:
+python3 tools/fetch_si4684_firmware.py --si46xx-dir /path/to/si46xx_firmware
+\end{verbatim}
+
+Low-level helpers: \texttt{tools/extract\_si4684\_blob.py} (C header or copy),
+\texttt{tools/extract\_ugreen\_radio\_cli.py} (ELF symbol scrape).
+
+\section{Boot sequence (HOST\_LOAD)}
+\label{sec:si4684-boot}
+
+DigiRadio follows AN649 ``cold start with HOST\_LOAD'' (same as PE5PVB), not
+the \texttt{FLASH\_LOAD} path used by boards with a pre-programmed SST25V.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      step/.style={draw, rounded corners, minimum width=9cm,
+        minimum height=0.9cm, align=center, font=\small},
+      >={Latex}, node distance=3mm]
+    \node[step, fill=black!6] (rst) {Hardware reset (RST\#)};
+    \node[step, fill=black!6, below=of rst] (pu)
+      {POWER\_UP (crystal / clock args)};
+    \node[step, fill=black!6, below=of pu] (li1) {LOAD\_INIT};
+    \node[step, fill=black!8, below=of li1] (patch)
+      {HOST\_LOAD \texttt{rom\_patch\_016.bin} (124 B chunks)};
+    \node[step, fill=black!6, below=of patch] (li2) {LOAD\_INIT};
+    \node[step, fill=black!8, below=of li2] (img)
+      {HOST\_LOAD \texttt{dab\_} or \texttt{fm\_firmware.bin}
+       (2044 B chunks)};
+    \node[step, fill=black!6, below=of img] (boot) {BOOT};
+    \node[step, fill=black!10, below=of boot] (cfg)
+      {Properties: I\textsuperscript{2}S 44.1 kHz, RDS/DAB FE, volume};
+    \foreach \a/\b in {rst/pu, pu/li1, li1/patch, patch/li2, li2/img,
+      img/boot, boot/cfg} {
+      \draw[->] (\a) -- (\b);
+    }
+  \end{tikzpicture}
+  \caption{Si4684 boot flow on DigiRadio (AN649 / PE5PVB).}
+  \label{fig:si4684-boot}
+\end{figure}
+
+Images are embedded in the ESP32 flash partition via ESP-IDF
+\texttt{EMBED\_FILES} and streamed through \texttt{IFirmwareBlobReader} so the
+full $\sim$1\,MB of patch + DAB + FM never has to fit in RAM at once. Switching
+band (\texttt{Si4684Band::Fm} $\leftrightarrow$ \texttt{Dab}) performs reset and
+a complete reload of patch + the other application image.
+
+\section{Si4684Driver API}
+\label{sec:si4684-driver}
+
+\texttt{Si4684Driver} owns SPI, implements boot, and exposes intent-level
+methods grouped below. All return \texttt{std::expected<T, Si4684Error>}; FM
+calls fail with \texttt{WrongBand} if the FM image is not loaded, and vice
+versa for DAB.
+
+\subsection{Bring-up and diagnostics}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Method} & \textbf{Purpose} \\
+    \midrule
+    \texttt{boot(Si4684Band)} & Cold start + default properties \\
+    \texttt{isBooted()}, \texttt{loadedBand()} & State query \\
+    \texttt{getPartInfo()} & Chip ID + firmware version \\
+    \texttt{getSysState()} & Running application type \\
+    \texttt{setProperty(id, value)} & Generic SET\_PROPERTY \\
+    \texttt{setVolume(0--63)} & Audio attenuator \\
+    \bottomrule
+  \end{tabular}
+  \caption{Si4684 bring-up and property access.}
+\end{table}
+
+\subsection{FM operations}
+
+Requires \texttt{boot(Si4684Band::Fm)}.
+
+\begin{itemize}
+  \item \texttt{tuneFm(frequencyKhz)} --- FM\_TUNE\_FREQ, waits for STC.
+  \item \texttt{seekFm(up, wrap)} --- FM\_SEEK\_START; returns tuned kHz.
+  \item \texttt{readFmRsq()} --- RSSI, SNR, stereo flag, validity.
+  \item \texttt{readFmRds()} --- last RDS group blocks A--D.
+\end{itemize}
+
+\subsection{DAB operations}
+
+Requires \texttt{boot(Si4684Band::Dab)}. The default Band~III frequency plan
+(38 channels, Table~\ref{tab:si4684-dab-plan}) is installed automatically
+after boot.
+
+\begin{itemize}
+  \item \texttt{installDefaultDabFrequencyPlan()} --- DAB\_SET\_FREQ\_LIST
+    (also called from boot).
+  \item \texttt{tuneDab(freqIndex)} --- tune ensemble by index 0--37.
+  \item \texttt{readDabDigRadStatus()} --- FIC quality, CNR, lock.
+  \item \texttt{readDabEventStatus()} --- service-list-ready flag.
+  \item \texttt{fetchDabServiceList()} --- parsed services + labels.
+  \item \texttt{startDabService(serviceId, componentId)} --- begin audio
+    decode (START\_DIGITAL\_SERVICE).
+\end{itemize}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}cl@{}}
+    \toprule
+    \textbf{Index} & \textbf{Centre frequency (kHz)} \\
+    \midrule
+    0--3   & 174928 -- 180064 (5A--5D) \\
+    4--7   & 181936 -- 187072 (6A--6D) \\
+    8--11  & 188928 -- 194064 (7A--7D) \\
+    12--15 & 195936 -- 201072 (8A--8D) \\
+    16--19 & 202928 -- 208064 (9A--9D) \\
+    20--23 & 209936 -- 215072 (10A--10D) \\
+    24--27 & 216928 -- 222064 (11A--11D) \\
+    28--31 & 223936 -- 229072 (12A--12D) \\
+    32--35 & 230784 -- 235776 (13A--13D) \\
+    36--37 & 237488 -- 239200 (13E--13F) \\
+    \bottomrule
+  \end{tabular}
+  \caption{DAB Band III plan (\texttt{kDefaultDabFrequencyKhz}).}
+  \label{tab:si4684-dab-plan}
+\end{table}
+
+\subsection{Typical DAB session}
+
+\begin{enumerate}
+  \item \texttt{boot(Dab)} at power-up (already done in
+    \texttt{HardwareBootstrap}).
+  \item \texttt{tuneDab(index)} for the desired ensemble.
+  \item Poll \texttt{readDabDigRadStatus()} until FIC quality $> 0$.
+  \item \texttt{fetchDabServiceList()} when
+    \texttt{readDabEventStatus().serviceListReady}.
+  \item \texttt{startDabService(serviceId, componentId)} for the chosen
+    programme; audio appears on I\textsuperscript{2}S.
+\end{enumerate}
+
+\section{Integration at power-up}
+\label{sec:si4684-integration}
+
+\texttt{main/hardware\_bootstrap.cpp} constructs a static
+\texttt{Si4684EmbeddedImages}, \texttt{Si4684Driver}, and
+\texttt{Si4684Tuner}, calls \texttt{boot(Si4684Band::Dab)} before Wi-Fi,
+then boots the ADAU1701. Failure is fail-closed (logged, no network start).
+\texttt{main/main.cpp} wraps the tuner adapter in
+\texttt{tuner::TunerService} and passes it to \texttt{NetBootstrap::start()}
+so HTTP routes under \texttt{/api/tuner/*} can tune and play at runtime.
+
+\section{Further reading}
+\label{sec:si4684-reading}
+
+\begin{itemize}
+  \item Skyworks AN649 --- command and property reference.
+  \item \texttt{Firmware/Si4684-Firmware/README.md} --- blob refresh cheatsheet.
+  \item PE5PVB \texttt{si4684.cpp} --- DAB service list and MOT (not yet ported).
+  \item uGreen \texttt{radio\_cli\_RELEASE\_NOTES.md} --- embedded firmware versions.
+\end{itemize}

@@ -125,16 +125,9 @@ verified against reference values in host tests.
 At power-up the driver follows the documented boot sequence: power on,
 load the patch/bootloader, load the firmware image (FM or DAB), then
 boot. Firmware images are large and are streamed to the chip in bounded
-chunks from flash rather than buffered whole in RAM.
-
-\begin{drref}[Datasheet]
-The exact power-up, patch, image-load, and boot command sequence follows
-the Si468x programming guide (AN649). Each step in the driver cites the
-relevant section; no command byte is issued without a documented source.
-\end{drref} The public
-interface is intent-level (\texttt{powerUp}, \texttt{loadImage},
-\texttt{tuneTo}, \texttt{readRsq}); register-level detail is private to
-the driver.
+chunks from flash rather than buffered whole in RAM. See
+Chapter~\ref{ch:si4684} for blob sources, uGreen extraction, and the full
+\texttt{Si4684Driver} API (tuning, RSQ, DAB service list).
 
 \paragraph{ADAU1701 (DSP).}
 The board carries no self-boot EEPROM. Instead, the ESP32 writes the
@@ -183,6 +176,28 @@ station/frequency list in later slices --- uses \texttt{core::Secret} so
 values cannot be logged or implicitly converted to a string; buffers are
 cleared on destruction. Production builds should enable NVS encryption
 at rest (see Chapter~\ref{sec:api-storage}).
+
+\section{Companion-chip boot at power-up}
+\label{sec:fw-chip-boot}
+
+The ESP32-S3 loads both audio companion chips from assets under
+\texttt{Software/Firmware/} during \texttt{app\_main}, before network
+bring-up:
+
+\begin{enumerate}
+  \item \textbf{Si4684} (SPI): ROM patch \texttt{rom\_patch\_016.bin}, then either
+    DAB image \texttt{dab\_firmware.bin} or FM image \texttt{fm\_firmware.bin},
+    following AN649 (Chapter~\ref{ch:si4684}). DAB blob default from PE5PVB; FM
+    from eval pack or uGreen \texttt{radio\_cli}. Blobs are local-only
+    (\texttt{.gitignore}); embedded via ESP-IDF \texttt{EMBED\_FILES}.
+  \item \textbf{ADAU1701} (I\textsuperscript{2}C): SigmaStudio export
+    (\texttt{DigiRadio\_IC\_1.h}) replayed through
+    \texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} after hardware reset. The DSP
+    program lives in RAM only; download runs on every boot.
+\end{enumerate}
+
+If either driver returns an error, the firmware logs the failure and stops
+before starting Wi-Fi (fail-closed bring-up).
 
 \section{Error-handling model}
 \label{sec:fw-errors}
