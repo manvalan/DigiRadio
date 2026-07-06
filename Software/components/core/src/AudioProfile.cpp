@@ -23,6 +23,7 @@ AudioProfile AudioProfile::factoryDefault() noexcept
         .eq = EqProfile::factoryDefault(),
         .masterLeft = unity,
         .masterRight = unity,
+        .enhancements = AudioEnhancements::factoryDefault(),
     };
 }
 

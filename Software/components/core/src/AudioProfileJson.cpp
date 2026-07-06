@@ -13,6 +13,8 @@
 
 #include "core/AudioProfileJson.hpp"
 
+#include "core/EnhanceLevel.hpp"
+
 #include <cstdlib>
 #include <sstream>
 
@@ -144,6 +146,34 @@ namespace {
     return profile;
 }
 
+[[nodiscard]] std::expected<AudioEnhancements, ParseError> parseEnhancementsJson(
+    std::string_view json)
+{
+    const std::size_t enhStart = json.find("\"enhancements\"");
+    if (enhStart == std::string_view::npos) {
+        return AudioEnhancements::factoryDefault();
+    }
+
+    const std::string_view enh = json.substr(enhStart);
+    unsigned long stereoLevel = 0U;
+    unsigned long bassLevel = 0U;
+    if (!extractJsonUint(enh, "stereo_level", stereoLevel)
+        || !extractJsonUint(enh, "bass_level", bassLevel)) {
+        return std::unexpected(ParseError::MissingField);
+    }
+
+    const auto stereo = EnhanceLevel::tryFromLevel(stereoLevel);
+    const auto bass = EnhanceLevel::tryFromLevel(bassLevel);
+    if (!stereo || !bass) {
+        return std::unexpected(ParseError::MissingField);
+    }
+
+    return AudioEnhancements{
+        .stereo = *stereo,
+        .bass = *bass,
+    };
+}
+
 } // namespace
 
 std::string serializeAudioProfileJson(const AudioProfile& profile)
@@ -172,7 +202,10 @@ std::string serializeAudioProfileJson(const AudioProfile& profile)
             << ",\"center_hz\":" << b.center.value() << ",\"q\":" << b.q
             << '}';
     }
-    out << "]}";
+    out << "],\"enhancements\":{"
+        << "\"stereo_level\":" << static_cast<unsigned>(profile.enhancements.stereo.value())
+        << ",\"bass_level\":" << static_cast<unsigned>(profile.enhancements.bass.value())
+        << "}}";
     return out.str();
 }
 
@@ -204,11 +237,17 @@ std::expected<AudioProfile, ParseError> parseAudioProfileJson(
         return std::unexpected(ParseError::MissingField);
     }
 
+    const auto enhancements = parseEnhancementsJson(json);
+    if (!enhancements) {
+        return std::unexpected(enhancements.error());
+    }
+
     return AudioProfile{
         .mixer = *mixer,
         .eq = *eq,
         .masterLeft = *masterLeft,
         .masterRight = *masterRight,
+        .enhancements = *enhancements,
     };
 }
 
@@ -222,6 +261,20 @@ std::string serializeAudioErrorJson(std::string_view reason)
     std::ostringstream out;
     out << R"({"status":"error","reason":")" << reason << R"("})";
     return out.str();
+}
+
+std::expected<EnhanceLevel, ParseError> parseEnhanceLevelJson(
+    std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+
+    unsigned long level = 0U;
+    if (!extractJsonUint(json, "level", level)) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    return EnhanceLevel::tryFromLevel(level);
 }
 
 } // namespace core

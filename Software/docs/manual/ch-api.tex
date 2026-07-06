@@ -184,9 +184,11 @@ The handler reads \texttt{audio::AudioService::currentProfile()}.
 {"mixer":{"si4684_left_db":0,"si4684_right_db":0,"esp32_left_db":0,
  "esp32_right_db":0,"mix_left_db":0,"mix_right_db":0},
  "master":{"left_db":0,"right_db":0},
- "eq":[{"gain_db":0,"center_hz":40,"q":1.414}, ...]}
+ "eq":[{"gain_db":0,"center_hz":40,"q":1.414}, ...],
+ "enhancements":{"stereo_level":0,"bass_level":0}}
 \end{drcode}
 Six EQ bands are always present (\texttt{eq} array length~6).
+Enhancement levels are 0--100; at 0 the base EQ band settings apply.
 \end{drnote}
 
 HTTP status: \textbf{200 OK}; \textbf{503} when the audio service is
@@ -216,6 +218,32 @@ Restores \texttt{AudioProfile::factoryDefault()} (flat EQ, 0\,dB gains),
 applies it to the DSP, and persists to NVS. Success response:
 \texttt{\{"status":"saved"\}}. HTTP status: \textbf{200 OK}; \textbf{500}
 on apply/persist failure.
+
+\subsection{\texttt{POST /api/audio/stereo-enhance}}
+\label{sec:api-audio-stereo-enhance}
+
+Adjusts stereo depth via a psychoacoustic PEQ overlay on bands 3--5
+(1\,kHz / 3\,kHz / 8\,kHz). This is \emph{not} true M/S widening---there
+is no dedicated SigmaStudio widener block; see
+Section~\ref{sec:ss-enhancements}.
+
+\begin{drnote}[Request body]
+\begin{drcode}[JSON]
+{"level":50}
+\end{drcode}
+\texttt{level} is an integer 0--100 (0 = off, 100 = maximum).
+\end{drnote}
+
+Success response: \texttt{\{"status":"saved"\}}. HTTP status:
+\textbf{200 OK}; \textbf{400} for invalid JSON or level; \textbf{500}
+when safeload or NVS persistence fails.
+
+\subsection{\texttt{POST /api/audio/bass-enhance}}
+\label{sec:api-audio-bass-enhance}
+
+Adjusts bass emphasis via a PEQ overlay on bands 1--2 (100\,Hz /
+400\,Hz). Request and response schema match
+\texttt{POST /api/audio/stereo-enhance} (Section~\ref{sec:api-audio-stereo-enhance}).
 
 \section{Boot and network state machine}
 \label{sec:api-boot-flow}

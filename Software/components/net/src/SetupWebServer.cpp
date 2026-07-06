@@ -25,6 +25,7 @@
 #include "core/HealthStatusJson.hpp"
 #include "core/ParseError.hpp"
 #include "core/SeekDirection.hpp"
+#include "core/StoreError.hpp"
 #include "core/TunerJson.hpp"
 #include "core/WifiProvisionJson.hpp"
 #include "tuner/TunerService.hpp"
@@ -129,7 +130,8 @@ void rebootTask(void* arg)
     return "tuner_error";
 }
 
-[[nodiscard]] bool readRequestBody(httpd_req_t* req, std::array<char, 512>& body)
+template <std::size_t N>
+[[nodiscard]] bool readRequestBodyImpl(httpd_req_t* req, std::array<char, N>& body)
 {
     int received = 0;
     while (received < static_cast<int>(body.size()) - 1) {
@@ -142,6 +144,12 @@ void rebootTask(void* arg)
     }
     body[static_cast<std::size_t>(received)] = '\0';
     return received > 0;
+}
+
+template <std::size_t N>
+[[nodiscard]] bool readRequestBody(httpd_req_t* req, std::array<char, N>& body)
+{
+    return readRequestBodyImpl(req, body);
 }
 
 /**
@@ -470,9 +478,66 @@ esp_err_t audioResetPostHandler(httpd_req_t* req)
 }
 
 /**
- * @brief    indexGetHandler — serve gzipped setup page from flash.
+ * @brief    audioEnhancePostHandler — apply stereo or bass enhancement level.
  *
- * @dname    indexGetHandler
+ * @dname    audioEnhancePostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate parses level, updates AudioService, persists to NVS.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+esp_err_t audioEnhancePostHandler(httpd_req_t* req, bool stereo)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 512> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed = core::parseEnhanceLevelJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeAudioErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::expected<void, core::StoreError> applied = stereo
+        ? ctx->audio->setStereoEnhance(*parsed, true)
+        : ctx->audio->setBassEnhance(*parsed, true);
+    if (!applied) {
+        const std::string json = core::serializeAudioErrorJson("store_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeAudioSavedJson();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+esp_err_t audioStereoEnhancePostHandler(httpd_req_t* req)
+{
+    return audioEnhancePostHandler(req, true);
+}
+
+esp_err_t audioBassEnhancePostHandler(httpd_req_t* req)
+{
+    return audioEnhancePostHandler(req, false);
+}
+
+/**
+ * @brief    indexGetHandler — serve gzipped setup page from flash.
  * @param    req  HTTP request handle from esp_http_server.
  * @return   ESP_OK on success, or an esp_err_t error code.
  * @pubstate none; reads embedded www/index.html.gz blob.
@@ -725,6 +790,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &audioResetUri);
+
+    const httpd_uri_t audioStereoEnhanceUri = {
+        .uri = "/api/audio/stereo-enhance",
+        .method = HTTP_POST,
+        .handler = audioStereoEnhancePostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &audioStereoEnhanceUri);
+
+    const httpd_uri_t audioBassEnhanceUri = {
+        .uri = "/api/audio/bass-enhance",
+        .method = HTTP_POST,
+        .handler = audioBassEnhancePostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &audioBassEnhanceUri);
 
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};

@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "core/AudioEnhancements.hpp"
 #include "core/EqProfile.hpp"
 #include "core/GainDb.hpp"
 #include "core/MixerState.hpp"
@@ -32,8 +33,9 @@ namespace core {
 struct AudioProfile {
     MixerState mixer;     ///< Input and stereo-mixer gains.
     EqProfile eq;         ///< Six-band parametric EQ.
-    GainDb masterLeft;    ///< Multiple 1 master volume, left.
-    GainDb masterRight;   ///< Multiple 1 master volume, right.
+    GainDb masterLeft;           ///< Multiple 1 master volume, left.
+    GainDb masterRight;          ///< Multiple 1 master volume, right.
+    AudioEnhancements enhancements; ///< Stereo depth and bass boost (PEQ overlay).
 
     /**
      * @brief    factoryDefault — factory-flat audio path (0 dB everywhere).

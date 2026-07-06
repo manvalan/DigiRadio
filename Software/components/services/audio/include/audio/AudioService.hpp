@@ -14,6 +14,8 @@
 
 #include "core/AudioProfile.hpp"
 #include "core/DspError.hpp"
+#include "core/EnhanceLevel.hpp"
+#include "core/EnhancementsDesign.hpp"
 #include "core/EqBandIndex.hpp"
 #include "core/FrequencyHz.hpp"
 #include "core/GainDb.hpp"
@@ -147,8 +149,44 @@ public:
         core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center,
         float q, bool persist);
 
+    /**
+     * @brief    setStereoEnhance — adjust stereo depth overlay (PEQ bands 3–5).
+     *
+     * @dname    setStereoEnhance
+     * @param    level   Intensity 0..100 (0 = off).
+     * @param    persist When true and store is set, write NVS.
+     * @return   Ok on success, or StoreError.
+     * @pubstate updates profile_.enhancements.stereo and safeloads effective EQ.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, core::StoreError> setStereoEnhance(
+        core::EnhanceLevel level, bool persist);
+
+    /**
+     * @brief    setBassEnhance — adjust bass emphasis overlay (PEQ bands 1–2).
+     *
+     * @dname    setBassEnhance
+     * @param    level   Intensity 0..100 (0 = off).
+     * @param    persist When true and store is set, write NVS.
+     * @return   Ok on success, or StoreError.
+     * @pubstate updates profile_.enhancements.bass and safeloads effective EQ.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, core::StoreError> setBassEnhance(
+        core::EnhanceLevel level, bool persist);
+
 private:
     [[nodiscard]] std::expected<void, core::StoreError> persistProfile() const;
+
+    [[nodiscard]] std::expected<void, core::StoreError> applyProfileToDsp(
+        const core::AudioProfile& profile);
+
+    [[nodiscard]] std::expected<void, core::StoreError> applyEffectiveEq(
+        bool persist);
 
     core::IDsp& dsp_;
     core::IAudioProfileStore* store_;

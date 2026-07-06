@@ -201,7 +201,13 @@ Constructed once in \texttt{HardwareBootstrap} alongside the driver.
 Application service for ADAU1701 mixer, EQ, and master volume. Holds a
 reference to \texttt{core::IDsp}, tracks the in-memory \texttt{AudioProfile},
 loads from \texttt{IAudioProfileStore} after boot, and applies changes via
-safeload. Exposed on \texttt{/api/audio/*} and the web UI Audio section.
+safeload. Stereo depth and bass enhance levels are merged into the effective
+EQ via \texttt{core::applyEnhancementsToEq()}. Exposed on
+\texttt{/api/audio/*} and the web UI Audio section.
+
+\section{EnhanceLevel}\label{cls:EnhanceLevel}
+Strong type for 0--100 enhancement intensity (stereo depth and bass boost).
+Validated at the HTTP boundary by \texttt{core::parseEnhanceLevelJson()}.
 
 \section{NvsAudioProfileStore}\label{cls:NvsAudioProfileStore}
 \texttt{IAudioProfileStore} implementation storing serialised
