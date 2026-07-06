@@ -17,6 +17,7 @@
  */
 #pragma once
 
+#include "core/CompanionChipStatus.hpp"
 #include "core/ISecureStore.hpp"
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
@@ -65,7 +66,8 @@ public:
      */
     [[nodiscard]] static std::expected<NetBootstrap, NetError>
     start(core::ISecureStore& store, tuner::TunerService& tuner,
-          audio::AudioService& audio);
+          audio::AudioService& audio,
+          core::CompanionChipStatus companionChips);
 
     NetBootstrap(const NetBootstrap&) = delete;
     NetBootstrap& operator=(const NetBootstrap&) = delete;
