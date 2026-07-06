@@ -1,0 +1,13 @@
+# DigiRadio — default Kconfig
+# NVS encryption: enable CONFIG_NVS_ENCRYPTION and flash encryption for
+# production; nvs_keys partition is reserved in partitions.csv.
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# C++23, exceptions and RTTI off (AGENTS.md §2)
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_CXX_RTTI=n
+CONFIG_COMPILER_CXX_STD=23
+
+# Logging
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

@@ -1,0 +1,7 @@
+# DigiRadio partition table
+# nvs_keys supports NVS encryption (enable in secure-store slice).
+# Name,   Type, SubType,  Offset,  Size, Flags
+nvs,      data, nvs,      0x9000,  0x6000,
+nvs_keys, data, nvs_keys, 0xf000,  0x1000,
+phy_init, data, phy,      0x10000, 0x1000,
+factory,  app,  factory,  0x20000, 0x180000,

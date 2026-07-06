@@ -1,0 +1,17 @@
+# ESP-IDF build artefacts
+build/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+managed_components/
+
+# Host unit-test build
+build-host/
+
+# Generated API docs (Doxyfile OUTPUT_DIRECTORY)
+docs/api/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

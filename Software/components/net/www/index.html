@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DigiRadio Setup</title>
+  <style>
+    :root {
+      --space-1: 0.5rem;
+      --space-2: 1rem;
+      --space-3: 1.5rem;
+      --space-4: 2.5rem;
+      --text-base: 1rem;
+      --text-lg: 1.25rem;
+      --text-xl: 1.75rem;
+      --accent: #c47a2c;
+      --bg: #0f1114;
+      --surface: #1a1d22;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --radius: 0.5rem;
+      --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      font-size: var(--text-base);
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-3);
+    }
+    main {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: var(--space-4);
+      max-width: 28rem;
+      width: 100%;
+      border-top: 3px solid var(--accent);
+    }
+    h1 { font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--space-2); }
+    p { color: var(--muted); margin-bottom: var(--space-3); }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-bottom: var(--space-1);
+    }
+    input {
+      width: 100%;
+      padding: var(--space-1) var(--space-2);
+      margin-bottom: var(--space-2);
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+    }
+    button {
+      width: 100%;
+      padding: var(--space-2);
+      border: none;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: var(--bg);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--text-lg);
+      margin-bottom: var(--space-3);
+    }
+    .dot {
+      width: 0.6rem;
+      height: 0.6rem;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .msg { font-size: 0.875rem; margin-top: var(--space-2); min-height: 1.25rem; }
+    .msg.ok { color: #7cb342; }
+    .msg.err { color: #e57373; }
+    code {
+      font-size: 0.9em;
+      background: var(--bg);
+      padding: 0.1em 0.35em;
+      border-radius: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>DigiRadio</h1>
+    <p>Connect this radio to your Wi‑Fi network.</p>
+    <div class="status" id="health">
+      <span class="dot" aria-hidden="true"></span>
+      <span>Checking health…</span>
+    </div>
+    <form id="wifi-form">
+      <label for="ssid">Network name (SSID)</label>
+      <input id="ssid" name="ssid" autocomplete="off" required maxlength="32">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="off" maxlength="63">
+      <button type="submit" id="save-btn">Save &amp; connect</button>
+    </form>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </main>
+  <script>
+    fetch("/api/health")
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        document.getElementById("health").innerHTML =
+          '<span class="dot"></span><span>Status: <code>' +
+          d.status + "</code> · FW <code>" + d.fw + "</code></span>";
+      })
+      .catch(function () {
+        document.getElementById("health").textContent = "Health check failed.";
+      });
+
+    document.getElementById("wifi-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var btn = document.getElementById("save-btn");
+      var msg = document.getElementById("msg");
+      btn.disabled = true;
+      msg.textContent = "Saving…";
+      msg.className = "msg";
+      fetch("/api/wifi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ssid: document.getElementById("ssid").value,
+          password: document.getElementById("password").value
+        })
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.status === "saved") {
+            msg.textContent = "Saved. Rebooting in " + res.d.reboot_in_sec + "s…";
+            msg.className = "msg ok";
+          } else {
+            msg.textContent = "Error: " + (res.d.reason || "unknown");
+            msg.className = "msg err";
+            btn.disabled = false;
+          }
+        })
+        .catch(function () {
+          msg.textContent = "Request failed.";
+          msg.className = "msg err";
+          btn.disabled = false;
+        });
+    });
+  </script>
+</body>
+</html>

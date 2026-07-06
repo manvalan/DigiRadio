@@ -13,11 +13,12 @@ CREATE_SUBDIRS         = YES
 #---------------------------------------------------------------------------
 # Input
 #---------------------------------------------------------------------------
-INPUT                  = src include
+INPUT                  = components main
 FILE_PATTERNS          = *.hpp *.h *.cpp
 RECURSIVE              = YES
 # Exclude vendored / generated code from the doc requirement:
-EXCLUDE_PATTERNS       = */vendor/* */generated/* */build/*
+EXCLUDE_PATTERNS       = */vendor/* */generated/* */build/* */test/* */component_stub.cpp
+EXCLUDE                = main/board_pins.hpp
 
 #---------------------------------------------------------------------------
 # Build: enforce documentation (this is what makes the rule real)
@@ -69,9 +70,4 @@ GENERATE_XML           = NO
 #---------------------------------------------------------------------------
 # Diagrams (optional, needs Graphviz 'dot'; great for "fits in your head")
 #---------------------------------------------------------------------------
-HAVE_DOT               = YES
-CLASS_GRAPH            = YES
-COLLABORATION_GRAPH    = YES
-CALL_GRAPH             = NO
-CALLER_GRAPH           = NO
-DOT_IMAGE_FORMAT       = svg
+HAVE_DOT               = NO

@@ -20,16 +20,79 @@ section appears below, grouped by layer: domain core, application
 services, and hardware drivers.
 
 % ------------------------------------------------------------------
-% Per-class sections are added here as classes are implemented, e.g.:
-%
-% \section{Si4684Driver}\label{cls:Si4684Driver}
-%   Responsibility, collaborators, invariants, usage.
-%
-% \section{Adau1701Driver}\label{cls:Adau1701Driver}
-% \section{Bt1035Driver}\label{cls:Bt1035Driver}
-% \section{TunerService}\label{cls:TunerService}
-% ...
+% Domain core (Slice 1)
 % ------------------------------------------------------------------
 
-\section*{(No public classes documented yet)}
-Sections will appear here as the firmware is implemented.
+\section{FirmwareVersion}\label{cls:FirmwareVersion}
+Strong type wrapping the firmware release identifier (e.g.\ \texttt{0.1.0}).
+Used by \texttt{HealthStatus} and the \texttt{/api/health} endpoint so
+version strings are never passed as bare \texttt{char*} across module
+boundaries. Invariant: non-empty at construction.
+
+\section{HealthStatus}\label{cls:HealthStatus}
+Immutable health-check DTO returned by \texttt{GET /api/health}. Built via
+\texttt{HealthStatus::ok(FirmwareVersion)} in the pure core; JSON
+serialisation lives in \texttt{serializeHealthStatusJson()}. No ESP-IDF
+headers.
+
+% ------------------------------------------------------------------
+% Network shell (Slice 1)
+% ------------------------------------------------------------------
+
+\section{SoftApConfig}\label{cls:SoftApConfig}
+Immutable value type holding SoftAP parameters (SSID, channel, station
+limit). Factory \texttt{setupDefault()} yields SSID \texttt{DigiRadio-setup}
+for first-time provisioning.
+
+\section{SoftApHost}\label{cls:SoftApHost}
+RAII wrapper around the ESP-IDF Wi-Fi stack that starts and stops the
+configured SoftAP. Imperative shell; no business logic.
+
+\section{SetupWebServer}\label{cls:SetupWebServer}
+Minimal HTTP server: gzipped setup UI, \texttt{GET /api/health}, and
+\texttt{POST /api/wifi} for provisioning. JSON parsing and serialisation
+delegate to the pure core; credentials persist via \texttt{ISecureStore}.
+
+\section{NetBootstrap}\label{cls:NetBootstrap}
+Owns network resources for setup or STA mode. \texttt{start(store)}
+initialises the platform, joins stored Wi-Fi when credentials exist, or
+falls back to the \texttt{DigiRadio-setup} SoftAP. Must outlive
+\texttt{app\_main} for the process lifetime.
+
+% ------------------------------------------------------------------
+% Domain core + secure store (Slice 2)
+% ------------------------------------------------------------------
+
+\section{Secret}\label{cls:Secret}
+Opaque wrapper for sensitive strings. Buffer is zeroised on destruction;
+no \texttt{operator<<} and no plaintext serialisation. Shell code uses
+\texttt{usePlaintext()} transiently for driver APIs only.
+
+\section{WifiSsid}\label{cls:WifiSsid}
+Validated Wi-Fi SSID (1--32 bytes). Parsed once from untrusted JSON at
+the HTTP boundary before persistence or driver calls.
+
+\section{WifiCredentials}\label{cls:WifiCredentials}
+Domain value pairing \texttt{WifiSsid} with a \texttt{Secret} password.
+Open networks use an empty password; WPA-PSK requires 8--63 characters.
+
+\section{ISecureStore}\label{cls:ISecureStore}
+Abstract persistence boundary for credentials at rest. Slice~2 implements
+Wi-Fi credential save/load/clear; station list and user credentials arrive
+in later slices. Host tests use fakes; the shell uses \texttt{NvsSecureStore}.
+
+\section{StaClient}\label{cls:StaClient}
+RAII STA join helper with an explicit connect timeout. Assumes
+\texttt{esp\_wifi\_init()} was already called by \texttt{NetBootstrap}.
+
+\section{NvsSecureStore}\label{cls:NvsSecureStore}
+\texttt{ISecureStore} implementation backed by an NVS namespace. Passwords
+are stored as NVS strings and never logged. Production should enable NVS
+encryption using the reserved \texttt{nvs\_keys} partition.
+
+% ------------------------------------------------------------------
+% Future slices (drivers, services)
+% ------------------------------------------------------------------
+% \section{Si4684Driver}\label{cls:Si4684Driver}
+% \section{TunerService}\label{cls:TunerService}
+% ...
