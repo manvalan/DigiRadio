@@ -2,8 +2,8 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.8.1** — integration service for preset recall + audio;
-RDS/DLS metadata; CI on `main`.
+**Status:** fw **0.8.1** — `IntegrationService` (boot preset recall, tune +
+audio profile); RDS/DLS now-playing metadata; **13** host tests; CI on `main`.
 See [`docs/TODO.md`](docs/TODO.md) for the agent task list.
 
 ## Quick start
@@ -45,7 +45,7 @@ cd docs/manual && latexmk -lualatex manual.tex
 |--------|------|---------|
 | GET | `/api/health` | Status, firmware version, companion-chip flags |
 | POST | `/api/wifi` | Provision STA credentials; reboot on success |
-| GET | `/api/tuner/status` | Tuner snapshot (DAB/FM) |
+| GET | `/api/tuner/status` | Tuner snapshot (DAB/FM, RDS/DLS metadata) |
 | GET | `/api/tuner/services` | DAB service list for current ensemble |
 | POST | `/api/tuner/tune` | Tune DAB ensemble or FM frequency |
 | POST | `/api/tuner/play` | Start DAB service playback |
@@ -62,7 +62,7 @@ cd docs/manual && latexmk -lualatex manual.tex
 | POST | `/api/stations` | Add preset |
 | POST | `/api/stations/remove` | Remove preset by index |
 | POST | `/api/stations/reorder` | Move preset (`from`/`to` indices) |
-| POST | `/api/stations/tune` | Recall preset on tuner |
+| POST | `/api/stations/tune` | Recall preset (tuner + audio profile + NVS) |
 
 Full schemas, error tokens, and boot flow: [`docs/manual/ch-api.tex`](docs/manual/ch-api.tex).
 C++ signatures: `doxygen Doxyfile` → `docs/api/html/index.html`.
@@ -74,7 +74,7 @@ C++ signatures: `doxygen Doxyfile` → `docs/api/html/index.html`.
 | `Firmware/` | Si4684 `.bin` blobs (DAB+FM) + ADAU1701 SigmaStudio export |
 | `components/core/` | Pure domain (host-tested) |
 | `components/drivers/` | Si4684, ADAU1701, BT1035 drivers |
-| `components/services/` | Tuner, audio, Bluetooth, station services |
+| `components/services/` | Tuner, audio, Bluetooth, station, integration services |
 | `components/net/` | Wi-Fi, HTTP server, gzipped web UI |
 | `docs/manual/` | LaTeX technical manual (canonical) |
 | `docs/TODO.md` | Agent task list (prioritised backlog) |
