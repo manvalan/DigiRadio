@@ -18,24 +18,27 @@ namespace core {
 namespace {
 
 constexpr std::array<std::uint32_t, EqBandIndex::kBandCount> kDefaultCenters{
-    40U, 100U, 250U, 1000U, 4000U, 12000U};
+    20U, 100U, 400U, 1000U, 3000U, 8000U};
+
+constexpr std::array<float, EqBandIndex::kBandCount> kDefaultQ{
+    1.414F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F};
 
 [[nodiscard]] std::array<EqBandSettings, EqBandIndex::kBandCount>
 makeDefaultBands() noexcept
 {
     return std::array<EqBandSettings, EqBandIndex::kBandCount>{
         EqBandSettings{GainDb::zero(), *FrequencyHz::tryFromHz(kDefaultCenters[0]),
-                       1.414F},
+                       kDefaultQ[0]},
         EqBandSettings{GainDb::zero(), *FrequencyHz::tryFromHz(kDefaultCenters[1]),
-                       1.414F},
+                       kDefaultQ[1]},
         EqBandSettings{GainDb::zero(), *FrequencyHz::tryFromHz(kDefaultCenters[2]),
-                       1.414F},
+                       kDefaultQ[2]},
         EqBandSettings{GainDb::zero(), *FrequencyHz::tryFromHz(kDefaultCenters[3]),
-                       1.414F},
+                       kDefaultQ[3]},
         EqBandSettings{GainDb::zero(), *FrequencyHz::tryFromHz(kDefaultCenters[4]),
-                       1.414F},
+                       kDefaultQ[4]},
         EqBandSettings{GainDb::zero(), *FrequencyHz::tryFromHz(kDefaultCenters[5]),
-                       1.414F},
+                       kDefaultQ[5]},
     };
 }
 

@@ -134,6 +134,9 @@ The board carries no self-boot EEPROM. Instead, the ESP32 writes the
 SigmaStudio-exported program into the DSP's RAM at \emph{every} boot.
 Runtime changes to equalisation and mixing use the ADAU1701 safeload
 mechanism, so parameter updates are click-free while audio is playing.
+Which blocks are runtime-controllable (source faders, EQ bands 2--6,
+master volume) versus fixed at export (high-pass, limiters) is listed in
+Chapter~\ref{ch:sigmastudio}, Section~\ref{sec:ss-runtime}.
 
 \begin{drcaution}[Safeload]
 Writing DSP parameter cells directly while audio is running produces

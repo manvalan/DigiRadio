@@ -1,0 +1,245 @@
+\chapter{DSP Configuration (SigmaStudio)}
+\label{ch:sigmastudio}
+
+This chapter documents how the ADAU1701 is configured in SigmaStudio: the
+hardware settings that must match the board, the audio signal-processing
+chain, and the parameters exposed for runtime control by the ESP32. The
+resulting SigmaStudio export is what the host writes into the DSP's RAM at
+every boot (Section~\ref{sec:hw-adau}).
+
+\section{Overview}
+\label{sec:ss-overview}
+
+The DSP program is built once in SigmaStudio and exported as a sequence of
+register writes. Because the board carries no self-boot EEPROM, the ESP32
+replays that sequence over I\textsuperscript{2}C (address 0x34) on every
+power-up. SigmaStudio is therefore used purely to \emph{design and export}
+the program, not to drive the chip in operation.
+
+\begin{drkey}[No hardware required to export]
+The whole program can be built and exported offline, without a physical
+ADAU1701 or a USBi programmer connected. A USBi block is placed in the
+Hardware Configuration only because SigmaStudio requires a communication
+channel to compile; it is never used for a real download in this project.
+\end{drkey}
+
+\section{Hardware Configuration}
+\label{sec:ss-hwcfg}
+
+The Hardware Configuration tab must mirror the board exactly. The key
+settings are collected in Table~\ref{tab:ss-hwcfg}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \drhead Setting & Value \\
+    \midrule
+    Control port (I\textsuperscript{2}C address) & 0x34 (ADDR0/ADDR1 = GND) \\
+    Self-boot                     & Disabled (host RAM load) \\
+    System sample rate            & 48\,kHz \\
+    MCLK                          & 12.288\,MHz active oscillator \\
+    Serial Input format           & I\textsuperscript{2}S, 24-bit \\
+    Serial Output                 & \textbf{Master Mode} (ADAU generates clocks) \\
+    Word length                   & 24 bits \\
+    RAM Modulo / Program Length   & 1x (1024 instructions) \\
+    \bottomrule
+  \end{tabular}
+  \caption{ADAU1701 hardware settings in SigmaStudio.}
+  \label{tab:ss-hwcfg}
+\end{table}
+
+\subsection{Multipurpose pin (MP) assignment}
+
+The ADAU1701 multipurpose pins are assigned to the serial audio signals
+as wired on the board. Table~\ref{tab:ss-mp} lists the assignment; it
+matches the board GPIO map (Section~\ref{sec:hw-gpio}).
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead MP pin & Direction / function & Signal \\
+    \midrule
+    MP0  & Input Sdata\_in0     & audio from Si4684 (radio) \\
+    MP1  & Input Sdata\_in1     & audio from ESP32 \\
+    MP4  & Input Lrclk\_in      & LRCLK (returned via board link) \\
+    MP5  & Input Bclk\_in       & BCLK (returned via board link) \\
+    MP6  & Output Sdata\_out0   & audio to FSC-BT1035 \\
+    MP10 & Lrclk\_out           & LRCLK generated (master) \\
+    MP11 & Bclk\_out            & BCLK generated (master) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Multipurpose pin assignment. MP2, MP3, MP7--MP9 are unused
+    (GPIO input, default).}
+  \label{tab:ss-mp}
+\end{table}
+
+\begin{drnote}[Master clock routing]
+The ADAU1701 is the I\textsuperscript{2}S master: it generates LRCLK and
+BCLK on MP10/MP11. On the board these are wired to MP4/MP5, so the same
+master clocks time the serial inputs. This shared-clock scheme means the
+serial inputs are configured as \emph{clock inputs} even though the ADAU
+itself is master --- the clocks originate at MP10/MP11 and return through
+the board link. All companion chips (Si4684, ESP32, BT1035) are
+I\textsuperscript{2}S slaves.
+\end{drnote}
+
+\section{Signal-processing chain}
+\label{sec:ss-chain}
+
+The audio flows through a fully stereo chain, built in the Schematic tab
+(Figure~\ref{fig:ss-chain}). Two stereo sources are level-trimmed, mixed,
+equalised, volume-controlled, and peak-limited before reaching the two
+digital outputs that feed the Bluetooth module.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{sigma-chain.jpg}
+  \caption{The complete stereo signal-processing chain in SigmaStudio:
+    Input \(\rightarrow\) source faders \(\rightarrow\) stereo mixer
+    \(\rightarrow\) parametric EQ \(\rightarrow\) master volume
+    \(\rightarrow\) per-channel limiters \(\rightarrow\) outputs.}
+  \label{fig:ss-chain}
+\end{figure}
+
+\subsection{Block-by-block}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \drhead Stage & Block & Role \\
+    \midrule
+    Input      & Input (ch. 2--5)          & radio L/R, ESP32 L/R \\
+    Source trim & Si4674, ESP32 faders     & per-source stereo level \\
+    Mix        & Stereo Mixer             & combine sources, keep L/R \\
+    EQ         & Parametric EQ (2-ch)     & high-pass + 5 peaking bands \\
+    Volume     & Multiple volume (2-ch)   & master volume \\
+    Protect    & Limiter 1 / Limiter 2    & per-channel peak limiting \\
+    Output     & Output (DIG0, DIG1)      & L/R to FSC-BT1035 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Signal-processing blocks and their roles. The chain is stereo
+    end to end; L and R never collapse to mono.}
+  \label{tab:ss-blocks}
+\end{table}
+
+\subsection{Signal flow}
+
+\begin{drcode}[Signal flow (stereo)]
+Input ch2/3 (radio L/R)  -> Si4674 fader  --.
+                                            |-> Stereo Mixer -> Param EQ
+Input ch4/5 (ESP32 L/R)  -> ESP32  fader  --'
+   -> Master Volume -> Limiter L / Limiter R -> Output DIG0 / DIG1 -> BT1035
+\end{drcode}
+
+\section{Equaliser}
+\label{sec:ss-eq}
+
+The parametric EQ is a two-channel (stereo) block; a single set of bands
+applies identically to L and R. It is configured with one high-pass and
+five peaking bands, all starting flat (0\,dB) so the default response is
+neutral and any tone shaping is an explicit choice made at runtime by the
+firmware.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lllll@{}}
+    \drhead Band & Type & Frequency & Gain & Q \\
+    \midrule
+    1 & Butterworth High (high-pass) & 20\,Hz   & ---   & 1.41 \\
+    2 & Peaking                      & 100\,Hz  & 0\,dB & 1.0 \\
+    3 & Peaking                      & 400\,Hz  & 0\,dB & 1.0 \\
+    4 & Peaking                      & 1\,kHz   & 0\,dB & 1.0 \\
+    5 & Peaking                      & 3\,kHz   & 0\,dB & 1.0 \\
+    6 & Peaking                      & 8\,kHz   & 0\,dB & 1.0 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Parametric EQ bands. Band~1 removes DC and subsonic content;
+    bands 2--6 are the tone controls the firmware adjusts.}
+  \label{tab:ss-eq}
+\end{table}
+
+\begin{drnote}[Double precision for the high-pass]
+The high-pass sits at 20\,Hz, very low relative to the 48\,kHz sample
+rate, so it uses a double-precision second-order block to avoid
+coefficient-quantisation noise in the bass. The peaking bands can use
+single precision.
+\end{drnote}
+
+\section{Master volume and limiters}
+\label{sec:ss-vol}
+
+A two-channel volume block provides the master level (0\,dB default). Two
+single-channel limiters --- one per channel --- protect the FSC-BT1035
+input from clipping on peaks. Suggested limiter settings are in
+Table~\ref{tab:ss-lim}.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}ll@{}}
+    \drhead Parameter & Value \\
+    \midrule
+    RMS TC        & 50\,dB/s \\
+    Decay         & 12\,dB/s \\
+    Threshold     & $-1$\,dB (protective) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Per-channel limiter settings. The limiter is left fixed (not
+    runtime-adjustable).}
+  \label{tab:ss-lim}
+\end{table}
+
+\section{Runtime-controllable parameters}
+\label{sec:ss-runtime}
+
+The firmware controls a subset of the DSP at runtime via safeload writes.
+These are the parameter cells whose addresses must be recorded from the
+SigmaStudio export (Section~\ref{sec:ss-export}).
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Control & Block & Runtime-adjustable \\
+    \midrule
+    Source levels (2)   & Si4674 / ESP32 faders & yes \\
+    EQ bands 2--6       & Parametric EQ         & yes (gain/freq/Q) \\
+    Master volume       & Multiple volume       & yes \\
+    High-pass (band 1)  & Parametric EQ         & fixed \\
+    Limiters            & Limiter 1 / 2         & fixed \\
+    \bottomrule
+  \end{tabular}
+  \caption{Parameters exposed to the firmware. Fixed blocks are set once
+    in the program and never written at runtime.}
+  \label{tab:ss-runtime}
+\end{table}
+
+\begin{drcaution}[Use safeload for live changes]
+All runtime updates to the volume, source levels, and EQ bands must go
+through the ADAU1701 safeload mechanism. Writing parameter cells directly
+while audio is playing produces audible clicks.
+\end{drcaution}
+
+\section{Exporting the program}
+\label{sec:ss-export}
+
+With the schematic complete, the program is exported for the firmware:
+
+\begin{enumerate}
+  \item Enable \emph{Action \(\rightarrow\) Enable Short Parameter Name
+        for Export} so the exported cell names are concise.
+  \item \emph{Action \(\rightarrow\) Export System Files}, and choose an
+        output folder.
+\end{enumerate}
+
+The export produces the program data (control registers, program RAM, and
+parameter RAM) as byte sequences, plus the symbolic parameter addresses.
+The firmware's ADAU1701 driver replays the program data over
+I\textsuperscript{2}C at boot, and uses the parameter addresses for
+safeload updates.
+
+\begin{drnote}[No download needed]
+Since there is no ADAU1701 attached during development, do \emph{not} use
+\emph{Link Compile Download} (it would fail trying to reach the chip).
+\emph{Export System Files} compiles the schematic and writes the files
+directly.
+\end{drnote}
