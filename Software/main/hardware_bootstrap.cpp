@@ -17,6 +17,7 @@
 #include "adau1701/Adau1701Dsp.hpp"
 #include "audio/AudioService.hpp"
 #include "board_pins.hpp"
+#include "bt1035/Bt1035Driver.hpp"
 #include "secure_store/NvsAudioProfileStore.hpp"
 #include "si4684/Si4684Band.hpp"
 #include "si4684/Si4684Driver.hpp"
@@ -58,6 +59,16 @@ adau1701::Adau1701Dsp gAdau1701Dsp(gAdau1701);
 secure_store::NvsAudioProfileStore gAudioStore;
 audio::AudioService gAudioService(gAdau1701Dsp, &gAudioStore);
 
+bt1035::Bt1035Driver gBt1035(
+    bt1035::Bt1035Pins{
+        .uartTx = board::pins::Bt1035UartTx,
+        .uartRx = board::pins::Bt1035UartRx,
+        .rtsGpio = board::pins::Bt1035Rts,
+        .ctsGpio = board::pins::Bt1035Cts,
+        .resetGpio = board::pins::Bt1035Reset,
+        .sysCtlGpio = board::pins::Bt1035SysCtl,
+    });
+
 bool gReady = false;
 } // namespace
 
@@ -82,6 +93,11 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
 
     if (auto audioResult = gAudioService.loadAndApply(); !audioResult) {
         ESP_LOGW(kTag, "ADAU1701 profile apply failed");
+    }
+
+    if (auto btResult = gBt1035.boot(); !btResult) {
+        ESP_LOGE(kTag, "BT1035 boot failed");
+        return std::unexpected(HardwareBootError::Bt1035BootFailed);
     }
 
     gReady = true;

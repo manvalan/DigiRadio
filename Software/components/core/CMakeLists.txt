@@ -22,6 +22,7 @@ idf_component_register(
         "src/EnhancementsDesign.cpp"
         "src/AudioProfile.cpp"
         "src/AudioProfileJson.cpp"
+        "src/Bt1035At.cpp"
     INCLUDE_DIRS "include"
 )
 

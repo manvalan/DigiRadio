@@ -47,7 +47,7 @@ void heartbeatTask(void* arg)
  */
 extern "C" void app_main()
 {
-    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 5");
+    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 6");
 
     auto hwResult = hardware::HardwareBootstrap::boot();
     if (!hwResult) {

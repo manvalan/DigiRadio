@@ -130,7 +130,13 @@ fetch, and \texttt{startDabService}. Property access (\texttt{setProperty},
 \texttt{setVolume}) and diagnostics (\texttt{getPartInfo}, \texttt{getSysState})
 are included. Wrong-band calls return \texttt{Si4684Error::WrongBand}.
 Register-level opcodes remain private; see \texttt{Si4684Types.hpp} for status
-DTOs.
+DTOs. Full DAB/FM tuning guide: Chapter~\ref{ch:si4684}.
+
+\section{Bt1035Driver}\label{cls:Bt1035Driver}
+UART driver for the FSC-BT1035 (Chapter~\ref{ch:bt1035}). \texttt{boot()}
+pulses RESET\#, opens UART2 with RTS/CTS, and runs
+\texttt{core::bootInitSequence()} (Ping + \texttt{AT+AUXCFG=1}). Returns
+\texttt{Bt1035Error} on timeout, ERROR response, or UART failure.
 
 \section{Adau1701Driver}\label{cls:Adau1701Driver}
 RAII I\textsuperscript{2}C driver for the ADAU1701 SigmaDSP
