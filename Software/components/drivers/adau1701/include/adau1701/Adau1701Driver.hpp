@@ -1,6 +1,6 @@
 /**
  * @file    Adau1701Driver.hpp
- * @brief   ADAU1701 SigmaDSP driver — RAM boot on every power-up.
+ * @brief   ADAU1701 SigmaDSP driver — RAM boot and runtime safeload control.
  *
  * DigiRadio firmware — https://github.com/manvalan/DigiRadio
  *
@@ -14,6 +14,15 @@
 
 #include "adau1701/Adau1701Error.hpp"
 
+#include "core/AudioProfile.hpp"
+#include "core/EqBandIndex.hpp"
+#include "core/EqProfile.hpp"
+#include "core/FrequencyHz.hpp"
+#include "core/GainDb.hpp"
+#include "core/MixSource.hpp"
+#include "core/MixerState.hpp"
+
+#include <cstdint>
 #include <expected>
 
 namespace adau1701 {
@@ -36,7 +45,7 @@ struct Adau1701Pins {
 };
 
 /**
- * @brief    Adau1701Driver — owns I2C + reset and loads SigmaStudio RAM.
+ * @brief    Adau1701Driver — owns I2C + reset, boot, and safeload runtime.
  *
  * @dname    Adau1701Driver
  * @param    pins  Board wiring for I2C and RESET#.
@@ -45,7 +54,8 @@ struct Adau1701Pins {
  *           successful default_download replay.
  *
  * Writes the SigmaStudio export from Firmware/ADAU1701-Firmware on every
- * boot (no EEPROM self-boot on DigiRadio).
+ * boot (no EEPROM self-boot on DigiRadio). Runtime EQ and mixer changes
+ * use the ADAU1701 safeload mechanism.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
@@ -102,7 +112,104 @@ public:
      */
     [[nodiscard]] bool isBooted() const noexcept;
 
+    /**
+     * @brief    applyProfile — safeload mixer, EQ, and master from snapshot.
+     *
+     * @dname    applyProfile
+     * @param    profile  User audio configuration.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> applyProfile(
+        const core::AudioProfile& profile);
+
+    /**
+     * @brief    applyMixer — safeload input and stereo-mixer gains.
+     *
+     * @dname    applyMixer
+     * @param    mixer  Per-source and St Mixer1 levels.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> applyMixer(
+        const core::MixerState& mixer);
+
+    /**
+     * @brief    applyEq — safeload all six PEQ bands.
+     *
+     * @dname    applyEq
+     * @param    eq  Six-band parametric EQ settings.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> applyEq(
+        const core::EqProfile& eq);
+
+    /**
+     * @brief    setInputVolume — safeload one input path gain.
+     *
+     * @dname    setInputVolume
+     * @param    source  Si4684 or ESP32 I2S path.
+     * @param    left    Left channel gain.
+     * @param    right   Right channel gain.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> setInputVolume(
+        core::MixSource source, core::GainDb left, core::GainDb right);
+
+    /**
+     * @brief    setMasterVolume — safeload Multiple 1 master output gain.
+     *
+     * @dname    setMasterVolume
+     * @param    left   Left master gain.
+     * @param    right  Right master gain.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> setMasterVolume(
+        core::GainDb left, core::GainDb right);
+
+    /**
+     * @brief    setEqBand — design and safeload one PEQ band.
+     *
+     * @dname    setEqBand
+     * @param    band   Band index 0..5.
+     * @param    gain   Band gain in dB.
+     * @param    center Centre frequency.
+     * @param    q      Quality factor.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes five coefficients in one safeload transfer.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> setEqBand(
+        core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center,
+        float q);
+
 private:
+    [[nodiscard]] std::expected<void, Adau1701Error> ensureBooted() const;
+    [[nodiscard]] std::expected<void, Adau1701Error> safeloadGain(
+        unsigned paramAddr, core::GainDb gain);
+    [[nodiscard]] std::expected<void, Adau1701Error> safeloadFixpoint(
+        unsigned paramAddr, std::int32_t fixpoint);
+
     Adau1701Pins pins_;
     bool booted_;
     void* i2cBus_;

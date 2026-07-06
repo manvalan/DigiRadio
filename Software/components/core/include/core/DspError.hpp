@@ -1,6 +1,6 @@
 /**
- * @file    Adau1701Error.hpp
- * @brief   Typed errors for ADAU1701 driver operations.
+ * @file    DspError.hpp
+ * @brief   Typed errors for DSP control operations.
  *
  * DigiRadio firmware — https://github.com/manvalan/DigiRadio
  *
@@ -12,24 +12,22 @@
  */
 #pragma once
 
-namespace adau1701 {
+namespace core {
 
 /**
- * @brief    Adau1701Error — failure causes for ADAU1701 bring-up.
+ * @brief    DspError — failure causes for IDsp operations.
  *
- * @dname    Adau1701Error
+ * @dname    DspError
  * @return   n/a (type)
  * @pubstate n/a
  *
  * @author   Michele Bigi
  * @date     2026-07-06
  */
-enum class Adau1701Error {
-    I2cInitFailed,
-    ResetFailed,
-    DownloadFailed,
+enum class DspError {
     NotBooted,
     SafeloadFailed,
+    InvalidParameter,
 };
 
-} // namespace adau1701
+} // namespace core

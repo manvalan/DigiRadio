@@ -47,7 +47,7 @@ void heartbeatTask(void* arg)
  */
 extern "C" void app_main()
 {
-    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 4");
+    ESP_LOGI(kTag, "DigiRadio firmware boot — Slice 5");
 
     auto hwResult = hardware::HardwareBootstrap::boot();
     if (!hwResult) {
@@ -60,7 +60,8 @@ extern "C" void app_main()
 
     static secure_store::NvsSecureStore store;
 
-    auto netResult = net::NetBootstrap::start(store, tunerService);
+    auto netResult = net::NetBootstrap::start(
+        store, tunerService, hardware::HardwareBootstrap::audioService());
     if (!netResult) {
         ESP_LOGE(kTag, "network bootstrap failed");
         return;

@@ -1,9 +1,8 @@
 idf_component_register(
     SRCS
-        "src/NvsSecureStore.cpp"
-        "src/NvsAudioProfileStore.cpp"
+        "src/AudioService.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES core nvs_flash
+    REQUIRES core
 )
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)

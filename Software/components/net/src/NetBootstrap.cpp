@@ -23,6 +23,7 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
+#include "audio/AudioService.hpp"
 #include "tuner/TunerService.hpp"
 
 namespace net {
@@ -98,7 +99,8 @@ constexpr char kTag[] = "NetBootstrap";
  * @date     2026-07-06
  */
 [[nodiscard]] std::expected<NetBootstrap, NetError>
-startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner)
+startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
+               audio::AudioService& audio)
 {
     esp_netif_create_default_wifi_ap();
 
@@ -108,7 +110,8 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner)
     }
 
     SetupWebServer webServer;
-    if (auto webResult = webServer.start(store, NetState::SoftApSetup, tuner);
+    if (auto webResult =
+            webServer.start(store, NetState::SoftApSetup, tuner, audio);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -130,7 +133,8 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner)
  * @date     2026-07-06
  */
 [[nodiscard]] std::expected<NetBootstrap, NetError>
-startStaMode(core::ISecureStore& store, tuner::TunerService& tuner)
+startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
+             audio::AudioService& audio)
 {
     auto credsResult = store.loadWifiCredentials();
     if (!credsResult) {
@@ -146,7 +150,8 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner)
     }
 
     SetupWebServer webServer;
-    if (auto webResult = webServer.start(store, NetState::StaConnected, tuner);
+    if (auto webResult =
+            webServer.start(store, NetState::StaConnected, tuner, audio);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -159,7 +164,8 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner)
 } // namespace
 
 std::expected<NetBootstrap, NetError>
-NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner)
+NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
+                    audio::AudioService& audio)
 {
     if (auto platform = initPlatform(); !platform) {
         return std::unexpected(platform.error());
@@ -170,14 +176,14 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner)
     }
 
     if (store.hasWifiCredentials()) {
-        auto staResult = startStaMode(store, tuner);
+        auto staResult = startStaMode(store, tuner, audio);
         if (staResult) {
             return staResult;
         }
         ESP_LOGW(kTag, "STA join failed — falling back to setup SoftAP");
     }
 
-    return startSetupMode(store, tuner);
+    return startSetupMode(store, tuner, audio);
 }
 
 NetBootstrap::NetBootstrap(std::optional<SoftApHost> softAp,

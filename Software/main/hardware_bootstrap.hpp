@@ -14,6 +14,10 @@
 
 #include <expected>
 
+namespace audio {
+class AudioService;
+} // namespace audio
+
 namespace si4684 {
 class Si4684Tuner;
 } // namespace si4684
@@ -75,6 +79,20 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static si4684::Si4684Tuner& si4684Tuner();
+
+    /**
+     * @brief    audioService — borrow the audio orchestration service after boot.
+     *
+     * @dname    audioService
+     * @return   Reference to the static AudioService instance.
+     * @pubstate reads static storage initialised by boot().
+     *
+     * Valid only after a successful boot() call in the same process.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-06
+     */
+    [[nodiscard]] static audio::AudioService& audioService();
 };
 
 } // namespace hardware

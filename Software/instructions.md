@@ -49,7 +49,7 @@ Repository: https://github.com/manvalan/DigiRadio
 3. **Companion-chip boot** — done (Slice 3): Si4684 DAB + ADAU1701 RAM load.
 4. Station/frequency list model + persistence + UI.
 5. Si4684 tuning: RSQ, station list, DAB properties.
-6. ADAU1701 runtime: safeload EQ + input mixer.
+6. **ADAU1701 runtime** — done (Slice 5): safeload EQ + input mixer + HTTP.
 7. FSC-BT1035 driver: AT init (incl. `AT+AUXCFG=1`), audio out.
 8. Integration: TunerService + AudioService end to end.
 
@@ -119,3 +119,23 @@ Acceptance criteria:
 - [x] ADAU1701 reset + I2C + `default_download_IC_1()` replay.
 - [x] Host test for `EmbeddedBlobReader`; manual sync green.
 - [ ] Device flash verified (requires ESP-IDF toolchain on build host).
+
+## Slice 5 — ADAU1701 runtime + audio API (complete)
+
+Goal: safeload mixer/EQ/master on the ADAU1701 at runtime; persist user
+profiles in NVS; expose REST and web UI controls.
+
+Build on Slice 3–4:
+- Pure core: `GainDb`, `EqProfile`, `AudioProfile`, `IDsp`, biquad design,
+  `parseAudioProfileJson` / `serializeAudioProfileJson`.
+- Driver: `sigma_safeload_*`, extended `Adau1701Driver`, `Adau1701Dsp`.
+- Service: `audio::AudioService`, `secure_store::NvsAudioProfileStore`.
+- HTTP: `GET/PUT /api/audio/profile`, `POST /api/audio/reset`; Audio
+  section in the web UI. Firmware **0.5.0**.
+
+Acceptance criteria:
+- [x] Safeload volume/mixer/EQ without direct param RAM writes during audio.
+- [x] Profile load/apply after ADAU boot; NVS round-trip via JSON.
+- [x] Host tests for biquad fixpoint and audio profile JSON.
+- [x] Doxygen green; manual sync green; `ch-api.tex` documents audio routes.
+- [ ] Device flash verified on hardware.

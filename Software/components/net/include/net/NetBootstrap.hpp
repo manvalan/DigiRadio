@@ -27,6 +27,10 @@
 #include <expected>
 #include <optional>
 
+namespace audio {
+class AudioService;
+} // namespace audio
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -52,6 +56,7 @@ public:
      * @dname    start
      * @param    store  Secure store consulted for saved STA credentials.
      * @param    tuner  Tuner service exposed by the HTTP API.
+     * @param    audio  Audio service exposed by the HTTP API.
      * @return   NetBootstrap on success, or a NetError.
      * @pubstate none
      *
@@ -59,7 +64,8 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static std::expected<NetBootstrap, NetError>
-    start(core::ISecureStore& store, tuner::TunerService& tuner);
+    start(core::ISecureStore& store, tuner::TunerService& tuner,
+          audio::AudioService& audio);
 
     NetBootstrap(const NetBootstrap&) = delete;
     NetBootstrap& operator=(const NetBootstrap&) = delete;

@@ -18,6 +18,8 @@
 
 #include "net/SetupWebServer.hpp"
 
+#include "core/AudioProfile.hpp"
+#include "core/AudioProfileJson.hpp"
 #include "core/FirmwareVersion.hpp"
 #include "core/HealthStatus.hpp"
 #include "core/HealthStatusJson.hpp"
@@ -26,6 +28,7 @@
 #include "core/TunerJson.hpp"
 #include "core/WifiProvisionJson.hpp"
 #include "tuner/TunerService.hpp"
+#include "audio/AudioService.hpp"
 
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -40,7 +43,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.4.0";
+constexpr char kFirmwareVersion[] = "0.5.0";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t www_index_html_gz_start[] asm(
@@ -364,6 +367,109 @@ esp_err_t tunerSeekPostHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    audioProfileGetHandler — serve GET /api/audio/profile JSON.
+ *
+ * @dname    audioProfileGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads route context audio service snapshot.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+esp_err_t audioProfileGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    const std::string json =
+        core::serializeAudioProfileJson(ctx->audio->currentProfile());
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    audioProfilePutHandler — accept PUT /api/audio/profile JSON.
+ *
+ * @dname    audioProfilePutHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate parses profile, safeloads ADAU1701, persists to NVS.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+esp_err_t audioProfilePutHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 2048> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed =
+        core::parseAudioProfileJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeAudioErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto applied = ctx->audio->applyProfile(*parsed, true); !applied) {
+        const std::string json = core::serializeAudioErrorJson("store_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeAudioSavedJson();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    audioResetPostHandler — restore factory-flat profile.
+ *
+ * @dname    audioResetPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate applies AudioProfile::factoryDefault() and persists to NVS.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-06
+ */
+esp_err_t audioResetPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const core::AudioProfile defaults = core::AudioProfile::factoryDefault();
+    if (auto applied = ctx->audio->applyProfile(defaults, true); !applied) {
+        const std::string json = core::serializeAudioErrorJson("store_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeAudioSavedJson();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
  * @brief    indexGetHandler — serve gzipped setup page from flash.
  *
  * @dname    indexGetHandler
@@ -450,7 +556,8 @@ SetupWebServer::SetupWebServer()
     , store_(nullptr)
     , netState_(NetState::Uninitialized)
     , tuner_(nullptr)
-    , routeContext_{nullptr, nullptr}
+    , audio_(nullptr)
+    , routeContext_{nullptr, nullptr, nullptr}
 {
 }
 
@@ -459,13 +566,15 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     , store_(other.store_)
     , netState_(other.netState_)
     , tuner_(other.tuner_)
+    , audio_(other.audio_)
     , routeContext_(other.routeContext_)
 {
     other.server_ = nullptr;
     other.store_ = nullptr;
     other.netState_ = NetState::Uninitialized;
     other.tuner_ = nullptr;
-    other.routeContext_ = {nullptr, nullptr};
+    other.audio_ = nullptr;
+    other.routeContext_ = {nullptr, nullptr, nullptr};
 }
 
 SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
@@ -478,12 +587,14 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         store_ = other.store_;
         netState_ = other.netState_;
         tuner_ = other.tuner_;
+        audio_ = other.audio_;
         routeContext_ = other.routeContext_;
         other.server_ = nullptr;
         other.store_ = nullptr;
         other.netState_ = NetState::Uninitialized;
         other.tuner_ = nullptr;
-        other.routeContext_ = {nullptr, nullptr};
+        other.audio_ = nullptr;
+        other.routeContext_ = {nullptr, nullptr, nullptr};
     }
     return *this;
 }
@@ -494,13 +605,14 @@ SetupWebServer::~SetupWebServer()
         httpd_stop(server_);
         server_ = nullptr;
     }
-    routeContext_ = {nullptr, nullptr};
+    routeContext_ = {nullptr, nullptr, nullptr};
 }
 
 std::expected<void, NetError> SetupWebServer::start(
     core::ISecureStore& store,
     NetState netState,
-    tuner::TunerService& tuner)
+    tuner::TunerService& tuner,
+    audio::AudioService& audio)
 {
     if (server_ != nullptr) {
         return {};
@@ -509,8 +621,10 @@ std::expected<void, NetError> SetupWebServer::start(
     store_ = &store;
     netState_ = netState;
     tuner_ = &tuner;
+    audio_ = &audio;
     routeContext_.store = &store;
     routeContext_.tuner = &tuner;
+    routeContext_.audio = &audio;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = 80;
@@ -518,7 +632,7 @@ std::expected<void, NetError> SetupWebServer::start(
 
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
-        routeContext_ = {nullptr, nullptr};
+        routeContext_ = {nullptr, nullptr, nullptr};
         return std::unexpected(NetError::HttpServerStartFailed);
     }
 
@@ -587,6 +701,30 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &tunerSeekUri);
+
+    const httpd_uri_t audioProfileGetUri = {
+        .uri = "/api/audio/profile",
+        .method = HTTP_GET,
+        .handler = audioProfileGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &audioProfileGetUri);
+
+    const httpd_uri_t audioProfilePutUri = {
+        .uri = "/api/audio/profile",
+        .method = HTTP_PUT,
+        .handler = audioProfilePutHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &audioProfilePutUri);
+
+    const httpd_uri_t audioResetUri = {
+        .uri = "/api/audio/reset",
+        .method = HTTP_POST,
+        .handler = audioResetPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &audioResetUri);
 
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};

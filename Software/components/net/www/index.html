@@ -61,6 +61,7 @@
       color: var(--text);
       font: inherit;
     }
+    input[type="range"] { padding: 0; }
     button {
       width: 100%;
       padding: var(--space-2);
@@ -195,6 +196,22 @@
       </div>
 
       <p class="msg" id="tuner-msg" aria-live="polite"></p>
+    </section>
+
+    <section id="audio-section">
+      <h2>Audio</h2>
+      <p>ADAU1701 mixer and master volume (safeload at runtime).</p>
+      <label for="master-db">Master (dB)</label>
+      <input id="master-db" type="range" min="-60" max="12" step="0.5" value="0">
+      <label for="si4684-db">Radio path Si4684 (dB)</label>
+      <input id="si4684-db" type="range" min="-60" max="12" step="0.5" value="0">
+      <label for="esp32-db">ESP32 path (dB)</label>
+      <input id="esp32-db" type="range" min="-60" max="12" step="0.5" value="0">
+      <div class="row">
+        <button type="button" id="save-audio">Save profile</button>
+        <button type="button" class="secondary" id="reset-audio">Reset flat</button>
+      </div>
+      <p class="msg" id="audio-msg" aria-live="polite"></p>
     </section>
   </main>
   <script>
@@ -397,6 +414,70 @@
     });
 
     refreshTunerStatus();
+
+    var audioProfile = null;
+
+    function loadAudioProfile() {
+      var msg = document.getElementById("audio-msg");
+      return fetch("/api/audio/profile")
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          audioProfile = d;
+          document.getElementById("master-db").value = d.master.left_db;
+          document.getElementById("si4684-db").value = d.mixer.si4684_left_db;
+          document.getElementById("esp32-db").value = d.mixer.esp32_left_db;
+          showMsg(msg, "", true);
+        })
+        .catch(function () { showMsg(msg, "Audio profile load failed.", false); });
+    }
+
+    document.getElementById("save-audio").addEventListener("click", function () {
+      var msg = document.getElementById("audio-msg");
+      if (!audioProfile) {
+        showMsg(msg, "Profile not loaded.", false);
+        return;
+      }
+      var master = parseFloat(document.getElementById("master-db").value, 10);
+      var si4684 = parseFloat(document.getElementById("si4684-db").value, 10);
+      var esp32 = parseFloat(document.getElementById("esp32-db").value, 10);
+      audioProfile.master.left_db = master;
+      audioProfile.master.right_db = master;
+      audioProfile.mixer.si4684_left_db = si4684;
+      audioProfile.mixer.si4684_right_db = si4684;
+      audioProfile.mixer.esp32_left_db = esp32;
+      audioProfile.mixer.esp32_right_db = esp32;
+      fetch("/api/audio/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(audioProfile)
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.status === "saved") {
+            showMsg(msg, "Audio profile saved.", true);
+          } else {
+            showMsg(msg, "Save failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Save request failed.", false); });
+    });
+
+    document.getElementById("reset-audio").addEventListener("click", function () {
+      var msg = document.getElementById("audio-msg");
+      fetch("/api/audio/reset", { method: "POST" })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d.status === "saved") {
+            showMsg(msg, "Factory-flat profile applied.", true);
+            loadAudioProfile();
+          } else {
+            showMsg(msg, "Reset failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "Reset request failed.", false); });
+    });
+
+    loadAudioProfile();
   </script>
 </body>
 </html>

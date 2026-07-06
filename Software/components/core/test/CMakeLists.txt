@@ -22,6 +22,15 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/EmbeddedBlobReader.cpp"
     "${CORE_SRC_DIR}/TunerJson.cpp"
     "${CORE_SRC_DIR}/FrequencyKHz.cpp"
+    "${CORE_SRC_DIR}/GainDb.cpp"
+    "${CORE_SRC_DIR}/FrequencyHz.cpp"
+    "${CORE_SRC_DIR}/EqBandIndex.cpp"
+    "${CORE_SRC_DIR}/BiquadCoefficients.cpp"
+    "${CORE_SRC_DIR}/BiquadDesign.cpp"
+    "${CORE_SRC_DIR}/MixerState.cpp"
+    "${CORE_SRC_DIR}/EqProfile.cpp"
+    "${CORE_SRC_DIR}/AudioProfile.cpp"
+    "${CORE_SRC_DIR}/AudioProfileJson.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -46,3 +55,11 @@ add_test(NAME tuner_json_test COMMAND tuner_json_test)
 add_executable(frequency_khz_test frequency_khz_test.cpp)
 target_link_libraries(frequency_khz_test PRIVATE digiradio_core)
 add_test(NAME frequency_khz_test COMMAND frequency_khz_test)
+
+add_executable(biquad_design_test biquad_design_test.cpp)
+target_link_libraries(biquad_design_test PRIVATE digiradio_core)
+add_test(NAME biquad_design_test COMMAND biquad_design_test)
+
+add_executable(audio_profile_json_test audio_profile_json_test.cpp)
+target_link_libraries(audio_profile_json_test PRIVATE digiradio_core)
+add_test(NAME audio_profile_json_test COMMAND audio_profile_json_test)

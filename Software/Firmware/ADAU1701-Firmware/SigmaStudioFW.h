@@ -49,6 +49,35 @@ void SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
  */
 void adau1701_run_default_download(void);
 
+/** Safeload data register base (0x0810..0x0814). */
+#define ADAU1701_SAFELOAD_DATA_BASE 0x0810U
+/** Safeload address register base (0x0815..0x0819). */
+#define ADAU1701_SAFELOAD_ADDR_BASE 0x0815U
+/** DSP core control register (IST bit triggers safeload). */
+#define ADAU1701_CORE_CONTROL_REG   0x081CU
+/** IST bit value OR-ed into core control to commit safeload. */
+#define ADAU1701_CORE_IST_TRIGGER   0x003CU
+
+/**
+ * @brief    Safeload one 8.23 fixpoint parameter (click-free update).
+ *
+ * @param    paramAddr  Parameter RAM address from DigiRadio_IC_1_PARAM.h.
+ * @param    fixpoint   32-bit SigmaStudio fixpoint value.
+ * @return   0 on success, non-zero on I2C failure.
+ */
+int sigma_safeload_param(unsigned int paramAddr, int fixpoint);
+
+/**
+ * @brief    Safeload up to five parameters in one IST transfer (e.g. biquad).
+ *
+ * @param    count      Number of pairs (1..5).
+ * @param    paramAddrs Parameter RAM addresses.
+ * @param    fixpoints  32-bit fixpoint values.
+ * @return   0 on success, non-zero on I2C failure.
+ */
+int sigma_safeload_block(unsigned char count, const unsigned int* paramAddrs,
+                         const int* fixpoints);
+
 #ifdef __cplusplus
 }
 #endif
