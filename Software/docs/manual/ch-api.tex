@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.7.0",
+{"status":"ok","fw":"0.8.0",
  "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}
@@ -108,15 +108,20 @@ and~\ref{sec:si4684-fm-session}.
 \begin{drnote}[Response schema (DAB example)]
 \begin{drcode}[JSON]
 {"booted":true,"band":"dab","locked":true,"volume":63,
- "dab":{"freq_index":12,"fic_quality":80,"cnr_db":25},"fm":null}
+ "dab":{"freq_index":12,"fic_quality":80,"cnr_db":25,
+ "playing_service_id":42,"playing_component_id":7,
+ "dynamic_label":"Live show"},"fm":null}
 \end{drcode}
 For FM, \texttt{fm} carries \texttt{frequency\_khz}, \texttt{rssi\_dbuv},
-\texttt{snr\_db}, and \texttt{stereo}; \texttt{dab} is \texttt{null}.
+\texttt{snr\_db}, \texttt{stereo}, optional \texttt{station\_name} (RDS PS),
+and \texttt{radiotext} (RDS RT); \texttt{dab} is \texttt{null}.
 \end{drnote}
 
 HTTP status: \textbf{200 OK}; \textbf{500} with
 \texttt{\{"status":"error","reason":...\}} on driver failure;
-\textbf{503} when the tuner service is unavailable.
+\textbf{503} when the tuner service is unavailable. FM responses may include
+\texttt{station\_name} and \texttt{radiotext}; DAB responses may include
+\texttt{dynamic\_label} when a programme is playing.
 
 \subsection{\texttt{GET /api/tuner/services}}
 \label{sec:api-tuner-services}
@@ -305,6 +310,12 @@ Adds one preset (\texttt{core::parseStationJson()}); persists via
 \label{sec:api-stations-remove}
 
 Removes a preset by list index (\texttt{\{"index":0\}}).
+
+\subsection{\texttt{POST /api/stations/reorder}}
+\label{sec:api-stations-reorder}
+
+Reorders presets using \texttt{StationList::move()}. Body:
+\texttt{\{"from":1,"to":0\}}. Success: \texttt{\{"status":"reordered"\}}.
 
 \subsection{\texttt{POST /api/stations/tune}}
 \label{sec:api-stations-tune}

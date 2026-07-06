@@ -29,6 +29,7 @@ enum class StationListError {
     Full,
     NotFound,
     SlotInUse,
+    PersistFailed,
 };
 
 } // namespace core

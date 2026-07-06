@@ -12,16 +12,15 @@ errors, no plaintext secrets.
 
 Working directory for all commands is `Software/`.
 
-**Current firmware:** `0.7.1` — CI green gate (Doxygen + host tests +
-manual sync), BT1035 pairing, station presets.
+**Current firmware:** `0.8.0` — broadcast metadata (RDS PS/RT, DAB DLS),
+preset reorder, CI gate (Doxygen + host tests + manual sync).
 
 ---
 
-## Completed (fw 0.7.0)
+## Completed (fw 0.7.0–0.7.2)
 
-- **Station / preset list (T3 core)** — `Station`, `StationList`, NVS key
-  `station_list`, `StationService`, REST + Presets UI. Remaining polish:
-  reorder API, save DAB `service_id`/`component_id` from UI, HIL on device.
+- **Broadcast metadata (T4)** — RDS PS/RT and DAB DLS in
+  `/api/tuner/status`, core parsers, Si4684 driver hook, UI lines.
 - **BT1035 pairing** — `AT+PAIR`, `AT+A2DPSTAT`, `AT+A2DPDISC`,
   `BluetoothService`, REST + UI (not numbered below; landed with Slice 7).
 
@@ -42,27 +41,14 @@ push/PR to `main`.
 
 ## P1 — Missing domain features
 
-### T3. Station / preset list — polish  *(core done in 0.7.0)*
-**Status:** CRUD, NVS persistence, tune recall, and basic UI are shipped.
-**Remaining:**
-- `POST /api/stations/reorder` (core has `StationList::move()`).
-- Save DAB presets with `service_id` / `component_id` from last played service.
-- Device HIL: preset survives reboot, tune recall on hardware.
-**Done when:** the gaps above are closed and covered by tests.
+### T3. Station / preset list — polish — **DONE (fw 0.7.2)**
+Reorder API (`POST /api/stations/reorder`), DAB playing ids in tuner
+status and preset save, UI Up/Dn, host tests. **Remaining:** device HIL
+(preset survives reboot) — manual only.
 
-### T4. Broadcast metadata (RDS / DLS)
-**Why:** `TunerStatus` currently carries only a 17-char `label`. Real
-radio UX needs the FM RDS station name/radiotext and DAB DLS dynamic
-label so the UI can show "what's playing".
-**What:**
-- Extend the tuner data model with structured metadata (station name,
-  radiotext/dynamic label), read from the Si4684 in the driver.
-- Surface it through `TunerService::refreshStatus` and the
-  `/api/tuner/status` JSON.
-- Keep the Si4684 register/command details in the driver; the core model
-  stays hardware-free.
-**Done when:** the status JSON exposes the metadata and host tests cover
-the parsing of raw label bytes into the model.
+### T4. Broadcast metadata (RDS / DLS) — **DONE (fw 0.8.0)**
+`BroadcastLabel`, RDS accumulator, DAB DLS accumulator, driver
+`readDabServiceData`, status JSON fields, UI now-playing lines, host tests.
 
 ### T5. Remove the services stub — integration service
 **Why:** `components/services/src/component_stub.cpp` is a Slice-7

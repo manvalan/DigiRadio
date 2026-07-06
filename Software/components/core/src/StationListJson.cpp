@@ -240,6 +240,21 @@ parseStationRemoveJson(std::string_view json)
     return StationRemoveRequest{.index = static_cast<std::size_t>(index)};
 }
 
+std::expected<StationReorderRequest, ParseError>
+parseStationReorderJson(std::string_view json)
+{
+    unsigned long fromIndex = 0;
+    unsigned long toIndex = 0;
+    if (!extractJsonUint(json, "from", fromIndex)
+        || !extractJsonUint(json, "to", toIndex)) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    return StationReorderRequest{
+        .fromIndex = static_cast<std::size_t>(fromIndex),
+        .toIndex = static_cast<std::size_t>(toIndex),
+    };
+}
+
 std::string serializeStationListErrorJson(const char* reason)
 {
     std::ostringstream out;
@@ -258,6 +273,8 @@ const char* stationListErrorToken(StationListError error) noexcept
         return "not_found";
     case StationListError::SlotInUse:
         return "slot_in_use";
+    case StationListError::PersistFailed:
+        return "persist_failed";
     }
     return "station_error";
 }

@@ -12,9 +12,13 @@
  */
 #pragma once
 
+#include "core/DabDynamicLabelAccumulator.hpp"
 #include "core/FrequencyKHz.hpp"
 #include "core/ITuner.hpp"
+#include "core/RdsMetadataAccumulator.hpp"
 #include "si4684/Si4684Driver.hpp"
+
+#include <optional>
 
 namespace si4684 {
 
@@ -190,6 +194,10 @@ private:
     std::uint8_t dabIndex_;
     core::FrequencyKHz fmFrequency_;
     std::uint8_t volume_;
+    core::RdsMetadataAccumulator rdsMetadata_;
+    core::DabDynamicLabelAccumulator dabDynamicLabel_;
+    std::optional<std::uint32_t> lastDabServiceId_;
+    std::optional<std::uint32_t> lastDabComponentId_;
 };
 
 } // namespace si4684

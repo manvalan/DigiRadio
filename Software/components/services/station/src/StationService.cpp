@@ -62,8 +62,8 @@ std::expected<void, core::StationListError> StationService::add(
         return added;
     }
     if (auto saved = persist(); !saved) {
-        list_.removeAt(list_.stations().size() - 1U);
-        return std::unexpected(core::StationListError::Full);
+        (void)list_.removeAt(list_.stations().size() - 1U);
+        return std::unexpected(core::StationListError::PersistFailed);
     }
     return {};
 }
@@ -75,6 +75,22 @@ std::expected<void, core::StationListError> StationService::removeAt(
         return removed;
     }
     if (auto saved = persist(); !saved) {
+        return std::unexpected(core::StationListError::PersistFailed);
+    }
+    return {};
+}
+
+std::expected<void, core::StationListError> StationService::reorder(
+    std::size_t fromIndex,
+    std::size_t toIndex)
+{
+    if (auto moved = list_.move(fromIndex, toIndex); !moved) {
+        return moved;
+    }
+    if (auto saved = persist(); !saved) {
+        if (list_.move(toIndex, fromIndex)) {
+            return std::unexpected(core::StationListError::PersistFailed);
+        }
         return std::unexpected(core::StationListError::NotFound);
     }
     return {};
