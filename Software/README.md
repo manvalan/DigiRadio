@@ -2,7 +2,9 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** Slice 3 — Si4684 + ADAU1701 boot at power-up (network from Slice 2).
+**Status:** fw **0.7.0** — companion-chip boot (Si4684, ADAU1701, BT1035),
+Wi-Fi provisioning, tuner/audio REST API, Bluetooth pairing, station presets.
+See [`docs/TODO.md`](docs/TODO.md) for the agent task list.
 
 ## Quick start
 
@@ -24,7 +26,7 @@ cmake --build build-host
 ctest --test-dir build-host --output-on-failure
 ```
 
-Documentation (must exit 0):
+Documentation gates (must exit 0 before merging):
 
 ```bash
 doxygen Doxyfile
@@ -37,26 +39,47 @@ Manual PDF (design + HTTP API + class reference):
 cd docs/manual && latexmk -lualatex manual.tex
 ```
 
-## HTTP API (fw 0.3.0)
+## HTTP API (fw 0.7.0)
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/health` | `{"status":"ok","fw":"0.3.0"}` |
+| GET | `/api/health` | Status, firmware version, companion-chip flags |
 | POST | `/api/wifi` | Provision STA credentials; reboot on success |
+| GET | `/api/tuner/status` | Tuner snapshot (DAB/FM) |
+| GET | `/api/tuner/services` | DAB service list for current ensemble |
+| POST | `/api/tuner/tune` | Tune DAB ensemble or FM frequency |
+| POST | `/api/tuner/play` | Start DAB service playback |
+| POST | `/api/tuner/seek` | FM seek up |
+| GET/PUT | `/api/audio/profile` | Read/apply ADAU1701 mixer + EQ profile |
+| POST | `/api/audio/reset` | Factory-flat audio profile |
+| POST | `/api/audio/stereo-enhance` | Stereo depth overlay (0–100) |
+| POST | `/api/audio/bass-enhance` | Bass enhance overlay (0–100) |
+| GET | `/api/bluetooth/status` | BT1035 boot, pairing, A2DP state |
+| POST | `/api/bluetooth/pair` | Enter discoverable mode |
+| POST | `/api/bluetooth/pair/stop` | Leave discoverable mode |
+| POST | `/api/bluetooth/disconnect` | Release A2DP session |
+| GET | `/api/stations` | List saved presets |
+| POST | `/api/stations` | Add preset |
+| POST | `/api/stations/remove` | Remove preset by index |
+| POST | `/api/stations/tune` | Recall preset on tuner |
 
 Full schemas, error tokens, and boot flow: [`docs/manual/ch-api.tex`](docs/manual/ch-api.tex).
-C++ signatures: generate with `doxygen Doxyfile` → `docs/api/html/index.html`.
+C++ signatures: `doxygen Doxyfile` → `docs/api/html/index.html`.
 
 ## Layout
 
 | Path | Role |
 |------|------|
 | `Firmware/` | Si4684 `.bin` blobs (DAB+FM) + ADAU1701 SigmaStudio export |
-| `components/drivers/si4684/` | AN649 SPI boot driver |
-| `components/drivers/adau1701/` | I2C SigmaStudio RAM download |
+| `components/core/` | Pure domain (host-tested) |
+| `components/drivers/` | Si4684, ADAU1701, BT1035 drivers |
+| `components/services/` | Tuner, audio, Bluetooth, station services |
+| `components/net/` | Wi-Fi, HTTP server, gzipped web UI |
+| `docs/manual/` | LaTeX technical manual (canonical) |
+| `docs/TODO.md` | Agent task list (prioritised backlog) |
 
 See [`AGENTS.md`](AGENTS.md) §12 and [`instructions.md`](instructions.md) for
-the authoritative repo layout, coding rules, and development roadmap.
+coding rules and slice roadmap.
 
 ## Licence
 
