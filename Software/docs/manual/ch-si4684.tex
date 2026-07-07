@@ -145,6 +145,16 @@ full $\sim$1\,MB of patch + DAB + FM never has to fit in RAM at once. Switching
 band (\texttt{Si4684Band::Fm} $\leftrightarrow$ \texttt{Dab}) performs reset and
 a complete reload of patch + the other application image.
 
+\begin{drnote}[RSTB before SPI]
+The first step in \texttt{Si4684Driver::boot()} is a hardware reset pulse on
+RSTB\# (GPIO38). \texttt{gpio\_config} sets \texttt{GPIO\_PULLDOWN\_ENABLE}
+while enabling the output driver so RSTB cannot glitch high before
+\texttt{gpio\_set\_level(0)}; this complements the board's external pull-down
+(Section~\ref{sec:hw-val-si4684}), which holds reset during power-on before the
+ESP32 runs. After 5\,ms low the line is released, then SPI and the AN649
+command sequence follow.
+\end{drnote}
+
 \section{Si4684Driver API}
 \label{sec:si4684-driver}
 

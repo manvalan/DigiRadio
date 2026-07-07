@@ -96,7 +96,14 @@ public:
     Si4684Driver& operator=(const Si4684Driver&) = delete;
 
     /**
-     * @brief    boot — cold-start: load patch, image, and configure I/O.
+     * @brief    boot — cold-start: pulse RSTB#, load patch/image, configure I/O.
+     *
+     * @details  Pulses RSTB# (active-low reset): gpio_config enables the ESP32
+     *           internal pull-down while switching GPIO38 to output so the net
+     *           cannot glitch high before gpio_set_level(0). That guards the
+     *           Si4684 datasheet rule that RSTB must stay low until supplies are
+     *           stable; the board's external pull-down already holds RSTB during
+     *           rail ramp before app_main runs.
      *
      * @dname    boot
      * @param    band  DAB or FM application to load.

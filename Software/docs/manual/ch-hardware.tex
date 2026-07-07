@@ -327,3 +327,162 @@ The GPIO and I\textsuperscript{2}C maps are complete and match
 
 This section is the authoritative wiring reference for firmware bring-up:
 the pin definitions in the source code must match it exactly.
+
+\section{Design validation and critical checks}
+\label{sec:hw-validation}
+
+This section records the design-review checks performed against the
+component datasheets before fabrication, chip by chip. Items marked
+\emph{critical} can cause permanent damage or a non-functional board if
+violated, and were verified explicitly.
+
+\subsection{Si4684 tuner}
+\label{sec:hw-val-si4684}
+
+\begin{drcaution}[Critical --- RSTB and power sequencing]
+The Si4684 datasheet requires that RSTB be held low during any power-supply
+transition and remain asserted for 10\,\textmu s after all supplies are
+stable; failing to do so \emph{may permanently damage the device}. On
+DigiRadio, RSTB (GPIO38) has an external pull-down, so the chip powers up
+held in reset until the ESP32 releases it. \textbf{Verified.} The firmware
+must not drive RSTB high before the Si4684 supplies are stable.
+\end{drcaution}
+
+\begin{drnote}[Firmware bring-up]
+RSTB is driven only in \texttt{Si4684Driver::boot()}
+(Chapter~\ref{ch:si4684}): GPIO38 is configured as output with
+\texttt{GPIO\_PULLDOWN\_ENABLE} so the net cannot glitch high while the pin
+mode changes, then held low for 5\,ms and released. The internal pull-down
+is \emph{not} redundant with the external resistor: the external pull-down
+holds RSTB during board power-on before \texttt{app\_main}; the internal one
+closes the brief window between \texttt{gpio\_config} and
+\texttt{gpio\_set\_level(0)} where an output register default could otherwise
+violate the datasheet sequencing rule. No other code touches GPIO38. Release
+occurs only after all Si4684 supplies (VA, VIO, VCORE, VMEM) are stable,
+satisfying the +10\,\textmu s requirement in practice.
+\end{drnote}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \drhead Check & Requirement (datasheet) & Status \\
+    \midrule
+    RSTB low at power-up   & held low until supplies stable +10\,\textmu s & verified (pull-down) \\
+    RSTB release (firmware) & not before supplies stable; boot pulse only  & verified (driver) \\
+    RSTB glitch guard (firmware) & \texttt{GPIO\_PULLDOWN\_ENABLE} in \texttt{gpio\_config} & verified (driver) \\
+    Core supplies at 1.8\,V & VA = VCORE = VMEM = 1.8\,V                    & verified \\
+    VIO level              & 1.62--3.6\,V (3.3\,V to talk to ESP32)        & verified \\
+    Bypass caps            & 2.2\,nF + 1\,\textmu F per VIO/VMEM/VCORE rail & verified \\
+    SPI mode               & Mode 0 or 3, up to 10\,MHz, SMODE = GND       & verified \\
+    SSB framing (firmware) & SSB held low for the whole transaction        & driver rule \\
+    INTB                   & interrupt line, external pull-up (GPIO39)      & verified \\
+    \bottomrule
+  \end{tabular}
+  \caption{Si4684 design checks. References: Si4684-A10 datasheet
+    (power sequencing, SPI, supply levels) and AN851 (bypass and layout).}
+  \label{tab:hw-val-si4684}
+\end{table}
+
+\begin{drref}[Datasheet]
+Power sequencing and SPI framing: Si4684-A10 data sheet. The user must not
+pulse SSB high between bytes; SSB frames the whole command/reply.
+Bypass-capacitor values and placement: AN851, \emph{Si468x Schematic and
+Layout Guide}. Boot and command protocol: AN649.
+\end{drref}
+
+The core, memory, and analogue rails run at 1.8\,V; only VIO is at 3.3\,V
+to interface the ESP32. The 2.2\,nF and 1\,\textmu F bypass pairs are
+placed close to VIO (pin~34), VMEM (pin~35), and VCORE (pin~37) as AN851
+requires. The VHF antenna input follows the AN851 layout guidance (short,
+narrow microstrip; ground-fill relief; ferrite beads near the connector).
+
+\subsection{ADAU1701 DSP}
+\label{sec:hw-val-adau}
+
+\begin{drkey}[Master-clock loopback is mandatory, not optional]
+For an ADAU1701 operating as I\textsuperscript{2}S master while receiving
+data on its serial inputs, the datasheet requires OUTPUT\_LRCLK (MP10) and
+OUTPUT\_BCLK (MP11) to be set to master mode and \emph{connected externally}
+to INPUT\_LRCLK (MP4) and INPUT\_BCLK (MP5). DigiRadio wires exactly this
+loopback (MP10$\rightarrow$MP4, MP11$\rightarrow$MP5). Without it the DSP
+locks up when input data arrives.
+\end{drkey}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \drhead Check & Requirement (datasheet) & Status \\
+    \midrule
+    Clock loopback   & MP10$\rightarrow$MP4, MP11$\rightarrow$MP5 wired     & verified \\
+    Output master     & serial output port in Master Mode                   & verified \\
+    MCLK ratio        & exactly 256\,$\times$\,f\textsubscript{S}           & verified \\
+    MCLK value        & 12.288\,MHz oscillator (256\,$\times$\,48\,kHz)      & verified \\
+    I\textsuperscript{2}C pull-ups & 2.2\,k\(\Omega\) on SDA and SCL          & to verify \\
+    I\textsuperscript{2}C address  & 0x34 (ADDR0 = ADDR1 = GND)               & verified \\
+    Self-boot         & disabled (host RAM load)                            & verified \\
+    \bottomrule
+  \end{tabular}
+  \caption{ADAU1701 design checks. Reference: ADAU1701 data sheet (Rev.~C),
+    serial-port master/slave section and I\textsuperscript{2}C port.}
+  \label{tab:hw-val-adau}
+\end{table}
+
+\begin{drref}[Datasheet]
+Master-clock loopback and serial-port modes: ADAU1701 data sheet, Rev.~C,
+Table~63 and the serial-port section. The master clock must be exactly
+256\,$\times$\,f\textsubscript{S}. I\textsuperscript{2}C lines require
+2.2\,k\(\Omega\) pull-ups.
+\end{drref}
+
+\begin{drcaution}[Open item --- I\textsuperscript{2}C pull-ups]
+The ADAU1701 datasheet requires 2.2\,k\(\Omega\) pull-up resistors on SDA
+and SCL. Confirm these are present on the board (shared bus with the
+EEPROM); this is the one ADAU check still to close.
+\end{drcaution}
+
+\subsection{FSC-BT1035 (QCC3056)}
+\label{sec:hw-val-bt1035}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \drhead Check & Requirement & Status \\
+    \midrule
+    UART with flow control & TX/RX + RTS/CTS wired            & verified \\
+    Line-In enable (firmware) & \texttt{AT+AUXCFG=1} in init   & driver rule \\
+    I\textsuperscript{2}S input & receives clocks from ADAU master (slave) & verified \\
+    Reset line             & RESET (GPIO17) driven by ESP32    & verified \\
+    \bottomrule
+  \end{tabular}
+  \caption{FSC-BT1035 design checks. The module is an I\textsuperscript{2}S
+    slave fed by the ADAU master; audio arrives on its I\textsuperscript{2}S
+    input pins.}
+  \label{tab:hw-val-bt1035}
+\end{table}
+
+\subsection{System-level summary}
+\label{sec:hw-val-summary}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}lll@{}}
+    \drhead Area & Item & Status \\
+    \midrule
+    Si4684 & RSTB pull-down, 1.8\,V rails, bypass caps, SPI & verified \\
+    Si4684 & RSTB release only in \texttt{Si4684Driver::boot()} & verified \\
+    ADAU1701 & clock loopback, master mode, 256$\times$f\textsubscript{S} & verified \\
+    ADAU1701 & I\textsuperscript{2}C 2.2\,k\(\Omega\) pull-ups & to verify \\
+    FSC-BT1035 & UART + flow control, I\textsuperscript{2}S slave & verified \\
+    Clocking & single 48\,kHz domain, ADAU master & verified \\
+    \bottomrule
+  \end{tabular}
+  \caption{Consolidated pre-fabrication validation status.}
+  \label{tab:hw-val-summary}
+\end{table}
+
+The only open hardware check is the presence of the 2.2\,k\(\Omega\)
+I\textsuperscript{2}C pull-ups on the ADAU/EEPROM bus. All damage-class
+items (Si4684 power sequencing and supply levels) are verified.
