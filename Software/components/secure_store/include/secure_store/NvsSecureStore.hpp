@@ -12,9 +12,9 @@
  * You may obtain a copy of the License at
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Production builds should enable NVS encryption (nvs_keys partition in
- * partitions.csv) per ESP-IDF security docs; this slice uses plain NVS
- * for development bring-up.
+ * Production: NVS encryption + flash encryption enabled in sdkconfig.defaults
+ * (fw 0.8.3+). Call secure_store::initEncryptedStorage() before first use;
+ * see docs/security-flash-nvs.md.
  *
  * @author  Michele Bigi
  * @date    2026-07-06

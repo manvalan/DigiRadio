@@ -180,8 +180,9 @@ Chapter~\ref{ch:api}.
 Sensitive data --- Wi-Fi credentials today; user credentials and the
 station/frequency list in later slices --- uses \texttt{core::Secret} so
 values cannot be logged or implicitly converted to a string; buffers are
-cleared on destruction. Production builds should enable NVS encryption
-at rest (see Chapter~\ref{sec:api-storage}).
+cleared on destruction. Firmware~0.8.3+ enables NVS and flash encryption at
+rest via \texttt{secure\_store::initEncryptedStorage()} (see
+\texttt{docs/security-flash-nvs.md} and Chapter~\ref{sec:api-storage}).
 
 \section{Companion-chip boot at power-up}
 \label{sec:fw-chip-boot}

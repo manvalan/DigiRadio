@@ -1,8 +1,19 @@
-# DigiRadio — default Kconfig
-# NVS encryption: enable CONFIG_NVS_ENCRYPTION and flash encryption for
-# production; nvs_keys partition is reserved in partitions.csv.
+# DigiRadio — default Kconfig (development / first-board bring-up)
+# Security: NVS + flash encryption — see docs/security-flash-nvs.md
+# Production release mode: sdkconfig.defaults.production (overlay at build time)
 
 CONFIG_IDF_TARGET="esp32s3"
+
+# Custom partition table (nvs + nvs_keys for encrypted storage)
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Flash encryption — DEVELOPMENT mode (re-flash plaintext until eFuse policy set)
+CONFIG_SECURE_FLASH_ENC_ENABLED=y
+CONFIG_SECURE_FLASH_ENCRYPTION_MODE_DEVELOPMENT=y
+
+# NVS encryption at rest (XTS-AES; keys in nvs_keys, protected by flash encryption)
+CONFIG_NVS_ENCRYPTION=y
 
 # C++23, exceptions and RTTI off (AGENTS.md §2)
 CONFIG_COMPILER_CXX_EXCEPTIONS=n

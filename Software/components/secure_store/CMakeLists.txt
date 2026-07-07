@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "src/NvsSecureStore.cpp"
         "src/NvsAudioProfileStore.cpp"
+        "src/NvsPlatformInit.cpp"
     INCLUDE_DIRS "include"
     REQUIRES core nvs_flash
 )

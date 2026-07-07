@@ -22,9 +22,9 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
-#include "nvs_flash.h"
 #include "audio/AudioService.hpp"
 #include "bluetooth/BluetoothService.hpp"
+#include "secure_store/NvsPlatformInit.hpp"
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
 
@@ -38,21 +38,16 @@ constexpr char kTag[] = "NetBootstrap";
  *
  * @dname    initPlatform
  * @return   Ok on success, or a NetError describing the failure.
- * @pubstate initialises NVS, esp_netif, and the default event loop.
+ * @pubstate initialises encrypted NVS, esp_netif, and the default event loop.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
  */
 [[nodiscard]] std::expected<void, NetError> initPlatform()
 {
-    esp_err_t nvsErr = nvs_flash_init();
-    if (nvsErr == ESP_ERR_NVS_NO_FREE_PAGES
-        || nvsErr == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        nvsErr = nvs_flash_init();
-    }
-    if (nvsErr != ESP_OK) {
-        ESP_LOGE(kTag, "nvs_flash_init failed");
+    const auto nvsResult = secure_store::initEncryptedStorage();
+    if (!nvsResult) {
+        ESP_LOGE(kTag, "encrypted NVS init failed");
         return std::unexpected(NetError::NvsInitFailed);
     }
 

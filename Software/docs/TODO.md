@@ -12,12 +12,12 @@ errors, no plaintext secrets.
 
 Working directory for all commands is `Software/`.
 
-**Current firmware:** `0.8.2` — tabbed configuration Web UI (full API
-coverage), integration service, RDS/DLS metadata, CI gate.
+**Current firmware:** `0.8.3` — NVS + flash encryption (dev mode), tabbed Web
+UI, integration service, CI gate.
 
 ---
 
-## Completed (fw 0.7.0–0.7.2)
+## Completed (fw 0.7.0–0.8.3)
 
 - **Integration service (T5)** — preset recall with audio profile re-apply,
   last-preset NVS, \texttt{app\_main} orchestration.
@@ -74,14 +74,12 @@ embedded gzip blob. No debug routes in `SetupWebServer`.
 Procurement documented in `Si4684-Firmware/README.md`; CI job
 `si4684-blobs` runs `tools/check_si4684_blobs.py`.
 
-### T8. Flash/NVS encryption enablement
-**Why:** secure storage holds Wi-Fi and user credentials; encryption at
-rest was deferred.
-**What:** enable NVS encryption on an encrypted partition (with flash
-encryption), per current ESP-IDF security docs. Verify the mechanism
-before enabling; keep keys out of the repo.
-**Done when:** credentials are encrypted at rest and the boot path still
-loads them.
+### T8. Flash/NVS encryption enablement — **DONE (fw 0.8.3)**
+`CONFIG_NVS_ENCRYPTION` + flash encryption (development mode) in
+`sdkconfig.defaults`; `secure_store::initEncryptedStorage()`; production
+overlay `sdkconfig.defaults.production`; HIL checklist in
+`docs/security-flash-nvs.md`. **Pending:** device verification when PCB
+arrives.
 
 ---
 

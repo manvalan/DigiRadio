@@ -62,8 +62,8 @@ so every later slice drops into a working frame.
 
 Build:
 - Top-level ESP-IDF project targeting `esp32s3`.
-- `sdkconfig.defaults` sets C++23, exceptions off, and documents flash/NVS
-  encryption options (not hard-enabled until production).
+- `sdkconfig.defaults` sets C++23, exceptions off, NVS + flash encryption
+  (development mode). Production overlay: `sdkconfig.defaults.production`.
 - The `components/core` component compiles both under ESP-IDF and
   standalone on the host.
 
@@ -97,7 +97,8 @@ Acceptance criteria:
 - [x] Doxygen green; manual sync green; `ch-api.tex` documents endpoints.
 - [x] No ESP-IDF headers in `components/core`.
 
-Out of scope: station list, user credentials, NVS encryption enablement
+Out of scope for Slice 2: station list (later slices). NVS encryption landed
+in fw 0.8.3 — see `docs/security-flash-nvs.md`.
 (production), chip drivers.
 
 ## Slice 3 — Companion-chip boot (complete)

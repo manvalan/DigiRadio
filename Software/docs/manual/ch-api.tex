@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.8.2",
+{"status":"ok","fw":"0.8.3",
  "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}
@@ -354,8 +354,10 @@ as \texttt{last\_preset} (u8). Passwords are wrapped in
 \texttt{core::Secret} in RAM and are never logged or returned by the API.
 
 \begin{drcaution}[Encryption at rest]
-Development builds use plain NVS. Production should enable NVS encryption
-using the reserved \texttt{nvs\_keys} partition (see
-\texttt{partitions.csv} and \texttt{sdkconfig.defaults} comments) per
-current ESP-IDF security guidance.
+Firmware~0.8.3+ enables NVS encryption (\texttt{CONFIG\_NVS\_ENCRYPTION}) and
+flash encryption in development mode (\texttt{sdkconfig.defaults}). Keys live in
+the \texttt{nvs\_keys} partition; Wi-Fi passwords remain wrapped in
+\texttt{core::Secret} in RAM and are never logged. First upgrade from plain NVS
+requires \texttt{idf.py erase-flash}. HIL checklist:
+\texttt{Software/docs/security-flash-nvs.md}.
 \end{drcaution}

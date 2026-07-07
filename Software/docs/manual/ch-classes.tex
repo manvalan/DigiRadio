@@ -99,8 +99,9 @@ RAII STA join helper with an explicit connect timeout. Assumes
 
 \section{NvsSecureStore}\label{cls:NvsSecureStore}
 \texttt{ISecureStore} implementation backed by an NVS namespace. Passwords
-are stored as NVS strings and never logged. Production should enable NVS
-encryption using the reserved \texttt{nvs\_keys} partition.
+are stored as NVS strings and never logged. NVS encryption and flash
+encryption are enabled in \texttt{sdkconfig.defaults}; initialisation runs in
+\texttt{secure\_store::initEncryptedStorage()} before network bring-up.
 
 % ------------------------------------------------------------------
 % Hardware drivers (Slice 3)
