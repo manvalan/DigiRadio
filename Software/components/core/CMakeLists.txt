@@ -34,6 +34,9 @@ idf_component_register(
         "src/BroadcastLabel.cpp"
         "src/RdsMetadataAccumulator.cpp"
         "src/DabDynamicLabelAccumulator.cpp"
+        "src/DspProgram.cpp"
+        "src/RegisterWrite.cpp"
+        "src/DspProgramBlob.cpp"
     INCLUDE_DIRS "include"
 )
 

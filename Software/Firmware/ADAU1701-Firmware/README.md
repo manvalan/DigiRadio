@@ -15,8 +15,13 @@ SigmaStudio project **DigiRadio**, IC1 = ADAU1701. Shipped with DigiRadio firmwa
 
 ## Runtime (fw 0.8.3)
 
-- **Boot:** ESP32 replays `default_download_IC_1()` over I2C via
-  `adau1701::Adau1701Driver` on every power-up.
+- **Boot:** ESP32 replays the active `DspProgram` over I2C via
+  `adau1701::Adau1701Driver` on every power-up. Source order: valid blob in
+  the `dsp` flash partition, else the embedded export from this folder
+  (`EmbeddedDspProgramSource`).
+- **Program update:** `POST /api/dsp/program` with a `DRAD` v1 blob (see
+  `Software/tools/pack_dsp_program.py`). Device reboots and loads the new
+  script on next boot.
 - **Live control:** six-band PEQ, input mixer, master volume, stereo/bass
   enhancement overlays — safeload via `audio::AudioService` and REST
   `/api/audio/*`; profile persisted in encrypted NVS.
@@ -36,6 +41,13 @@ Parameter map: `components/drivers/adau1701/include/adau1701/Adau1701ParamMap.hp
 
 Do **not** use SigmaStudio *Link Compile Download* on DigiRadio — export only;
 the ESP32 programs the DSP at every power-up.
+
+## DRAD v1 blob (flash / HTTP upload)
+
+Layout: magic `DRAD`, version u16 (=1), write count u16, CRC32 (IEEE over
+writes section), then for each write: address u16, length u16, data bytes.
+Pack from JSON with `Software/tools/pack_dsp_program.py` or use
+`core::serializeDspProgramBlob()` in host tests.
 
 ## Documentation
 

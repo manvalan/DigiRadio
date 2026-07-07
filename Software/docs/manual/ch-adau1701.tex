@@ -121,7 +121,7 @@ the DSP program and writes it into RAM after each reset.
     \node[step, fill=black!6, below=of rst] (i2c)
       {Create I\textsuperscript{2}C master @ 100\,kHz, address 0x34};
     \node[step, fill=black!8, below=of i2c] (dl)
-      {\texttt{default\_download\_IC\_1()} --- control, program, param RAM};
+      {Replay \texttt{DspProgram} from flash or embedded export};
     \node[step, fill=black!6, below=of dl] (ready)
       {\texttt{Adau1701Driver::isBooted()} = true};
     \node[step, fill=black!10, below=of ready] (prof)
@@ -135,7 +135,10 @@ the DSP program and writes it into RAM after each reset.
 \end{figure}
 
 \texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} streams each write in 64-byte I\textsuperscript{2}C
-chunks. After download, \texttt{loadAndApply()} restores the saved
+chunks (payloads may exceed 255 bytes). The active script comes from the
+\texttt{dsp} data partition when a valid \texttt{DRAD} blob is present; otherwise
+the embedded SigmaStudio export is used (Section~\ref{sec:api-dsp-program}).
+After download, \texttt{loadAndApply()} restores the saved
 \texttt{core::AudioProfile} from NVS (or factory defaults) so user settings
 survive power cycles without re-writing the whole program.
 

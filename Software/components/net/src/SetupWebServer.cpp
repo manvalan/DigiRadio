@@ -22,6 +22,7 @@
 #include "core/AudioProfileJson.hpp"
 #include "core/BluetoothJson.hpp"
 #include "core/CompanionChipStatus.hpp"
+#include "core/DspProgramBlob.hpp"
 #include "core/FirmwareVersion.hpp"
 #include "core/HealthStatus.hpp"
 #include "core/HealthStatusJson.hpp"
@@ -37,6 +38,7 @@
 #include "bluetooth/BluetoothService.hpp"
 #include "station/StationService.hpp"
 #include "integration/IntegrationService.hpp"
+#include "adau1701/FlashDspProgramSource.hpp"
 #include "bt1035/Bt1035Error.hpp"
 
 #include "esp_http_server.h"
@@ -46,7 +48,9 @@
 #include "freertos/task.h"
 
 #include <array>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace net {
 
@@ -667,6 +671,68 @@ esp_err_t wifiPostHandler(httpd_req_t* req)
     return ESP_OK;
 }
 
+/**
+ * @brief    dspProgramPostHandler — store validated ADAU program blob to flash.
+ *
+ * @dname    dspProgramPostHandler
+ * @param    req  HTTP request handle (raw application/octet-stream body).
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes the dsp partition; schedules reboot to apply on next boot.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+esp_err_t dspProgramPostHandler(httpd_req_t* req)
+{
+    constexpr int kMaxBlobSize = 200 * 1024;
+    const int contentLen = req->content_len;
+    if (contentLen <= 0 || contentLen > kMaxBlobSize) {
+        httpd_resp_set_status(req, "413 Payload Too Large");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::vector<std::uint8_t> body(static_cast<std::size_t>(contentLen));
+    int received = 0;
+    while (received < contentLen) {
+        const int chunk = httpd_req_recv(req,
+                                         reinterpret_cast<char*>(body.data())
+                                             + received,
+                                         contentLen - received);
+        if (chunk <= 0) {
+            httpd_resp_set_status(req, "400 Bad Request");
+            return httpd_resp_send(req, nullptr, 0);
+        }
+        received += chunk;
+    }
+
+    const auto parsed = core::parseDspProgramBlob(body);
+    if (!parsed) {
+        const std::string json = std::string(R"({"error":")")
+                                 + core::dspProgramErrorToken(parsed.error())
+                                 + R"("})";
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto stored = adau1701::FlashDspProgramSource::storeBlob(body); !stored) {
+        const std::string json = std::string(R"({"error":")")
+                                 + core::dspProgramErrorToken(stored.error())
+                                 + R"("})";
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json =
+        std::string(R"({"status":"stored","reboot_sec":)")
+        + std::to_string(kRebootDelaySec) + "}";
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.size());
+    xTaskCreate(rebootTask, "reboot", 2048, nullptr, 5, nullptr);
+    return ESP_OK;
+}
+
 esp_err_t bluetoothStatusGetHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -1107,6 +1173,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &audioBassEnhanceUri);
+
+    const httpd_uri_t dspProgramUri = {
+        .uri = "/api/dsp/program",
+        .method = HTTP_POST,
+        .handler = dspProgramPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &dspProgramUri);
 
     const httpd_uri_t bluetoothStatusUri = {
         .uri = "/api/bluetooth/status",

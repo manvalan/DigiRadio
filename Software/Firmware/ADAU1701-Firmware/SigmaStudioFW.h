@@ -36,18 +36,13 @@ void sigma_studio_set_device(void* i2cDevHandle);
  *
  * @param    devAddress  SigmaStudio device address (0x68 write addr).
  * @param    address     16-bit target address in DSP memory map.
- * @param    length      Payload length in bytes.
+ * @param    length      Payload length in bytes (may exceed 255).
  * @param    pData       Payload bytes.
  */
 void SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
                                 unsigned int address,
-                                unsigned char length,
+                                unsigned int length,
                                 ADI_REG_TYPE* pData);
-
-/**
- * @brief    Run the DigiRadio SigmaStudio default download sequence.
- */
-void adau1701_run_default_download(void);
 
 /** Safeload data register base (0x0810..0x0814). */
 #define ADAU1701_SAFELOAD_DATA_BASE 0x0810U

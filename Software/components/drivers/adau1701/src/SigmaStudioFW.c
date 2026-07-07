@@ -32,7 +32,7 @@ void sigma_studio_set_device(void* i2cDevHandle)
 
 void SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
                                 unsigned int address,
-                                unsigned char length,
+                                unsigned int length,
                                 ADI_REG_TYPE* pData)
 {
     (void)devAddress;
@@ -42,11 +42,11 @@ void SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
 
     enum { kChunk = 64U };
     unsigned int addr = address;
-    unsigned char remaining = length;
+    unsigned int remaining = length;
     ADI_REG_TYPE* cursor = pData;
 
     while (remaining > 0U) {
-        const unsigned char chunk =
+        const unsigned int chunk =
             remaining > kChunk ? kChunk : remaining;
         unsigned char buf[2U + 64U];
         buf[0] = (unsigned char)((addr >> 8) & 0xFFU);
@@ -55,7 +55,7 @@ void SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
         i2c_master_transmit(s_dev, buf, (size_t)(2U + chunk), 1000);
         addr += chunk;
         cursor += chunk;
-        remaining = (unsigned char)(remaining - chunk);
+        remaining -= chunk;
     }
 }
 

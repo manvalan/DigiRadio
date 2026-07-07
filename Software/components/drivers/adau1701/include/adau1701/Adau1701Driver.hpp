@@ -19,6 +19,7 @@
 #include "core/EqProfile.hpp"
 #include "core/FrequencyHz.hpp"
 #include "core/GainDb.hpp"
+#include "core/IDspProgramSource.hpp"
 #include "core/MixSource.hpp"
 #include "core/MixerState.hpp"
 
@@ -48,10 +49,11 @@ struct Adau1701Pins {
  * @brief    Adau1701Driver — owns I2C + reset, boot, and safeload runtime.
  *
  * @dname    Adau1701Driver
- * @param    pins  Board wiring for I2C and RESET#.
+ * @param    pins           Board wiring for I2C and RESET#.
+ * @param    programSource  RAM download script (flash with embedded fallback).
  * @return   n/a (type)
  * @pubstate Owns I2C bus/device handles (RAII). booted_ true after a
- *           successful default_download replay.
+ *           successful program replay.
  *
  * Writes the SigmaStudio export from Firmware/ADAU1701-Firmware on every
  * boot (no EEPROM self-boot on DigiRadio). Runtime EQ and mixer changes
@@ -63,16 +65,18 @@ struct Adau1701Pins {
 class Adau1701Driver {
 public:
     /**
-     * @brief    Adau1701Driver — construct with board pin map.
+     * @brief    Adau1701Driver — construct with board pin map and program source.
      *
      * @dname    Adau1701Driver
-     * @param    pins  SDA/SCL/reset/address configuration.
-     * @pubstate stores pins_; not booted until boot().
+     * @param    pins           SDA/SCL/reset/address configuration.
+     * @param    programSource  Download script provider for boot().
+     * @pubstate stores pins_ and programSource_; not booted until boot().
      *
      * @author   Michele Bigi
      * @date     2026-07-06
      */
-    explicit Adau1701Driver(Adau1701Pins pins);
+    explicit Adau1701Driver(Adau1701Pins pins,
+                              core::IDspProgramSource& programSource);
 
     /**
      * @brief    ~Adau1701Driver — release I2C resources.
@@ -222,8 +226,11 @@ private:
         unsigned paramAddr, core::GainDb gain);
     [[nodiscard]] std::expected<void, Adau1701Error> safeloadFixpoint(
         unsigned paramAddr, std::int32_t fixpoint);
+    [[nodiscard]] std::expected<void, Adau1701Error> replayProgram(
+        const core::DspProgram& program);
 
     Adau1701Pins pins_;
+    core::IDspProgramSource& programSource_;
     bool booted_;
     void* i2cBus_;
     void* i2cDev_;

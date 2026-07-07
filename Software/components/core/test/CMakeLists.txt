@@ -46,10 +46,17 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/BroadcastLabel.cpp"
     "${CORE_SRC_DIR}/RdsMetadataAccumulator.cpp"
     "${CORE_SRC_DIR}/DabDynamicLabelAccumulator.cpp"
+    "${CORE_SRC_DIR}/DspProgram.cpp"
+    "${CORE_SRC_DIR}/RegisterWrite.cpp"
+    "${CORE_SRC_DIR}/DspProgramBlob.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
 )
+
+add_executable(dsp_program_blob_test dsp_program_blob_test.cpp)
+target_link_libraries(dsp_program_blob_test PRIVATE digiradio_core)
+add_test(NAME dsp_program_blob_test COMMAND dsp_program_blob_test)
 
 add_executable(device_identity_test device_identity_test.cpp)
 target_link_libraries(device_identity_test PRIVATE digiradio_core)
