@@ -64,12 +64,12 @@ no analogue conversions are introduced between the tuner and the wireless link.
 | **Boot & chips** | Si4684 DAB+FM firmware load (HOST_LOAD blobs), ADAU1701 RAM program at every boot, BT1035 UART init |
 | **Tuner** | FM tune/seek, DAB ensemble tune, service scan & play, RSQ/RDS, DAB event status |
 | **Now playing** | FM RDS (PS, RadioText, PI, PTY) and DAB Dynamic Label (DLS) in status JSON and web UI |
-| **Audio** | 5-band EQ, input mixer, stereo/bass enhancement overlays, profile persist in NVS |
+| **Audio** | 6-band EQ, input mixer, stereo/bass enhancement overlays, profile persist in encrypted NVS |
 | **Presets** | Station list CRUD, reorder, recall with audio profile re-apply, last-preset restore at boot |
 | **Bluetooth** | Discoverable pairing, A2DP status, disconnect |
 | **Network** | SoftAP setup mode, STA provisioning, tabbed gzipped SPA (`/`), typed JSON REST API |
 | **Security** | NVS + flash encryption at rest (dev mode); keys never in repo |
-| **Quality** | **13** host unit tests, Doxygen gate, LaTeX manual sync check, GitHub Actions CI on `main` |
+| **Quality** | **13** host unit tests, 4 CI jobs (tests, Doxygen, manual sync, blob policy) |
 
 Architecture follows a **functional core + imperative shell**: pure domain logic
 (compilation, JSON, EQ design, RDS/DLS parsing) runs on the host under `ctest`;
@@ -84,7 +84,7 @@ Vertical slices landed on `main` (newest first):
 | Version | Highlights |
 |---------|------------|
 | **0.8.3** | NVS + flash encryption (development mode), `initEncryptedStorage`, security docs |
-| **0.8.2** | Tabbed Web UI + Si4684 blob CI policy |
+| **0.8.2** | Tabbed Web UI (now-playing, 6-band EQ, all REST); Si4684 blob CI policy |
 | **0.8.1** | `IntegrationService` — boot preset recall, tune orchestration (tuner + audio + NVS `last_preset`); services stub removed |
 | **0.8.0** | Preset reorder API/UI; broadcast metadata (RDS + DAB DLS); `readDabServiceData` driver path |
 | **0.7.1** | CI workflow (host tests, Doxygen, manual sync); Doxygen warnings cleared |
@@ -92,8 +92,9 @@ Vertical slices landed on `main` (newest first):
 | **0.5–0.6** | ADAU1701 runtime EQ/mixer, Si4684 tuning & DAB service list, BT1035 driver |
 | **0.3–0.4** | Secure store, Wi-Fi provisioning, companion-chip boot, walking skeleton |
 
-**Next up:** device HIL for encrypted NVS (when PCB arrives). Agent backlog:
-[`Software/docs/TODO.md`](Software/docs/TODO.md).
+**Next:** device HIL when the PCB arrives ([`Software/docs/security-flash-nvs.md`](Software/docs/security-flash-nvs.md),
+[`Software/docs/TODO.md`](Software/docs/TODO.md)). Contributing:
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
@@ -125,8 +126,8 @@ DigiRadio/
 │   │   └── TODO.md           Agent backlog and completed tasks
 │   ├── Firmware/             Si4684 blobs + ADAU1701 SigmaStudio export
 │   ├── main/                 app_main, hardware bootstrap
-│   └── tools/                Manual sync checker, Si4684 blob helpers
-├── CONTRIBUTING.md
+│   └── tools/                fetch_si4684_firmware, check_*, gzip-www
+├── CONTRIBUTING.md           human-facing dev guide
 ├── LICENSE                   CERN-OHL-S v2 (hardware)
 └── README.md                 ← you are here
 ```
@@ -172,7 +173,8 @@ python3 tools/check-manual-sync.py
 python3 tools/check_si4684_blobs.py
 ```
 
-Full build notes, API table, and component map: [`Software/README.md`](Software/README.md).
+Full build notes: [`Software/README.md`](Software/README.md) · security:
+[`Software/docs/security-flash-nvs.md`](Software/docs/security-flash-nvs.md).
 
 ### First boot (device)
 

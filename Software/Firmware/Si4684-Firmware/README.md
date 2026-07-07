@@ -1,8 +1,8 @@
 # Si4684 firmware images (local only — not in git)
 
-Skyworks Si4684 application firmware is **proprietary**. This directory holds
-the three binary blobs your build embeds via `HOST_LOAD`; they must **never**
-be committed to the public repository.
+Skyworks Si4684 application firmware is **proprietary**. DigiRadio fw **0.8.3**
+embeds these blobs via ESP-IDF `EMBED_FILES`; they must **never** be committed.
+CI runs `tools/check_si4684_blobs.py` on every push to `main`.
 
 | File | Size (typ.) | Role |
 |------|-------------|------|
