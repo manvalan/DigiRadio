@@ -2,8 +2,8 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.8.1** — `IntegrationService` (boot preset recall, tune +
-audio profile); RDS/DLS now-playing metadata; **13** host tests; CI on `main`.
+**Status:** fw **0.8.2** — tabbed Web UI (now-playing, 6-band EQ, all APIs);
+`IntegrationService`; **13** host tests; CI on `main`.
 See [`docs/TODO.md`](docs/TODO.md) for the agent task list.
 
 ## Quick start
@@ -31,6 +31,7 @@ Documentation gates (must exit 0 before merging; also enforced in CI):
 ```bash
 doxygen Doxyfile
 python3 tools/check-manual-sync.py
+python3 tools/gzip-www.sh   # after editing components/net/www/index.html
 ```
 
 Manual PDF (design + HTTP API + class reference):
@@ -39,7 +40,7 @@ Manual PDF (design + HTTP API + class reference):
 cd docs/manual && latexmk -lualatex manual.tex
 ```
 
-## HTTP API (fw 0.8.1)
+## HTTP API (fw 0.8.2)
 
 | Method | Path | Purpose |
 |--------|------|---------|

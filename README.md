@@ -7,7 +7,7 @@
 **Open-source digital radio — Si4684 tuner · ADAU1701 SigmaDSP · Bluetooth aptX Adaptive · ESP32-S3**
 
 ![Status](https://img.shields.io/badge/hardware-verified-brightgreen)
-![Firmware](https://img.shields.io/badge/firmware-0.8.1-blue)
+![Firmware](https://img.shields.io/badge/firmware-0.8.2-blue)
 ![CI](https://github.com/manvalan/DigiRadio/actions/workflows/ci.yml/badge.svg)
 ![PCB](https://img.shields.io/badge/PCB-6--layer-blue)
 ![Hardware License](https://img.shields.io/badge/hardware-CERN--OHL--S-lightgrey)
@@ -57,7 +57,7 @@ no analogue conversions are introduced between the tuner and the wireless link.
 - **6-layer impedance-controlled PCB**, 50 × 90 mm, two ground planes
 - Three antennas (ESP32 2.4 GHz, BT1035 2.4 GHz, FM/DAB SMA) with proper keep-outs
 
-### Firmware (ESP-IDF, C++23 — fw **0.8.1**)
+### Firmware (ESP-IDF, C++23 — fw **0.8.2**)
 
 | Area | Capability |
 |------|------------|
@@ -67,7 +67,7 @@ no analogue conversions are introduced between the tuner and the wireless link.
 | **Audio** | 5-band EQ, input mixer, stereo/bass enhancement overlays, profile persist in NVS |
 | **Presets** | Station list CRUD, reorder, recall with audio profile re-apply, last-preset restore at boot |
 | **Bluetooth** | Discoverable pairing, A2DP status, disconnect |
-| **Network** | SoftAP setup mode, STA provisioning, gzipped SPA (`/`), typed JSON REST API |
+| **Network** | SoftAP setup mode, STA provisioning, tabbed gzipped SPA (`/`), typed JSON REST API |
 | **Security** | NVS-backed credential and preset storage (flash encryption planned — see roadmap) |
 | **Quality** | **13** host unit tests, Doxygen gate, LaTeX manual sync check, GitHub Actions CI on `main` |
 
@@ -83,6 +83,7 @@ Vertical slices landed on `main` (newest first):
 
 | Version | Highlights |
 |---------|------------|
+| **0.8.2** | Tabbed configuration Web UI — now-playing, 6-band EQ, full API coverage |
 | **0.8.1** | `IntegrationService` — boot preset recall, tune orchestration (tuner + audio + NVS `last_preset`); services stub removed |
 | **0.8.0** | Preset reorder API/UI; broadcast metadata (RDS + DAB DLS); `readDabServiceData` driver path |
 | **0.7.1** | CI workflow (host tests, Doxygen, manual sync); Doxygen warnings cleared |
@@ -90,8 +91,7 @@ Vertical slices landed on `main` (newest first):
 | **0.5–0.6** | ADAU1701 runtime EQ/mixer, Si4684 tuning & DAB service list, BT1035 driver |
 | **0.3–0.4** | Secure store, Wi-Fi provisioning, companion-chip boot, walking skeleton |
 
-**Next up** ([`Software/docs/TODO.md`](Software/docs/TODO.md)): polished configuration Web UI (T6),
-Si4684 blob procurement docs (T7), NVS/flash encryption (T8).
+**Next up** ([`Software/docs/TODO.md`](Software/docs/TODO.md)): Si4684 blob procurement docs (T7), NVS/flash encryption (T8).
 
 ---
 
@@ -221,8 +221,8 @@ Generated C++ API reference: run `doxygen Doxyfile` → `Software/docs/api/html/
 | **PCB layout** | 6-layer, DRC clean, plane continuity verified |
 | **BOM** | Finalised (manufacturable / sourced) |
 | **Prototype** | In fabrication (PCBWay) |
-| **Firmware** | **0.8.1** on `main` — CI green; tuner, DSP, BT, presets, RDS/DLS, integration service |
-| **Web UI** | Functional SPA; full polish tracked as T6 |
+| **Firmware** | **0.8.2** on `main` — CI green; full Web UI, integration, RDS/DLS |
+| **Web UI** | Tabbed SPA covering every REST endpoint |
 | **Production hardening** | Si4684 blob policy (T7), NVS encryption (T8) — open |
 
 Agent task list: [`Software/docs/TODO.md`](Software/docs/TODO.md).

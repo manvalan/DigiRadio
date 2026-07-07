@@ -10,14 +10,20 @@
       --space-2: 1rem;
       --space-3: 1.5rem;
       --space-4: 2.5rem;
+      --text-sm: 0.8125rem;
       --text-base: 1rem;
       --text-lg: 1.25rem;
       --text-xl: 1.75rem;
+      --text-2xl: 2.25rem;
       --accent: #c47a2c;
+      --accent-dim: #8f5a1f;
       --bg: #0f1114;
       --surface: #1a1d22;
+      --surface-2: #242830;
       --text: #e8eaed;
       --muted: #9aa0a6;
+      --ok: #7cb342;
+      --err: #e57373;
       --radius: 0.5rem;
       --font: system-ui, -apple-system, "Segoe UI", sans-serif;
     }
@@ -29,27 +35,91 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: var(--space-3);
+      padding: var(--space-2);
     }
-    main {
+    .shell {
+      max-width: 40rem;
+      margin: 0 auto;
+    }
+    header {
       background: var(--surface);
       border-radius: var(--radius);
-      padding: var(--space-4);
-      max-width: 36rem;
-      width: 100%;
+      padding: var(--space-3);
       border-top: 3px solid var(--accent);
+      margin-bottom: var(--space-2);
     }
-    h1 { font-size: var(--text-xl); font-weight: 600; margin-bottom: var(--space-2); }
-    h2 { font-size: var(--text-lg); font-weight: 600; margin-bottom: var(--space-2); }
-    p { color: var(--muted); margin-bottom: var(--space-2); }
+    header h1 { font-size: var(--text-xl); font-weight: 600; }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-1) var(--space-2);
+      margin-top: var(--space-1);
+      font-size: var(--text-sm);
+      color: var(--muted);
+    }
+    .dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+    .chip {
+      font-size: 0.75rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+    }
+    .chip.on { color: var(--ok); border: 1px solid var(--ok); }
+    .chip.off { opacity: 0.55; }
+    nav.tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: var(--space-2);
+    }
+    nav.tabs button {
+      flex: 1 1 auto;
+      min-width: 4.5rem;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid #333;
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--muted);
+      font: inherit;
+      font-size: var(--text-sm);
+      cursor: pointer;
+    }
+    nav.tabs button.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: var(--surface-2);
+    }
+    .panel {
+      display: none;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: var(--space-3);
+    }
+    .panel.active { display: block; }
+    h2 {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      margin-bottom: var(--space-1);
+    }
+    .lede {
+      color: var(--muted);
+      font-size: var(--text-sm);
+      margin-bottom: var(--space-2);
+    }
     label {
       display: block;
-      font-size: 0.875rem;
+      font-size: var(--text-sm);
       color: var(--muted);
-      margin-bottom: var(--space-1);
+      margin-bottom: 0.25rem;
     }
     input, select {
       width: 100%;
@@ -61,8 +131,8 @@
       color: var(--text);
       font: inherit;
     }
-    input[type="range"] { padding: 0; }
-    button {
+    input[type="range"] { padding: 0; accent-color: var(--accent); }
+    button.action {
       width: 100%;
       padding: var(--space-2);
       border: none;
@@ -73,232 +143,631 @@
       font-weight: 600;
       cursor: pointer;
     }
-    button.secondary {
+    button.action.secondary {
       background: transparent;
       color: var(--accent);
       border: 1px solid var(--accent);
     }
-    button:disabled { opacity: 0.6; cursor: wait; }
-    .status {
-      display: flex;
-      align-items: center;
-      gap: var(--space-1);
-      font-size: var(--text-lg);
-      margin-bottom: var(--space-3);
+    button.action:disabled { opacity: 0.55; cursor: wait; }
+    button.action.compact {
+      width: auto;
+      padding: 0.35rem 0.65rem;
+      font-size: var(--text-sm);
+      font-weight: 500;
     }
-    .dot {
-      width: 0.6rem;
-      height: 0.6rem;
-      border-radius: 50%;
-      background: var(--accent);
+    .row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+    .row .action { flex: 1; }
+    .msg {
+      font-size: var(--text-sm);
+      margin-top: var(--space-2);
+      min-height: 1.25rem;
     }
-    .msg { font-size: 0.875rem; margin-top: var(--space-2); min-height: 1.25rem; }
-    .msg.ok { color: #7cb342; }
-    .msg.err { color: #e57373; }
+    .msg.ok { color: var(--ok); }
+    .msg.err { color: var(--err); }
     code {
       font-size: 0.9em;
       background: var(--bg);
       padding: 0.1em 0.35em;
       border-radius: 0.25rem;
     }
-    section + section {
-      margin-top: var(--space-4);
-      padding-top: var(--space-3);
-      border-top: 1px solid #333;
-    }
-    .row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
-    .row button { flex: 1; }
-    .tuner-status {
-      background: var(--bg);
-      border-radius: var(--radius);
-      padding: var(--space-2);
-      font-size: 0.875rem;
-      margin-bottom: var(--space-2);
-      white-space: pre-wrap;
+    .now-title {
+      font-size: var(--text-2xl);
+      font-weight: 600;
+      line-height: 1.2;
+      margin-bottom: var(--space-1);
       word-break: break-word;
     }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    ul.services {
+    .now-sub {
+      color: var(--muted);
+      font-size: var(--text-base);
+      margin-bottom: var(--space-2);
+      min-height: 1.5rem;
+      word-break: break-word;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-1);
+      margin-bottom: var(--space-2);
+    }
+    .stat {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: var(--space-1) var(--space-2);
+      font-size: var(--text-sm);
+    }
+    .stat span { display: block; color: var(--muted); font-size: 0.75rem; }
+    .band-panel { display: none; }
+    .band-panel.show { display: block; }
+    ul.list {
       list-style: none;
       margin-bottom: var(--space-2);
-      max-height: 12rem;
+      max-height: 14rem;
       overflow-y: auto;
     }
-    ul.services li {
+    ul.list li {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: var(--space-2);
+      gap: var(--space-1);
       padding: var(--space-1) 0;
       border-bottom: 1px solid #2a2d33;
-      font-size: 0.875rem;
+      font-size: var(--text-sm);
     }
-    ul.services button {
-      width: auto;
-      padding: 0.35rem 0.75rem;
-      font-size: 0.8rem;
+    ul.list li .label {
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+    ul.list li .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      justify-content: flex-end;
+    }
+    .eq-band {
+      display: grid;
+      grid-template-columns: 4rem 1fr 3rem;
+      align-items: center;
+      gap: var(--space-1);
+      margin-bottom: var(--space-1);
+    }
+    .eq-band label { margin: 0; font-size: 0.75rem; }
+    .eq-band output {
+      font-size: var(--text-sm);
+      text-align: right;
+      color: var(--muted);
+    }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr 3.5rem;
+      align-items: center;
+      gap: var(--space-1);
+      margin-bottom: var(--space-1);
+    }
+    .slider-row output {
+      font-size: var(--text-sm);
+      text-align: right;
+      color: var(--muted);
     }
   </style>
 </head>
 <body>
-  <main>
-    <h1>DigiRadio</h1>
-    <div class="status" id="health">
-      <span class="dot" aria-hidden="true"></span>
-      <span>Checking health…</span>
-    </div>
+  <div class="shell">
+    <header>
+      <h1>DigiRadio</h1>
+      <div class="meta" id="health-meta">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="health-text">Checking…</span>
+        <div class="chips" id="chip-badges" hidden></div>
+      </div>
+    </header>
 
-    <section id="wifi-section">
-      <h2>Wi‑Fi</h2>
-      <p>Connect this radio to your network (setup mode).</p>
-      <form id="wifi-form">
-        <label for="ssid">Network name (SSID)</label>
-        <input id="ssid" name="ssid" autocomplete="off" required maxlength="32">
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" autocomplete="off" maxlength="63">
-        <button type="submit" id="save-btn">Save &amp; connect</button>
-      </form>
-      <p class="msg" id="wifi-msg" aria-live="polite"></p>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button type="button" class="active" data-tab="now" role="tab">Now</button>
+      <button type="button" data-tab="radio" role="tab">Radio</button>
+      <button type="button" data-tab="presets" role="tab">Presets</button>
+      <button type="button" data-tab="audio" role="tab">Audio</button>
+      <button type="button" data-tab="bt" role="tab">BT</button>
+      <button type="button" data-tab="wifi" role="tab">Wi‑Fi</button>
+    </nav>
+
+    <section id="panel-now" class="panel active" role="tabpanel">
+      <h2>Now playing</h2>
+      <p class="lede">Live metadata from RDS (FM) or Dynamic Label (DAB).</p>
+      <div class="now-title" id="now-title">—</div>
+      <div class="now-sub" id="now-sub"></div>
+      <div class="stat-grid" id="now-stats"></div>
+      <div class="row">
+        <button type="button" class="action secondary" id="now-refresh">Refresh</button>
+      </div>
     </section>
 
-    <section id="tuner-section">
-      <h2>Radio</h2>
-      <p>Control the DAB/FM tuner (available after companion chips boot).</p>
-      <div class="tuner-status" id="tuner-status">No status yet.</div>
-      <div class="row">
-        <button type="button" class="secondary" id="refresh-status">Refresh status</button>
-      </div>
-
+    <section id="panel-radio" class="panel" role="tabpanel" hidden>
+      <h2>Tuner</h2>
+      <p class="lede">DAB ensemble tune, service play, or FM frequency and seek.</p>
       <label for="band">Band</label>
       <select id="band">
         <option value="dab">DAB</option>
         <option value="fm">FM</option>
       </select>
-
-      <div id="panel-dab" class="panel active">
+      <div id="panel-dab" class="band-panel show">
         <label for="dab-index">Ensemble index (0–37)</label>
         <input id="dab-index" type="number" min="0" max="37" value="12">
-        <button type="button" id="tune-dab">Tune DAB</button>
-        <div class="row" style="margin-top: var(--space-2);">
-          <button type="button" class="secondary" id="load-services">Load services</button>
+        <button type="button" class="action" id="tune-dab">Tune DAB</button>
+        <div class="row">
+          <button type="button" class="action secondary" id="load-services">Load services</button>
         </div>
-        <ul class="services" id="service-list"></ul>
+        <ul class="list" id="service-list"></ul>
       </div>
-
-      <div id="panel-fm" class="panel">
+      <div id="panel-fm" class="band-panel">
         <label for="fm-khz">Frequency (kHz)</label>
         <input id="fm-khz" type="number" min="64000" max="108000" step="100" value="101500">
-        <button type="button" id="tune-fm">Tune FM</button>
-        <div class="row" style="margin-top: var(--space-2);">
-          <button type="button" class="secondary" id="seek-fm">Seek up</button>
+        <button type="button" class="action" id="tune-fm">Tune FM</button>
+        <div class="row">
+          <button type="button" class="action secondary" id="seek-fm">Seek up</button>
         </div>
       </div>
-
       <p class="msg" id="tuner-msg" aria-live="polite"></p>
     </section>
 
-    <section id="presets-section">
+    <section id="panel-presets" class="panel" role="tabpanel" hidden>
       <h2>Presets</h2>
-      <p>Saved DAB/FM stations (persisted in NVS).</p>
-      <ul class="services" id="preset-list"></ul>
+      <p class="lede">Saved stations in NVS — recall runs tuner + audio profile.</p>
+      <ul class="list" id="preset-list"></ul>
       <label for="preset-name">Name</label>
       <input id="preset-name" maxlength="32" placeholder="My station">
       <label for="preset-slot">Preset slot (1–20, optional)</label>
       <input id="preset-slot" type="number" min="1" max="20">
-      <button type="button" id="save-preset">Save current tune target</button>
+      <button type="button" class="action" id="save-preset">Save current tune target</button>
       <p class="msg" id="preset-msg" aria-live="polite"></p>
     </section>
 
-    <section id="bluetooth-section">
-      <h2>Bluetooth</h2>
-      <p>FSC-BT1035 aptX transmitter — pair headphones or speakers.</p>
-      <div class="tuner-status" id="bt-status">No status yet.</div>
+    <section id="panel-audio" class="panel" role="tabpanel" hidden>
+      <h2>Audio</h2>
+      <p class="lede">ADAU1701 mixer, six-band EQ, and enhancement overlays.</p>
+      <div class="slider-row">
+        <label for="master-db">Master (dB)</label>
+        <output id="master-db-out">0</output>
+      </div>
+      <input id="master-db" type="range" min="-60" max="12" step="0.5" value="0">
+      <div class="slider-row">
+        <label for="si4684-db">Radio path (dB)</label>
+        <output id="si4684-db-out">0</output>
+      </div>
+      <input id="si4684-db" type="range" min="-60" max="12" step="0.5" value="0">
+      <div class="slider-row">
+        <label for="esp32-db">ESP32 path (dB)</label>
+        <output id="esp32-db-out">0</output>
+      </div>
+      <input id="esp32-db" type="range" min="-60" max="12" step="0.5" value="0">
+      <h2 style="margin-top: var(--space-2); font-size: var(--text-base);">EQ bands</h2>
+      <div id="eq-sliders"></div>
+      <div class="slider-row">
+        <label for="stereo-level">Stereo depth</label>
+        <output id="stereo-level-out">0</output>
+      </div>
+      <input id="stereo-level" type="range" min="0" max="100" step="1" value="0">
+      <div class="slider-row">
+        <label for="bass-level">Bass enhance</label>
+        <output id="bass-level-out">0</output>
+      </div>
+      <input id="bass-level" type="range" min="0" max="100" step="1" value="0">
       <div class="row">
-        <button type="button" id="bt-refresh">Refresh</button>
-        <button type="button" class="secondary" id="bt-pair">Start pairing</button>
+        <button type="button" class="action" id="save-audio">Save profile</button>
+        <button type="button" class="action secondary" id="reset-audio">Reset flat</button>
+      </div>
+      <p class="msg" id="audio-msg" aria-live="polite"></p>
+    </section>
+
+    <section id="panel-bt" class="panel" role="tabpanel" hidden>
+      <h2>Bluetooth</h2>
+      <p class="lede">FSC-BT1035 aptX — pair headphones or speakers.</p>
+      <div class="stat-grid" id="bt-stats"></div>
+      <div class="row">
+        <button type="button" class="action" id="bt-refresh">Refresh</button>
+        <button type="button" class="action secondary" id="bt-pair">Pair</button>
       </div>
       <div class="row">
-        <button type="button" class="secondary" id="bt-stop-pair">Stop pairing</button>
-        <button type="button" class="secondary" id="bt-disconnect">Disconnect</button>
+        <button type="button" class="action secondary" id="bt-stop-pair">Stop pairing</button>
+        <button type="button" class="action secondary" id="bt-disconnect">Disconnect</button>
       </div>
       <p class="msg" id="bt-msg" aria-live="polite"></p>
     </section>
 
-    <section id="audio-section">
-      <h2>Audio</h2>
-      <p>ADAU1701 mixer and master volume (safeload at runtime).</p>
-      <label for="master-db">Master (dB)</label>
-      <input id="master-db" type="range" min="-60" max="12" step="0.5" value="0">
-      <label for="si4684-db">Radio path Si4684 (dB)</label>
-      <input id="si4684-db" type="range" min="-60" max="12" step="0.5" value="0">
-      <label for="esp32-db">ESP32 path (dB)</label>
-      <input id="esp32-db" type="range" min="-60" max="12" step="0.5" value="0">
-      <label for="stereo-level">Stereo depth (0–100)</label>
-      <input id="stereo-level" type="range" min="0" max="100" step="1" value="0">
-      <label for="bass-level">Bass enhance (0–100)</label>
-      <input id="bass-level" type="range" min="0" max="100" step="1" value="0">
-      <div class="row">
-        <button type="button" id="save-audio">Save profile</button>
-        <button type="button" class="secondary" id="reset-audio">Reset flat</button>
-      </div>
-      <p class="msg" id="audio-msg" aria-live="polite"></p>
+    <section id="panel-wifi" class="panel" role="tabpanel" hidden>
+      <h2>Wi‑Fi</h2>
+      <p class="lede">Provision STA credentials (setup mode: join <code>DigiRadio-setup</code>, open <code>192.168.4.1</code>).</p>
+      <form id="wifi-form">
+        <label for="ssid">Network name (SSID)</label>
+        <input id="ssid" name="ssid" autocomplete="off" required maxlength="32">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="off" maxlength="63">
+        <button type="submit" class="action" id="save-btn">Save &amp; connect</button>
+      </form>
+      <p class="msg" id="wifi-msg" aria-live="polite"></p>
     </section>
-  </main>
+  </div>
+
   <script>
+    var audioProfile = null;
+    var lastTunerStatus = null;
+    var pollTimer = null;
+
+    function $(id) { return document.getElementById(id); }
+
     function showMsg(el, text, ok) {
       el.textContent = text;
       el.className = "msg " + (ok ? "ok" : "err");
     }
 
-    function formatTunerStatus(s) {
-      var lines = [
-        "Booted: " + s.booted,
-        "Band: " + s.band,
-        "Locked: " + s.locked,
-        "Volume: " + s.volume
-      ];
-      if (s.dab) {
-        lines.push("DAB index: " + (s.dab.freq_index != null ? s.dab.freq_index : "—"));
-        if (s.dab.fic_quality != null) lines.push("FIC: " + s.dab.fic_quality);
-        if (s.dab.dynamic_label) lines.push("Now: " + s.dab.dynamic_label);
-      }
-      if (s.fm) {
-        if (s.fm.frequency_khz != null) lines.push("FM: " + s.fm.frequency_khz + " kHz");
-        if (s.fm.rssi_dbuv != null) lines.push("RSSI: " + s.fm.rssi_dbuv + " dBµV");
-        if (s.fm.stereo != null) lines.push("Stereo: " + s.fm.stereo);
-        if (s.fm.station_name) lines.push("Station: " + s.fm.station_name);
-        if (s.fm.radiotext) lines.push("Text: " + s.fm.radiotext);
-      }
-      return lines.join("\n");
+    function bindSlider(inputId, outId) {
+      var input = $(inputId);
+      var out = $(outId);
+      function sync() { out.textContent = input.value; }
+      input.addEventListener("input", sync);
+      sync();
     }
 
-    fetch("/api/health")
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        document.getElementById("health").innerHTML =
-          '<span class="dot"></span><span>Status: <code>' +
-          d.status + "</code> · FW <code>" + d.fw + "</code></span>";
+    function api(path, opts) {
+      opts = opts || {};
+      return fetch(path, opts).then(function (r) {
+        return r.json().then(function (d) {
+          return { ok: r.ok, status: r.status, d: d };
+        });
+      });
+    }
+
+    function setTab(name) {
+      document.querySelectorAll("nav.tabs button").forEach(function (btn) {
+        var on = btn.getAttribute("data-tab") === name;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      document.querySelectorAll(".panel").forEach(function (panel) {
+        var on = panel.id === "panel-" + name;
+        panel.classList.toggle("active", on);
+        panel.hidden = !on;
+      });
+    }
+
+    document.querySelectorAll("nav.tabs button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setTab(btn.getAttribute("data-tab"));
+      });
+    });
+
+    function renderChips(chips) {
+      var wrap = $("chip-badges");
+      if (!chips) {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      wrap.innerHTML = "";
+      [
+        ["Si4684", chips.si4684],
+        ["ADAU1701", chips.adau1701],
+        ["BT1035", chips.bt1035]
+      ].forEach(function (pair) {
+        var span = document.createElement("span");
+        span.className = "chip " + (pair[1] ? "on" : "off");
+        span.textContent = pair[0] + (pair[1] ? " ✓" : " —");
+        wrap.appendChild(span);
+      });
+    }
+
+    function nowPlayingFromStatus(s) {
+      if (!s || !s.booted) {
+        return { title: "Tuner not ready", sub: "" };
+      }
+      if (s.band === "fm" && s.fm) {
+        return {
+          title: s.fm.station_name || (s.fm.frequency_khz + " kHz"),
+          sub: s.fm.radiotext || ""
+        };
+      }
+      if (s.band === "dab" && s.dab) {
+        return {
+          title: s.dab.dynamic_label || ("Ensemble " + s.dab.freq_index),
+          sub: s.dab.playing_service_id != null
+            ? "Service " + s.dab.playing_service_id : ""
+        };
+      }
+      return { title: "—", sub: "" };
+    }
+
+    function renderNowPlaying(s) {
+      lastTunerStatus = s;
+      var np = nowPlayingFromStatus(s);
+      $("now-title").textContent = np.title;
+      $("now-sub").textContent = np.sub;
+      var stats = [];
+      if (s && s.booted != null) {
+        stats.push(["Band", s.band]);
+        stats.push(["Locked", s.locked ? "yes" : "no"]);
+        stats.push(["Volume", s.volume]);
+        if (s.dab) {
+          if (s.dab.freq_index != null) stats.push(["DAB idx", s.dab.freq_index]);
+          if (s.dab.fic_quality != null) stats.push(["FIC", s.dab.fic_quality]);
+          if (s.dab.cnr_db != null) stats.push(["CNR", s.dab.cnr_db + " dB"]);
+        }
+        if (s.fm) {
+          if (s.fm.frequency_khz != null) stats.push(["FM", s.fm.frequency_khz + " kHz"]);
+          if (s.fm.rssi_dbuv != null) stats.push(["RSSI", s.fm.rssi_dbuv + " dBµV"]);
+          if (s.fm.stereo != null) stats.push(["Stereo", s.fm.stereo ? "yes" : "no"]);
+        }
+      } else {
+        stats.push(["Status", "unavailable"]);
+      }
+      $("now-stats").innerHTML = stats.map(function (pair) {
+        return '<div class="stat"><span>' + pair[0] +
+          '</span>' + pair[1] + "</div>";
+      }).join("");
+    }
+
+    function refreshTunerStatus() {
+      return api("/api/tuner/status")
+        .then(function (res) {
+          if (res.ok && res.d.booted != null) {
+            renderNowPlaying(res.d);
+            if (res.d.band === "fm") {
+              $("band").value = "fm";
+            } else if (res.d.band === "dab") {
+              $("band").value = "dab";
+            }
+            syncBandPanels();
+            showMsg($("tuner-msg"), "", true);
+          } else {
+            showMsg($("tuner-msg"), "Status: " + (res.d.reason || "error"), false);
+          }
+        })
+        .catch(function () {
+          showMsg($("tuner-msg"), "Status request failed.", false);
+        });
+    }
+
+    function syncBandPanels() {
+      var dab = $("panel-dab");
+      var fm = $("panel-fm");
+      if ($("band").value === "dab") {
+        dab.classList.add("show");
+        fm.classList.remove("show");
+      } else {
+        fm.classList.add("show");
+        dab.classList.remove("show");
+      }
+    }
+
+    $("band").addEventListener("change", syncBandPanels);
+
+    function buildEqSliders(eq) {
+      var root = $("eq-sliders");
+      root.innerHTML = "";
+      (eq || []).forEach(function (band, i) {
+        var row = document.createElement("div");
+        row.className = "eq-band";
+        var hz = band.center_hz >= 1000
+          ? (band.center_hz / 1000) + "k" : band.center_hz;
+        row.innerHTML =
+          '<label for="eq-' + i + '">' + hz + " Hz</label>" +
+          '<input id="eq-' + i + '" type="range" min="-12" max="12" step="0.5" value="' +
+          band.gain_db + '">' +
+          '<output id="eq-' + i + '-out">' + band.gain_db + "</output>";
+        root.appendChild(row);
+        bindSlider("eq-" + i, "eq-" + i + "-out");
+      });
+    }
+
+    function loadAudioProfile() {
+      return api("/api/audio/profile")
+        .then(function (res) {
+          if (!res.ok) {
+            showMsg($("audio-msg"), "Load failed.", false);
+            return;
+          }
+          audioProfile = res.d;
+          $("master-db").value = res.d.master.left_db;
+          $("si4684-db").value = res.d.mixer.si4684_left_db;
+          $("esp32-db").value = res.d.mixer.esp32_left_db;
+          $("master-db-out").textContent = res.d.master.left_db;
+          $("si4684-db-out").textContent = res.d.mixer.si4684_left_db;
+          $("esp32-db-out").textContent = res.d.mixer.esp32_left_db;
+          if (res.d.enhancements) {
+            $("stereo-level").value = res.d.enhancements.stereo_level;
+            $("bass-level").value = res.d.enhancements.bass_level;
+            $("stereo-level-out").textContent = res.d.enhancements.stereo_level;
+            $("bass-level-out").textContent = res.d.enhancements.bass_level;
+          }
+          buildEqSliders(res.d.eq);
+          showMsg($("audio-msg"), "", true);
+        })
+        .catch(function () {
+          showMsg($("audio-msg"), "Audio profile load failed.", false);
+        });
+    }
+
+    function collectAudioProfile() {
+      if (!audioProfile) return null;
+      var master = parseFloat($("master-db").value, 10);
+      var si4684 = parseFloat($("si4684-db").value, 10);
+      var esp32 = parseFloat($("esp32-db").value, 10);
+      audioProfile.master.left_db = master;
+      audioProfile.master.right_db = master;
+      audioProfile.mixer.si4684_left_db = si4684;
+      audioProfile.mixer.si4684_right_db = si4684;
+      audioProfile.mixer.esp32_left_db = esp32;
+      audioProfile.mixer.esp32_right_db = esp32;
+      if (!audioProfile.enhancements) {
+        audioProfile.enhancements = { stereo_level: 0, bass_level: 0 };
+      }
+      audioProfile.enhancements.stereo_level =
+        parseInt($("stereo-level").value, 10);
+      audioProfile.enhancements.bass_level =
+        parseInt($("bass-level").value, 10);
+      if (audioProfile.eq) {
+        audioProfile.eq.forEach(function (band, i) {
+          var el = $("eq-" + i);
+          if (el) band.gain_db = parseFloat(el.value, 10);
+        });
+      }
+      return audioProfile;
+    }
+
+    function renderBtStats(s) {
+      if (!s || s.booted == null) {
+        $("bt-stats").innerHTML = "";
+        return;
+      }
+      var rows = [
+        ["Booted", s.booted ? "yes" : "no"],
+        ["Pairing", s.pairing ? "yes" : "no"],
+        ["A2DP", s.a2dp || "—"]
+      ];
+      $("bt-stats").innerHTML = rows.map(function (pair) {
+        return '<div class="stat"><span>' + pair[0] +
+          '</span>' + pair[1] + "</div>";
+      }).join("");
+    }
+
+    function refreshBluetooth() {
+      return api("/api/bluetooth/status")
+        .then(function (res) {
+          if (res.ok && res.d.booted != null) {
+            renderBtStats(res.d);
+            showMsg($("bt-msg"), "", true);
+          } else {
+            showMsg($("bt-msg"), "BT: " + (res.d.reason || "error"), false);
+          }
+        })
+        .catch(function () {
+          showMsg($("bt-msg"), "BT request failed.", false);
+        });
+    }
+
+    function renderPresets(data) {
+      var list = $("preset-list");
+      list.innerHTML = "";
+      (data.stations || []).forEach(function (s, idx) {
+        var li = document.createElement("li");
+        var label = document.createElement("span");
+        label.className = "label";
+        var text = s.name + " · " + s.band;
+        if (s.fm_frequency_khz) text += " · " + s.fm_frequency_khz + " kHz";
+        if (s.dab_freq_index != null) text += " · idx " + s.dab_freq_index;
+        if (s.dab_service_id != null) text += " · svc " + s.dab_service_id;
+        label.textContent = text;
+        var actions = document.createElement("div");
+        actions.className = "actions";
+        function mkBtn(caption, secondary, fn) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "action compact" + (secondary ? " secondary" : "");
+          b.textContent = caption;
+          b.addEventListener("click", fn);
+          return b;
+        }
+        actions.appendChild(mkBtn("Tune", false, function () {
+          api("/api/stations/tune", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: idx })
+          }).then(function () { refreshTunerStatus(); setTab("now"); });
+        }));
+        actions.appendChild(mkBtn("Up", true, function () {
+          if (idx === 0) return;
+          api("/api/stations/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ from: idx, to: idx - 1 })
+          }).then(function () { loadPresets(); });
+        }));
+        actions.appendChild(mkBtn("Dn", true, function () {
+          api("/api/stations/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ from: idx, to: idx + 1 })
+          }).then(function () { loadPresets(); });
+        }));
+        actions.appendChild(mkBtn("Del", true, function () {
+          api("/api/stations/remove", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index: idx })
+          }).then(function () { loadPresets(); });
+        }));
+        li.appendChild(label);
+        li.appendChild(actions);
+        list.appendChild(li);
+      });
+    }
+
+    function loadPresets() {
+      return api("/api/stations")
+        .then(function (res) {
+          if (res.ok) renderPresets(res.d);
+        })
+        .catch(function () {});
+    }
+
+    function buildPresetBody(name, band, status) {
+      var body = { name: name, band: band };
+      if (band === "fm") {
+        body.fm_frequency_khz = status && status.fm && status.fm.frequency_khz != null
+          ? status.fm.frequency_khz
+          : parseInt($("fm-khz").value, 10);
+      } else {
+        body.dab_freq_index = status && status.dab && status.dab.freq_index != null
+          ? status.dab.freq_index
+          : parseInt($("dab-index").value, 10);
+        if (status && status.dab && status.dab.playing_service_id != null) {
+          body.dab_service_id = status.dab.playing_service_id;
+        }
+        if (status && status.dab && status.dab.playing_component_id != null) {
+          body.dab_component_id = status.dab.playing_component_id;
+        }
+      }
+      var slotVal = $("preset-slot").value;
+      if (slotVal) body.preset_slot = parseInt(slotVal, 10);
+      return body;
+    }
+
+    function postEnhance(url, level) {
+      return api(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level: level })
+      });
+    }
+
+    api("/api/health")
+      .then(function (res) {
+        if (res.ok) {
+          $("health-text").innerHTML =
+            'Status <code>' + res.d.status + "</code> · FW <code>" + res.d.fw + "</code>";
+          renderChips(res.d.chips);
+        } else {
+          $("health-text").textContent = "Health check failed.";
+        }
       })
       .catch(function () {
-        document.getElementById("health").textContent = "Health check failed.";
+        $("health-text").textContent = "Health check failed.";
       });
 
-    document.getElementById("wifi-form").addEventListener("submit", function (e) {
+    $("wifi-form").addEventListener("submit", function (e) {
       e.preventDefault();
-      var btn = document.getElementById("save-btn");
-      var msg = document.getElementById("wifi-msg");
+      var btn = $("save-btn");
+      var msg = $("wifi-msg");
       btn.disabled = true;
       showMsg(msg, "Saving…", true);
-      fetch("/api/wifi", {
+      api("/api/wifi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ssid: document.getElementById("ssid").value,
-          password: document.getElementById("password").value
+          ssid: $("ssid").value,
+          password: $("password").value
         })
       })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           if (res.ok && res.d.status === "saved") {
             showMsg(msg, "Saved. Rebooting in " + res.d.reboot_in_sec + "s…", true);
@@ -313,114 +782,78 @@
         });
     });
 
-    document.getElementById("band").addEventListener("change", function () {
-      var dab = document.getElementById("panel-dab");
-      var fm = document.getElementById("panel-fm");
-      if (this.value === "dab") {
-        dab.classList.add("active");
-        fm.classList.remove("active");
-      } else {
-        fm.classList.add("active");
-        dab.classList.remove("active");
-      }
-    });
+    $("now-refresh").addEventListener("click", refreshTunerStatus);
 
-    function refreshTunerStatus() {
-      var msg = document.getElementById("tuner-msg");
-      return fetch("/api/tuner/status")
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-        .then(function (res) {
-          if (res.ok && res.d.booted != null) {
-            document.getElementById("tuner-status").textContent = formatTunerStatus(res.d);
-            if (res.d.band === "fm") {
-              document.getElementById("band").value = "fm";
-              document.getElementById("band").dispatchEvent(new Event("change"));
-            }
-            showMsg(msg, "", true);
-          } else {
-            showMsg(msg, "Status error: " + (res.d.reason || "unknown"), false);
-          }
-        })
-        .catch(function () { showMsg(msg, "Status request failed.", false); });
-    }
-
-    document.getElementById("refresh-status").addEventListener("click", refreshTunerStatus);
-
-    document.getElementById("tune-dab").addEventListener("click", function () {
-      var msg = document.getElementById("tuner-msg");
-      var idx = parseInt(document.getElementById("dab-index").value, 10);
-      fetch("/api/tuner/tune", {
+    $("tune-dab").addEventListener("click", function () {
+      var idx = parseInt($("dab-index").value, 10);
+      api("/api/tuner/tune", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ band: "dab", freq_index: idx })
       })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           if (res.ok && res.d.booted != null) {
-            document.getElementById("tuner-status").textContent = formatTunerStatus(res.d);
-            showMsg(msg, "DAB tuned.", true);
+            renderNowPlaying(res.d);
+            showMsg($("tuner-msg"), "DAB tuned.", true);
           } else {
-            showMsg(msg, "Tune failed: " + (res.d.reason || "unknown"), false);
+            showMsg($("tuner-msg"), "Tune failed: " + (res.d.reason || "unknown"), false);
           }
         })
-        .catch(function () { showMsg(msg, "Tune request failed.", false); });
+        .catch(function () { showMsg($("tuner-msg"), "Tune failed.", false); });
     });
 
-    document.getElementById("tune-fm").addEventListener("click", function () {
-      var msg = document.getElementById("tuner-msg");
-      var khz = parseInt(document.getElementById("fm-khz").value, 10);
-      fetch("/api/tuner/tune", {
+    $("tune-fm").addEventListener("click", function () {
+      var khz = parseInt($("fm-khz").value, 10);
+      api("/api/tuner/tune", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ band: "fm", frequency_khz: khz })
       })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           if (res.ok && res.d.booted != null) {
-            document.getElementById("tuner-status").textContent = formatTunerStatus(res.d);
-            showMsg(msg, "FM tuned.", true);
+            renderNowPlaying(res.d);
+            showMsg($("tuner-msg"), "FM tuned.", true);
           } else {
-            showMsg(msg, "Tune failed: " + (res.d.reason || "unknown"), false);
+            showMsg($("tuner-msg"), "Tune failed: " + (res.d.reason || "unknown"), false);
           }
         })
-        .catch(function () { showMsg(msg, "Tune request failed.", false); });
+        .catch(function () { showMsg($("tuner-msg"), "Tune failed.", false); });
     });
 
-    document.getElementById("seek-fm").addEventListener("click", function () {
-      var msg = document.getElementById("tuner-msg");
-      fetch("/api/tuner/seek", { method: "POST" })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    $("seek-fm").addEventListener("click", function () {
+      api("/api/tuner/seek", { method: "POST" })
         .then(function (res) {
           if (res.ok && res.d.frequency_khz != null) {
-            document.getElementById("fm-khz").value = res.d.frequency_khz;
-            showMsg(msg, "Seeked to " + res.d.frequency_khz + " kHz.", true);
+            $("fm-khz").value = res.d.frequency_khz;
+            showMsg($("tuner-msg"), "Seeked to " + res.d.frequency_khz + " kHz.", true);
             refreshTunerStatus();
           } else {
-            showMsg(msg, "Seek failed: " + (res.d.reason || "unknown"), false);
+            showMsg($("tuner-msg"), "Seek failed: " + (res.d.reason || "unknown"), false);
           }
         })
-        .catch(function () { showMsg(msg, "Seek request failed.", false); });
+        .catch(function () { showMsg($("tuner-msg"), "Seek failed.", false); });
     });
 
-    document.getElementById("load-services").addEventListener("click", function () {
-      var msg = document.getElementById("tuner-msg");
-      var list = document.getElementById("service-list");
+    $("load-services").addEventListener("click", function () {
+      var list = $("service-list");
       list.innerHTML = "";
-      fetch("/api/tuner/services")
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      api("/api/tuner/services")
         .then(function (res) {
           if (!res.ok || !res.d.services) {
-            showMsg(msg, "Services error: " + (res.d.reason || "unknown"), false);
+            showMsg($("tuner-msg"), "Services: " + (res.d.reason || "error"), false);
             return;
           }
           res.d.services.forEach(function (svc) {
             var li = document.createElement("li");
             var label = document.createElement("span");
+            label.className = "label";
             label.textContent = svc.label || ("SID " + svc.service_id);
             var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "action compact";
             btn.textContent = "Play";
             btn.addEventListener("click", function () {
-              fetch("/api/tuner/play", {
+              api("/api/tuner/play", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -428,320 +861,137 @@
                   component_id: svc.component_id
                 })
               })
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                  if (d.status === "playing") {
-                    showMsg(msg, "Playing " + (svc.label || svc.service_id), true);
+                .then(function (res) {
+                  if (res.ok && res.d.status === "playing") {
+                    showMsg($("tuner-msg"), "Playing " + (svc.label || svc.service_id), true);
+                    refreshTunerStatus();
                   } else {
-                    showMsg(msg, "Play failed: " + (d.reason || "unknown"), false);
+                    showMsg($("tuner-msg"), "Play failed: " + (res.d.reason || "unknown"), false);
                   }
                 })
-                .catch(function () { showMsg(msg, "Play request failed.", false); });
+                .catch(function () { showMsg($("tuner-msg"), "Play failed.", false); });
             });
             li.appendChild(label);
             li.appendChild(btn);
             list.appendChild(li);
           });
-          showMsg(msg, res.d.services.length + " service(s).", true);
+          showMsg($("tuner-msg"), res.d.services.length + " service(s).", true);
         })
-        .catch(function () { showMsg(msg, "Services request failed.", false); });
+        .catch(function () { showMsg($("tuner-msg"), "Services failed.", false); });
     });
 
-    refreshTunerStatus();
-
-    var audioProfile = null;
-
-    function loadAudioProfile() {
-      var msg = document.getElementById("audio-msg");
-      return fetch("/api/audio/profile")
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          audioProfile = d;
-          document.getElementById("master-db").value = d.master.left_db;
-          document.getElementById("si4684-db").value = d.mixer.si4684_left_db;
-          document.getElementById("esp32-db").value = d.mixer.esp32_left_db;
-          if (d.enhancements) {
-            document.getElementById("stereo-level").value = d.enhancements.stereo_level;
-            document.getElementById("bass-level").value = d.enhancements.bass_level;
-          }
-          showMsg(msg, "", true);
-        })
-        .catch(function () { showMsg(msg, "Audio profile load failed.", false); });
-    }
-
-    document.getElementById("save-audio").addEventListener("click", function () {
-      var msg = document.getElementById("audio-msg");
-      if (!audioProfile) {
-        showMsg(msg, "Profile not loaded.", false);
+    $("save-audio").addEventListener("click", function () {
+      var body = collectAudioProfile();
+      if (!body) {
+        showMsg($("audio-msg"), "Profile not loaded.", false);
         return;
       }
-      var master = parseFloat(document.getElementById("master-db").value, 10);
-      var si4684 = parseFloat(document.getElementById("si4684-db").value, 10);
-      var esp32 = parseFloat(document.getElementById("esp32-db").value, 10);
-      audioProfile.master.left_db = master;
-      audioProfile.master.right_db = master;
-      audioProfile.mixer.si4684_left_db = si4684;
-      audioProfile.mixer.si4684_right_db = si4684;
-      audioProfile.mixer.esp32_left_db = esp32;
-      audioProfile.mixer.esp32_right_db = esp32;
-      if (!audioProfile.enhancements) {
-        audioProfile.enhancements = { stereo_level: 0, bass_level: 0 };
-      }
-      audioProfile.enhancements.stereo_level =
-        parseInt(document.getElementById("stereo-level").value, 10);
-      audioProfile.enhancements.bass_level =
-        parseInt(document.getElementById("bass-level").value, 10);
-      fetch("/api/audio/profile", {
+      api("/api/audio/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(audioProfile)
+        body: JSON.stringify(body)
       })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           if (res.ok && res.d.status === "saved") {
-            showMsg(msg, "Audio profile saved.", true);
+            showMsg($("audio-msg"), "Audio profile saved.", true);
           } else {
-            showMsg(msg, "Save failed: " + (res.d.reason || "unknown"), false);
+            showMsg($("audio-msg"), "Save failed: " + (res.d.reason || "unknown"), false);
           }
         })
-        .catch(function () { showMsg(msg, "Save request failed.", false); });
+        .catch(function () { showMsg($("audio-msg"), "Save failed.", false); });
     });
 
-    function postEnhance(url, level, msg) {
-      fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ level: level })
-      })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    $("stereo-level").addEventListener("change", function () {
+      var level = parseInt($("stereo-level").value, 10);
+      postEnhance("/api/audio/stereo-enhance", level)
+        .then(function (res) {
+          showMsg($("audio-msg"), res.ok ? "Stereo overlay applied." : "Enhance failed.", res.ok);
+        });
+    });
+
+    $("bass-level").addEventListener("change", function () {
+      var level = parseInt($("bass-level").value, 10);
+      postEnhance("/api/audio/bass-enhance", level)
+        .then(function (res) {
+          showMsg($("audio-msg"), res.ok ? "Bass overlay applied." : "Enhance failed.", res.ok);
+        });
+    });
+
+    $("reset-audio").addEventListener("click", function () {
+      api("/api/audio/reset", { method: "POST" })
         .then(function (res) {
           if (res.ok && res.d.status === "saved") {
-            showMsg(msg, "Enhancement applied.", true);
-          } else {
-            showMsg(msg, "Enhance failed: " + (res.d.reason || "unknown"), false);
-          }
-        })
-        .catch(function () { showMsg(msg, "Enhance request failed.", false); });
-    }
-
-    document.getElementById("stereo-level").addEventListener("change", function () {
-      var msg = document.getElementById("audio-msg");
-      var level = parseInt(document.getElementById("stereo-level").value, 10);
-      postEnhance("/api/audio/stereo-enhance", level, msg);
-    });
-
-    document.getElementById("bass-level").addEventListener("change", function () {
-      var msg = document.getElementById("audio-msg");
-      var level = parseInt(document.getElementById("bass-level").value, 10);
-      postEnhance("/api/audio/bass-enhance", level, msg);
-    });
-
-    document.getElementById("reset-audio").addEventListener("click", function () {
-      var msg = document.getElementById("audio-msg");
-      fetch("/api/audio/reset", { method: "POST" })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-        .then(function (res) {
-          if (res.ok && res.d.status === "saved") {
-            showMsg(msg, "Factory-flat profile applied.", true);
+            showMsg($("audio-msg"), "Factory-flat profile applied.", true);
             loadAudioProfile();
           } else {
-            showMsg(msg, "Reset failed: " + (res.d.reason || "unknown"), false);
+            showMsg($("audio-msg"), "Reset failed.", false);
           }
         })
-        .catch(function () { showMsg(msg, "Reset request failed.", false); });
+        .catch(function () { showMsg($("audio-msg"), "Reset failed.", false); });
     });
 
-    function formatBtStatus(s) {
-      return [
-        "Booted: " + s.booted,
-        "Pairing: " + s.pairing,
-        "A2DP: " + s.a2dp
-      ].join("\n");
-    }
-
-    function refreshBluetooth() {
-      var msg = document.getElementById("bt-msg");
-      return fetch("/api/bluetooth/status")
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    $("bt-refresh").addEventListener("click", refreshBluetooth);
+    $("bt-pair").addEventListener("click", function () {
+      api("/api/bluetooth/pair", { method: "POST" })
         .then(function (res) {
-          if (res.ok && res.d.booted != null) {
-            document.getElementById("bt-status").textContent = formatBtStatus(res.d);
-            showMsg(msg, "", true);
-          } else {
-            showMsg(msg, "BT error: " + (res.d.reason || "unknown"), false);
-          }
-        })
-        .catch(function () { showMsg(msg, "BT request failed.", false); });
-    }
-
-    document.getElementById("bt-refresh").addEventListener("click", refreshBluetooth);
-    document.getElementById("bt-pair").addEventListener("click", function () {
-      var msg = document.getElementById("bt-msg");
-      fetch("/api/bluetooth/pair", { method: "POST" })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-        .then(function (res) {
-          if (res.ok) {
-            showMsg(msg, "Discoverable — pair from your phone.", true);
-            refreshBluetooth();
-          } else {
-            showMsg(msg, "Pair failed: " + (res.d.reason || "unknown"), false);
-          }
-        })
-        .catch(function () { showMsg(msg, "Pair request failed.", false); });
+          showMsg($("bt-msg"), res.ok ? "Discoverable — pair from your phone." : "Pair failed.", res.ok);
+          if (res.ok) refreshBluetooth();
+        });
     });
-    document.getElementById("bt-stop-pair").addEventListener("click", function () {
-      var msg = document.getElementById("bt-msg");
-      fetch("/api/bluetooth/pair/stop", { method: "POST" })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    $("bt-stop-pair").addEventListener("click", function () {
+      api("/api/bluetooth/pair/stop", { method: "POST" })
         .then(function (res) {
-          if (res.ok) {
-            showMsg(msg, "Pairing stopped.", true);
-            refreshBluetooth();
-          } else {
-            showMsg(msg, "Stop failed: " + (res.d.reason || "unknown"), false);
-          }
-        })
-        .catch(function () { showMsg(msg, "Stop request failed.", false); });
+          showMsg($("bt-msg"), res.ok ? "Pairing stopped." : "Stop failed.", res.ok);
+          if (res.ok) refreshBluetooth();
+        });
     });
-    document.getElementById("bt-disconnect").addEventListener("click", function () {
-      var msg = document.getElementById("bt-msg");
-      fetch("/api/bluetooth/disconnect", { method: "POST" })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    $("bt-disconnect").addEventListener("click", function () {
+      api("/api/bluetooth/disconnect", { method: "POST" })
         .then(function (res) {
-          if (res.ok) {
-            showMsg(msg, "A2DP disconnected.", true);
-            refreshBluetooth();
-          } else {
-            showMsg(msg, "Disconnect failed: " + (res.d.reason || "unknown"), false);
-          }
-        })
-        .catch(function () { showMsg(msg, "Disconnect request failed.", false); });
+          showMsg($("bt-msg"), res.ok ? "A2DP disconnected." : "Disconnect failed.", res.ok);
+          if (res.ok) refreshBluetooth();
+        });
     });
 
-    function renderPresets(data) {
-      var list = document.getElementById("preset-list");
-      list.innerHTML = "";
-      (data.stations || []).forEach(function (s, idx) {
-        var li = document.createElement("li");
-        var label = s.name + " (" + s.band + ")";
-        if (s.fm_frequency_khz) label += " " + s.fm_frequency_khz + " kHz";
-        if (s.dab_freq_index != null) label += " idx " + s.dab_freq_index;
-      if (s.dab_service_id != null) label += " svc " + s.dab_service_id;
-        li.textContent = label;
-        var tuneBtn = document.createElement("button");
-        tuneBtn.textContent = "Tune";
-        tuneBtn.addEventListener("click", function () {
-          fetch("/api/stations/tune", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index: idx })
-          }).then(function () { refreshTunerStatus(); });
-        });
-        var delBtn = document.createElement("button");
-        delBtn.textContent = "Del";
-        delBtn.className = "secondary";
-        delBtn.addEventListener("click", function () {
-          fetch("/api/stations/remove", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ index: idx })
-          }).then(function () { loadPresets(); });
-        });
-        var upBtn = document.createElement("button");
-        upBtn.textContent = "Up";
-        upBtn.className = "secondary";
-        upBtn.disabled = idx === 0;
-        upBtn.addEventListener("click", function () {
-          fetch("/api/stations/reorder", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ from: idx, to: idx - 1 })
-          }).then(function () { loadPresets(); });
-        });
-        var downBtn = document.createElement("button");
-        downBtn.textContent = "Dn";
-        downBtn.className = "secondary";
-        downBtn.disabled = idx >= (data.stations.length - 1);
-        downBtn.addEventListener("click", function () {
-          fetch("/api/stations/reorder", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ from: idx, to: idx + 1 })
-          }).then(function () { loadPresets(); });
-        });
-        li.appendChild(tuneBtn);
-        li.appendChild(upBtn);
-        li.appendChild(downBtn);
-        li.appendChild(delBtn);
-        list.appendChild(li);
-      });
-    }
-
-    function buildPresetBody(name, band, status) {
-      var body = { name: name, band: band };
-      if (band === "fm") {
-        var khz = status && status.fm && status.fm.frequency_khz != null
-          ? status.fm.frequency_khz
-          : parseInt(document.getElementById("fm-khz").value, 10);
-        body.fm_frequency_khz = khz;
-      } else {
-        var idx = status && status.dab && status.dab.freq_index != null
-          ? status.dab.freq_index
-          : parseInt(document.getElementById("dab-index").value, 10);
-        body.dab_freq_index = idx;
-        if (status && status.dab && status.dab.playing_service_id != null) {
-          body.dab_service_id = status.dab.playing_service_id;
-        }
-        if (status && status.dab && status.dab.playing_component_id != null) {
-          body.dab_component_id = status.dab.playing_component_id;
-        }
-      }
-      var slotVal = document.getElementById("preset-slot").value;
-      if (slotVal) body.preset_slot = parseInt(slotVal, 10);
-      return body;
-    }
-
-    function loadPresets() {
-      return fetch("/api/stations")
-        .then(function (r) { return r.json(); })
-        .then(function (d) { renderPresets(d); })
-        .catch(function () {});
-    }
-
-    document.getElementById("save-preset").addEventListener("click", function () {
-      var msg = document.getElementById("preset-msg");
-      var name = document.getElementById("preset-name").value.trim();
+    $("save-preset").addEventListener("click", function () {
+      var name = $("preset-name").value.trim();
       if (!name) {
-        showMsg(msg, "Enter a name.", false);
+        showMsg($("preset-msg"), "Enter a name.", false);
         return;
       }
-      var band = document.getElementById("band").value;
-      fetch("/api/tuner/status")
-        .then(function (r) { return r.json(); })
+      var band = $("band").value;
+      api("/api/tuner/status")
+        .then(function (res) { return res.d; })
         .then(function (status) {
-          var body = buildPresetBody(name, band, status);
-          return fetch("/api/stations", {
+          return api("/api/stations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          }).then(function (r) {
-            return r.json().then(function (d) { return { ok: r.ok, d: d }; });
+            body: JSON.stringify(buildPresetBody(name, band, status))
           });
         })
         .then(function (res) {
           if (res.ok && res.d.status === "saved") {
-            showMsg(msg, "Preset saved.", true);
+            showMsg($("preset-msg"), "Preset saved.", true);
             loadPresets();
           } else {
-            showMsg(msg, "Save failed: " + (res.d.reason || "unknown"), false);
+            showMsg($("preset-msg"), "Save failed: " + (res.d.reason || "unknown"), false);
           }
         })
-        .catch(function () { showMsg(msg, "Save request failed.", false); });
+        .catch(function () { showMsg($("preset-msg"), "Save failed.", false); });
     });
 
+    bindSlider("master-db", "master-db-out");
+    bindSlider("si4684-db", "si4684-db-out");
+    bindSlider("esp32-db", "esp32-db-out");
+    bindSlider("stereo-level", "stereo-level-out");
+    bindSlider("bass-level", "bass-level-out");
+
+    refreshTunerStatus();
     refreshBluetooth();
     loadPresets();
     loadAudioProfile();
+
+    pollTimer = setInterval(refreshTunerStatus, 5000);
   </script>
 </body>
 </html>

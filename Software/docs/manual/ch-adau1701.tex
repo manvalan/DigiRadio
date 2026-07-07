@@ -369,10 +369,13 @@ delegate to \texttt{AudioService}:
   \item \texttt{POST /api/audio/bass-enhance} --- same schema.
 \end{itemize}
 
-The gzipped setup page (\texttt{components/net/www/index.html}) exposes master
-volume, Si4684/ESP32 path levels, and enhancement sliders; saving sends
-\texttt{PUT /api/audio/profile}, while slider release on enhancements sends
-the dedicated POST routes for immediate safeload + persist.
+The gzipped setup page (\texttt{components/net/www/index.html}) is a tabbed
+SPA: a \emph{Now playing} view (RDS/DLS metadata), tuner and preset panels,
+master/path levels, six PEQ band gain sliders, enhancement overlays, Bluetooth
+controls, and Wi-Fi provisioning. Saving sends \texttt{PUT /api/audio/profile};
+enhancement sliders call the dedicated POST routes for immediate safeload +
+persist. Regenerate \texttt{index.html.gz} with \texttt{tools/gzip-www.sh}
+after editing the HTML source.
 
 \section{Typical usage patterns}
 \label{sec:adau1701-patterns}
