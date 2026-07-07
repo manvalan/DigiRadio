@@ -44,3 +44,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check manual class sync
         run: python3 tools/check-manual-sync.py --src components --manual docs/manual
+
+  si4684-blobs:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: Software
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check Si4684 blob policy
+        run: python3 tools/check_si4684_blobs.py

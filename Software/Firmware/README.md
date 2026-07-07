@@ -9,10 +9,16 @@ Binary and SigmaStudio exports loaded by the ESP32 at every boot.
 
 ## Si4684 blobs
 
-`rom_patch_016.bin` and `dab_firmware.bin` are extracted from the
-[PE5PVB SI4684-DAB-Receiver](https://github.com/PE5PVB/SI4684-DAB-Receiver)
-project. `fm_firmware.bin` comes from the Skyworks Si4684 eval firmware pack
-(see `tools/fetch_si4684_firmware.py --si46xx-dir`).
+Proprietary Skyworks images — **local only**, gitignored (`*.bin`). See
+[`Si4684-Firmware/README.md`](Si4684-Firmware/README.md) for procurement and
+legal notes. Populate with:
+
+```bash
+cd Software
+python3 tools/fetch_si4684_firmware.py --dab-only
+python3 tools/fetch_si4684_firmware.py --si46xx-dir /path/to/si46xx_firmware
+python3 tools/check_si4684_blobs.py
+```
 
 ## ADAU1701 export
 

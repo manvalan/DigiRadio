@@ -31,6 +31,7 @@ Documentation gates (must exit 0 before merging; also enforced in CI):
 ```bash
 doxygen Doxyfile
 python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
 python3 tools/gzip-www.sh   # after editing components/net/www/index.html
 ```
 
