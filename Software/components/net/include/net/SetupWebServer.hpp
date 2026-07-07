@@ -18,6 +18,7 @@
 #pragma once
 
 #include "core/CompanionChipStatus.hpp"
+#include "core/DeviceIdentity.hpp"
 #include "core/ISecureStore.hpp"
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
@@ -69,6 +70,7 @@ struct HttpRouteContext {
     station::StationService* stations; ///< Preset list REST routes.
     integration::IntegrationService* integration; ///< Preset recall orchestration.
     core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
+    core::DeviceIdentity deviceIdentity;       ///< EEPROM-derived unit identity.
 };
 
 /**
@@ -146,6 +148,7 @@ public:
      * @param    stations        Station preset service for list REST routes.
      * @param    integration     Application orchestration for preset recall.
      * @param    companionChips  Boot flags for GET /api/health.
+     * @param    deviceIdentity  Unit identity for /api/health serialNumber.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
      * @pubstate writes server_, store_, netState_, and service pointers on success.
      *
@@ -158,7 +161,8 @@ public:
         bluetooth::BluetoothService& bluetooth,
         station::StationService& stations,
         integration::IntegrationService& integration,
-        core::CompanionChipStatus companionChips);
+        core::CompanionChipStatus companionChips,
+        const core::DeviceIdentity& deviceIdentity);
 
 private:
     httpd_handle* server_;

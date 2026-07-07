@@ -36,9 +36,26 @@ trusted downstream by \texttt{ITuner}, \texttt{Si4684Driver}, and status DTOs.
 
 \section{HealthStatus}\label{cls:HealthStatus}
 Immutable health-check DTO returned by \texttt{GET /api/health}. Built via
-\texttt{HealthStatus::ok(FirmwareVersion)} in the pure core; JSON
-serialisation lives in \texttt{serializeHealthStatusJson()}. No ESP-IDF
-headers.
+\texttt{HealthStatus::ok(FirmwareVersion, CompanionChipStatus, serialNumber)}
+in the pure core; JSON serialisation lives in \texttt{serializeHealthStatusJson()}.
+The \texttt{serialNumber} field carries the EEPROM-derived serial or
+\texttt{unknown} when the EUI-48 read fails. No ESP-IDF headers.
+
+\section{Eui48}\label{cls:Eui48}
+Strong type for the factory-programmed six-byte EUI-48 read from the
+24AA025E48 at word address \texttt{0xFA} (Microchip DS20001191). Exposes
+\texttt{serialNumber()} (12 uppercase hex digits) and \texttt{shortSuffix()}
+(last three bytes) for SSID and hostname derivation.
+
+\section{DeviceIdentity}\label{cls:DeviceIdentity}
+Per-board identity derived from \texttt{Eui48}: SoftAP SSID
+\texttt{DigiRadio-<suffix>}, Bluetooth name, STA hostname
+\texttt{digiradio-<suffix>}, and canonical serial. \texttt{unknown()} yields
+documented fallbacks (\texttt{DigiRadio-setup}, serial \texttt{unknown}).
+
+\section{IDeviceIdentitySource}\label{cls:IDeviceIdentitySource}
+Port for reading \texttt{DeviceIdentity} from board storage. Implemented in
+the shell by \texttt{eeprom24aa::Eeprom24aa} on the shared I2C bus.
 
 % ------------------------------------------------------------------
 % Network shell (Slice 1)
@@ -46,8 +63,9 @@ headers.
 
 \section{SoftApConfig}\label{cls:SoftApConfig}
 Immutable value type holding SoftAP parameters (SSID, channel, station
-limit). Factory \texttt{setupDefault()} yields SSID \texttt{DigiRadio-setup}
-for first-time provisioning.
+limit). \texttt{forSsid()} builds setup parameters from
+\texttt{DeviceIdentity::softApSsid()}; \texttt{setupDefault()} keeps the
+\texttt{DigiRadio-setup} fallback when the EEPROM read fails.
 
 \section{SoftApHost}\label{cls:SoftApHost}
 RAII wrapper around the ESP-IDF Wi-Fi stack that starts and stops the
@@ -147,9 +165,17 @@ RAII I\textsuperscript{2}C driver for the ADAU1701 SigmaDSP
 (Chapter~\ref{ch:adau1701}). \texttt{boot()} asserts RESET\#,
 initialises the shared I2C bus, and replays the SigmaStudio export from
 \texttt{Firmware/ADAU1701-Firmware/} on every power-up (no EEPROM self-boot
-on DigiRadio). Runtime mixer, EQ, and master volume updates use the
+on DigiRadio). Exposes \texttt{i2cBusHandle()} after boot for the shared
+24AA025E48 EEPROM. Runtime mixer, EQ, and master volume updates use the
 ADAU1701 safeload mechanism via \texttt{applyProfile()} and related methods
 (Section~\ref{sec:adau1701-driver}).
+
+\section{Eeprom24aa}\label{cls:Eeprom24aa}
+I\textsuperscript{2}C shell driver for the 24AA025E48 identity EEPROM
+(Chapter~\ref{ch:hardware}, address \texttt{0x52}). Implements
+\texttt{IDeviceIdentitySource}: reads six bytes at word address \texttt{0xFA}
+per Microchip DS20001191 and builds \texttt{DeviceIdentity}. Called from
+\texttt{HardwareBootstrap} after \texttt{Adau1701Driver::boot()}.
 
 \section{Adau1701Dsp}\label{cls:Adau1701Dsp}
 \texttt{core::IDsp} adapter over \texttt{Adau1701Driver}. Maps domain-level

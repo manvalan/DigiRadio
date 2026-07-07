@@ -18,6 +18,7 @@
 #pragma once
 
 #include "core/CompanionChipStatus.hpp"
+#include "core/DeviceIdentity.hpp"
 #include "core/ISecureStore.hpp"
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
@@ -74,6 +75,7 @@ public:
      * @param    stations        Station preset service for REST routes.
      * @param    integration     Application orchestration for preset recall.
      * @param    companionChips  Boot flags exposed on GET /api/health.
+     * @param    deviceIdentity  EEPROM-derived SSID, hostname, and serial.
      * @return   NetBootstrap on success, or a NetError.
      * @pubstate none
      *
@@ -85,7 +87,8 @@ public:
           audio::AudioService& audio, bluetooth::BluetoothService& bluetooth,
           station::StationService& stations,
           integration::IntegrationService& integration,
-          core::CompanionChipStatus companionChips);
+          core::CompanionChipStatus companionChips,
+          const core::DeviceIdentity& deviceIdentity);
 
     NetBootstrap(const NetBootstrap&) = delete;
     NetBootstrap& operator=(const NetBootstrap&) = delete;

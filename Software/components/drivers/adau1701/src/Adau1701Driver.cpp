@@ -122,6 +122,11 @@ bool Adau1701Driver::isBooted() const noexcept
     return booted_;
 }
 
+void* Adau1701Driver::i2cBusHandle() const noexcept
+{
+    return i2cBus_;
+}
+
 std::expected<void, Adau1701Error> Adau1701Driver::ensureBooted() const
 {
     if (!booted_) {

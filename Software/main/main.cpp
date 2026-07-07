@@ -85,7 +85,8 @@ extern "C" void app_main()
         bluetoothService,
         stationService,
         integration,
-        hardware::HardwareBootstrap::companionChipStatus());
+        hardware::HardwareBootstrap::companionChipStatus(),
+        hardware::HardwareBootstrap::deviceIdentity());
     if (!netResult) {
         ESP_LOGE(kTag, "network bootstrap failed");
         return;

@@ -21,6 +21,7 @@
 #include "net/NetError.hpp"
 
 #include <expected>
+#include <string_view>
 
 namespace net {
 
@@ -91,7 +92,8 @@ public:
      * @brief    connect — join the network described by creds.
      *
      * @dname    connect
-     * @param    creds  Validated domain credentials from ISecureStore.
+     * @param    creds     Validated domain credentials from ISecureStore.
+     * @param    hostname  STA hostname / mDNS label (no .local suffix).
      * @return   Ok on success, or NetError::StaConnectTimeout /
      *           NetError::StaConnectFailed.
      * @pubstate writes connected_ on success; uses creds via Secret.
@@ -100,7 +102,8 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, NetError>
-    connect(const core::WifiCredentials& creds);
+    connect(const core::WifiCredentials& creds,
+            std::string_view hostname = {});
 
 private:
     bool connected_;

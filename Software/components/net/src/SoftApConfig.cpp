@@ -28,7 +28,12 @@ constexpr std::uint8_t kSetupMaxConnections = 4;
 
 SoftApConfig SoftApConfig::setupDefault()
 {
-    return SoftApConfig(kSetupSsid, kSetupChannel, kSetupMaxConnections);
+    return forSsid(kSetupSsid);
+}
+
+SoftApConfig SoftApConfig::forSsid(std::string_view ssid)
+{
+    return SoftApConfig(ssid, kSetupChannel, kSetupMaxConnections);
 }
 
 SoftApConfig::SoftApConfig(std::string_view ssid,

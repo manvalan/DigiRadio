@@ -21,6 +21,7 @@
 
 #include <array>
 #include <string>
+#include <string_view>
 
 namespace bt1035 {
 
@@ -159,6 +160,19 @@ std::expected<void, Bt1035Error> Bt1035Driver::disconnectA2dp()
         return ready;
     }
     return sendCommand(core::Bt1035AtCommand::A2dpDisconnect);
+}
+
+std::expected<void, Bt1035Error> Bt1035Driver::setDeviceName(
+    std::string_view name)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    if (name.empty() || name.size() > 32U) {
+        return std::unexpected(Bt1035Error::UnexpectedResponse);
+    }
+    std::string line = std::string("AT+NAME=") + std::string(name) + "\r\n";
+    return transmitAndExpectOk(line);
 }
 
 std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()

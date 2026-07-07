@@ -113,6 +113,19 @@ public:
     [[nodiscard]] bool isBooted() const noexcept;
 
     /**
+     * @brief    i2cBusHandle — borrow the shared I2C master bus after boot.
+     *
+     * @dname    i2cBusHandle
+     * @return   Opaque bus handle for the 24AA025E48 on the same bus, or null
+     *           before boot().
+     * @pubstate reads i2cBus_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] void* i2cBusHandle() const noexcept;
+
+    /**
      * @brief    applyProfile — safeload mixer, EQ, and master from snapshot.
      *
      * @dname    applyProfile
