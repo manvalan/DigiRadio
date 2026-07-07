@@ -12,6 +12,8 @@
  */
 
 #include "core/Bt1035At.hpp"
+#include "core/Bt1035PairedDevice.hpp"
+#include "core/BluetoothJson.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -74,6 +76,50 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+[[nodiscard]] int runNameAutoConnPairedParseTest()
+{
+    const auto name =
+        core::parseBt1035NameResponse("+NAME=DigiRadio-A1B2\r\nOK\r\n");
+    if (!name || *name != "DigiRadio-A1B2") {
+        std::cerr << "NAME parse failed\n";
+        return EXIT_FAILURE;
+    }
+    const auto autoconn =
+        core::parseBt1035AutoConnResponse("+AUTOCONN=3\r\nOK\r\n");
+    if (!autoconn || *autoconn != 3U) {
+        std::cerr << "AUTOCONN parse failed\n";
+        return EXIT_FAILURE;
+    }
+    const auto plist = core::parseBt1035PairedListResponse(
+        "+PLIST=1,001122334455,Phone\r\n"
+        "+PLIST=2,FFEEDDCCBBAA,\r\n"
+        "OK\r\n");
+    if (!plist || plist->size() != 2U || (*plist)[0U].index != 1U
+        || (*plist)[0U].mac != "001122334455"
+        || (*plist)[0U].name != "Phone") {
+        std::cerr << "PLIST parse failed\n";
+        return EXIT_FAILURE;
+    }
+    const std::string pairedJson =
+        core::serializeBluetoothPairedJson(*plist);
+    if (pairedJson.find("\"index\":1") == std::string::npos
+        || pairedJson.find("\"mac\":\"001122334455\"") == std::string::npos) {
+        std::cerr << "paired JSON serialise failed: " << pairedJson << '\n';
+        return EXIT_FAILURE;
+    }
+    const auto times =
+        core::parseBluetoothAutoReconnectJson(R"({"times":5})");
+    if (!times || *times != 5U) {
+        std::cerr << "auto-reconnect JSON parse failed\n";
+        return EXIT_FAILURE;
+    }
+    if (core::buildBt1035SetAutoConnLine(5) != "AT+AUTOCONN=5\r\n") {
+        std::cerr << "AUTOCONN command line mismatch\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main()
@@ -82,6 +128,9 @@ int main()
         return EXIT_FAILURE;
     }
     if (runParseTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runNameAutoConnPairedParseTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

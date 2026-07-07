@@ -829,4 +829,33 @@ std::expected<void, Si4684Error> Si4684Driver::startDabService(
     return {};
 }
 
+std::expected<void, Si4684Error> Si4684Driver::stopDabService(
+    std::uint32_t serviceId,
+    std::uint32_t componentId,
+    Si4684DigitalServiceType type)
+{
+    if (auto band = ensureBand(Si4684Band::Dab); !band) {
+        return band;
+    }
+    const std::uint8_t args[] = {
+        static_cast<std::uint8_t>(type),
+        0x00U,
+        0x00U,
+        static_cast<std::uint8_t>(serviceId & 0xFFU),
+        static_cast<std::uint8_t>((serviceId >> 8) & 0xFFU),
+        static_cast<std::uint8_t>((serviceId >> 16) & 0xFFU),
+        static_cast<std::uint8_t>(serviceId >> 24),
+        static_cast<std::uint8_t>(componentId & 0xFFU),
+        static_cast<std::uint8_t>((componentId >> 8) & 0xFFU),
+        static_cast<std::uint8_t>((componentId >> 16) & 0xFFU),
+        static_cast<std::uint8_t>(componentId >> 24),
+    };
+    if (auto cmd =
+            writeCommand(Command::StopDigitalService, args, sizeof(args));
+        !cmd) {
+        return std::unexpected(Si4684Error::CommandFailed);
+    }
+    return {};
+}
+
 } // namespace si4684

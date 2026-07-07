@@ -16,7 +16,7 @@ added in the same change that introduces the class. A tooling check keeps
 this chapter in step with the code, so it is always current.
 \end{drnote}
 
-The class reference tracks firmware~0.8.3 on \texttt{main}. Public classes
+The class reference tracks firmware~0.8.4 on \texttt{main}. Public classes
 are grouped by layer: domain core, application services, and hardware drivers.
 
 % ------------------------------------------------------------------
@@ -153,6 +153,12 @@ fetch, and \texttt{startDabService}. Property access (\texttt{setProperty},
 are included. Wrong-band calls return \texttt{Si4684Error::WrongBand}.
 Register-level opcodes remain private; see \texttt{Si4684Types.hpp} for status
 DTOs. Full DAB/FM tuning guide: Chapter~\ref{ch:si4684}.
+
+\section{Bt1035PairedDevice}\label{cls:Bt1035PairedDevice}
+Plain DTO for one \texttt{+PLIST=} line from the FSC-BT1035: paired-record
+index (1--8), 12-digit MAC, and optional friendly name. Parsed by
+\texttt{core::parseBt1035PairedListResponse()} and serialised on
+\texttt{GET /api/bluetooth/paired}.
 
 \section{Bt1035Driver}\label{cls:Bt1035Driver}
 UART driver for the FSC-BT1035 (Chapter~\ref{ch:bt1035}). \texttt{boot()}

@@ -60,7 +60,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.8.3";
+constexpr char kFirmwareVersion[] = "0.8.4";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t www_index_html_gz_start[] asm(
@@ -402,12 +402,12 @@ esp_err_t tunerPlayPostHandler(httpd_req_t* req)
 }
 
 /**
- * @brief    tunerSeekPostHandler — accept POST /api/tuner/seek (FM up).
+ * @brief    tunerSeekPostHandler — accept POST /api/tuner/seek (FM up/down).
  *
  * @dname    tunerSeekPostHandler
  * @param    req  HTTP request handle from esp_http_server.
  * @return   ESP_OK on success, or an esp_err_t error code.
- * @pubstate uses route context tuner service with SeekDirection::Up.
+ * @pubstate uses route context tuner service with parsed SeekDirection.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
@@ -420,7 +420,18 @@ esp_err_t tunerSeekPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
 
-    auto freq = ctx->tuner->seekFm(core::SeekDirection::Up);
+    std::array<char, 128> body{};
+    readRequestBody(req, body);
+    const auto direction = core::parseTunerSeekJson(std::string_view(body.data()));
+    if (!direction) {
+        const std::string json =
+            core::serializeTunerErrorJson(parseErrorToken(direction.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    auto freq = ctx->tuner->seekFm(*direction);
     if (freq) {
         const std::string json = std::string("{\"frequency_khz\":")
             + std::to_string(freq->value()) + "}";
@@ -895,6 +906,58 @@ esp_err_t bluetoothDisconnectPostHandler(httpd_req_t* req)
     return httpd_resp_send(req, "{\"status\":\"disconnected\"}", 24);
 }
 
+esp_err_t bluetoothPairedGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    auto devices = ctx->bluetooth->listPaired();
+    if (!devices) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(devices.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    const std::string json = core::serializeBluetoothPairedJson(*devices);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+esp_err_t bluetoothAutoReconnectPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    readRequestBody(req, body);
+    const auto times =
+        core::parseBluetoothAutoReconnectJson(std::string_view(body.data()));
+    if (!times) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(parseErrorToken(times.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto result = ctx->bluetooth->setAutoReconnect(*times); !result) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(result.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"saved\"}", 18);
+}
+
 esp_err_t stationsGetHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -1312,6 +1375,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &bluetoothDisconnectUri);
+
+    const httpd_uri_t bluetoothPairedUri = {
+        .uri = "/api/bluetooth/paired",
+        .method = HTTP_GET,
+        .handler = bluetoothPairedGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothPairedUri);
+
+    const httpd_uri_t bluetoothAutoReconnectUri = {
+        .uri = "/api/bluetooth/auto-reconnect",
+        .method = HTTP_POST,
+        .handler = bluetoothAutoReconnectPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothAutoReconnectUri);
 
     const httpd_uri_t stationsGetUri = {
         .uri = "/api/stations",

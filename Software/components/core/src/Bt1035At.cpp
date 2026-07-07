@@ -14,6 +14,7 @@
 #include "core/Bt1035At.hpp"
 
 #include <cstdlib>
+#include <vector>
 
 namespace core {
 
@@ -110,8 +111,22 @@ std::string buildBt1035AtLine(Bt1035AtCommand command)
         return "AT+A2DPSTAT\r\n";
     case Bt1035AtCommand::A2dpDisconnect:
         return "AT+A2DPDISC\r\n";
+    case Bt1035AtCommand::QueryName:
+        return "AT+NAME\r\n";
+    case Bt1035AtCommand::QueryAutoConn:
+        return "AT+AUTOCONN\r\n";
+    case Bt1035AtCommand::QueryPairedList:
+        return "AT+PLIST\r\n";
     }
     return "AT\r\n";
+}
+
+std::string buildBt1035SetAutoConnLine(std::uint8_t times)
+{
+    if (times > 15U) {
+        times = 15U;
+    }
+    return "AT+AUTOCONN=" + std::to_string(times) + "\r\n";
 }
 
 std::array<Bt1035AtCommand, kBt1035BootInitCommandCount> bootInitSequence() noexcept
@@ -177,6 +192,86 @@ const char* a2dpStateToken(Bt1035A2dpState state) noexcept
         return "paused";
     }
     return "unknown";
+}
+
+std::expected<std::string, ParseError>
+parseBt1035NameResponse(std::string_view response)
+{
+    constexpr std::string_view kPrefix = "+NAME=";
+    const std::size_t pos = response.find(kPrefix);
+    if (pos == std::string_view::npos) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    const std::size_t start = pos + kPrefix.size();
+    const std::size_t end = response.find_first_of("\r\n", start);
+    const std::string_view value =
+        end == std::string_view::npos ? response.substr(start)
+                                      : response.substr(start, end - start);
+    if (value.empty()) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    return std::string(value);
+}
+
+std::expected<std::uint8_t, ParseError>
+parseBt1035AutoConnResponse(std::string_view response)
+{
+    constexpr std::string_view kPrefix = "+AUTOCONN=";
+    const std::size_t pos = response.find(kPrefix);
+    if (pos == std::string_view::npos) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    const std::size_t start = pos + kPrefix.size();
+    char* end = nullptr;
+    const unsigned long raw =
+        std::strtoul(response.data() + start, &end, 10);
+    if (end == response.data() + start || raw > 15U) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    return static_cast<std::uint8_t>(raw);
+}
+
+std::expected<std::vector<Bt1035PairedDevice>, ParseError>
+parseBt1035PairedListResponse(std::string_view response)
+{
+    std::vector<Bt1035PairedDevice> devices;
+    constexpr std::string_view kPrefix = "+PLIST=";
+    std::size_t pos = 0;
+    while ((pos = response.find(kPrefix, pos)) != std::string_view::npos) {
+        const std::size_t start = pos + kPrefix.size();
+        const std::size_t end = response.find_first_of("\r\n", start);
+        const std::string_view line =
+            end == std::string_view::npos ? response.substr(start)
+                                          : response.substr(start, end - start);
+        pos = end == std::string_view::npos ? response.size() : end + 1U;
+        if (line.empty() || line.front() == 'E') {
+            continue;
+        }
+        const std::size_t comma1 = line.find(',');
+        if (comma1 == std::string_view::npos) {
+            continue;
+        }
+        const std::size_t comma2 = line.find(',', comma1 + 1U);
+        char* endIdx = nullptr;
+        const unsigned long index =
+            std::strtoul(line.data(), &endIdx, 10);
+        if (endIdx == line.data() || index == 0U || index > 8U) {
+            continue;
+        }
+        Bt1035PairedDevice entry = {};
+        entry.index = static_cast<std::uint8_t>(index);
+        entry.mac = std::string(line.substr(comma1 + 1U,
+                                            (comma2 == std::string_view::npos
+                                                 ? line.size()
+                                                 : comma2)
+                                                - comma1
+                                                - 1U));
+        if (comma2 != std::string_view::npos) {
+            entry.name = std::string(line.substr(comma2 + 1U));
+        }
+        devices.push_back(std::move(entry));
+    }
+    return devices;
 }
 
 } // namespace core

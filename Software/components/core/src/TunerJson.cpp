@@ -226,4 +226,24 @@ std::expected<TunerPlayRequest, ParseError> parseTunerPlayJson(
     return req;
 }
 
+std::expected<SeekDirection, ParseError> parseTunerSeekJson(
+    std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return SeekDirection::Up;
+    }
+
+    const std::string_view direction = extractJsonString(json, "direction");
+    if (direction.empty()) {
+        return SeekDirection::Up;
+    }
+    if (direction == "up") {
+        return SeekDirection::Up;
+    }
+    if (direction == "down") {
+        return SeekDirection::Down;
+    }
+    return std::unexpected(ParseError::InvalidJson);
+}
+
 } // namespace core

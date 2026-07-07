@@ -319,7 +319,7 @@ The setup UI and REST clients use \texttt{tuner::TunerService}, which wraps
       FM  & \texttt{\{"band":"fm","frequency\_khz":64000..108000\}} \\
     \texttt{GET /api/tuner/services} & DAB only & Programme list for ensemble \\
     \texttt{POST /api/tuner/play}    & DAB only & Start \texttt{service\_id}/\texttt{component\_id} \\
-    \texttt{POST /api/tuner/seek}    & FM only  & Seek up, return new kHz \\
+    \texttt{POST /api/tuner/seek}    & FM only  & Seek up/down, return new kHz \\
     \texttt{GET /api/tuner/status}   & both     & Locked state, RSQ or DIGRAD \\
     \bottomrule
   \end{tabular}

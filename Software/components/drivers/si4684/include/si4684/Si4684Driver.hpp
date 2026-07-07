@@ -341,6 +341,24 @@ public:
         std::uint32_t componentId,
         Si4684DigitalServiceType type = Si4684DigitalServiceType::Audio);
 
+    /**
+     * @brief    stopDabService — stop active DAB audio (STOP_DIGITAL_SERVICE).
+     *
+     * @dname    stopDabService
+     * @param    serviceId    Selected service identifier.
+     * @param    componentId  Audio component within the service.
+     * @param    type         Digital service type (audio by default).
+     * @return   Ok on success, or Si4684Error.
+     * @pubstate sends STOP_DIGITAL_SERVICE (AN649 opcode 0x82).
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<void, Si4684Error> stopDabService(
+        std::uint32_t serviceId,
+        std::uint32_t componentId,
+        Si4684DigitalServiceType type = Si4684DigitalServiceType::Audio);
+
 private:
     enum class Command : std::uint8_t {
         PowerUp = 0x01,
@@ -357,6 +375,7 @@ private:
         FmRdsStatus = 0x34,
         GetDigitalServiceList = 0x80,
         StartDigitalService = 0x81,
+        StopDigitalService = 0x82,
         GetDigitalServiceData = 0x84,
         DabTuneFreq = 0xB0,
         DabDigRadStatus = 0xB2,

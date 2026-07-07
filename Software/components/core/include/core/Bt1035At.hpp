@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "core/Bt1035PairedDevice.hpp"
 #include "core/ParseError.hpp"
 
 #include <array>
@@ -20,6 +21,7 @@
 #include <expected>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace core {
 
@@ -40,6 +42,9 @@ enum class Bt1035AtCommand {
     PairHidden,       ///< AT+PAIR=0 — leave discoverable mode.
     A2dpStat,         ///< AT+A2DPSTAT — read A2DP link state.
     A2dpDisconnect,   ///< AT+A2DPDISC — release current A2DP connection.
+    QueryName,        ///< AT+NAME — read BR/EDR local name (+NAME=).
+    QueryAutoConn,    ///< AT+AUTOCONN — read power-on auto-reconnect count.
+    QueryPairedList,  ///< AT+PLIST — enumerate paired devices (+PLIST=).
 };
 
 /**
@@ -146,5 +151,60 @@ parseBt1035A2dpStatResponse(std::string_view response);
  * @date     2026-07-06
  */
 [[nodiscard]] const char* a2dpStateToken(Bt1035A2dpState state) noexcept;
+
+/**
+ * @brief    buildBt1035SetAutoConnLine — AT+AUTOCONN with reconnect count.
+ *
+ * @dname    buildBt1035SetAutoConnLine
+ * @param    times  0 off, 1–15 reconnect attempts (Feasycom default 3).
+ * @return   Full AT line including CRLF.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+[[nodiscard]] std::string buildBt1035SetAutoConnLine(std::uint8_t times);
+
+/**
+ * @brief    parseBt1035NameResponse — extract +NAME= value.
+ *
+ * @dname    parseBt1035NameResponse
+ * @param    response  Full module reply ending in OK.
+ * @return   Device name on success, or ParseError::MissingField.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+[[nodiscard]] std::expected<std::string, ParseError>
+parseBt1035NameResponse(std::string_view response);
+
+/**
+ * @brief    parseBt1035AutoConnResponse — extract +AUTOCONN= value.
+ *
+ * @dname    parseBt1035AutoConnResponse
+ * @param    response  Full module reply ending in OK.
+ * @return   Reconnect count 0–15, or ParseError::MissingField.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+[[nodiscard]] std::expected<std::uint8_t, ParseError>
+parseBt1035AutoConnResponse(std::string_view response);
+
+/**
+ * @brief    parseBt1035PairedListResponse — parse +PLIST= lines.
+ *
+ * @dname    parseBt1035PairedListResponse
+ * @param    response  Full module reply ending in OK.
+ * @return   Paired devices in index order; empty when none stored.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+[[nodiscard]] std::expected<std::vector<Bt1035PairedDevice>, ParseError>
+parseBt1035PairedListResponse(std::string_view response);
 
 } // namespace core

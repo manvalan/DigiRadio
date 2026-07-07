@@ -4,8 +4,8 @@ Read this together with `AGENTS.md` and everything under
 `.cursor/rules/`. Those define *how* to write code; this file defines
 *what we are building* and the current state on `main`.
 
-**Firmware on `main`:** **0.8.3** — all agent tasks T1–T8 complete; device
-HIL pending PCB arrival.
+**Firmware on `main`:** **0.8.4** — agent tasks T1–T12 complete; device HIL
+pending PCB arrival.
 
 ## What DigiRadio is
 
@@ -46,16 +46,15 @@ Repository: https://github.com/manvalan/DigiRadio
 | 4 Station presets | Done (0.7.0) | NVS `station_list`, full `/api/stations/*` |
 | 5 ADAU1701 runtime | Done | EQ, mixer, enhancements, audio API |
 | 6 Si4684 tuning | Done | FM/DAB tune, seek, RSQ, RDS, DAB services/DLS |
-| 7 BT1035 | Mostly done | Pairing, A2DP stat/disconnect; name/plist AT open |
+| 7 BT1035 | Done (0.8.4) | Pairing, A2DP, name/plist/auto-reconnect AT |
 | 8 Integration | Done (0.8.1) | `IntegrationService`, last-preset NVS |
-| T6 Web UI | Done (0.8.2) | Tabbed SPA, all REST endpoints |
+| T6 Web UI | Done (0.8.4) | Tabbed SPA + System tab (OTA/DSP upload) |
 | T7 Si4684 blobs | Done (0.8.2) | Local-only `.bin`, CI policy check |
 | T8 NVS encryption | Done (0.8.3) | `initEncryptedStorage`; HIL when PCB ready |
+| T9–T12 Platform | Done (0.8.4) | Dual OTA, EEPROM identity, DSP + firmware OTA |
 
 Next work: **hardware-in-the-loop** (`docs/TODO.md` § P4), not new features
 unless the user requests them.
-
-## Working agreement
 
 - **Blockers first** — state risks before solutions.
 - **One vertical slice at a time** — `main` always builds; host tests green.
@@ -66,8 +65,8 @@ unless the user requests them.
 ## Slice 1 — Walking skeleton (complete)
 
 - ESP-IDF `esp32s3`, C++23, `components/core` host-testable.
-- SoftAP `DigiRadio-setup`, gzipped page, `GET /api/health`.
-- Current health JSON includes `fw` (today **0.8.3**) and companion-chip flags.
+- SoftAP `DigiRadio-<suffix>` (or setup fallback), gzipped page, `GET /api/health`.
+- Health JSON includes `fw` (today **0.8.4**), `serialNumber`, companion-chip flags.
 
 ## Slice 2 — Secure store + Wi-Fi STA (complete)
 

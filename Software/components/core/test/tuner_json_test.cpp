@@ -178,6 +178,34 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+[[nodiscard]] int runTunerSeekParseTest()
+{
+    const auto empty = core::parseTunerSeekJson("");
+    if (!empty || *empty != core::SeekDirection::Up) {
+        std::cerr << "empty seek body should default to up\n";
+        return EXIT_FAILURE;
+    }
+    const auto up =
+        core::parseTunerSeekJson(R"({"direction":"up"})");
+    if (!up || *up != core::SeekDirection::Up) {
+        std::cerr << "seek up parse failed\n";
+        return EXIT_FAILURE;
+    }
+    const auto down =
+        core::parseTunerSeekJson(R"({"direction":"down"})");
+    if (!down || *down != core::SeekDirection::Down) {
+        std::cerr << "seek down parse failed\n";
+        return EXIT_FAILURE;
+    }
+    const auto bad =
+        core::parseTunerSeekJson(R"({"direction":"sideways"})");
+    if (bad) {
+        std::cerr << "expected invalid seek direction rejection\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main()
@@ -207,6 +235,9 @@ int main()
         return EXIT_FAILURE;
     }
     if (runTunerErrorSerialiseTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runTunerSeekParseTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
