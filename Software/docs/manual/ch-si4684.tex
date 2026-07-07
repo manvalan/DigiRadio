@@ -114,21 +114,21 @@ the \texttt{FLASH\_LOAD} path used by boards with a pre-programmed SST25V.
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}[
-      step/.style={draw, rounded corners, minimum width=9cm,
+      drstep/.style={draw, rounded corners, minimum width=9cm,
         minimum height=0.9cm, align=center, font=\small},
       >={Latex}, node distance=3mm]
-    \node[step, fill=black!6] (rst) {Hardware reset (RST\#)};
-    \node[step, fill=black!6, below=of rst] (pu)
+    \node[drstep, fill=black!6] (rst) {Hardware reset (RST\#)};
+    \node[drstep, fill=black!6, below=of rst] (pu)
       {POWER\_UP (crystal / clock args)};
-    \node[step, fill=black!6, below=of pu] (li1) {LOAD\_INIT};
-    \node[step, fill=black!8, below=of li1] (patch)
+    \node[drstep, fill=black!6, below=of pu] (li1) {LOAD\_INIT};
+    \node[drstep, fill=black!8, below=of li1] (patch)
       {HOST\_LOAD \texttt{rom\_patch\_016.bin} (124 B chunks)};
-    \node[step, fill=black!6, below=of patch] (li2) {LOAD\_INIT};
-    \node[step, fill=black!8, below=of li2] (img)
+    \node[drstep, fill=black!6, below=of patch] (li2) {LOAD\_INIT};
+    \node[drstep, fill=black!8, below=of li2] (img)
       {HOST\_LOAD \texttt{dab\_} or \texttt{fm\_firmware.bin}
        (2044 B chunks)};
-    \node[step, fill=black!6, below=of img] (boot) {BOOT};
-    \node[step, fill=black!10, below=of boot] (cfg)
+    \node[drstep, fill=black!6, below=of img] (boot) {BOOT};
+    \node[drstep, fill=black!10, below=of boot] (cfg)
       {Properties: I\textsuperscript{2}S 44.1 kHz, RDS/DAB FE, volume};
     \foreach \a/\b in {rst/pu, pu/li1, li1/patch, patch/li2, li2/img,
       img/boot, boot/cfg} {

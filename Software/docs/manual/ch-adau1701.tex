@@ -114,17 +114,17 @@ the DSP program and writes it into RAM after each reset.
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}[
-      step/.style={draw, rounded corners, minimum width=9.5cm,
+      drstep/.style={draw, rounded corners, minimum width=9.5cm,
         minimum height=0.9cm, align=center, font=\small},
       >={Latex}, node distance=3mm]
-    \node[step, fill=black!6] (rst) {Assert RESET\# (10\,ms), release};
-    \node[step, fill=black!6, below=of rst] (i2c)
+    \node[drstep, fill=black!6] (rst) {Assert RESET\# (10\,ms), release};
+    \node[drstep, fill=black!6, below=of rst] (i2c)
       {Create I\textsuperscript{2}C master @ 100\,kHz, address 0x34};
-    \node[step, fill=black!8, below=of i2c] (dl)
+    \node[drstep, fill=black!8, below=of i2c] (dl)
       {Replay \texttt{DspProgram} from flash or embedded export};
-    \node[step, fill=black!6, below=of dl] (ready)
+    \node[drstep, fill=black!6, below=of dl] (ready)
       {\texttt{Adau1701Driver::isBooted()} = true};
-    \node[step, fill=black!10, below=of ready] (prof)
+    \node[drstep, fill=black!10, below=of ready] (prof)
       {\texttt{AudioService::loadAndApply()} --- safeload user profile};
     \foreach \a/\b in {rst/i2c, i2c/dl, dl/ready, ready/prof} {
       \draw[->] (\a) -- (\b);

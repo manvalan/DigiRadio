@@ -90,17 +90,17 @@ Line-In path is ready before Wi-Fi starts.
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}[
-      step/.style={draw, rounded corners, minimum width=9.5cm,
+      drstep/.style={draw, rounded corners, minimum width=9.5cm,
         minimum height=0.9cm, align=center, font=\small},
       >={Latex}, node distance=3mm]
-    \node[step, fill=black!6] (sys) {SYS\_CTL high, RESET\# pulse};
-    \node[step, fill=black!6, below=of sys] (uart)
+    \node[drstep, fill=black!6] (sys) {SYS\_CTL high, RESET\# pulse};
+    \node[drstep, fill=black!6, below=of sys] (uart)
       {Install UART2 @ 115200, RTS/CTS};
-    \node[step, fill=black!8, below=of uart] (at)
+    \node[drstep, fill=black!8, below=of uart] (at)
       {Send \texttt{AT} --- expect OK};
-    \node[step, fill=black!10, below=of at] (aux)
+    \node[drstep, fill=black!10, below=of at] (aux)
       {Send \texttt{AT+AUXCFG=1} --- expect OK (Line-In)};
-    \node[step, fill=black!6, below=of aux] (done)
+    \node[drstep, fill=black!6, below=of aux] (done)
       {\texttt{Bt1035Driver::isBooted()} = true};
     \foreach \a/\b in {sys/uart, uart/at, at/aux, aux/done} {
       \draw[->] (\a) -- (\b);

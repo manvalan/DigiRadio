@@ -35,11 +35,20 @@
   \renewcommand{\familydefault}{\sfdefault} % Biolinum as body (Optima-like)
 \else
   \RequirePackage{fontspec}
-  % Real Optima on macOS; change the name if yours differs.
+  \defaultfontfeatures{Ligatures=TeX}
+  % Real Optima on macOS; TeX Gyre Heros ships with TeX Live as fallback.
   \IfFontExistsTF{Optima}{%
     \setmainfont{Optima}%
   }{%
-    \setmainfont{Linux Biolinum O}% fallback if Optima not installed
+    \IfFontExistsTF{TeX Gyre Heros}{%
+      \setmainfont{TeX Gyre Heros}%
+    }{%
+      \IfFontExistsTF{TeXGyreHeros}{%
+        \setmainfont{TeXGyreHeros}%
+      }{%
+        \setmainfont{Latin Modern Sans}%
+      }%
+    }%
   }
 \fi
 
