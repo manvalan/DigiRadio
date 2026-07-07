@@ -8,7 +8,7 @@ preset index in the `digiradio` NVS namespace. Firmware **0.8.3+** enables:
 | Flash encryption | `CONFIG_SECURE_FLASH_ENC_ENABLED` | On-chip transparent flash ciphertext |
 | Mode (default) | `CONFIG_SECURE_FLASH_ENCRYPTION_MODE_DEVELOPMENT` | Plaintext download still allowed for bring-up |
 | NVS encryption | `CONFIG_NVS_ENCRYPTION` | XTS-AES over NVS entries; keys in `nvs_keys` partition |
-| Partition table | `partitions.csv` | `nvs` @ 0x9000, `nvs_keys` @ 0xf000 |
+| Partition table | `partitions.csv` | `nvs`, `otadata`, `ota_0`/`ota_1`, `dsp`, `nvs_keys` |
 
 Implementation: `secure_store::initEncryptedStorage()` (called from
 `NetBootstrap` before any `NvsSecureStore` access). With `CONFIG_NVS_ENCRYPTION`,

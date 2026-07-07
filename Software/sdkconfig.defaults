@@ -4,9 +4,12 @@
 
 CONFIG_IDF_TARGET="esp32s3"
 
-# Custom partition table (nvs + nvs_keys for encrypted storage)
+# Custom partition table (nvs, otadata, OTA slots, dsp blob, nvs_keys)
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# OTA rollback: mark app valid only after esp_ota_mark_app_valid_cancel_rollback()
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
 # Flash encryption — DEVELOPMENT mode (re-flash plaintext until eFuse policy set)
 CONFIG_SECURE_FLASH_ENC_ENABLED=y

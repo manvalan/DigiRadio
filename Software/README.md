@@ -120,7 +120,7 @@ Wire schemas: [`docs/manual/ch-api.tex`](docs/manual/ch-api.tex) · C++ API:
 | `components/secure_store/` | Encrypted NVS: credentials, profiles, presets |
 | `components/net/` | Wi-Fi, HTTP server, gzipped web UI |
 | `sdkconfig.defaults` | C++23, NVS + flash encryption (dev mode) |
-| `partitions.csv` | `nvs` + `nvs_keys` partitions |
+| `partitions.csv` | `nvs`, `otadata`, dual OTA (`ota_0`/`ota_1`), `dsp` blob, `nvs_keys` |
 | `docs/manual/` | LaTeX technical manual |
 | `docs/security-flash-nvs.md` | Encryption + device HIL checklist |
 | `docs/TODO.md` | Completed tasks + HIL backlog |
