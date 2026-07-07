@@ -517,7 +517,7 @@ Software/
 ├── AGENTS.md  Doxyfile  instructions.md
 ├── CMakeLists.txt            top-level ESP-IDF project
 ├── sdkconfig.defaults        C++23, exceptions off, flash/NVS encryption
-├── partitions.csv            includes an encrypted NVS partition
+├── partitions.csv            nvs, otadata, ota_0/ota_1, dsp blob, nvs_keys
 ├── .cursor/rules/*.mdc
 ├── main/                     imperative shell entry (app_main)
 ├── components/
