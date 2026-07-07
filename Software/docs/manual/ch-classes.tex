@@ -183,6 +183,30 @@ audio control to safeload I\textsuperscript{2}C transactions without exposing
 parameter RAM addresses to services (Chapter~\ref{ch:adau1701},
 Section~\ref{sec:adau1701-stack}).
 
+\section{RegisterWrite}\label{cls:RegisterWrite}
+One SigmaStudio \texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} step: 16-bit address
+plus payload bytes. Aggregated by \texttt{DspProgram}.
+
+\section{DspProgram}\label{cls:DspProgram}
+Ordered ADAU1701 RAM download script (pure domain). Parsed from a framed
+\texttt{DRAD} flash blob or built by \texttt{EmbeddedDspProgramSource}.
+
+\section{IDspProgramSource}\label{cls:IDspProgramSource}
+Port supplying \texttt{DspProgram} to \texttt{Adau1701Driver::boot()}.
+Implementations: flash partition, embedded export, and fallback composite.
+
+\section{EmbeddedDspProgramSource}\label{cls:EmbeddedDspProgramSource}
+Builds the factory \texttt{DspProgram} from \texttt{DigiRadio\_IC\_1.h}
+(five writes matching \texttt{default\_download\_IC\_1()}).
+
+\section{FlashDspProgramSource}\label{cls:FlashDspProgramSource}
+Reads and parses the \texttt{dsp} flash partition; \texttt{storeBlob()} erases
+and writes a validated blob from \texttt{POST /api/dsp/program}.
+
+\section{FallbackDspProgramSource}\label{cls:FallbackDspProgramSource}
+Tries \texttt{FlashDspProgramSource} first, then
+\texttt{EmbeddedDspProgramSource} when the partition is empty or invalid.
+
 % ------------------------------------------------------------------
 % Domain core — audio (Slice 5)
 % ------------------------------------------------------------------

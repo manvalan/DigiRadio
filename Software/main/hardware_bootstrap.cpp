@@ -15,6 +15,9 @@
 
 #include "adau1701/Adau1701Driver.hpp"
 #include "adau1701/Adau1701Dsp.hpp"
+#include "adau1701/EmbeddedDspProgramSource.hpp"
+#include "adau1701/FallbackDspProgramSource.hpp"
+#include "adau1701/FlashDspProgramSource.hpp"
 #include "audio/AudioService.hpp"
 #include "board_pins.hpp"
 #include "bt1035/Bt1035Driver.hpp"
@@ -51,13 +54,19 @@ si4684::Si4684Driver gSi4684(
     gImages.fmFirmware());
 si4684::Si4684Tuner gSi4684Tuner(gSi4684);
 
+adau1701::EmbeddedDspProgramSource gEmbeddedDspProgram;
+adau1701::FlashDspProgramSource gFlashDspProgram;
+adau1701::FallbackDspProgramSource gDspProgramSource(
+    gFlashDspProgram, gEmbeddedDspProgram);
+
 adau1701::Adau1701Driver gAdau1701(
     adau1701::Adau1701Pins{
         .i2cSda = board::pins::Adau1701Sda,
         .i2cScl = board::pins::Adau1701Scl,
         .resetGpio = board::pins::Adau1701Reset,
         .i2cAddr7 = board::pins::Adau1701Addr,
-    });
+    },
+    gDspProgramSource);
 adau1701::Adau1701Dsp gAdau1701Dsp(gAdau1701);
 secure_store::NvsAudioProfileStore gAudioStore;
 audio::AudioService gAudioService(gAdau1701Dsp, &gAudioStore);

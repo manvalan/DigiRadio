@@ -225,6 +225,26 @@ the ADAU1701 and writes NVS key \texttt{audio\_profile\_json}.
 HTTP status: \textbf{200 OK}; \textbf{400} for parse/validation failures;
 \textbf{500} when safeload or NVS persistence fails.
 
+\subsection{\texttt{POST /api/dsp/program}}
+\label{sec:api-dsp-program}
+
+Uploads a framed ADAU1701 RAM download blob (\texttt{DRAD} v1, see
+\texttt{core::parseDspProgramBlob()}). The body is raw bytes
+(\texttt{application/octet-stream} or any content type). On success the blob
+is written to the \texttt{dsp} flash partition and the device reboots; the
+next boot replays the new program before \texttt{loadAndApply()}.
+
+\begin{drnote}[Success response]
+\begin{drcode}[JSON]
+{"status":"stored","reboot_sec":3}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{400} with \texttt{\{"error":"..."\}}
+for invalid/truncated/CRC failures; \textbf{413} when the body exceeds
+200\,KiB; \textbf{500} on flash write failure. Pack blobs with
+\texttt{tools/pack\_dsp\_program.py} or \texttt{core::serializeDspProgramBlob()}.
+
 \subsection{\texttt{POST /api/audio/reset}}
 \label{sec:api-audio-reset}
 

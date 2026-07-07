@@ -16,6 +16,7 @@
 #include "adau1701/Adau1701ParamMap.hpp"
 
 #include "core/BiquadDesign.hpp"
+#include "core/DspProgram.hpp"
 
 #include "DigiRadio_IC_1_PARAM.h"
 #include "SigmaStudioFW.h"
@@ -28,9 +29,6 @@
 
 extern "C" {
 
-/** @brief SigmaStudio default program download (generated C, not part of the C++ API). */
-void adau1701_run_default_download(void);
-
 } // extern "C"
 
 namespace adau1701 {
@@ -42,8 +40,10 @@ constexpr int kI2cPort = 0;
 constexpr std::uint8_t kFixedHighPassBandIndex = 0U;
 } // namespace
 
-Adau1701Driver::Adau1701Driver(Adau1701Pins pins)
+Adau1701Driver::Adau1701Driver(Adau1701Pins pins,
+                               core::IDspProgramSource& programSource)
     : pins_(pins)
+    , programSource_(programSource)
     , booted_(false)
     , i2cBus_(nullptr)
     , i2cDev_(nullptr)
@@ -60,6 +60,26 @@ Adau1701Driver::~Adau1701Driver()
     if (bus != nullptr) {
         i2c_del_master_bus(bus);
     }
+}
+
+std::expected<void, Adau1701Error> Adau1701Driver::replayProgram(
+    const core::DspProgram& program)
+{
+    const unsigned char deviceAddr =
+        static_cast<unsigned char>(pins_.i2cAddr7 << 1);
+    for (const core::RegisterWrite& write : program.writes()) {
+        const auto data = write.data();
+        if (data.empty()) {
+            return std::unexpected(Adau1701Error::DownloadFailed);
+        }
+        SIGMA_WRITE_REGISTER_BLOCK(
+            deviceAddr,
+            write.address(),
+            static_cast<unsigned int>(data.size()),
+            const_cast<ADI_REG_TYPE*>(
+                reinterpret_cast<const ADI_REG_TYPE*>(data.data())));
+    }
+    return {};
 }
 
 std::expected<void, Adau1701Error> Adau1701Driver::boot()
@@ -110,7 +130,14 @@ std::expected<void, Adau1701Error> Adau1701Driver::boot()
     sigma_studio_bind_i2c(kI2cPort, static_cast<unsigned char>(pins_.i2cAddr7));
     sigma_studio_set_device(dev);
 
-    adau1701_run_default_download();
+    const auto program = programSource_.loadProgram();
+    if (!program) {
+        ESP_LOGE(kTag, "DSP program load failed");
+        return std::unexpected(Adau1701Error::DownloadFailed);
+    }
+    if (auto replay = replayProgram(*program); !replay) {
+        return replay;
+    }
 
     booted_ = true;
     ESP_LOGI(kTag, "SigmaStudio program loaded");
