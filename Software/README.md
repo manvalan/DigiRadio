@@ -2,7 +2,7 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.8.2** — tabbed Web UI (now-playing, 6-band EQ, all APIs);
+**Status:** fw **0.8.3** — NVS + flash encryption (dev mode); tabbed Web UI;
 `IntegrationService`; **13** host tests; CI on `main`.
 See [`docs/TODO.md`](docs/TODO.md) for the agent task list.
 
@@ -14,6 +14,7 @@ Open this directory (`Software/`) as the Cursor project so `AGENTS.md` and
 ```bash
 idf.py set-target esp32s3
 idf.py build
+idf.py erase-flash flash   # once when upgrading to encrypted NVS (0.8.3+)
 idf.py -p <port> flash monitor
 ```
 
@@ -41,7 +42,7 @@ Manual PDF (design + HTTP API + class reference):
 cd docs/manual && latexmk -lualatex manual.tex
 ```
 
-## HTTP API (fw 0.8.2)
+## HTTP API (fw 0.8.3)
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -79,6 +80,7 @@ C++ signatures: `doxygen Doxyfile` → `docs/api/html/index.html`.
 | `components/services/` | Tuner, audio, Bluetooth, station, integration services |
 | `components/net/` | Wi-Fi, HTTP server, gzipped web UI |
 | `docs/manual/` | LaTeX technical manual (canonical) |
+| `docs/security-flash-nvs.md` | NVS + flash encryption and HIL checklist |
 | `docs/TODO.md` | Agent task list (prioritised backlog) |
 
 See [`AGENTS.md`](AGENTS.md) §12 and [`instructions.md`](instructions.md) for

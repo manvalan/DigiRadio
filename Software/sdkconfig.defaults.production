@@ -1,0 +1,11 @@
+# DigiRadio — production security overlay (apply on top of sdkconfig.defaults)
+#
+# Build example:
+#   cp sdkconfig.defaults.production sdkconfig.defaults.release
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.release" build
+#
+# WARNING: RELEASE flash encryption is irreversible on the chip. Test on a
+# dedicated unit after HIL validation in development mode (T8 checklist).
+
+CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE=y
+CONFIG_SECURE_FLASH_ENCRYPTION_MODE_DEVELOPMENT=n
