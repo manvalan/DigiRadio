@@ -64,7 +64,8 @@ itself.
     \node[layer, fill=black!8, below=of shell] (services) {%
       \textbf{Application services}\\[2pt]
       TunerService \textbullet\ AudioService \textbullet\
-      ConfigService \textbullet\ NetworkService};
+      StationService \textbullet\ BluetoothService \textbullet\
+      IntegrationService};
     \node[layer, fill=black!12, below=of services] (core) {%
       \textbf{Domain core (pure, host-tested)}\\[2pt]
       Station \textbullet\ Frequency \textbullet\ EqProfile \textbullet\
@@ -165,23 +166,31 @@ through \texttt{core::ISecureStore}, and the device reboots into STA mode
 on the next boot. The HTTP endpoints and JSON schemas are documented in
 Chapter~\ref{ch:api}.
 
-\paragraph{Implemented (Slices~1--2).}
+\paragraph{Implemented (fw 0.8.3).}
 \begin{itemize}
-  \item \texttt{GET /api/health} --- health DTO
-        (\texttt{core::HealthStatus}, serialised in the pure core).
-  \item \texttt{POST /api/wifi} --- Wi-Fi provisioning
-        (\texttt{core::WifiCredentials} via \texttt{parseWifiProvisionJson}).
-  \item \texttt{secure\_store::NvsSecureStore} --- NVS persistence for
-        SSID and PSK (\texttt{core::Secret}); station list and user
-        credentials arrive in later slices on the same
-        \texttt{ISecureStore} interface.
+  \item \textbf{Network} --- \texttt{GET /api/health}, \texttt{POST /api/wifi},
+        SoftAP/STA state machine (\texttt{NetState}), tabbed gzipped web UI.
+  \item \textbf{Tuner} --- \texttt{/api/tuner/*} (FM/DAB tune, seek, services,
+        play); RDS and DAB dynamic labels in status JSON.
+  \item \textbf{Audio} --- \texttt{/api/audio/*} (profile, reset, stereo/bass
+        enhance); six-band EQ via \texttt{AudioService}.
+  \item \textbf{Bluetooth} --- \texttt{/api/bluetooth/*} (pair, stop, disconnect,
+        status).
+  \item \textbf{Presets} --- \texttt{/api/stations/*} including reorder and
+        integrated recall via \texttt{IntegrationService}.
+  \item \textbf{Storage} --- \texttt{NvsSecureStore}, \texttt{NvsAudioProfileStore},
+        encrypted NVS + flash encryption (development mode); keys in
+        \texttt{nvs\_keys} partition; init via \texttt{initEncryptedStorage()}.
 \end{itemize}
 
-Sensitive data --- Wi-Fi credentials today; user credentials and the
-station/frequency list in later slices --- uses \texttt{core::Secret} so
-values cannot be logged or implicitly converted to a string; buffers are
-cleared on destruction. Firmware~0.8.3+ enables NVS and flash encryption at
-rest via \texttt{secure\_store::initEncryptedStorage()} (see
+\paragraph{Legacy note (Slices 1--2).}
+The first slices introduced health, Wi-Fi provisioning, and the secure-store
+boundary; the bullets above supersede the original slice-scoped list.
+
+Sensitive data uses \texttt{core::Secret} where applicable so values cannot
+be logged or implicitly converted to a string; buffers are cleared on
+destruction. Firmware~0.8.3 enables NVS and flash encryption at rest via
+\texttt{secure\_store::initEncryptedStorage()} (see
 \texttt{docs/security-flash-nvs.md} and Chapter~\ref{sec:api-storage}).
 
 \section{Companion-chip boot at power-up}

@@ -16,16 +16,15 @@ added in the same change that introduces the class. A tooling check keeps
 this chapter in step with the code, so it is always current.
 \end{drnote}
 
-The firmware is under active development. As each public class lands, its
-section appears below, grouped by layer: domain core, application
-services, and hardware drivers.
+The class reference tracks firmware~0.8.3 on \texttt{main}. Public classes
+are grouped by layer: domain core, application services, and hardware drivers.
 
 % ------------------------------------------------------------------
 % Domain core (Slice 1)
 % ------------------------------------------------------------------
 
 \section{FirmwareVersion}\label{cls:FirmwareVersion}
-Strong type wrapping the firmware release identifier (e.g.\ \texttt{0.1.0}).
+Strong type wrapping the firmware release identifier (e.g.\ \texttt{0.8.3}).
 Used by \texttt{HealthStatus} and the \texttt{/api/health} endpoint so
 version strings are never passed as bare \texttt{char*} across module
 boundaries. Invariant: non-empty at construction.
@@ -65,11 +64,10 @@ tuner via \texttt{tuner::TunerService}; audio via
 presets via \texttt{station::StationService}.
 
 \section{NetBootstrap}\label{cls:NetBootstrap}
-Owns network resources for setup or STA mode.
-\texttt{start(store, tuner)} initialises the platform, joins stored Wi-Fi
-when credentials exist, or falls back to the \texttt{DigiRadio-setup}
-SoftAP. Must outlive \texttt{app\_main} for the process lifetime.
-\texttt{start(store, tuner, audio)} also wires the audio REST routes.
+Owns network resources for setup or STA mode. Initialises encrypted NVS via
+\texttt{secure\_store::initEncryptedStorage()}, then Wi-Fi and the HTTP server.
+Wires tuner, audio, Bluetooth, station, and integration services into REST
+handlers. Must outlive \texttt{app\_main} for the process lifetime.
 
 % ------------------------------------------------------------------
 % Domain core + secure store (Slice 2)
@@ -89,9 +87,11 @@ Domain value pairing \texttt{WifiSsid} with a \texttt{Secret} password.
 Open networks use an empty password; WPA-PSK requires 8--63 characters.
 
 \section{ISecureStore}\label{cls:ISecureStore}
-Abstract persistence boundary for credentials at rest. Slice~2 implements
-Wi-Fi credential save/load/clear; station list and user credentials arrive
-in later slices. Host tests use fakes; the shell uses \texttt{NvsSecureStore}.
+Abstract persistence boundary for credentials and preset data at rest.
+Wi-Fi credentials, station list JSON, and last-preset index use
+\texttt{NvsSecureStore}; audio profiles use \texttt{NvsAudioProfileStore}.
+Host tests use fakes; the shell uses NVS backends after
+\texttt{initEncryptedStorage()}.
 
 \section{StaClient}\label{cls:StaClient}
 RAII STA join helper with an explicit connect timeout. Assumes

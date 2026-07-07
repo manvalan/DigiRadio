@@ -300,8 +300,8 @@ Layered, dependencies point inward only:
 ```
   Shell (imperative): drivers, web server, NVS, tasks, ISRs
       — thin, no business logic                         [ESP-IDF, HW]
-  Application services: TunerService, AudioService,
-      ConfigService, NetworkService                     [orchestration]
+  Application services: TunerService, AudioService, StationService,
+      BluetoothService, IntegrationService          [orchestration]
   Domain core (pure, host-testable): Station, Frequency,
       EqProfile, MixerState, Credential, boot-blob
       framing, validation                               [no HW headers]
@@ -420,11 +420,12 @@ Layered, dependencies point inward only:
 
 ### 7.5 Secure storage
 
-- Stores: Wi-Fi SSID + password, user credentials (name + password),
-  station/frequency list. **Encrypted at rest** — use NVS encryption on
-  an encrypted partition (with flash encryption enabled), or encrypt
-  payloads with a device key held in eFuse. Confirm the chosen mechanism
-  against current ESP-IDF security docs before implementing.
+- Stores: Wi-Fi SSID + password, station/frequency list, audio profiles,
+  last-preset index. **Encrypted at rest** — NVS encryption with flash
+  encryption enabled in `sdkconfig.defaults` (development mode); keys in
+  `nvs_keys` partition; init via `secure_store::initEncryptedStorage()`.
+  Production release mode: `sdkconfig.defaults.production`. See
+  `docs/security-flash-nvs.md`.
 - **Secrets never leave their type.** A `Secret` wrapper: no `operator<<`,
   no implicit conversion to a loggable string, buffer zeroised on
   destruction. Secrets are never logged, never placed in URLs, never
@@ -537,11 +538,11 @@ ESP-IDF header, so the host build stays hardware-free.
 
 ### Commands
 
-Device build / flash / monitor:
+Device build / flash / monitor (first encrypted flash: erase once):
 ```
 idf.py set-target esp32s3
 idf.py build
-idf.py -p <port> flash monitor
+idf.py erase-flash flash monitor
 ```
 
 Host unit tests (pure core; needs a C++23 stdlib compiler):
@@ -552,9 +553,11 @@ cmake --build build-host
 ctest --test-dir build-host --output-on-failure
 ```
 
-Docs (must exit 0, empty warnings log):
+Docs and policy (must exit 0, from `Software/`):
 ```
 doxygen Doxyfile
+python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
 ```
 
 ### Host toolchain note (macOS)

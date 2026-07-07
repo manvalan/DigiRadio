@@ -84,7 +84,7 @@ Vertical slices landed on `main` (newest first):
 | Version | Highlights |
 |---------|------------|
 | **0.8.3** | NVS + flash encryption (development mode), `initEncryptedStorage`, security docs |
-| **0.8.2** | Tabbed configuration Web UI — now-playing, 6-band EQ, full API coverage |
+| **0.8.2** | Tabbed Web UI + Si4684 blob CI policy |
 | **0.8.1** | `IntegrationService` — boot preset recall, tune orchestration (tuner + audio + NVS `last_preset`); services stub removed |
 | **0.8.0** | Preset reorder API/UI; broadcast metadata (RDS + DAB DLS); `readDabServiceData` driver path |
 | **0.7.1** | CI workflow (host tests, Doxygen, manual sync); Doxygen warnings cleared |
@@ -101,7 +101,7 @@ Vertical slices landed on `main` (newest first):
 
 ```
 DigiRadio/
-├── .github/workflows/        CI — host tests, Doxygen, manual class sync
+├── .github/workflows/        CI — host tests, Doxygen, manual sync, Si4684 blob policy
 ├── Hardware/
 │   ├── schematics/           Schematic (PDF)
 │   ├── gerber/               Gerber + drill (fabrication)
@@ -121,7 +121,8 @@ DigiRadio/
 │   │   └── net/              Wi-Fi, HTTP server, gzipped web UI
 │   ├── docs/
 │   │   ├── manual/           LaTeX technical manual (canonical)
-│   │   └── TODO.md           Prioritised firmware backlog
+│   │   ├── security-flash-nvs.md  NVS/flash encryption + HIL checklist
+│   │   └── TODO.md           Agent backlog and completed tasks
 │   ├── Firmware/             Si4684 blobs + ADAU1701 SigmaStudio export
 │   ├── main/                 app_main, hardware bootstrap
 │   └── tools/                Manual sync checker, Si4684 blob helpers
@@ -148,7 +149,8 @@ Open **`Software/`** as the Cursor project so `AGENTS.md` and `.cursor/rules/` l
 cd Software
 idf.py set-target esp32s3
 idf.py build
-idf.py -p <port> flash monitor
+idf.py erase-flash flash   # once when first enabling encryption (0.8.3+)
+idf.py -p <port> monitor
 ```
 
 Host unit tests (no hardware):
@@ -167,6 +169,7 @@ Quality gates (also enforced in CI):
 cd Software
 doxygen Doxyfile
 python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
 ```
 
 Full build notes, API table, and component map: [`Software/README.md`](Software/README.md).
@@ -225,10 +228,8 @@ Generated C++ API reference: run `doxygen Doxyfile` → `Software/docs/api/html/
 | **Prototype** | In fabrication (PCBWay) |
 | **Firmware** | **0.8.3** on `main` — encrypted NVS, full Web UI, integration, RDS/DLS |
 | **Web UI** | Tabbed SPA covering every REST endpoint |
-| **HIL** | Security checklist pending PCB (`Software/docs/security-flash-nvs.md`) |
-| **Production hardening** | Si4684 blob policy (T7), NVS encryption (T8) — open |
-
-Agent task list: [`Software/docs/TODO.md`](Software/docs/TODO.md).
+| **HIL** | Device validation pending PCB (`Software/docs/security-flash-nvs.md`) |
+| **Agent backlog** | Feature-complete on `main` (fw 0.8.3); see [`Software/docs/TODO.md`](Software/docs/TODO.md) |
 
 ---
 

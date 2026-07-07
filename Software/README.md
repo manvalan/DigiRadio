@@ -83,8 +83,9 @@ C++ signatures: `doxygen Doxyfile` → `docs/api/html/index.html`.
 | `docs/security-flash-nvs.md` | NVS + flash encryption and HIL checklist |
 | `docs/TODO.md` | Agent task list (prioritised backlog) |
 
-See [`AGENTS.md`](AGENTS.md) §12 and [`instructions.md`](instructions.md) for
-coding rules and slice roadmap.
+See [`AGENTS.md`](AGENTS.md), [`instructions.md`](instructions.md),
+[`docs/security-flash-nvs.md`](docs/security-flash-nvs.md), and
+[`docs/TODO.md`](docs/TODO.md) for coding rules, security, and backlog.
 
 ## Licence
 
