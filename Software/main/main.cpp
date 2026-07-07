@@ -15,6 +15,7 @@
 #include "bluetooth/BluetoothService.hpp"
 #include "integration/IntegrationService.hpp"
 #include "net/NetBootstrap.hpp"
+#include "ota/OtaService.hpp"
 #include "secure_store/NvsSecureStore.hpp"
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
@@ -78,6 +79,8 @@ extern "C" void app_main()
     static bluetooth::BluetoothService bluetoothService(
         hardware::HardwareBootstrap::bt1035Driver());
 
+    static ota::OtaService otaService;
+
     auto netResult = net::NetBootstrap::start(
         store,
         tunerService,
@@ -85,6 +88,7 @@ extern "C" void app_main()
         bluetoothService,
         stationService,
         integration,
+        otaService,
         hardware::HardwareBootstrap::companionChipStatus(),
         hardware::HardwareBootstrap::deviceIdentity());
     if (!netResult) {
@@ -93,6 +97,10 @@ extern "C" void app_main()
     }
 
     static net::NetBootstrap net = std::move(netResult.value());
+
+    if (auto confirmed = ota::OtaService::confirmBoot(); !confirmed) {
+        ESP_LOGW(kTag, "OTA rollback confirm failed");
+    }
 
     if (xTaskCreate(heartbeatTask, "heartbeat", 2048, nullptr, 5, nullptr)
         != pdPASS) {

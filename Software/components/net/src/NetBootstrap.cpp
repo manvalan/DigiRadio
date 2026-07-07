@@ -101,6 +101,7 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
                bluetooth::BluetoothService& bluetooth,
                station::StationService& stations,
                integration::IntegrationService& integration,
+               ota::OtaService& ota,
                core::CompanionChipStatus companionChips,
                const core::DeviceIdentity& deviceIdentity)
 {
@@ -114,8 +115,8 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::SoftApSetup, tuner, audio,
-                            bluetooth, stations, integration, companionChips,
-                            deviceIdentity);
+                            bluetooth, stations, integration, ota,
+                            companionChips, deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -144,6 +145,7 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
              bluetooth::BluetoothService& bluetooth,
              station::StationService& stations,
              integration::IntegrationService& integration,
+             ota::OtaService& ota,
              core::CompanionChipStatus companionChips,
              const core::DeviceIdentity& deviceIdentity)
 {
@@ -165,8 +167,8 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::StaConnected, tuner, audio,
-                            bluetooth, stations, integration, companionChips,
-                            deviceIdentity);
+                            bluetooth, stations, integration, ota,
+                            companionChips, deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -186,6 +188,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
                     bluetooth::BluetoothService& bluetooth,
                     station::StationService& stations,
                     integration::IntegrationService& integration,
+                    ota::OtaService& ota,
                     core::CompanionChipStatus companionChips,
                     const core::DeviceIdentity& deviceIdentity)
 {
@@ -199,7 +202,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
 
     if (store.hasWifiCredentials()) {
         auto staResult = startStaMode(store, tuner, audio, bluetooth, stations,
-                                      integration, companionChips,
+                                      integration, ota, companionChips,
                                       deviceIdentity);
         if (staResult) {
             return staResult;
@@ -208,7 +211,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
     }
 
     return startSetupMode(store, tuner, audio, bluetooth, stations, integration,
-                          companionChips, deviceIdentity);
+                          ota, companionChips, deviceIdentity);
 }
 
 NetBootstrap::NetBootstrap(std::optional<SoftApHost> softAp,

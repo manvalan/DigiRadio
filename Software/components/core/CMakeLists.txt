@@ -37,6 +37,7 @@ idf_component_register(
         "src/DspProgram.cpp"
         "src/RegisterWrite.cpp"
         "src/DspProgramBlob.cpp"
+        "src/OtaAppDescriptor.cpp"
     INCLUDE_DIRS "include"
 )
 

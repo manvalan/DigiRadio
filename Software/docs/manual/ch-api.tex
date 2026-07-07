@@ -245,6 +245,29 @@ for invalid/truncated/CRC failures; \textbf{413} when the body exceeds
 200\,KiB; \textbf{500} on flash write failure. Pack blobs with
 \texttt{tools/pack\_dsp\_program.py} or \texttt{core::serializeDspProgramBlob()}.
 
+\subsection{\texttt{POST /api/system/ota}}
+\label{sec:api-system-ota}
+
+Streams a raw ESP-IDF application \texttt{.bin} into the inactive OTA slot
+(\texttt{ota\_0}/\texttt{ota\_1}). The body is raw bytes; the server validates
+the embedded \texttt{esp\_app\_desc\_t} at offset~0x20 (magic and
+\texttt{project\_name == "digiradio"}) while streaming. On success the new
+slot is selected and the device reboots; the first healthy boot after Wi-Fi
+and HTTP are up calls
+\texttt{ota::OtaService::confirmBoot()} to cancel rollback.
+
+\begin{drnote}[Success response]
+\begin{drcode}[JSON]
+{"status":"stored","reboot_sec":3}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{400} with \texttt{\{"error":"..."\}}
+for invalid project/magic or flash write failures;
+\textbf{413} when the body exceeds 1.7\,MiB (\texttt{0x1B0000});
+\textbf{500} on \texttt{esp\_ota\_end}/set-boot failures. Push with
+\texttt{curl --data-binary @build/digiradio.bin}.
+
 \subsection{\texttt{POST /api/audio/reset}}
 \label{sec:api-audio-reset}
 
