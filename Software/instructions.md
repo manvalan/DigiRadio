@@ -2,7 +2,10 @@
 
 Read this together with `AGENTS.md` and everything under
 `.cursor/rules/`. Those define *how* to write code; this file defines
-*what we are building* and *what to do first*.
+*what we are building* and the current state on `main`.
+
+**Firmware on `main`:** **0.8.3** — all agent tasks T1–T8 complete; device
+HIL pending PCB arrival.
 
 ## What DigiRadio is
 
@@ -15,8 +18,8 @@ ESP32-S3 and coordinates three companion chips:
 - **FSC-BT1035 (QCC3056)** — Bluetooth 5.2 out with aptX Adaptive,
   controlled by AT commands over UART.
 
-Plus: an elegant, essential web UI for network configuration; encrypted
-storage for Wi-Fi and user credentials and the station list.
+Plus: tabbed web UI for provisioning and control; **encrypted NVS** for
+Wi-Fi credentials, presets, audio profiles, and last-preset index.
 
 Repository: https://github.com/manvalan/DigiRadio
 
@@ -29,116 +32,72 @@ Repository: https://github.com/manvalan/DigiRadio
 | Errors      | `std::expected<T, Error>` (native); exceptions OFF    |
 | DSP boot    | ESP32 writes ADAU1701 RAM at every boot (no EEPROM)   |
 | Architecture| Functional core (pure, host-tested) + imperative shell|
-| Docs        | Doxygen, build must exit 0 (enforced)                 |
+| Security    | NVS + flash encryption (dev mode); see `docs/security-flash-nvs.md` |
+| Docs        | Doxygen + LaTeX manual sync (CI enforced)             |
 | HW licence  | CERN-OHL-S v2 · FW licence: Apache-2.0                |
+
+## Roadmap status
+
+| Slice / task | Status | Notes |
+|--------------|--------|-------|
+| 1 Walking skeleton | Done | SoftAP, gzipped UI, `/api/health` |
+| 2 Secure store + Wi-Fi | Done | `ISecureStore`, STA provisioning |
+| 3 Companion-chip boot | Done | Si4684 + ADAU1701 from `Firmware/` |
+| 4 Station presets | Done (0.7.0) | NVS `station_list`, full `/api/stations/*` |
+| 5 ADAU1701 runtime | Done | EQ, mixer, enhancements, audio API |
+| 6 Si4684 tuning | Done | FM/DAB tune, seek, RSQ, RDS, DAB services/DLS |
+| 7 BT1035 | Mostly done | Pairing, A2DP stat/disconnect; name/plist AT open |
+| 8 Integration | Done (0.8.1) | `IntegrationService`, last-preset NVS |
+| T6 Web UI | Done (0.8.2) | Tabbed SPA, all REST endpoints |
+| T7 Si4684 blobs | Done (0.8.2) | Local-only `.bin`, CI policy check |
+| T8 NVS encryption | Done (0.8.3) | `initEncryptedStorage`; HIL when PCB ready |
+
+Next work: **hardware-in-the-loop** (`docs/TODO.md` § P4), not new features
+unless the user requests them.
 
 ## Working agreement
 
-- **Confirm understanding before writing code.** On kickoff, summarise
-  the plan and list any blockers or unclear hardware invariants first.
-- **Blockers first**, always. State risks before solutions.
-- **One vertical slice at a time.** `main` always builds and runs.
-- Every file gets the Apache header; every class/method its doc block;
-  `doxygen Doxyfile` stays green. Small commits, 50/72 messages.
-- Never invent a register/opcode/boot step — cite the datasheet or stop.
-
-## Roadmap (slices, in order)
-
-1. **Walking skeleton** — done (Slice 1).
-2. **Secure store + Wi-Fi provisioning** — done (Slice 2).
-3. **Companion-chip boot** — done (Slice 3): Si4684 DAB + ADAU1701 RAM load.
-4. **Station/frequency list model + persistence + UI** — done (fw 0.7.0):
-   `Station`/`StationList`, NVS key `station_list`, `/api/stations/*`, Presets UI.
-5. Si4684 tuning: RSQ, station list, DAB properties.
-6. **ADAU1701 runtime** — done (Slice 5): safeload EQ + input mixer + HTTP.
-7. **FSC-BT1035 driver** — init + pairing (AT+PAIR, A2DP stat/disconnect) done;
-   name/plist/reconnect AT still open.
-8. Integration: TunerService + AudioService end to end.
+- **Blockers first** — state risks before solutions.
+- **One vertical slice at a time** — `main` always builds; host tests green.
+- Apache header + Doxygen doc blocks on every file/class/method.
+- Never invent register/opcode/boot steps — cite the datasheet or stop.
+- After changes: `ctest`, `doxygen`, `check-manual-sync.py`, `check_si4684_blobs.py`.
 
 ## Slice 1 — Walking skeleton (complete)
 
-Goal: exercise the whole toolchain end to end with zero chip hardware,
-so every later slice drops into a working frame.
-
-Build:
-- Top-level ESP-IDF project targeting `esp32s3`.
-- `sdkconfig.defaults` sets C++23, exceptions off, NVS + flash encryption
-  (development mode). Production overlay: `sdkconfig.defaults.production`.
-- The `components/core` component compiles both under ESP-IDF and
-  standalone on the host.
-
-Behaviour:
-- `app_main` starts a FreeRTOS task that logs a heartbeat on a timer.
-- Bring up SoftAP with a known SSID (e.g. `DigiRadio-setup`).
-- Start an HTTP server serving one minimal gzipped page from flash.
-- Expose `GET /api/health` returning a typed DTO serialised by the pure
-  core, e.g. `{"status":"ok","fw":"0.3.0"}`.
-
-Documentation (required):
-- Doxygen doc blocks on every class/method; `doxygen Doxyfile` green.
-- Manual: class sections in `docs/manual/ch-classes.tex`;
-  HTTP API in `docs/manual/ch-api.tex`.
-- `python3 tools/check-manual-sync.py` green.
+- ESP-IDF `esp32s3`, C++23, `components/core` host-testable.
+- SoftAP `DigiRadio-setup`, gzipped page, `GET /api/health`.
+- Current health JSON includes `fw` (today **0.8.3**) and companion-chip flags.
 
 ## Slice 2 — Secure store + Wi-Fi STA (complete)
 
-Goal: persist Wi-Fi credentials and join the configured network after
-provisioning; fall back to SoftAP when no credentials or join fails.
-
-Build on Slice 1:
-- `core::ISecureStore` interface + `secure_store::NvsSecureStore` (NVS).
-- `core::Secret`, `WifiSsid`, `WifiCredentials`, `parseWifiProvisionJson`.
-- `net::StaClient`, `NetBootstrap::start(store)` state machine.
-- `POST /api/wifi` + provisioning form in the web UI; reboot after save.
-
-Acceptance criteria:
-- [x] Provisioning via SoftAP saves credentials and reboots; next boot joins STA.
-- [x] Host tests for health JSON and Wi-Fi provision parse/serialise.
-- [x] Doxygen green; manual sync green; `ch-api.tex` documents endpoints.
-- [x] No ESP-IDF headers in `components/core`.
-
-Out of scope for Slice 2: station list (later slices). NVS encryption landed
-in fw 0.8.3 — see `docs/security-flash-nvs.md`.
-(production), chip drivers.
+- `ISecureStore`, `NvsSecureStore`, `StaClient`, `NetBootstrap`.
+- `POST /api/wifi` + Wi-Fi tab in web UI.
+- NVS encryption enabled in fw 0.8.3 via `initEncryptedStorage()`.
 
 ## Slice 3 — Companion-chip boot (complete)
 
-Goal: load Si4684 DAB firmware and ADAU1701 SigmaStudio program from
-`Firmware/` on every boot, before network bring-up.
+- Si4684 blobs local-only (`tools/fetch_si4684_firmware.py`).
+- `Si4684Driver`, `Adau1701Driver`, `HardwareBootstrap` before network.
+- Device flash: pending HIL on first PCB.
 
-Build:
-- `Firmware/Si4684-Firmware/` — `rom_patch_016.bin`, `dab_firmware.bin`,
-  `fm_firmware.bin` (FM via `tools/fetch_si4684_firmware.py --si46xx-dir`).
-- `Firmware/ADAU1701-Firmware/` — SigmaStudio export (`DigiRadio_IC_1.h`, …).
-- `core::IFirmwareBlobReader` + `EmbeddedBlobReader` for chunked HOST_LOAD.
-- `si4684::Si4684Driver`, `adau1701::Adau1701Driver`, `HardwareBootstrap`.
+## Slices 4–8 — Presets, audio, tuner, BT, integration (complete)
 
-Behaviour:
-- `app_main` calls `HardwareBootstrap::boot()` first (Si4684, then ADAU1701).
-- On failure, firmware logs and halts before Wi-Fi.
+- Presets: `StationService`, reorder, integration recall with audio profile.
+- Audio: six-band EQ, enhancements, `NvsAudioProfileStore`.
+- Tuner: RDS/DLS metadata in status JSON and Now Playing UI.
+- Bluetooth: `BluetoothService`, pairing REST + UI.
+- Integration: boot loads last preset; `POST /api/stations/tune` orchestrates tune + audio + NVS.
 
-Acceptance criteria:
-- [x] AN649 boot sequence with streaming blobs (no full image on heap).
-- [x] ADAU1701 reset + I2C + `default_download_IC_1()` replay.
-- [x] Host test for `EmbeddedBlobReader`; manual sync green.
-- [ ] Device flash verified (requires ESP-IDF toolchain on build host).
+## Quality gates (from `Software/`)
 
-## Slice 5 — ADAU1701 runtime + audio API (complete)
+```bash
+cmake -S components/core/test -B build-host && cmake --build build-host
+ctest --test-dir build-host --output-on-failure
+doxygen Doxyfile
+python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
+```
 
-Goal: safeload mixer/EQ/master on the ADAU1701 at runtime; persist user
-profiles in NVS; expose REST and web UI controls.
-
-Build on Slice 3–4:
-- Pure core: `GainDb`, `EqProfile`, `AudioProfile`, `IDsp`, biquad design,
-  `parseAudioProfileJson` / `serializeAudioProfileJson`.
-- Driver: `sigma_safeload_*`, extended `Adau1701Driver`, `Adau1701Dsp`.
-- Service: `audio::AudioService`, `secure_store::NvsAudioProfileStore`.
-- HTTP: `GET/PUT /api/audio/profile`, `POST /api/audio/reset`; Audio
-  section in the web UI. Firmware **0.5.0**.
-
-Acceptance criteria:
-- [x] Safeload volume/mixer/EQ without direct param RAM writes during audio.
-- [x] Profile load/apply after ADAU boot; NVS round-trip via JSON.
-- [x] Host tests for biquad fixpoint and audio profile JSON.
-- [x] Doxygen green; manual sync green; `ch-api.tex` documents audio routes.
-- [ ] Device flash verified on hardware.
+First device flash with encryption: `idf.py erase-flash flash` — see
+`docs/security-flash-nvs.md`.

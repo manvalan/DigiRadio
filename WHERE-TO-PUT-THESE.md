@@ -1,44 +1,54 @@
 # DigiRadio — repository documentation package
 
-Copy the contents into your repo keeping this structure.
+Canonical layout for this repository:
 
 ```
-DigiRadio/                          <- repo root
-├── LICENSE                         CERN-OHL-S v2 (hardware)
+DigiRadio/                          <- repo root (README, Hardware, LICENSE)
 ├── CONTRIBUTING.md                 dev conventions (human-facing)
-├── .gitignore
+├── README.md                       project overview (fw 0.8.3)
 └── Software/                       firmware project root (open THIS in Cursor)
     ├── LICENSE                     Apache-2.0 (firmware)
     ├── AGENTS.md                   authoritative coding rules
-    ├── instructions.md             agent kickoff briefing (Slice 1)
+    ├── instructions.md             agent kickoff + roadmap status
+    ├── sdkconfig.defaults          C++23, NVS + flash encryption (dev mode)
+    ├── sdkconfig.defaults.production  release-mode overlay (irreversible)
+    ├── partitions.csv              nvs + nvs_keys partitions
     ├── Doxyfile                    API docs generation + enforcement
     ├── apache-header.txt           header to paste in each source file
     ├── .cursor/rules/*.mdc         Cursor scoped rules (6 files)
     ├── tools/
-    │   └── check-manual-sync.py    enforces "a section per public class"
+    │   ├── check-manual-sync.py    one LaTeX section per public class
+    │   ├── check_si4684_blobs.py   no proprietary .bin in git
+    │   ├── fetch_si4684_firmware.py  local blob procurement
+    │   └── gzip-www.sh             regenerate embedded web UI gzip
     └── docs/
-        └── manual/                 the technical manual (LaTeX) — canonical
-            ├── manual.tex          main file
-            ├── digiradio-manual.sty style (Optima-like, boxes, listings)
-            ├── ch-*.tex            chapters
-            └── manual.pdf          compiled preview
-
-At the **repository root**, `docs/` is a **symbolic link** to
-`Software/docs/manual/` (one source of truth; do not duplicate .tex here).
+        ├── TODO.md                 agent + HIL backlog
+        ├── security-flash-nvs.md   encryption + device checklist
+        └── manual/                 LaTeX technical manual (canonical)
+            ├── manual.tex
+            ├── ch-*.tex
+            └── manual.pdf          optional compiled preview
 ```
 
-## Build the manual
-    cd docs                              # symlink → Software/docs/manual
-    latexmk -lualatex manual.tex         # real Optima on macOS
-    # or: cd Software/docs/manual && latexmk -lualatex manual.tex
+LaTeX sources live in `Software/docs/manual/`. Build the PDF from there:
 
-## Enforcement in CI (run from Software/)
-    doxygen Doxyfile                              # API docs must pass
-    python3 tools/check-manual-sync.py            # manual must be in sync
+```bash
+cd Software/docs/manual && latexmk -lualatex manual.tex
+```
+
+## CI enforcement (from `Software/`)
+
+```bash
+doxygen Doxyfile
+python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
+```
+
+Host tests: `cmake -S components/core/test -B build-host && ctest --test-dir build-host`.
 
 ## Notes
-- Two LICENSE files: CERN-OHL-S at root (hardware), Apache-2.0 in
-  Software/ (firmware). GitHub auto-detects both.
-- docs/api/ (Doxygen output) is git-ignored; the manual PDF is optional
-  to commit (source .tex is the master).
-- Open Software/ as the Cursor project so rules and AGENTS.md load.
+
+- Two LICENSE files: CERN-OHL-S at repo root (hardware), Apache-2.0 in
+  `Software/` (firmware).
+- Si4684 `.bin` blobs are gitignored — never commit them.
+- Open `Software/` as the Cursor project so rules and `AGENTS.md` load.

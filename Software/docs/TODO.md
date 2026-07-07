@@ -1,93 +1,80 @@
 # TODO — DigiRadio firmware
 
-Task list for the coding agent. Work top to bottom; each task is a
-vertical slice that keeps `main` building and the host tests green.
-
-**Before writing code, read `AGENTS.md`, `.cursor/rules/`, and
-`instructions.md`.** Every task below must satisfy the Definition of Done
-in `AGENTS.md §10`: Apache header on new files, doc block on every class
-and method, `doxygen Doxyfile` exits 0, host tests pass,
-`tools/check-manual-sync.py` passes, no primitive obsession, typed
-errors, no plaintext secrets.
-
-Working directory for all commands is `Software/`.
+Agent task list and hardware-in-the-loop backlog. Working directory for all
+commands is `Software/`.
 
 **Current firmware:** `0.8.3` — NVS + flash encryption (dev mode), tabbed Web
-UI, integration service, CI gate.
+UI, integration service, RDS/DLS metadata, CI gate (4 jobs).
+
+**Before writing code, read `AGENTS.md`, `.cursor/rules/`, and
+`instructions.md`.** Definition of Done: Apache header, doc blocks,
+`doxygen Doxyfile` exits 0, host tests pass, `check-manual-sync.py` and
+`check_si4684_blobs.py` pass, no plaintext secrets.
 
 ---
 
-## Completed (fw 0.7.0–0.8.3)
+## Completed agent tasks (T1–T8, fw 0.7.1–0.8.3)
 
-- **Integration service (T5)** — preset recall with audio profile re-apply,
-  last-preset NVS, \texttt{app\_main} orchestration.
-- **BT1035 pairing** — `AT+PAIR`, `AT+A2DPSTAT`, `AT+A2DPDISC`,
-  `BluetoothService`, REST + UI (not numbered below; landed with Slice 7).
+| Task | Version | Summary |
+|------|---------|---------|
+| **T1** | 0.7.1 | Doxygen warnings cleared |
+| **T2** | 0.7.1 | CI workflow (host tests, Doxygen, manual sync) |
+| **T3** | 0.7.2 | Preset reorder API/UI, DAB playing ids in status |
+| **T4** | 0.8.0 | RDS/DLS broadcast metadata |
+| **T5** | 0.8.1 | `IntegrationService` — startup, preset recall, last-preset NVS |
+| **T6** | 0.8.2 | Tabbed configuration Web UI (full REST coverage) |
+| **T7** | 0.8.2 | Si4684 blob policy — gitignore, docs, `check_si4684_blobs.py` |
+| **T8** | 0.8.3 | NVS + flash encryption — `initEncryptedStorage`, security docs |
 
----
-
-## P0 — Fix the build gate (do this first)
-
-### T1. Clear the 16 Doxygen warnings — **DONE (fw 0.7.1)**
-Fixed invalid `\texttt`/`\r`/`\ref` in doc blocks; documented
-`Station` accessors and `NetBootstrap`/`SetupWebServer` parameters.
-`doxygen Doxyfile` exits 0 with an empty warnings log.
-
-### T2. Add the CI workflow — **DONE (fw 0.7.1)**
-`.github/workflows/ci.yml`: host `ctest`, Doxygen, manual sync on every
-push/PR to `main`.
+Also landed (not numbered): BT1035 pairing (`BluetoothService`), station presets
+(fw 0.7.0), companion-chip boot (Slice 3), ADAU1701 runtime (Slice 5).
 
 ---
 
-## P1 — Missing domain features
+## P4 — Hardware-in-the-loop (when PCB arrives)
 
-### T3. Station / preset list — polish — **DONE (fw 0.7.2)**
-Reorder API (`POST /api/stations/reorder`), DAB playing ids in tuner
-status and preset save, UI Up/Dn, host tests. **Remaining:** device HIL
-(preset survives reboot) — manual only.
+Manual validation only — does not block host CI.
 
-### T4. Broadcast metadata (RDS / DLS) — **DONE (fw 0.8.0)**
-`BroadcastLabel`, RDS accumulator, DAB DLS accumulator, driver
-`readDabServiceData`, status JSON fields, UI now-playing lines, host tests.
+### H1. Encrypted NVS boot path
+Follow [`docs/security-flash-nvs.md`](security-flash-nvs.md): first flash with
+`idf.py erase-flash flash`, verify boot logs, Wi-Fi provisioning survives
+reboot, presets and `last_preset` survive power cycle.
 
-### T5. Remove the services stub — integration service — **DONE (fw 0.8.1)**
-`integration::IntegrationService` orchestrates startup, preset recall,
-audio profile re-apply, and last-preset NVS. Stub removed; `app_main` and
-`POST /api/stations/tune` delegate here.
+### H2. End-to-end listening
+Si4684 DAB/FM tune, ADAU1701 profile apply, BT1035 A2DP to headphones,
+now-playing metadata in UI and `/api/tuner/status`.
 
----
-
-## P2 — User interface
-
-### T6. Complete the configuration Web UI — **DONE (fw 0.8.2)**
-Tabbed SPA (`Now` / `Radio` / `Presets` / `Audio` / `BT` / `Wi‑Fi`):
-now-playing hero with 5 s metadata poll, six-band EQ sliders, all REST
-endpoints wired, companion-chip badges, `tools/gzip-www.sh` for the
-embedded gzip blob. No debug routes in `SetupWebServer`.
+### H3. Production flash encryption (optional)
+After H1 passes, trial build with `sdkconfig.defaults.production` overlay on
+a sacrificial unit; confirm RELEASE mode policy before shipping.
 
 ---
 
-## P3 — Procurement & hardening
+## Open firmware polish (non-blocking)
 
-### T7. Si4684 firmware blob strategy (legal) — **DONE (fw 0.8.2)**
-`Firmware/Si4684-Firmware/*.bin` gitignored; no blobs in git history.
-Procurement documented in `Si4684-Firmware/README.md`; CI job
-`si4684-blobs` runs `tools/check_si4684_blobs.py`.
+- BT1035: device name, paired-device list, auto-reconnect AT (driver stubs open).
+- Si4684: optional commands (STOP_DIGITAL_SERVICE, ensemble info) if product needs them.
+- FM seek down (API today is seek-up only).
 
-### T8. Flash/NVS encryption enablement — **DONE (fw 0.8.3)**
-`CONFIG_NVS_ENCRYPTION` + flash encryption (development mode) in
-`sdkconfig.defaults`; `secure_store::initEncryptedStorage()`; production
-overlay `sdkconfig.defaults.production`; HIL checklist in
-`docs/security-flash-nvs.md`. **Pending:** device verification when PCB
-arrives.
+---
+
+## Quality gates (run from `Software/` before merge)
+
+```bash
+cmake -S components/core/test -B build-host && cmake --build build-host
+ctest --test-dir build-host --output-on-failure
+doxygen Doxyfile
+python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
+```
+
+After editing the web UI: `tools/gzip-www.sh`.
 
 ---
 
 ## Notes for the agent
-- Prefer extending existing patterns over inventing new ones: copy the
-  shape of `AudioProfile` / `AudioProfileJson` / `IAudioProfileStore` for
-  new persisted models.
-- Never invent Si4684 register/command details — cite AN649.
-- One logical change per commit; 50/72 commit messages.
-- After each task, run: host `ctest`, `doxygen Doxyfile`,
-  `tools/check-manual-sync.py` — all must pass before moving on.
+
+- Extend existing patterns (`AudioProfile` / `IAudioProfileStore` shape).
+- Never invent Si4684 opcodes — cite AN649.
+- One logical change per commit; 50/72 messages.
+- Update `ch-classes.tex` / `ch-api.tex` when public API or HTTP changes.

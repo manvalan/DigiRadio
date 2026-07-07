@@ -14,6 +14,7 @@ builds and is unit-tested on the host machine.
     Framework        & ESP-IDF v5.5.x (native) \\
     Language          & C++23 (\texttt{-std=gnu++23}) \\
     Error model       & \texttt{std::expected}; exceptions off \\
+    Security          & NVS + flash encryption (dev mode); see \texttt{docs/security-flash-nvs.md} \\
     Documentation     & Doxygen (build must pass) \\
     \bottomrule
   \end{tabular}
@@ -21,13 +22,31 @@ builds and is unit-tested on the host machine.
   \label{tab:build-toolchain}
 \end{table}
 
+\section{Si4684 firmware blobs (local only)}
+
+Proprietary Si4684 images are \textbf{not} in git. Before the first device
+build:
+
+\begin{drcode}[Populate blobs (from Software/)]
+python3 tools/fetch_si4684_firmware.py --dab-only
+python3 tools/fetch_si4684_firmware.py --si46xx-dir /path/to/si46xx_firmware
+python3 tools/check_si4684_blobs.py
+\end{drcode}
+
+See \texttt{Firmware/Si4684-Firmware/README.md} for procurement options.
+
 \section{Device build}
+
+First flash after enabling encryption (fw~0.8.3+) requires a one-time erase:
 
 \begin{drcode}[Build, flash, monitor]
 idf.py set-target esp32s3
 idf.py build
-idf.py -p <port> flash monitor
+idf.py erase-flash flash monitor
 \end{drcode}
+
+Production flash-encryption release mode uses \texttt{sdkconfig.defaults.production}
+as an overlay --- irreversible on the chip; see the security doc before use.
 
 \section{Host unit tests}
 
@@ -42,9 +61,12 @@ cmake --build build-host
 ctest --test-dir build-host --output-on-failure
 \end{drcode}
 
+Thirteen test executables cover JSON parsing, audio design, station list,
+integration service, and broadcast metadata accumulators.
+
 \section{Documentation}
 
-Documentation has two enforced checks, run from the \texttt{Software/}
+Documentation has enforced checks, run from the \texttt{Software/}
 directory:
 
 \begin{enumerate}
@@ -55,17 +77,21 @@ directory:
         \texttt{\textbackslash label\{cls:ClassName\}} section in
         \texttt{docs/manual/ch-classes.tex}. Design-level HTTP API
         documentation lives in Chapter~\ref{ch:api}.
+  \item \textbf{Si4684 blob policy} --- \texttt{tools/check\_si4684\_blobs.py}
+        ensures no proprietary \texttt{.bin} is tracked in git.
 \end{enumerate}
 
 \begin{drcode}[Docs (from Software/)]
 doxygen Doxyfile
 python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
+python3 tools/gzip-www.sh    # after editing components/net/www/index.html
 \end{drcode}
 
 \section{Continuous integration}
 
 Every push and pull request to \texttt{main} runs
-\texttt{.github/workflows/ci.yml} at the repository root (three parallel
+\texttt{.github/workflows/ci.yml} at the repository root (four parallel
 jobs, all from the \texttt{Software/} directory):
 
 \begin{enumerate}
@@ -74,6 +100,7 @@ jobs, all from the \texttt{Software/} directory):
   \item \textbf{Doxygen} --- must exit 0 with an empty
         \texttt{docs/api/doxygen-warnings.log}.
   \item \textbf{Manual sync} --- \texttt{tools/check-manual-sync.py}.
+  \item \textbf{Si4684 blobs} --- \texttt{tools/check\_si4684\_blobs.py}.
 \end{enumerate}
 
 To rebuild the PDF manual (requires a LaTeX installation):
@@ -84,8 +111,14 @@ latexmk -lualatex manual.tex
 \end{drcode}
 
 \begin{drcaution}[Keep it green]
-Both checks are part of the definition of done. A firmware change that
+All checks are part of the definition of done. A firmware change that
 adds or modifies a public class, a REST endpoint, or its behaviour must
 update the Doxygen doc blocks, \texttt{ch-classes.tex} (for classes), and
 \texttt{ch-api.tex} (for HTTP) in the same change.
 \end{drcaution}
+
+\section{Hardware validation}
+
+Automated CI does not attach to a board. When the PCB is available, run the
+checklist in \texttt{docs/security-flash-nvs.md} and the HIL items in
+\texttt{docs/TODO.md} (section P4).

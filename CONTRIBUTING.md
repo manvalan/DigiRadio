@@ -5,6 +5,9 @@ development conventions. The full, authoritative rules live in
 [`Software/AGENTS.md`](Software/AGENTS.md); this is the human-facing
 summary.
 
+**Current firmware:** **0.8.3** on `main` — agent tasks T1–T8 complete;
+device HIL pending first PCB.
+
 DigiRadio is dual-licensed: hardware under **CERN-OHL-S v2**, firmware
 under **Apache-2.0**. By contributing, you agree your contributions are
 licensed under the same terms as the part of the project they touch.
@@ -16,19 +19,28 @@ licensed under the same terms as the part of the project they touch.
 | Framework | ESP-IDF v5.5.x (native, not Arduino)     |
 | Language  | C++23, pinned `-std=gnu++23`             |
 | Errors    | `std::expected<T, Error>`; exceptions off|
-| Docs      | Doxygen (build must pass, see below)     |
+| Security  | NVS + flash encryption (dev mode)        |
+| Docs      | Doxygen + LaTeX manual sync (CI enforced)|
 
 On macOS, the host unit tests need a C++23 standard library: use
 Homebrew `llvm` (>= 18) or `gcc-14`, not the system Apple Clang.
 
 ## Build, test, docs
 
-Device build / flash / monitor:
+Si4684 blobs (local only, not in git):
+
+```bash
+cd Software
+python3 tools/fetch_si4684_firmware.py --dab-only
+python3 tools/fetch_si4684_firmware.py --si46xx-dir /path/to/si46xx_firmware
+```
+
+Device build / flash / monitor (first encrypted flash: include `erase-flash`):
 
 ```bash
 idf.py set-target esp32s3
 idf.py build
-idf.py -p <port> flash monitor
+idf.py erase-flash flash monitor
 ```
 
 Host unit tests (pure core, no hardware):
@@ -40,17 +52,20 @@ cmake --build build-host
 ctest --test-dir build-host --output-on-failure
 ```
 
-Documentation (must exit 0; run from `Software/`):
+Documentation and policy checks (must exit 0; run from `Software/`):
 
 ```bash
 doxygen Doxyfile
 python3 tools/check-manual-sync.py
+python3 tools/check_si4684_blobs.py
 ```
 
-The LaTeX manual lives in `Software/docs/manual/` (canonical). The repository
-root `docs/` is a symbolic link to that folder for convenience and Overleaf
-/GitHub browsing. Design and HTTP JSON API: `ch-api.tex`; rebuild the PDF with
-`latexmk -lualatex manual.tex` inside `docs/` or `Software/docs/manual/`.
+After editing the web UI: `python3 tools/gzip-www.sh`.
+
+The LaTeX manual lives in `Software/docs/manual/` (canonical). Design and
+HTTP JSON API: `ch-api.tex`; security: `docs/security-flash-nvs.md`.
+Rebuild the PDF with `latexmk -lualatex manual.tex` inside
+`Software/docs/manual/`.
 
 ## Coding conventions
 
@@ -104,6 +119,7 @@ Before opening a PR, confirm:
 - [ ] Every class and method has its documentation block.
 - [ ] `doxygen Doxyfile` exits 0 with an empty warnings log.
 - [ ] `python3 tools/check-manual-sync.py` passes.
+- [ ] `python3 tools/check_si4684_blobs.py` passes.
 - [ ] Manual updated: `ch-classes.tex` for new/changed public classes;
       `ch-api.tex` for new/changed HTTP endpoints.
 - [ ] Every method fits 80x24 and complexity <= 7.
@@ -112,6 +128,7 @@ Before opening a PR, confirm:
 - [ ] No secret is loggable or stored in plaintext.
 - [ ] Register-level decisions cite the datasheet section.
 - [ ] No dynamic allocation in audio/ISR paths.
+- [ ] Web UI changes regenerate `index.html.gz` via `tools/gzip-www.sh`.
 
 ## Editor setup (optional)
 
