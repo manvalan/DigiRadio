@@ -69,18 +69,10 @@ embedded gzip blob. No debug routes in `SetupWebServer`.
 
 ## P3 — Procurement & hardening
 
-### T7. Si4684 firmware blob strategy (legal)
-**Why:** the Si4684 images are proprietary (Skyworks). Tools to fetch/
-extract exist under `tools/`, but the `.bin` images must **not** be
-committed to the public repo.
-**What:**
-- Confirm `*.bin` (patch, FM, DAB images) are in `.gitignore` and absent
-  from git history.
-- Document in `Software/Firmware/Si4684-Firmware/README.md` how a builder
-  obtains the images locally (tools + AN649 reference), without
-  redistributing proprietary binaries.
-**Done when:** no proprietary blob is tracked; the procurement path is
-documented and reproducible.
+### T7. Si4684 firmware blob strategy (legal) — **DONE (fw 0.8.2)**
+`Firmware/Si4684-Firmware/*.bin` gitignored; no blobs in git history.
+Procurement documented in `Si4684-Firmware/README.md`; CI job
+`si4684-blobs` runs `tools/check_si4684_blobs.py`.
 
 ### T8. Flash/NVS encryption enablement
 **Why:** secure storage holds Wi-Fi and user credentials; encryption at

@@ -91,7 +91,7 @@ Vertical slices landed on `main` (newest first):
 | **0.5–0.6** | ADAU1701 runtime EQ/mixer, Si4684 tuning & DAB service list, BT1035 driver |
 | **0.3–0.4** | Secure store, Wi-Fi provisioning, companion-chip boot, walking skeleton |
 
-**Next up** ([`Software/docs/TODO.md`](Software/docs/TODO.md)): Si4684 blob procurement docs (T7), NVS/flash encryption (T8).
+**Next up** ([`Software/docs/TODO.md`](Software/docs/TODO.md)): NVS/flash encryption (T8).
 
 ---
 
