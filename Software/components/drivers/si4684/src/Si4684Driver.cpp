@@ -389,6 +389,7 @@ std::expected<void, Si4684Error> Si4684Driver::boot(Si4684Band band)
     gpio_config_t rstCfg = {};
     rstCfg.pin_bit_mask = 1ULL << pins_.rstbGpio;
     rstCfg.mode = GPIO_MODE_OUTPUT;
+    rstCfg.pull_down_en = GPIO_PULLDOWN_ENABLE;
     if (gpio_config(&rstCfg) != ESP_OK) {
         return std::unexpected(Si4684Error::ResetFailed);
     }
