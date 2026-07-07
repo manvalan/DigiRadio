@@ -217,7 +217,9 @@ esp_err_t healthGetHandler(httpd_req_t* req)
                   .bt1035Ready = false,
               };
     const core::HealthStatus status = core::HealthStatus::ok(
-        core::FirmwareVersion(kFirmwareVersion), chips);
+        core::FirmwareVersion(kFirmwareVersion), chips,
+        ctx != nullptr ? ctx->deviceIdentity.serialNumber()
+                       : std::string_view("unknown"));
     const std::string json = core::serializeHealthStatusJson(status);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
@@ -916,7 +918,7 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     other.stations_ = nullptr;
     other.integration_ = nullptr;
     other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
-                           nullptr, {}};
+                           nullptr, {}, core::DeviceIdentity::unknown()};
 }
 
 SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
@@ -943,7 +945,7 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         other.stations_ = nullptr;
         other.integration_ = nullptr;
         other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
-                               nullptr, {}};
+                               nullptr, {}, core::DeviceIdentity::unknown()};
     }
     return *this;
 }
@@ -954,7 +956,8 @@ SetupWebServer::~SetupWebServer()
         httpd_stop(server_);
         server_ = nullptr;
     }
-    routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, {}};
+    routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, {},
+                     core::DeviceIdentity::unknown()};
 }
 
 std::expected<void, NetError> SetupWebServer::start(
@@ -965,7 +968,8 @@ std::expected<void, NetError> SetupWebServer::start(
     bluetooth::BluetoothService& bluetooth,
     station::StationService& stations,
     integration::IntegrationService& integration,
-    core::CompanionChipStatus companionChips)
+    core::CompanionChipStatus companionChips,
+    const core::DeviceIdentity& deviceIdentity)
 {
     if (server_ != nullptr) {
         return {};
@@ -985,6 +989,7 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext_.stations = &stations;
     routeContext_.integration = &integration;
     routeContext_.companionChips = companionChips;
+    routeContext_.deviceIdentity = deviceIdentity;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = 80;
@@ -993,7 +998,7 @@ std::expected<void, NetError> SetupWebServer::start(
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
         routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                         {}};
+                         {}, core::DeviceIdentity::unknown()};
         return std::unexpected(NetError::HttpServerStartFailed);
     }
 

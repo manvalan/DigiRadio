@@ -101,11 +101,12 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
                bluetooth::BluetoothService& bluetooth,
                station::StationService& stations,
                integration::IntegrationService& integration,
-               core::CompanionChipStatus companionChips)
+               core::CompanionChipStatus companionChips,
+               const core::DeviceIdentity& deviceIdentity)
 {
     esp_netif_create_default_wifi_ap();
 
-    SoftApHost softAp(SoftApConfig::setupDefault());
+    SoftApHost softAp(SoftApConfig::forSsid(deviceIdentity.softApSsid()));
     if (auto apResult = softAp.start(); !apResult) {
         return std::unexpected(apResult.error());
     }
@@ -113,12 +114,15 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::SoftApSetup, tuner, audio,
-                            bluetooth, stations, integration, companionChips);
+                            bluetooth, stations, integration, companionChips,
+                            deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
     }
 
-    ESP_LOGI(kTag, "setup mode ready — SSID DigiRadio-setup");
+    ESP_LOGI(kTag, "setup mode ready — SSID %.*s",
+             static_cast<int>(deviceIdentity.softApSsid().size()),
+             deviceIdentity.softApSsid().data());
     return NetBootstrap(std::move(softAp), std::nullopt, std::move(webServer),
                         NetState::SoftApSetup);
 }
@@ -140,7 +144,8 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
              bluetooth::BluetoothService& bluetooth,
              station::StationService& stations,
              integration::IntegrationService& integration,
-             core::CompanionChipStatus companionChips)
+             core::CompanionChipStatus companionChips,
+             const core::DeviceIdentity& deviceIdentity)
 {
     auto credsResult = store.loadWifiCredentials();
     if (!credsResult) {
@@ -151,19 +156,24 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
     esp_netif_create_default_wifi_sta();
 
     StaClient sta;
-    if (auto staResult = sta.connect(credsResult.value()); !staResult) {
+    if (auto staResult =
+            sta.connect(credsResult.value(), deviceIdentity.hostname());
+        !staResult) {
         return std::unexpected(staResult.error());
     }
 
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::StaConnected, tuner, audio,
-                            bluetooth, stations, integration, companionChips);
+                            bluetooth, stations, integration, companionChips,
+                            deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
     }
 
-    ESP_LOGI(kTag, "STA mode ready");
+    ESP_LOGI(kTag, "STA mode ready — hostname %.*s.local",
+             static_cast<int>(deviceIdentity.hostname().size()),
+             deviceIdentity.hostname().data());
     return NetBootstrap(std::nullopt, std::move(sta), std::move(webServer),
                         NetState::StaConnected);
 }
@@ -176,7 +186,8 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
                     bluetooth::BluetoothService& bluetooth,
                     station::StationService& stations,
                     integration::IntegrationService& integration,
-                    core::CompanionChipStatus companionChips)
+                    core::CompanionChipStatus companionChips,
+                    const core::DeviceIdentity& deviceIdentity)
 {
     if (auto platform = initPlatform(); !platform) {
         return std::unexpected(platform.error());
@@ -188,7 +199,8 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
 
     if (store.hasWifiCredentials()) {
         auto staResult = startStaMode(store, tuner, audio, bluetooth, stations,
-                                      integration, companionChips);
+                                      integration, companionChips,
+                                      deviceIdentity);
         if (staResult) {
             return staResult;
         }
@@ -196,7 +208,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
     }
 
     return startSetupMode(store, tuner, audio, bluetooth, stations, integration,
-                          companionChips);
+                          companionChips, deviceIdentity);
 }
 
 NetBootstrap::NetBootstrap(std::optional<SoftApHost> softAp,

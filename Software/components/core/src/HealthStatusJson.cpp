@@ -39,7 +39,9 @@ namespace {
 std::string serializeHealthStatusJson(const HealthStatus& status)
 {
     std::string json = std::string("{\"status\":\"") + healthStateToken(status.state())
-                       + "\",\"fw\":\"" + std::string(status.firmware().value()) + "\"";
+                       + "\",\"fw\":\"" + std::string(status.firmware().value())
+                       + "\",\"serialNumber\":\""
+                       + std::string(status.serialNumber()) + "\"";
     if (const std::optional<CompanionChipStatus>& chips = status.chips(); chips) {
         json += std::string(",\"chips\":{")
                 + "\"si4684\":" + (chips->si4684Ready ? "true" : "false")

@@ -18,6 +18,9 @@
 #include "audio/AudioService.hpp"
 #include "board_pins.hpp"
 #include "bt1035/Bt1035Driver.hpp"
+#include "core/DeviceIdentity.hpp"
+#include "driver/i2c_master.h"
+#include "eeprom24aa/Eeprom24aa.hpp"
 #include "secure_store/NvsAudioProfileStore.hpp"
 #include "si4684/Si4684Band.hpp"
 #include "si4684/Si4684Driver.hpp"
@@ -69,6 +72,7 @@ bt1035::Bt1035Driver gBt1035(
         .sysCtlGpio = board::pins::Bt1035SysCtl,
     });
 
+core::DeviceIdentity gDeviceIdentity = core::DeviceIdentity::unknown();
 bool gReady = false;
 } // namespace
 
@@ -91,6 +95,21 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         }
     }
 
+    const auto* busHandle =
+        static_cast<i2c_master_bus_handle_t>(gAdau1701.i2cBusHandle());
+    eeprom24aa::Eeprom24aa eeprom(busHandle,
+                                  static_cast<std::uint8_t>(
+                                      board::pins::Eeprom24aaAddr));
+    if (auto identity = eeprom.readDeviceIdentity(); identity) {
+        gDeviceIdentity = std::move(*identity);
+        ESP_LOGI(kTag, "unit serial %.*s",
+                 static_cast<int>(gDeviceIdentity.serialNumber().size()),
+                 gDeviceIdentity.serialNumber().data());
+    } else {
+        gDeviceIdentity = core::DeviceIdentity::unknown();
+        ESP_LOGW(kTag, "EUI-48 read failed — using fallback identity");
+    }
+
     if (auto audioResult = gAudioService.loadAndApply(); !audioResult) {
         ESP_LOGW(kTag, "ADAU1701 profile apply failed");
     }
@@ -98,6 +117,11 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
     if (auto btResult = gBt1035.boot(); !btResult) {
         ESP_LOGE(kTag, "BT1035 boot failed");
         return std::unexpected(HardwareBootError::Bt1035BootFailed);
+    }
+
+    if (auto nameResult =
+            gBt1035.setDeviceName(gDeviceIdentity.bluetoothName()); !nameResult) {
+        ESP_LOGW(kTag, "BT1035 device name set failed");
     }
 
     gReady = true;
@@ -127,6 +151,11 @@ core::CompanionChipStatus HardwareBootstrap::companionChipStatus() noexcept
 bt1035::Bt1035Driver& HardwareBootstrap::bt1035Driver()
 {
     return gBt1035;
+}
+
+const core::DeviceIdentity& HardwareBootstrap::deviceIdentity() noexcept
+{
+    return gDeviceIdentity;
 }
 
 } // namespace hardware

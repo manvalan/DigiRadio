@@ -50,6 +50,19 @@ public:
     [[nodiscard]] static SoftApConfig setupDefault();
 
     /**
+     * @brief    forSsid — construct SoftAP settings with a custom SSID.
+     *
+     * @dname    forSsid
+     * @param    ssid  Network name (max 32 bytes per 802.11).
+     * @return   SoftApConfig with the given SSID.
+     * @pubstate none
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] static SoftApConfig forSsid(std::string_view ssid);
+
+    /**
      * @brief    ssid — read the broadcast SSID.
      *
      * @dname    ssid

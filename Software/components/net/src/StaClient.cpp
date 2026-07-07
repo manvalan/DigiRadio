@@ -20,12 +20,15 @@
 
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_wifi.h"
+#include "mdns.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
 #include <algorithm>
 #include <cstring>
+#include <string>
 
 namespace net {
 
@@ -104,10 +107,15 @@ StaClient& StaClient::operator=(StaClient&& other) noexcept
 }
 
 std::expected<void, NetError>
-StaClient::connect(const core::WifiCredentials& creds)
+StaClient::connect(const core::WifiCredentials& creds, std::string_view hostname)
 {
     if (connected_) {
         return {};
+    }
+
+    std::string hostLabel;
+    if (!hostname.empty()) {
+        hostLabel.assign(hostname.begin(), hostname.end());
     }
 
     s_wifiEventGroup = xEventGroupCreate();
@@ -130,6 +138,13 @@ StaClient::connect(const core::WifiCredentials& creds)
 
     if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK) {
         return std::unexpected(NetError::WifiConfigFailed);
+    }
+
+    if (!hostLabel.empty()) {
+        esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+        if (netif != nullptr) {
+            esp_netif_set_hostname(netif, hostLabel.c_str());
+        }
     }
 
     wifi_config_t wifiCfg = {};
@@ -167,6 +182,11 @@ StaClient::connect(const core::WifiCredentials& creds)
 
     if ((bits & kConnectedBit) != 0) {
         connected_ = true;
+        if (!hostLabel.empty()) {
+            if (mdns_init() == ESP_OK) {
+                mdns_hostname_set(hostLabel.c_str());
+            }
+        }
         ESP_LOGI(kTag, "connected to %.*s",
                  static_cast<int>(ssid.size()), ssid.data());
         return {};

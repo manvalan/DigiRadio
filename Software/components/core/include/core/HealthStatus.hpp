@@ -21,6 +21,8 @@
 #include "core/CompanionChipStatus.hpp"
 
 #include <optional>
+#include <string>
+#include <string_view>
 
 namespace core {
 
@@ -71,8 +73,9 @@ public:
      * @brief    ok — build health response including companion-chip flags.
      *
      * @dname    ok
-     * @param    firmware  Active firmware version to report.
-     * @param    chips     Si4684 / ADAU1701 / BT1035 boot snapshot.
+     * @param    firmware       Active firmware version to report.
+     * @param    chips          Si4684 / ADAU1701 / BT1035 boot snapshot.
+     * @param    serialNumber   Unit serial from EEPROM, or "unknown".
      * @return   HealthStatus with HealthState::Ok and chips populated.
      * @pubstate none
      *
@@ -80,7 +83,8 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static HealthStatus ok(FirmwareVersion firmware,
-                                       CompanionChipStatus chips);
+                                       CompanionChipStatus chips,
+                                       std::string_view serialNumber);
 
     /**
      * @brief    state — read the health indicator.
@@ -119,15 +123,29 @@ public:
     [[nodiscard]] const std::optional<CompanionChipStatus>& chips() const
         noexcept;
 
+    /**
+     * @brief    serialNumber — board serial from EEPROM or "unknown".
+     *
+     * @dname    serialNumber
+     * @return   Canonical serial string for /api/health.
+     * @pubstate reads serialNumber_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::string_view serialNumber() const noexcept;
+
 private:
     explicit HealthStatus(HealthState state, FirmwareVersion firmware);
 
     explicit HealthStatus(HealthState state, FirmwareVersion firmware,
-                          CompanionChipStatus chips);
+                          CompanionChipStatus chips,
+                          std::string serialNumber);
 
     HealthState state_;
     FirmwareVersion firmware_;
     std::optional<CompanionChipStatus> chips_;
+    std::string serialNumber_;
 };
 
 } // namespace core

@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.8.3",
+{"status":"ok","fw":"0.8.3","serialNumber":"0004A3123456",
  "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}
@@ -44,6 +44,8 @@ Returns a health-check DTO serialised by
         firmware is running normally.
   \item \texttt{fw} --- firmware release string
         (\texttt{core::FirmwareVersion}).
+  \item \texttt{serialNumber} --- canonical EEPROM serial, or
+        \texttt{unknown} when the 24AA025E48 read fails.
   \item \texttt{chips} --- companion-chip boot flags after
         \texttt{HardwareBootstrap::boot()} (Slice~8 integration).
 \end{itemize}

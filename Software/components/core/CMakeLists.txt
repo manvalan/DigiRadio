@@ -3,6 +3,8 @@ idf_component_register(
         "src/FirmwareVersion.cpp"
         "src/HealthStatus.cpp"
         "src/HealthStatusJson.cpp"
+        "src/Eui48.cpp"
+        "src/DeviceIdentity.cpp"
         "src/Secret.cpp"
         "src/WifiSsid.cpp"
         "src/WifiCredentials.cpp"

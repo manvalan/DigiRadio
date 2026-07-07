@@ -15,6 +15,8 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/FirmwareVersion.cpp"
     "${CORE_SRC_DIR}/HealthStatus.cpp"
     "${CORE_SRC_DIR}/HealthStatusJson.cpp"
+    "${CORE_SRC_DIR}/Eui48.cpp"
+    "${CORE_SRC_DIR}/DeviceIdentity.cpp"
     "${CORE_SRC_DIR}/Secret.cpp"
     "${CORE_SRC_DIR}/WifiSsid.cpp"
     "${CORE_SRC_DIR}/WifiCredentials.cpp"
@@ -48,6 +50,10 @@ add_library(digiradio_core STATIC
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
 )
+
+add_executable(device_identity_test device_identity_test.cpp)
+target_link_libraries(device_identity_test PRIVATE digiradio_core)
+add_test(NAME device_identity_test COMMAND device_identity_test)
 
 add_executable(health_status_test health_status_test.cpp)
 target_link_libraries(health_status_test PRIVATE digiradio_core)

@@ -17,6 +17,7 @@
 #include "core/Bt1035At.hpp"
 
 #include <expected>
+#include <string_view>
 
 namespace bt1035 {
 
@@ -167,6 +168,20 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, Bt1035Error> disconnectA2dp();
+
+    /**
+     * @brief    setDeviceName — set the module GAP friendly name (AT+NAME).
+     *
+     * @dname    setDeviceName
+     * @param    name  Bluetooth name (Feasycom FSC-BT1035 AT+NAME command).
+     * @return   Ok on success, or Bt1035Error.
+     * @pubstate sends AT+NAME after boot; does not alter AT+AUXCFG=1 init.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> setDeviceName(
+        std::string_view name);
 
 private:
     [[nodiscard]] std::expected<void, Bt1035Error> ensureBooted() const;

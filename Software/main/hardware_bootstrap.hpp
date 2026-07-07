@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/CompanionChipStatus.hpp"
+#include "core/DeviceIdentity.hpp"
 
 #include "bt1035/Bt1035Driver.hpp"
 
@@ -124,6 +125,18 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static bt1035::Bt1035Driver& bt1035Driver();
+
+    /**
+     * @brief    deviceIdentity — per-board identity from the 24AA025E48 EUI-48.
+     *
+     * @dname    deviceIdentity
+     * @return   Reference to identity loaded during boot().
+     * @pubstate reads gDeviceIdentity after boot(); unknown() on EEPROM failure.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] static const core::DeviceIdentity& deviceIdentity() noexcept;
 };
 
 } // namespace hardware
