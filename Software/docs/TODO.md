@@ -12,8 +12,8 @@ errors, no plaintext secrets.
 
 Working directory for all commands is `Software/`.
 
-**Current firmware:** `0.8.1` — integration service (preset recall +
-audio profile), RDS/DLS metadata, CI gate.
+**Current firmware:** `0.8.2` — tabbed configuration Web UI (full API
+coverage), integration service, RDS/DLS metadata, CI gate.
 
 ---
 
@@ -59,18 +59,11 @@ audio profile re-apply, and last-preset NVS. Stub removed; `app_main` and
 
 ## P2 — User interface
 
-### T6. Complete the configuration Web UI
-**Why:** `components/net/www/index.html` is functional but the
-requirement is an *elegant, essential* SPA. It should cover:
-Wi-Fi provisioning, station list management, tuner control (FM/DAB,
-seek, play), live EQ/volume/enhancement control, Bluetooth pairing, and
-now-playing metadata.
-**What:** a minimal single-page app served gzipped from flash, design
-tokens defined once (spacing, type scale, one accent), thin client over
-the existing typed JSON API. No heavy frameworks. No business logic in
-the UI.
-**Done when:** every API capability has a UI control; the page is served
-gzipped; no debug endpoint is exposed in a shipping build.
+### T6. Complete the configuration Web UI — **DONE (fw 0.8.2)**
+Tabbed SPA (`Now` / `Radio` / `Presets` / `Audio` / `BT` / `Wi‑Fi`):
+now-playing hero with 5 s metadata poll, six-band EQ sliders, all REST
+endpoints wired, companion-chip badges, `tools/gzip-www.sh` for the
+embedded gzip blob. No debug routes in `SetupWebServer`.
 
 ---
 
