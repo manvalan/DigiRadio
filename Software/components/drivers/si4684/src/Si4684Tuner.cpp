@@ -153,6 +153,14 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
 std::expected<void, core::TunerError> Si4684Tuner::tuneFm(
     core::FrequencyKHz frequency)
 {
+    if (driver_.loadedBand() == Si4684Band::Dab && lastDabServiceId_
+        && lastDabComponentId_) {
+        (void)driver_.stopDabService(*lastDabServiceId_, *lastDabComponentId_);
+        lastDabServiceId_.reset();
+        lastDabComponentId_.reset();
+        dabDynamicLabel_.reset();
+    }
+
     if (auto result = driver_.tuneFm(frequency); !result) {
         return std::unexpected(mapError(result.error()));
     }

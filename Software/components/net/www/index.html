@@ -131,6 +131,10 @@
       color: var(--text);
       font: inherit;
     }
+    input[type="file"] {
+      padding: var(--space-1);
+      font-size: var(--text-sm);
+    }
     input[type="range"] { padding: 0; accent-color: var(--accent); }
     button.action {
       width: 100%;
@@ -270,6 +274,7 @@
       <button type="button" data-tab="audio" role="tab">Audio</button>
       <button type="button" data-tab="bt" role="tab">BT</button>
       <button type="button" data-tab="wifi" role="tab">Wi‑Fi</button>
+      <button type="button" data-tab="system" role="tab">System</button>
     </nav>
 
     <section id="panel-now" class="panel active" role="tabpanel">
@@ -305,7 +310,8 @@
         <input id="fm-khz" type="number" min="64000" max="108000" step="100" value="101500">
         <button type="button" class="action" id="tune-fm">Tune FM</button>
         <div class="row">
-          <button type="button" class="action secondary" id="seek-fm">Seek up</button>
+          <button type="button" class="action secondary" id="seek-fm-up">Seek up</button>
+          <button type="button" class="action secondary" id="seek-fm-down">Seek down</button>
         </div>
       </div>
       <p class="msg" id="tuner-msg" aria-live="polite"></p>
@@ -364,13 +370,23 @@
       <h2>Bluetooth</h2>
       <p class="lede">FSC-BT1035 aptX — pair headphones or speakers.</p>
       <div class="stat-grid" id="bt-stats"></div>
+      <ul class="list" id="bt-paired-list"></ul>
+      <div class="slider-row">
+        <label for="bt-auto-reconnect">Auto-reconnect</label>
+        <output id="bt-auto-reconnect-out">0</output>
+      </div>
+      <input id="bt-auto-reconnect" type="range" min="0" max="15" step="1" value="0">
       <div class="row">
         <button type="button" class="action" id="bt-refresh">Refresh</button>
         <button type="button" class="action secondary" id="bt-pair">Pair</button>
       </div>
       <div class="row">
+        <button type="button" class="action secondary" id="bt-load-paired">Paired list</button>
         <button type="button" class="action secondary" id="bt-stop-pair">Stop pairing</button>
+      </div>
+      <div class="row">
         <button type="button" class="action secondary" id="bt-disconnect">Disconnect</button>
+        <button type="button" class="action secondary" id="bt-save-reconnect">Save reconnect</button>
       </div>
       <p class="msg" id="bt-msg" aria-live="polite"></p>
     </section>
@@ -386,6 +402,18 @@
         <button type="submit" class="action" id="save-btn">Save &amp; connect</button>
       </form>
       <p class="msg" id="wifi-msg" aria-live="polite"></p>
+    </section>
+
+    <section id="panel-system" class="panel" role="tabpanel" hidden>
+      <h2>System</h2>
+      <p class="lede">Firmware and ADAU1701 program updates. Device reboots after a successful upload.</p>
+      <label for="ota-file">Firmware image (.bin)</label>
+      <input id="ota-file" type="file" accept=".bin,application/octet-stream">
+      <button type="button" class="action" id="ota-upload">Upload firmware OTA</button>
+      <label for="dsp-file" style="margin-top: var(--space-2);">ADAU1701 program (DRAD blob)</label>
+      <input id="dsp-file" type="file" accept=".bin,.dsp,application/octet-stream">
+      <button type="button" class="action secondary" id="dsp-upload">Upload DSP program</button>
+      <p class="msg" id="system-msg" aria-live="polite"></p>
     </section>
   </div>
 
@@ -412,10 +440,51 @@
     function api(path, opts) {
       opts = opts || {};
       return fetch(path, opts).then(function (r) {
-        return r.json().then(function (d) {
+        if (r.status === 204 || r.headers.get("content-length") === "0") {
+          return { ok: r.ok, status: r.status, d: {} };
+        }
+        return r.text().then(function (text) {
+          var d = {};
+          if (text) {
+            try { d = JSON.parse(text); } catch (e) { d = { raw: text }; }
+          }
           return { ok: r.ok, status: r.status, d: d };
         });
       });
+    }
+
+    function uploadBinary(path, file) {
+      return fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: file
+      }).then(function (r) {
+        return r.text().then(function (text) {
+          var d = {};
+          if (text) {
+            try { d = JSON.parse(text); } catch (e) { d = { raw: text }; }
+          }
+          return { ok: r.ok, status: r.status, d: d };
+        });
+      });
+    }
+
+    function seekFm(direction) {
+      api("/api/tuner/seek", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ direction: direction })
+      })
+        .then(function (res) {
+          if (res.ok && res.d.frequency_khz != null) {
+            $("fm-khz").value = res.d.frequency_khz;
+            showMsg($("tuner-msg"), "Seeked to " + res.d.frequency_khz + " kHz.", true);
+            refreshTunerStatus();
+          } else {
+            showMsg($("tuner-msg"), "Seek failed: " + (res.d.reason || res.d.error || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg($("tuner-msg"), "Seek failed.", false); });
     }
 
     function setTab(name) {
@@ -621,13 +690,19 @@
       }
       var rows = [
         ["Booted", s.booted ? "yes" : "no"],
+        ["Name", s.device_name || "—"],
         ["Pairing", s.pairing ? "yes" : "no"],
-        ["A2DP", s.a2dp || "—"]
+        ["A2DP", s.a2dp || "—"],
+        ["Auto-reconnect", s.auto_reconnect != null ? s.auto_reconnect : "—"]
       ];
       $("bt-stats").innerHTML = rows.map(function (pair) {
         return '<div class="stat"><span>' + pair[0] +
           '</span>' + pair[1] + "</div>";
       }).join("");
+      if (s.auto_reconnect != null) {
+        $("bt-auto-reconnect").value = s.auto_reconnect;
+        $("bt-auto-reconnect-out").textContent = s.auto_reconnect;
+      }
     }
 
     function refreshBluetooth() {
@@ -740,11 +815,36 @@
       });
     }
 
+    function loadBluetoothPaired() {
+      return api("/api/bluetooth/paired")
+        .then(function (res) {
+          var list = $("bt-paired-list");
+          list.innerHTML = "";
+          if (!res.ok || !res.d.devices) {
+            showMsg($("bt-msg"), "Paired list failed.", false);
+            return;
+          }
+          res.d.devices.forEach(function (device) {
+            var li = document.createElement("li");
+            var label = document.createElement("span");
+            label.className = "label";
+            label.textContent = device.index + " · " + device.mac +
+              (device.name ? " · " + device.name : "");
+            li.appendChild(label);
+            list.appendChild(li);
+          });
+          showMsg($("bt-msg"), res.d.devices.length + " paired device(s).", true);
+        })
+        .catch(function () { showMsg($("bt-msg"), "Paired list failed.", false); });
+    }
+
     api("/api/health")
       .then(function (res) {
         if (res.ok) {
+          var serial = res.d.serialNumber || "unknown";
           $("health-text").innerHTML =
-            'Status <code>' + res.d.status + "</code> · FW <code>" + res.d.fw + "</code>";
+            'Status <code>' + res.d.status + "</code> · FW <code>" + res.d.fw +
+            "</code> · SN <code>" + serial + "</code>";
           renderChips(res.d.chips);
         } else {
           $("health-text").textContent = "Health check failed.";
@@ -820,19 +920,8 @@
         .catch(function () { showMsg($("tuner-msg"), "Tune failed.", false); });
     });
 
-    $("seek-fm").addEventListener("click", function () {
-      api("/api/tuner/seek", { method: "POST" })
-        .then(function (res) {
-          if (res.ok && res.d.frequency_khz != null) {
-            $("fm-khz").value = res.d.frequency_khz;
-            showMsg($("tuner-msg"), "Seeked to " + res.d.frequency_khz + " kHz.", true);
-            refreshTunerStatus();
-          } else {
-            showMsg($("tuner-msg"), "Seek failed: " + (res.d.reason || "unknown"), false);
-          }
-        })
-        .catch(function () { showMsg($("tuner-msg"), "Seek failed.", false); });
-    });
+    $("seek-fm-up").addEventListener("click", function () { seekFm("up"); });
+    $("seek-fm-down").addEventListener("click", function () { seekFm("down"); });
 
     $("load-services").addEventListener("click", function () {
       var list = $("service-list");
@@ -951,6 +1040,57 @@
           showMsg($("bt-msg"), res.ok ? "A2DP disconnected." : "Disconnect failed.", res.ok);
           if (res.ok) refreshBluetooth();
         });
+    });
+    $("bt-load-paired").addEventListener("click", loadBluetoothPaired);
+    bindSlider("bt-auto-reconnect", "bt-auto-reconnect-out");
+    $("bt-save-reconnect").addEventListener("click", function () {
+      var level = parseInt($("bt-auto-reconnect").value, 10);
+      api("/api/bluetooth/auto-reconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ times: level })
+      }).then(function (res) {
+        showMsg($("bt-msg"), res.ok ? "Auto-reconnect saved." : "Save failed.", res.ok);
+        if (res.ok) refreshBluetooth();
+      });
+    });
+
+    $("ota-upload").addEventListener("click", function () {
+      var file = $("ota-file").files[0];
+      var msg = $("system-msg");
+      if (!file) {
+        showMsg(msg, "Choose a firmware .bin file.", false);
+        return;
+      }
+      showMsg(msg, "Uploading firmware…", true);
+      uploadBinary("/api/system/ota", file)
+        .then(function (res) {
+          if (res.ok && res.d.status === "stored") {
+            showMsg(msg, "Firmware stored. Rebooting in " + res.d.reboot_sec + "s…", true);
+          } else {
+            showMsg(msg, "OTA failed: " + (res.d.error || res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "OTA upload failed.", false); });
+    });
+
+    $("dsp-upload").addEventListener("click", function () {
+      var file = $("dsp-file").files[0];
+      var msg = $("system-msg");
+      if (!file) {
+        showMsg(msg, "Choose a DRAD blob.", false);
+        return;
+      }
+      showMsg(msg, "Uploading DSP program…", true);
+      uploadBinary("/api/dsp/program", file)
+        .then(function (res) {
+          if (res.ok && res.d.status === "stored") {
+            showMsg(msg, "DSP program stored. Rebooting in " + res.d.reboot_sec + "s…", true);
+          } else {
+            showMsg(msg, "DSP upload failed: " + (res.d.error || res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg(msg, "DSP upload failed.", false); });
     });
 
     $("save-preset").addEventListener("click", function () {

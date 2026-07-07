@@ -13,8 +13,11 @@
 #pragma once
 
 #include "core/Bt1035At.hpp"
+#include "core/Bt1035PairedDevice.hpp"
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace core {
 
@@ -32,6 +35,8 @@ struct BluetoothStatus {
     bool booted;              ///< BT1035 driver ready after boot().
     bool pairing;             ///< Discoverable mode requested by firmware.
     Bt1035A2dpState a2dpState; ///< Last read A2DP link state.
+    std::string deviceName;   ///< GAP friendly name from AT+NAME.
+    std::uint8_t autoReconnect; ///< Power-on reconnect count (0 = off).
 };
 
 /**
@@ -60,5 +65,33 @@ struct BluetoothStatus {
  * @date     2026-07-06
  */
 [[nodiscard]] std::string serializeBluetoothErrorJson(const char* reason);
+
+/**
+ * @brief    serializeBluetoothPairedJson — serialise paired-device list.
+ *
+ * @dname    serializeBluetoothPairedJson
+ * @param    devices  Parsed AT+PLIST entries.
+ * @return   JSON object with a devices array.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+[[nodiscard]] std::string serializeBluetoothPairedJson(
+    const std::vector<Bt1035PairedDevice>& devices);
+
+/**
+ * @brief    parseBluetoothAutoReconnectJson — validate POST body times field.
+ *
+ * @dname    parseBluetoothAutoReconnectJson
+ * @param    json  Request body with \c times 0–15.
+ * @return   Reconnect count on success, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+[[nodiscard]] std::expected<std::uint8_t, ParseError>
+parseBluetoothAutoReconnectJson(std::string_view json);
 
 } // namespace core

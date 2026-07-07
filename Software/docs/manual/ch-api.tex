@@ -6,7 +6,7 @@ implemented in \texttt{SetupWebServer}. Request bodies are parsed into
 domain types in the pure core (\texttt{components/core}) before any
 persistence or driver call. Exact C++ signatures live in the generated
 Doxygen output under \texttt{docs/api/}; this chapter documents the
-wire protocol and behaviour as shipped in firmware~0.8.3.
+wire protocol and behaviour as shipped in firmware~0.8.4.
 
 \section{Transport and reachability}
 
@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.8.3","serialNumber":"0004A3123456",
+{"status":"ok","fw":"0.8.4","serialNumber":"0004A3123456",
  "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}
@@ -180,9 +180,19 @@ Success response: \texttt{\{"status":"playing"\}}. HTTP status:
 \subsection{\texttt{POST /api/tuner/seek}}
 \label{sec:api-tuner-seek}
 
-Seeks FM upward (no request body). Returns
-\texttt{\{"frequency\_khz":...\}} on success. HTTP status: \textbf{200 OK};
-\textbf{409} on seek failure.
+Seeks FM in the requested direction. Optional JSON body parsed by
+\texttt{core::parseTunerSeekJson()}; an empty body defaults to upward seek.
+Returns \texttt{\{"frequency\_khz":...\}} on success. HTTP status:
+\textbf{200 OK}; \textbf{400} for invalid \texttt{direction}; \textbf{409} on
+seek failure.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"direction":"up"}
+\end{drcode}
+Use \texttt{"down"} for downward seek. Omit the body or send \texttt{{}}
+for upward seek (backward compatible).
+\end{drnote}
 
 \subsection{\texttt{GET /api/audio/profile}}
 \label{sec:api-audio-profile-get}
@@ -309,13 +319,14 @@ Adjusts bass emphasis via a PEQ overlay on bands 1--2 (100\,Hz /
 \subsection{\texttt{GET /api/bluetooth/status}}
 \label{sec:api-bluetooth-status}
 
-Returns BT1035 boot flag, whether discoverable mode was requested, and the
-last read A2DP state. Serialised by
-\texttt{core::serializeBluetoothStatusJson()}.
+Returns BT1035 boot flag, whether discoverable mode was requested, the
+last read A2DP state, module friendly name, and auto-reconnect count.
+Serialised by \texttt{core::serializeBluetoothStatusJson()}.
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"booted":true,"pairing":false,"a2dp":"standby"}
+{"booted":true,"pairing":false,"a2dp":"standby",
+ "device_name":"DigiRadio-A1B2","auto_reconnect":3}
 \end{drcode}
 \end{drnote}
 
@@ -335,6 +346,31 @@ Leaves discoverable mode (\texttt{AT+PAIR=0}). Success:
 \label{sec:api-bluetooth-disconnect}
 
 Releases the current A2DP session (\texttt{AT+A2DPDISC}).
+
+\subsection{\texttt{GET /api/bluetooth/paired}}
+\label{sec:api-bluetooth-paired}
+
+Returns paired remotes from \texttt{AT+PLIST}, serialised by
+\texttt{core::serializeBluetoothPairedJson()}.
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"devices":[{"index":1,"mac":"001122334455","name":"Phone"}]}
+\end{drcode}
+\end{drnote}
+
+\subsection{\texttt{POST /api/bluetooth/auto-reconnect}}
+\label{sec:api-bluetooth-auto-reconnect}
+
+Sets the module auto-reconnect retry count (\texttt{AT+AUTOCONN=0..15}).
+Body parsed by \texttt{core::parseBluetoothAutoReconnectJson()}.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"times":3}
+\end{drcode}
+Success: \texttt{\{"status":"saved"\}}.
+\end{drnote}
 
 % ------------------------------------------------------------------
 % Station presets (Slice 4)

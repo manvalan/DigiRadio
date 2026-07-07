@@ -15,6 +15,7 @@
 #include "core/FrequencyKHz.hpp"
 #include "core/ParseError.hpp"
 #include "core/TunerBand.hpp"
+#include "core/SeekDirection.hpp"
 #include "core/TunerStatus.hpp"
 
 #include <cstdint>
@@ -126,6 +127,20 @@ struct TunerPlayRequest {
  * @date     2026-07-06
  */
 [[nodiscard]] std::expected<TunerPlayRequest, ParseError> parseTunerPlayJson(
+    std::string_view json);
+
+/**
+ * @brief    parseTunerSeekJson — validate POST /api/tuner/seek body.
+ *
+ * @dname    parseTunerSeekJson
+ * @param    json  Optional body; empty defaults to seek up.
+ * @return   SeekDirection on success, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+[[nodiscard]] std::expected<SeekDirection, ParseError> parseTunerSeekJson(
     std::string_view json);
 
 } // namespace core

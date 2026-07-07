@@ -28,10 +28,24 @@ BluetoothService::refreshStatus()
         .booted = driver_.isBooted(),
         .pairing = pairingActive_,
         .a2dpState = core::Bt1035A2dpState::Standby,
+        .deviceName = {},
+        .autoReconnect = 0U,
     };
 
     if (!status.booted) {
         return status;
+    }
+
+    if (auto name = driver_.queryDeviceName(); name) {
+        status.deviceName = std::move(*name);
+    } else {
+        return std::unexpected(name.error());
+    }
+
+    if (auto reconnect = driver_.queryAutoReconnect(); reconnect) {
+        status.autoReconnect = *reconnect;
+    } else {
+        return std::unexpected(reconnect.error());
     }
 
     auto a2dp = driver_.queryA2dpState();
@@ -63,6 +77,18 @@ std::expected<void, bt1035::Bt1035Error> BluetoothService::stopPairing()
 std::expected<void, bt1035::Bt1035Error> BluetoothService::disconnect()
 {
     return driver_.disconnectA2dp();
+}
+
+std::expected<std::vector<core::Bt1035PairedDevice>, bt1035::Bt1035Error>
+BluetoothService::listPaired()
+{
+    return driver_.queryPairedList();
+}
+
+std::expected<void, bt1035::Bt1035Error> BluetoothService::setAutoReconnect(
+    std::uint8_t times)
+{
+    return driver_.setAutoReconnect(times);
 }
 
 } // namespace bluetooth

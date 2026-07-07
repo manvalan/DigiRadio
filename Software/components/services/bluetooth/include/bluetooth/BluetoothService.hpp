@@ -17,6 +17,7 @@
 #include "core/BluetoothJson.hpp"
 
 #include <expected>
+#include <vector>
 
 namespace bluetooth {
 
@@ -93,6 +94,34 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, bt1035::Bt1035Error> disconnect();
+
+    /**
+     * @brief    listPaired — read paired remotes from the module.
+     *
+     * @dname    listPaired
+     * @return   Device list on success, or Bt1035Error.
+     * @pubstate queries AT+PLIST via the driver.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<std::vector<core::Bt1035PairedDevice>,
+                                 bt1035::Bt1035Error>
+    listPaired();
+
+    /**
+     * @brief    setAutoReconnect — configure power-on reconnect attempts.
+     *
+     * @dname    setAutoReconnect
+     * @param    times  0 off, 1–15 per Feasycom manual.
+     * @return   Ok on success, or Bt1035Error.
+     * @pubstate writes AT+AUTOCONN via the driver.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<void, bt1035::Bt1035Error> setAutoReconnect(
+        std::uint8_t times);
 
 private:
     bt1035::Bt1035Driver& driver_;

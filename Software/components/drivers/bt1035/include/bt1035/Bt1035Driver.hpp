@@ -17,7 +17,9 @@
 #include "core/Bt1035At.hpp"
 
 #include <expected>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace bt1035 {
 
@@ -183,11 +185,62 @@ public:
     [[nodiscard]] std::expected<void, Bt1035Error> setDeviceName(
         std::string_view name);
 
+    /**
+     * @brief    queryDeviceName — read GAP friendly name (AT+NAME).
+     *
+     * @dname    queryDeviceName
+     * @return   Module name on success, or Bt1035Error.
+     * @pubstate writes UART; parses +NAME= from the reply.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<std::string, Bt1035Error> queryDeviceName();
+
+    /**
+     * @brief    setAutoReconnect — configure power-on reconnect (AT+AUTOCONN).
+     *
+     * @dname    setAutoReconnect
+     * @param    times  0 off, 1–15 attempts per Feasycom manual.
+     * @return   Ok on success, or Bt1035Error.
+     * @pubstate writes UART.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> setAutoReconnect(
+        std::uint8_t times);
+
+    /**
+     * @brief    queryAutoReconnect — read AT+AUTOCONN setting.
+     *
+     * @dname    queryAutoReconnect
+     * @return   Reconnect count 0–15, or Bt1035Error.
+     * @pubstate writes UART.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<std::uint8_t, Bt1035Error> queryAutoReconnect();
+
+    /**
+     * @brief    queryPairedList — enumerate paired remotes (AT+PLIST).
+     *
+     * @dname    queryPairedList
+     * @return   Parsed paired devices, or Bt1035Error.
+     * @pubstate writes UART; may take longer than a single-line command.
+     *
+     * @author   Michele Bigi
+     * @date     2026-07-07
+     */
+    [[nodiscard]] std::expected<std::vector<core::Bt1035PairedDevice>, Bt1035Error>
+    queryPairedList();
+
 private:
     [[nodiscard]] std::expected<void, Bt1035Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Bt1035Error> runInitSequence();
     [[nodiscard]] std::expected<std::string, Bt1035Error> transmitAndCollect(
-        std::string_view commandLine);
+        std::string_view commandLine, int timeoutMs = kResponseTimeoutMs);
     [[nodiscard]] std::expected<void, Bt1035Error> transmitAndExpectOk(
         std::string_view commandLine);
 

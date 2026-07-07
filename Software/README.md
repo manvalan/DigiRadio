@@ -2,15 +2,18 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.8.3** on `main` — NVS + flash encryption (development mode),
-tabbed Web UI, `IntegrationService`, RDS/DLS metadata, **13** host tests, **4** CI
-jobs. Agent tasks T1–T8 complete; device HIL pending first PCB.
+**Status:** fw **0.8.4** on `main` — dual OTA + DSP blob updates, EEPROM identity,
+NVS + flash encryption (development mode), tabbed Web UI with **System** uploads,
+**15** host tests, **4** CI jobs. Agent tasks T1–T12 complete; device HIL pending
+first PCB.
 
-| Area | Shipped in 0.8.3 |
+| Area | Shipped in 0.8.4 |
 |------|------------------|
 | Boot | Si4684 HOST_LOAD, ADAU1701 RAM program, BT1035 Line-In init |
-| Tuner | FM/DAB tune, seek, RSQ, RDS, DAB services + DLS |
+| Tuner | FM/DAB tune, seek up/down, RSQ, RDS, DAB services + DLS |
 | Audio | 6-band EQ, mixer, stereo/bass enhance, NVS profile |
+| Updates | ESP32 dual-OTA, ADAU1701 `dsp` partition blob replay |
+| Identity | 24AA025E48 EUI-48 → serial, SoftAP/BT name suffix |
 | Presets | CRUD, reorder, integrated recall + last-preset at boot |
 | Network | SoftAP/STA, tabbed gzipped SPA, typed JSON REST API |
 | Security | `initEncryptedStorage()` — see [`docs/security-flash-nvs.md`](docs/security-flash-nvs.md) |
@@ -68,7 +71,7 @@ Run from `Software/`:
 doxygen Doxyfile
 python3 tools/check-manual-sync.py
 python3 tools/check_si4684_blobs.py
-python3 tools/gzip-www.sh   # after editing components/net/www/index.html
+tools/gzip-www.sh   # after editing components/net/www/index.html
 ```
 
 CI jobs: `host-tests`, `doxygen`, `manual-sync`, `si4684-blobs`
@@ -77,29 +80,34 @@ CI jobs: `host-tests`, `doxygen`, `manual-sync`, `si4684-blobs`
 ## Web UI
 
 Gzipped single-page app at `/` — tabs: **Now** (RDS/DLS), **Radio**, **Presets**,
-**Audio** (6-band EQ), **BT**, **Wi‑Fi**. Source:
+**Audio** (6-band EQ), **BT**, **Wi‑Fi**, **System** (firmware OTA + DSP upload).
+Header shows EEPROM serial from `/api/health`. Source:
 `components/net/www/index.html` · regenerate embed:
 `tools/gzip-www.sh`.
 
-## HTTP API (fw 0.8.3)
+## HTTP API (fw 0.8.4)
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/health` | Status, firmware version, companion-chip flags |
+| GET | `/api/health` | Status, firmware version, serial, companion-chip flags |
 | POST | `/api/wifi` | Provision STA credentials; reboot on success |
 | GET | `/api/tuner/status` | Tuner snapshot (DAB/FM, RDS/DLS metadata) |
 | GET | `/api/tuner/services` | DAB service list for current ensemble |
 | POST | `/api/tuner/tune` | Tune DAB ensemble or FM frequency |
 | POST | `/api/tuner/play` | Start DAB service playback |
-| POST | `/api/tuner/seek` | FM seek up |
+| POST | `/api/tuner/seek` | FM seek up or down (`{"direction":"up\|down"}`) |
 | GET/PUT | `/api/audio/profile` | Read/apply ADAU1701 mixer + 6-band EQ |
 | POST | `/api/audio/reset` | Factory-flat audio profile |
 | POST | `/api/audio/stereo-enhance` | Stereo depth overlay (0–100) |
 | POST | `/api/audio/bass-enhance` | Bass enhance overlay (0–100) |
-| GET | `/api/bluetooth/status` | BT1035 boot, pairing, A2DP state |
+| POST | `/api/dsp/program` | Upload ADAU1701 DRAD blob (raw bytes, reboot) |
+| POST | `/api/system/ota` | Upload ESP32 firmware image (raw bytes, reboot) |
+| GET | `/api/bluetooth/status` | BT1035 boot, pairing, A2DP, name, auto-reconnect |
+| GET | `/api/bluetooth/paired` | Paired-device list from module |
 | POST | `/api/bluetooth/pair` | Enter discoverable mode |
 | POST | `/api/bluetooth/pair/stop` | Leave discoverable mode |
 | POST | `/api/bluetooth/disconnect` | Release A2DP session |
+| POST | `/api/bluetooth/auto-reconnect` | Set auto-reconnect count (0–15) |
 | GET | `/api/stations` | List saved presets |
 | POST | `/api/stations` | Add preset |
 | POST | `/api/stations/remove` | Remove preset by index |

@@ -153,6 +153,9 @@ updating \texttt{core::Bt1035AtCommand}, the manual, and a host test.
     \texttt{PairHidden}       & \texttt{AT+PAIR=0} & Leave discoverable mode \\
     \texttt{A2dpStat}         & \texttt{AT+A2DPSTAT} & Read link state \\
     \texttt{A2dpDisconnect}   & \texttt{AT+A2DPDISC} & Release A2DP session \\
+    \texttt{QueryName}        & \texttt{AT+NAME}     & Read module friendly name \\
+    \texttt{QueryAutoConn}    & \texttt{AT+AUTOCONN} & Read auto-reconnect count \\
+    \texttt{QueryPairedList}  & \texttt{AT+PLIST}    & List paired remotes \\
     \bottomrule
   \end{tabular}
   \caption{Enumerated AT commands (\texttt{core::Bt1035AtCommand}). Boot
@@ -179,6 +182,10 @@ updating \texttt{core::Bt1035AtCommand}, the manual, and a host test.
     \texttt{leavePairingMode()} & \texttt{AT+PAIR=0} \\
     \texttt{queryA2dpState()} & \texttt{AT+A2DPSTAT}, parse \texttt{+A2DPSTAT=} \\
     \texttt{disconnectA2dp()} & \texttt{AT+A2DPDISC} \\
+    \texttt{queryDeviceName()} & \texttt{AT+NAME}, parse \texttt{+NAME=} \\
+    \texttt{queryAutoReconnect()} & \texttt{AT+AUTOCONN}, parse \texttt{+AUTOCONN=} \\
+    \texttt{setAutoReconnect(times)} & \texttt{AT+AUTOCONN=n} (0--15) \\
+    \texttt{queryPairedList()} & \texttt{AT+PLIST}, parse \texttt{+PLIST=} lines \\
     \bottomrule
   \end{tabular}
   \caption{Public driver API.}
@@ -240,8 +247,8 @@ if (auto r = bt.sendCommand(core::Bt1035AtCommand::AuxLineIn); !r) {
 \label{sec:bt1035-reading}
 
 \begin{itemize}
-  \item Feasycom FSC-BT1035 AT command manual (vendor) --- full command set
-        for name, paired-device list, and reconnect not yet wrapped by firmware.
+  \item Feasycom FSC-BT1035 AT command manual (vendor) --- full command set;
+        firmware wraps name, paired list, and auto-reconnect for the Web UI.
   \item Chapter~\ref{ch:hardware} --- pin map and I\textsuperscript{2}S routing.
   \item Chapter~\ref{ch:adau1701} --- DSP output that feeds the module.
   \item \texttt{components/core/test/bt1035\_at\_test.cpp} --- init sequence test.

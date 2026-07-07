@@ -3,8 +3,9 @@
 Agent task list and hardware-in-the-loop backlog. Working directory for all
 commands is `Software/`.
 
-**Current firmware:** `0.8.3` — NVS + flash encryption (dev mode), tabbed Web
-UI, integration service, RDS/DLS metadata, CI gate (4 jobs).
+**Current firmware:** `0.8.4` — dual OTA + DSP blob updates, EEPROM identity,
+NVS + flash encryption (dev mode), tabbed Web UI with System uploads, CI gate
+(4 jobs).
 
 **Before writing code, read `AGENTS.md`, `.cursor/rules/`, and
 `instructions.md`.** Definition of Done: Apache header, doc blocks,
@@ -13,7 +14,7 @@ UI, integration service, RDS/DLS metadata, CI gate (4 jobs).
 
 ---
 
-## Completed agent tasks (T1–T8, fw 0.7.1–0.8.3)
+## Completed agent tasks (T1–T12, fw 0.7.1–0.8.4)
 
 | Task | Version | Summary |
 |------|---------|---------|
@@ -22,9 +23,13 @@ UI, integration service, RDS/DLS metadata, CI gate (4 jobs).
 | **T3** | 0.7.2 | Preset reorder API/UI, DAB playing ids in status |
 | **T4** | 0.8.0 | RDS/DLS broadcast metadata |
 | **T5** | 0.8.1 | `IntegrationService` — startup, preset recall, last-preset NVS |
-| **T6** | 0.8.2 | Tabbed configuration Web UI (full REST coverage) |
+| **T6** | 0.8.2 | Tabbed configuration Web UI (REST coverage) |
 | **T7** | 0.8.2 | Si4684 blob policy — gitignore, docs, `check_si4684_blobs.py` |
 | **T8** | 0.8.3 | NVS + flash encryption — `initEncryptedStorage`, security docs |
+| **T9** | 0.8.4 | Dual-OTA partition table + `dsp` blob slot, rollback Kconfig |
+| **T10** | 0.8.4 | EEPROM EUI-48 identity — SoftAP/BT/hostname/serial |
+| **T11** | 0.8.4 | Updatable ADAU1701 program — `POST /api/dsp/program`, DRAD blob |
+| **T12** | 0.8.4 | ESP32 OTA — `POST /api/system/ota`, rollback confirm on boot |
 
 Also landed (not numbered): BT1035 pairing (`BluetoothService`), station presets
 (fw 0.7.0), companion-chip boot (Slice 3), ADAU1701 runtime (Slice 5).
@@ -44,7 +49,12 @@ reboot, presets and `last_preset` survive power cycle.
 Si4684 DAB/FM tune, ADAU1701 profile apply, BT1035 A2DP to headphones,
 now-playing metadata in UI and `/api/tuner/status`.
 
-### H3. Production flash encryption (optional)
+### H3. OTA and DSP program update (on hardware)
+Push a known-good `.bin` via `POST /api/system/ota`, confirm rollback after a
+deliberately bad image. Upload a DRAD blob via `POST /api/dsp/program` and
+verify ADAU replay after reboot.
+
+### H4. Production flash encryption (optional)
 After H1 passes, trial build with `sdkconfig.defaults.production` overlay on
 a sacrificial unit; confirm RELEASE mode policy before shipping.
 
@@ -52,9 +62,13 @@ a sacrificial unit; confirm RELEASE mode policy before shipping.
 
 ## Open firmware polish (non-blocking)
 
-- BT1035: device name, paired-device list, auto-reconnect AT (driver stubs open).
-- Si4684: optional commands (STOP_DIGITAL_SERVICE, ensemble info) if product needs them.
-- FM seek down (API today is seek-up only).
+Done in fw 0.8.4 unless noted:
+
+- FM seek down — `POST /api/tuner/seek` with `{"direction":"down"}`.
+- BT1035 — query/set name, paired list (`AT+PLIST`), auto-reconnect
+  (`AT+AUTOCONN`) per Feasycom BT1035 manual.
+- Si4684 — `STOP_DIGITAL_SERVICE` (0x82) before FM band switch when DAB
+  audio is active; ensemble metrics remain via `DAB_DIGRAD_STATUS` in status.
 
 ---
 
@@ -76,5 +90,6 @@ After editing the web UI: `tools/gzip-www.sh`.
 
 - Extend existing patterns (`AudioProfile` / `IAudioProfileStore` shape).
 - Never invent Si4684 opcodes — cite AN649.
+- Never invent BT1035 AT strings — cite Feasycom BT1035 programming guide.
 - One logical change per commit; 50/72 messages.
 - Update `ch-classes.tex` / `ch-api.tex` when public API or HTTP changes.

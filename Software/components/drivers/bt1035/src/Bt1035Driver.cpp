@@ -22,6 +22,7 @@
 #include <array>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace bt1035 {
 
@@ -66,7 +67,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::ensureBooted() const
 }
 
 std::expected<std::string, Bt1035Error> Bt1035Driver::transmitAndCollect(
-    std::string_view commandLine)
+    std::string_view commandLine, int timeoutMs)
 {
     const int written = uart_write_bytes(static_cast<uart_port_t>(uartPort_),
                                          commandLine.data(),
@@ -79,7 +80,7 @@ std::expected<std::string, Bt1035Error> Bt1035Driver::transmitAndCollect(
     std::array<char, 128> buffer{};
     std::string accumulated;
     const TickType_t deadline =
-        xTaskGetTickCount() + pdMS_TO_TICKS(kResponseTimeoutMs);
+        xTaskGetTickCount() + pdMS_TO_TICKS(timeoutMs);
 
     while (xTaskGetTickCount() < deadline) {
         const int received = uart_read_bytes(static_cast<uart_port_t>(uartPort_),
@@ -173,6 +174,68 @@ std::expected<void, Bt1035Error> Bt1035Driver::setDeviceName(
     }
     std::string line = std::string("AT+NAME=") + std::string(name) + "\r\n";
     return transmitAndExpectOk(line);
+}
+
+std::expected<std::string, Bt1035Error> Bt1035Driver::queryDeviceName()
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return std::unexpected(ready.error());
+    }
+    auto response =
+        transmitAndCollect(core::buildBt1035AtLine(core::Bt1035AtCommand::QueryName));
+    if (!response) {
+        return std::unexpected(response.error());
+    }
+    auto parsed = core::parseBt1035NameResponse(*response);
+    if (!parsed) {
+        return std::unexpected(Bt1035Error::UnexpectedResponse);
+    }
+    return *parsed;
+}
+
+std::expected<void, Bt1035Error> Bt1035Driver::setAutoReconnect(
+    std::uint8_t times)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    return transmitAndExpectOk(core::buildBt1035SetAutoConnLine(times));
+}
+
+std::expected<std::uint8_t, Bt1035Error> Bt1035Driver::queryAutoReconnect()
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return std::unexpected(ready.error());
+    }
+    auto response = transmitAndCollect(
+        core::buildBt1035AtLine(core::Bt1035AtCommand::QueryAutoConn));
+    if (!response) {
+        return std::unexpected(response.error());
+    }
+    auto parsed = core::parseBt1035AutoConnResponse(*response);
+    if (!parsed) {
+        return std::unexpected(Bt1035Error::UnexpectedResponse);
+    }
+    return *parsed;
+}
+
+std::expected<std::vector<core::Bt1035PairedDevice>, Bt1035Error>
+Bt1035Driver::queryPairedList()
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return std::unexpected(ready.error());
+    }
+    auto response = transmitAndCollect(
+        core::buildBt1035AtLine(core::Bt1035AtCommand::QueryPairedList),
+        4000);
+    if (!response) {
+        return std::unexpected(response.error());
+    }
+    auto parsed = core::parseBt1035PairedListResponse(*response);
+    if (!parsed) {
+        return std::unexpected(Bt1035Error::UnexpectedResponse);
+    }
+    return *parsed;
 }
 
 std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()

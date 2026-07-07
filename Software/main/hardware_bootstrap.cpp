@@ -133,6 +133,10 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         ESP_LOGW(kTag, "BT1035 device name set failed");
     }
 
+    if (auto reconnectResult = gBt1035.setAutoReconnect(3U); !reconnectResult) {
+        ESP_LOGW(kTag, "BT1035 auto-reconnect set failed");
+    }
+
     gReady = true;
     ESP_LOGI(kTag, "companion chips ready");
     return {};
