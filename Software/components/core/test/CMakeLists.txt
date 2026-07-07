@@ -49,6 +49,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/DspProgram.cpp"
     "${CORE_SRC_DIR}/RegisterWrite.cpp"
     "${CORE_SRC_DIR}/DspProgramBlob.cpp"
+    "${CORE_SRC_DIR}/OtaAppDescriptor.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -57,6 +58,10 @@ target_include_directories(digiradio_core PUBLIC
 add_executable(dsp_program_blob_test dsp_program_blob_test.cpp)
 target_link_libraries(dsp_program_blob_test PRIVATE digiradio_core)
 add_test(NAME dsp_program_blob_test COMMAND dsp_program_blob_test)
+
+add_executable(ota_app_descriptor_test ota_app_descriptor_test.cpp)
+target_link_libraries(ota_app_descriptor_test PRIVATE digiradio_core)
+add_test(NAME ota_app_descriptor_test COMMAND ota_app_descriptor_test)
 
 add_executable(device_identity_test device_identity_test.cpp)
 target_link_libraries(device_identity_test PRIVATE digiradio_core)

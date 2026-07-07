@@ -45,6 +45,10 @@ namespace integration {
 class IntegrationService;
 } // namespace integration
 
+namespace ota {
+class OtaService;
+} // namespace ota
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -74,6 +78,7 @@ public:
      * @param    bluetooth       Bluetooth pairing service for REST routes.
      * @param    stations        Station preset service for REST routes.
      * @param    integration     Application orchestration for preset recall.
+     * @param    ota             Firmware OTA service for POST /api/system/ota.
      * @param    companionChips  Boot flags exposed on GET /api/health.
      * @param    deviceIdentity  EEPROM-derived SSID, hostname, and serial.
      * @return   NetBootstrap on success, or a NetError.
@@ -87,6 +92,7 @@ public:
           audio::AudioService& audio, bluetooth::BluetoothService& bluetooth,
           station::StationService& stations,
           integration::IntegrationService& integration,
+          ota::OtaService& ota,
           core::CompanionChipStatus companionChips,
           const core::DeviceIdentity& deviceIdentity);
 

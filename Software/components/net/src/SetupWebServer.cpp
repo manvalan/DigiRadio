@@ -39,6 +39,9 @@
 #include "station/StationService.hpp"
 #include "integration/IntegrationService.hpp"
 #include "adau1701/FlashDspProgramSource.hpp"
+#include "ota/OtaService.hpp"
+#include "ota/OtaError.hpp"
+#include "core/OtaAppDescriptor.hpp"
 #include "bt1035/Bt1035Error.hpp"
 
 #include "esp_http_server.h"
@@ -48,6 +51,7 @@
 #include "freertos/task.h"
 
 #include <array>
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -733,6 +737,90 @@ esp_err_t dspProgramPostHandler(httpd_req_t* req)
     return ESP_OK;
 }
 
+/**
+ * @brief    otaPostHandler — stream firmware image into inactive OTA slot.
+ *
+ * @dname    otaPostHandler
+ * @param    req  HTTP request handle (raw application/octet-stream body).
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes inactive OTA partition; schedules reboot on success.
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-07
+ */
+esp_err_t otaPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->ota == nullptr) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    constexpr int kMaxOtaSize = 0x1B0000;
+    const int contentLen = req->content_len;
+    if (contentLen <= 0 || contentLen > kMaxOtaSize) {
+        httpd_resp_set_status(req, "413 Payload Too Large");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    ota::OtaService& otaService = *ctx->ota;
+    if (auto begun = otaService.beginStream(contentLen); !begun) {
+        const std::string json = std::string(R"({"error":")")
+                                 + ota::otaErrorToken(begun.error())
+                                 + R"("})";
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    std::array<std::uint8_t, 4096> chunk{};
+    int received = 0;
+    while (received < contentLen) {
+        const int toRead = std::min(static_cast<int>(chunk.size()),
+                                    contentLen - received);
+        const int n = httpd_req_recv(req,
+                                     reinterpret_cast<char*>(chunk.data()),
+                                     toRead);
+        if (n <= 0) {
+            otaService.abort();
+            httpd_resp_set_status(req, "400 Bad Request");
+            return httpd_resp_send(req, nullptr, 0);
+        }
+
+        if (auto written = otaService.writeChunk(
+                {chunk.data(), static_cast<std::size_t>(n)});
+            !written) {
+            const char* token = ota::otaErrorToken(written.error());
+            if (written.error() == ota::OtaError::WriteFailed) {
+                token = core::otaImageErrorToken(otaService.lastImageError());
+            }
+            const std::string json =
+                std::string(R"({"error":")") + token + R"("})";
+            httpd_resp_set_status(req, "400 Bad Request");
+            httpd_resp_set_type(req, "application/json");
+            return httpd_resp_send(req, json.c_str(), json.size());
+        }
+        received += n;
+    }
+
+    if (auto finished = otaService.finishStream(); !finished) {
+        const std::string json = std::string(R"({"error":")")
+                                 + ota::otaErrorToken(finished.error())
+                                 + R"("})";
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json =
+        std::string(R"({"status":"stored","reboot_sec":)")
+        + std::to_string(kRebootDelaySec) + "}";
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.size());
+    xTaskCreate(rebootTask, "reboot", 2048, nullptr, 5, nullptr);
+    return ESP_OK;
+}
+
 esp_err_t bluetoothStatusGetHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -960,7 +1048,8 @@ SetupWebServer::SetupWebServer()
     , bluetooth_(nullptr)
     , stations_(nullptr)
     , integration_(nullptr)
-    , routeContext_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, {}}
+    , routeContext_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                    nullptr, {}}
 {
 }
 
@@ -984,7 +1073,7 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     other.stations_ = nullptr;
     other.integration_ = nullptr;
     other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
-                           nullptr, {}, core::DeviceIdentity::unknown()};
+                           nullptr, nullptr, {}, core::DeviceIdentity::unknown()};
 }
 
 SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
@@ -1022,8 +1111,8 @@ SetupWebServer::~SetupWebServer()
         httpd_stop(server_);
         server_ = nullptr;
     }
-    routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, {},
-                     core::DeviceIdentity::unknown()};
+    routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+                     nullptr, {}, core::DeviceIdentity::unknown()};
 }
 
 std::expected<void, NetError> SetupWebServer::start(
@@ -1034,6 +1123,7 @@ std::expected<void, NetError> SetupWebServer::start(
     bluetooth::BluetoothService& bluetooth,
     station::StationService& stations,
     integration::IntegrationService& integration,
+    ota::OtaService& ota,
     core::CompanionChipStatus companionChips,
     const core::DeviceIdentity& deviceIdentity)
 {
@@ -1054,6 +1144,7 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext_.bluetooth = &bluetooth;
     routeContext_.stations = &stations;
     routeContext_.integration = &integration;
+    routeContext_.ota = &ota;
     routeContext_.companionChips = companionChips;
     routeContext_.deviceIdentity = deviceIdentity;
 
@@ -1064,7 +1155,7 @@ std::expected<void, NetError> SetupWebServer::start(
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
         routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                         {}, core::DeviceIdentity::unknown()};
+                         nullptr, {}, core::DeviceIdentity::unknown()};
         return std::unexpected(NetError::HttpServerStartFailed);
     }
 
@@ -1181,6 +1272,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &dspProgramUri);
+
+    const httpd_uri_t otaUri = {
+        .uri = "/api/system/ota",
+        .method = HTTP_POST,
+        .handler = otaPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &otaUri);
 
     const httpd_uri_t bluetoothStatusUri = {
         .uri = "/api/bluetooth/status",

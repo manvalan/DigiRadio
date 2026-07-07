@@ -323,3 +323,11 @@ Application service for BT1035 pairing and A2DP status
 (Chapter~\ref{ch:bt1035}). Delegates to \texttt{Bt1035Driver}; tracks
 whether discoverable mode was requested. Exposed on
 \texttt{/api/bluetooth/*}.
+
+\section{OtaService}\label{cls:OtaService}
+Application service wrapping \texttt{esp\_ota\_ops}: streams firmware into
+the inactive OTA slot, validates the app descriptor via
+\texttt{core::validateOtaAppDescriptor()}, and exposes
+\texttt{confirmBoot()} for rollback cancellation after a healthy network boot.
+
+% ------------------------------------------------------------------

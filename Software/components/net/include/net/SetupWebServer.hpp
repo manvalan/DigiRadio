@@ -43,6 +43,10 @@ namespace integration {
 class IntegrationService;
 } // namespace integration
 
+namespace ota {
+class OtaService;
+} // namespace ota
+
 namespace tuner {
 class TunerService;
 } // namespace tuner
@@ -69,6 +73,7 @@ struct HttpRouteContext {
     bluetooth::BluetoothService* bluetooth; ///< Bluetooth pairing REST routes.
     station::StationService* stations; ///< Preset list REST routes.
     integration::IntegrationService* integration; ///< Preset recall orchestration.
+    ota::OtaService* ota;                         ///< Firmware OTA streaming.
     core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
     core::DeviceIdentity deviceIdentity;       ///< EEPROM-derived unit identity.
 };
@@ -147,6 +152,7 @@ public:
      * @param    bluetooth       Bluetooth service for pairing REST routes.
      * @param    stations        Station preset service for list REST routes.
      * @param    integration     Application orchestration for preset recall.
+     * @param    ota             Firmware OTA service for POST /api/system/ota.
      * @param    companionChips  Boot flags for GET /api/health.
      * @param    deviceIdentity  Unit identity for /api/health serialNumber.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
@@ -161,6 +167,7 @@ public:
         bluetooth::BluetoothService& bluetooth,
         station::StationService& stations,
         integration::IntegrationService& integration,
+        ota::OtaService& ota,
         core::CompanionChipStatus companionChips,
         const core::DeviceIdentity& deviceIdentity);
 
