@@ -50,7 +50,7 @@ public:
      *
      * @dname    fromEui48
      * @param    eui  Factory-programmed identifier from the 24AA025E48.
-     * @return   DeviceIdentity with DigiRadio-<suffix> strings.
+     * @return   DeviceIdentity with suffix-derived DigiRadio- strings.
      * @pubstate none
      *
      * @author   Michele Bigi
@@ -86,7 +86,7 @@ public:
      * @brief    softApSsid — setup SoftAP SSID for this unit.
      *
      * @dname    softApSsid
-     * @return   DigiRadio-<suffix> or the DigiRadio-setup fallback.
+     * @return   SoftAP SSID (DigiRadio- plus suffix) or DigiRadio-setup fallback.
      * @pubstate reads softApSsid_.
      *
      * @author   Michele Bigi
@@ -98,7 +98,7 @@ public:
      * @brief    bluetoothName — GAP friendly name for the BT1035 module.
      *
      * @dname    bluetoothName
-     * @return   DigiRadio-<suffix> or plain DigiRadio when unknown.
+     * @return   Bluetooth friendly name (DigiRadio- plus suffix) or plain DigiRadio.
      * @pubstate reads bluetoothName_.
      *
      * @author   Michele Bigi
@@ -110,7 +110,7 @@ public:
      * @brief    hostname — STA hostname / mDNS label (no .local suffix).
      *
      * @dname    hostname
-     * @return   digiradio-<suffix> or digiradio when unknown.
+     * @return   STA hostname digiradio- plus suffix, or digiradio when unknown.
      * @pubstate reads hostname_.
      *
      * @author   Michele Bigi
