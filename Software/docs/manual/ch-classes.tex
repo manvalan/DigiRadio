@@ -72,11 +72,15 @@ RAII wrapper around the ESP-IDF Wi-Fi stack that starts and stops the
 configured SoftAP. Imperative shell; no business logic.
 
 \section{SetupWebServer}\label{cls:SetupWebServer}
-Minimal HTTP server: gzipped setup UI, \texttt{GET /api/health},
-\texttt{POST /api/wifi}, tuner routes (\texttt{/api/tuner/*}), audio
-routes (\texttt{/api/audio/*}), Bluetooth (\texttt{/api/bluetooth/*}), and
-station presets (\texttt{/api/stations/*}). JSON parsing and serialisation
-delegate to the pure core; credentials persist via \texttt{ISecureStore};
+Minimal HTTP server: gzipped setup UI and typed JSON REST handlers:
+\begin{itemize}
+  \item \texttt{GET /api/health}, \texttt{POST /api/wifi}
+  \item Tuner: \texttt{/api/tuner/*}
+  \item Audio: \texttt{/api/audio/*}
+  \item Bluetooth: \texttt{/api/bluetooth/*}
+  \item Presets: \texttt{/api/stations/*}
+\end{itemize}
+JSON parsing and serialisation delegate to the pure core; credentials persist via \texttt{ISecureStore};
 tuner via \texttt{tuner::TunerService}; audio via
 \texttt{audio::AudioService}; Bluetooth via \texttt{bluetooth::BluetoothService};
 presets via \texttt{station::StationService}.

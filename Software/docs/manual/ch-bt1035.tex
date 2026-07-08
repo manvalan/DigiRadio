@@ -41,7 +41,8 @@ output (Section~\ref{sec:bt1035-i2s}).
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}ll@{}}
+  \small
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \drhead Setting & Value \\
     \midrule
     Port            & UART2 (not the console UART) \\
@@ -67,7 +68,7 @@ Every command expects a module reply containing \texttt{OK} or
   \item treats timeouts and unexpected payloads as errors (never ignored).
 \end{itemize}
 
-Host tests in \texttt{components/core/test/bt1035\_at\_test.cpp} lock the
+Host tests in \drpath{components/core/test/bt1035_at_test.cpp} lock the
 init sequence (\texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=67}) and the parser.
 
 \section{Mandatory I\textsuperscript{2}S slave mode}
@@ -76,11 +77,13 @@ init sequence (\texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=67}) and the parser.
 \begin{drcaution}[I\textsuperscript{2}S init is not optional]
 The board routes ADAU1701 \texttt{SDATA\_OUT0} (MP6) to the module PCM input
 with shared BCLK/LRCLK (see Chapter~\ref{ch:hardware}). The init sequence
-must therefore use \texttt{AT+AUXCFG=3} (I\textsuperscript{2}S mode per
-programming guide §5.1.25) followed by \texttt{AT+I2SCFG=67} (I\textsuperscript{2}S
-slave, 48\,kHz, 32-bit per §5.1.4). \texttt{AT+AUXCFG=1} (Line-In) does
-\textbf{not} match the schematic. AGENTS.md treats skipping I\textsuperscript{2}S
-init as a production bug.
+must use:
+\begin{itemize}
+  \item \texttt{AT+AUXCFG=3} --- I\textsuperscript{2}S mode (§5.1.25)
+  \item \texttt{AT+I2SCFG=67} --- I\textsuperscript{2}S slave, 48\,kHz, 32-bit (§5.1.4)
+\end{itemize}
+\texttt{AT+AUXCFG=1} (Line-In) does \textbf{not} match the schematic.
+AGENTS.md treats skipping I\textsuperscript{2}S init as a production bug.
 \end{drcaution}
 
 \section{Boot sequence}
@@ -125,7 +128,7 @@ only the I\textsuperscript{2}S bring-up required for the wired audio path.
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}llp{5.8cm}@{}}
+  \begin{tabular}{@{}L{2.5cm}L{3.8cm}L{6.2cm}@{}}
     \drhead Layer & Type & Responsibility \\
     \midrule
     Bootstrap     & \texttt{HardwareBootstrap} &
@@ -145,14 +148,14 @@ only the I\textsuperscript{2}S bring-up required for the wired audio path.
 \label{sec:bt1035-at}
 
 The firmware enumerates every command it sends. Wire formats follow
-\texttt{Hardware/DATASHEET/FSC-BT1035\_programming\_user\_guide\_1.1.1.pdf}
+\drpath{Hardware/DATASHEET/FSC-BT1035_programming_user_guide_1.1.1.pdf}
 (§5 commands, §6 events). Extending the subset requires updating
 \texttt{core::Bt1035AtCommand}, the manual, and a host test.
 
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}llp{5.2cm}@{}}
+  \begin{tabular}{@{}L{2.4cm}L{3.4cm}L{5.5cm}@{}}
     \drhead Enum & Line sent & Programming guide \\
     \midrule
     \texttt{Ping}           & \texttt{AT}              & link check \\
@@ -184,7 +187,8 @@ reconnect count).
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}ll@{}}
+  \small
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \toprule
     \textbf{Method} & \textbf{Purpose} \\
     \midrule
@@ -210,7 +214,7 @@ reconnect count).
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \drhead \texttt{Bt1035Error} & Typical cause \\
     \midrule
     \texttt{ResetFailed}         & GPIO configuration failure \\

@@ -32,7 +32,7 @@ settings are collected in Table~\ref{tab:ss-hwcfg}.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \drhead Setting & Value \\
     \midrule
     Control port (I\textsuperscript{2}C address) & 0x34 (ADDR0/ADDR1 = GND) \\
@@ -57,7 +57,7 @@ matches the board GPIO map (Section~\ref{sec:hw-gpio}).
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.4cm}L{3.6cm}L{7.2cm}@{}}
     \drhead MP pin & Direction / function & Signal \\
     \midrule
     MP0  & Input Sdata\_in0     & audio from Si4684 (radio) \\
@@ -107,7 +107,7 @@ digital outputs that feed the Bluetooth module.
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.4cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Stage & Block & Role \\
     \midrule
     Input      & Input (ch. 2--5)          & radio L/R, ESP32 L/R \\
@@ -144,10 +144,11 @@ firmware.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lllll@{}}
+  \footnotesize
+  \begin{tabular}{@{}L{1.4cm}L{2.4cm}L{2.2cm}L{1.6cm}L{1.2cm}@{}}
     \drhead Band & Type & Frequency & Gain & Q \\
     \midrule
-    1 & Butterworth High (high-pass) & 20\,Hz   & ---   & 1.41 \\
+    1 & HP Butterworth & 20\,Hz   & ---   & 1.41 \\
     2 & Peaking                      & 100\,Hz  & 0\,dB & 1.0 \\
     3 & Peaking                      & 400\,Hz  & 0\,dB & 1.0 \\
     4 & Peaking                      & 1\,kHz   & 0\,dB & 1.0 \\
@@ -177,7 +178,7 @@ Table~\ref{tab:ss-lim}.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \drhead Parameter & Value \\
     \midrule
     RMS TC        & 50\,dB/s \\
@@ -199,7 +200,7 @@ SigmaStudio export (Section~\ref{sec:ss-export}).
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.4cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Control & Block & Runtime-adjustable \\
     \midrule
     Source levels (2)   & Si4674 / ESP32 faders & yes \\

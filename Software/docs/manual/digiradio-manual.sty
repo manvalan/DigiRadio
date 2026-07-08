@@ -23,9 +23,15 @@
 \RequirePackage{titlesec}
 \RequirePackage{booktabs}
 \RequirePackage{array}
+\RequirePackage{ragged2e}
+\RequirePackage{tabularx}
 \RequirePackage{enumitem}
 \RequirePackage[most]{tcolorbox}
 \RequirePackage{graphicx}
+
+% Wrapping column type for tables (use L{width} instead of l).
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\setlength{\emergencystretch}{5em}
 
 % ---------- Fonts (engine-aware) ---------------------------------------
 \ifPDFTeX
@@ -72,6 +78,7 @@
 \setlength{\parindent}{0pt}
 
 % ---------- Links -------------------------------------------------------
+\RequirePackage{xurl}
 \RequirePackage{hyperref}
 \hypersetup{colorlinks=true, linkcolor=drPetrol, urlcolor=drAmber,
             citecolor=drTeal}
@@ -119,6 +126,7 @@
   boxed title style={boxrule=0pt, arc=0.8mm,
                      left=2.2mm, right=2.2mm, top=0.6mm, bottom=0.6mm},
   before skip=8pt, after skip=8pt,
+  before upper={\RaggedRight},
 }}
 
 \newtcolorbox{drnote}[1][Note]{dr@base,
@@ -174,5 +182,12 @@
 }
 % inline code: \drcode|std::expected<T,E>|
 \newcommand{\code}[1]{{\ttfamily\color{drPetrol}#1}}
+% Breakable repo/file paths (use instead of long \texttt{...}).
+\newcommand{\drpath}[1]{\nolinkurl{#1}}
+% HTTP API subsection headings that wrap at slashes.
+\newcommand{\apiendpoint}[2]{%
+  \subsection{\texorpdfstring{%
+    {\raggedright\texttt{#1} \texttt{#2}\par}}{#1 #2}}%
+}
 
 \endinput

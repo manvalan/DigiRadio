@@ -38,7 +38,8 @@ uGreen licence); \texttt{.gitignore} keeps them on the developer machine only.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}llp{6.2cm}@{}}
+  \footnotesize
+  \begin{tabular}{@{}L{3.2cm}L{2.2cm}L{8.2cm}@{}}
     \toprule
     \textbf{Local file} & \textbf{Typ.\ size} & \textbf{Source} \\
     \midrule
@@ -99,7 +100,8 @@ python3 tools/fetch_si4684_firmware.py \
     --from-ugreen-radio-cli ~/Downloads/Files_v16.zip --ugreen-all
 
 # FM from dabpi / Skyworks eval folder:
-python3 tools/fetch_si4684_firmware.py --si46xx-dir /path/to/si46xx_firmware
+python3 tools/fetch_si4684_firmware.py \\
+    --si46xx-dir /path/to/si46xx_firmware
 \end{verbatim}
 
 Low-level helpers: \texttt{tools/extract\_si4684\_blob.py} (C header or copy),
@@ -167,7 +169,7 @@ versa for DAB.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \toprule
     \textbf{Method} & \textbf{Purpose} \\
     \midrule
@@ -284,7 +286,7 @@ selects the blob:
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.4cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Band & Image loaded & Primary API \\
     \midrule
     \texttt{Si4684Band::Dab} & \texttt{dab\_firmware.bin} &
@@ -309,14 +311,16 @@ The setup UI and REST clients use \texttt{tuner::TunerService}, which wraps
 
 \begin{table}[htbp]
   \centering
-  \small
-  \begin{tabular}{@{}llp{5.5cm}@{}}
+  \footnotesize
+  \begin{tabular}{@{}L{2.8cm}L{1.6cm}L{8.2cm}@{}}
     \drhead Endpoint & Band & Action \\
     \midrule
     \texttt{POST /api/tuner/tune} &
-      DAB & \texttt{\{"band":"dab","freq\_index":0..37\}} \\
+      DAB & \texttt{\{"band":"dab",}\\
+      & & \texttt{"freq\_index":0..37\}} \\
     \texttt{POST /api/tuner/tune} &
-      FM  & \texttt{\{"band":"fm","frequency\_khz":64000..108000\}} \\
+      FM  & \texttt{\{"band":"fm",}\\
+      & & \texttt{"frequency\_khz":64000..108000\}} \\
     \texttt{GET /api/tuner/services} & DAB only & Programme list for ensemble \\
     \texttt{POST /api/tuner/play}    & DAB only & Start \texttt{service\_id}/\texttt{component\_id} \\
     \texttt{POST /api/tuner/seek}    & FM only  & Seek up/down, return new kHz \\

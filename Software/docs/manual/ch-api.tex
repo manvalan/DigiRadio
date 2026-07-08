@@ -27,7 +27,7 @@ All responses use \texttt{Content-Type: application/json} except
 
 \section{Endpoints}
 
-\subsection{\texttt{GET /api/health}}
+\apiendpoint{GET}{/api/health}
 \label{sec:api-health}
 
 Returns a health-check DTO serialised by
@@ -53,7 +53,7 @@ Returns a health-check DTO serialised by
 
 HTTP status: \textbf{200 OK} on success.
 
-\subsection{\texttt{POST /api/wifi}}
+\apiendpoint{POST}{/api/wifi}
 \label{sec:api-wifi}
 
 Accepts Wi-Fi credentials for station (STA) join. The body is parsed by
@@ -88,17 +88,16 @@ reboots after the indicated delay.
 \begin{drcode}[JSON]
 {"status":"error","reason":"invalid_ssid"}
 \end{drcode}
-Serialised by \texttt{core::serializeWifiProvisionErrorJson()}. Reason
-tokens (never include secrets): \texttt{invalid\_json},
-\texttt{missing\_field}, \texttt{invalid\_ssid}, \texttt{invalid\_password},
-\texttt{store\_failed}.
+Serialised by \texttt{core::serializeWifiProvisionErrorJson()}. Reason tokens (never include secrets):
+\texttt{invalid\_json}, \texttt{missing\_field}, \texttt{invalid\_ssid},
+\texttt{invalid\_password}, \texttt{store\_failed}.
 \end{drnote}
 
 HTTP status: \textbf{200 OK} on save success; \textbf{400 Bad Request} for
 parse/validation failures; \textbf{500 Internal Server Error} when NVS
 persistence fails.
 
-\subsection{\texttt{GET /api/tuner/status}}
+\apiendpoint{GET}{/api/tuner/status}
 \label{sec:api-tuner-status}
 
 Returns a tuner snapshot serialised by
@@ -111,8 +110,9 @@ and~\ref{sec:si4684-fm-session}.
 \begin{drcode}[JSON]
 {"booted":true,"band":"dab","locked":true,"volume":63,
  "dab":{"freq_index":12,"fic_quality":80,"cnr_db":25,
- "playing_service_id":42,"playing_component_id":7,
- "dynamic_label":"Live show"},"fm":null}
+        "playing_service_id":42,"playing_component_id":7,
+        "dynamic_label":"Live show"},
+ "fm":null}
 \end{drcode}
 For FM, \texttt{fm} carries \texttt{frequency\_khz}, \texttt{rssi\_dbuv},
 \texttt{snr\_db}, \texttt{stereo}, optional \texttt{station\_name} (RDS PS),
@@ -125,7 +125,7 @@ HTTP status: \textbf{200 OK}; \textbf{500} with
 \texttt{station\_name} and \texttt{radiotext}; DAB responses may include
 \texttt{dynamic\_label} when a programme is playing.
 
-\subsection{\texttt{GET /api/tuner/services}}
+\apiendpoint{GET}{/api/tuner/services}
 \label{sec:api-tuner-services}
 
 Lists DAB programmes for the current ensemble via
@@ -140,7 +140,7 @@ Lists DAB programmes for the current ensemble via
 HTTP status: \textbf{200 OK}; \textbf{409 Conflict} when the list cannot be
 fetched (wrong band, empty ensemble, hardware error).
 
-\subsection{\texttt{POST /api/tuner/tune}}
+\apiendpoint{POST}{/api/tuner/tune}
 \label{sec:api-tuner-tune}
 
 Tunes to a DAB ensemble or FM frequency. Body parsed by
@@ -162,7 +162,7 @@ On success returns the updated status JSON (same shape as
 \texttt{GET /api/tuner/status}). HTTP status: \textbf{200 OK};
 \textbf{400} for invalid JSON; \textbf{409} for tune failures.
 
-\subsection{\texttt{POST /api/tuner/play}}
+\apiendpoint{POST}{/api/tuner/play}
 \label{sec:api-tuner-play}
 
 Starts a DAB audio service. Body parsed by
@@ -177,7 +177,7 @@ Starts a DAB audio service. Body parsed by
 Success response: \texttt{\{"status":"playing"\}}. HTTP status:
 \textbf{200 OK}; \textbf{409} when playback cannot start.
 
-\subsection{\texttt{POST /api/tuner/seek}}
+\apiendpoint{POST}{/api/tuner/seek}
 \label{sec:api-tuner-seek}
 
 Seeks FM in the requested direction. Optional JSON body parsed by
@@ -194,7 +194,7 @@ Use \texttt{"down"} for downward seek. Omit the body or send an empty JSON
 object (\texttt{\{\}}) for upward seek (backward compatible).
 \end{drnote}
 
-\subsection{\texttt{GET /api/audio/profile}}
+\apiendpoint{GET}{/api/audio/profile}
 \label{sec:api-audio-profile-get}
 
 Returns the current ADAU1701 audio snapshot serialised by
@@ -205,8 +205,9 @@ Chapter~\ref{ch:adau1701}.
 
 \begin{drnote}[Response schema (excerpt)]
 \begin{drcode}[JSON]
-{"mixer":{"si4684_left_db":0,"si4684_right_db":0,"esp32_left_db":0,
- "esp32_right_db":0,"mix_left_db":0,"mix_right_db":0},
+{"mixer":{"si4684_left_db":0,"si4684_right_db":0,
+         "esp32_left_db":0,"esp32_right_db":0,
+         "mix_left_db":0,"mix_right_db":0},
  "master":{"left_db":0,"right_db":0},
  "eq":[{"gain_db":0,"center_hz":40,"q":1.414}, ...],
  "enhancements":{"stereo_level":0,"bass_level":0}}
@@ -218,7 +219,7 @@ Enhancement levels are 0--100; at 0 the base EQ band settings apply.
 HTTP status: \textbf{200 OK}; \textbf{503} when the audio service is
 unavailable.
 
-\subsection{\texttt{PUT /api/audio/profile}}
+\apiendpoint{PUT}{/api/audio/profile}
 \label{sec:api-audio-profile-put}
 
 Applies a full audio profile. Body parsed by
@@ -235,7 +236,7 @@ the ADAU1701 and writes NVS key \texttt{audio\_profile\_json}.
 HTTP status: \textbf{200 OK}; \textbf{400} for parse/validation failures;
 \textbf{500} when safeload or NVS persistence fails.
 
-\subsection{\texttt{POST /api/dsp/program}}
+\apiendpoint{POST}{/api/dsp/program}
 \label{sec:api-dsp-program}
 
 Uploads a framed ADAU1701 RAM download blob (\texttt{DRAD} v1, see
@@ -255,7 +256,7 @@ for invalid/truncated/CRC failures; \textbf{413} when the body exceeds
 200\,KiB; \textbf{500} on flash write failure. Pack blobs with
 \texttt{tools/pack\_dsp\_program.py} or \texttt{core::serializeDspProgramBlob()}.
 
-\subsection{\texttt{POST /api/system/ota}}
+\apiendpoint{POST}{/api/system/ota}
 \label{sec:api-system-ota}
 
 Streams a raw ESP-IDF application \texttt{.bin} into the inactive OTA slot
@@ -278,7 +279,7 @@ for invalid project/magic or flash write failures;
 \textbf{500} on \texttt{esp\_ota\_end}/set-boot failures. Push with
 \texttt{curl --data-binary @build/digiradio.bin}.
 
-\subsection{\texttt{POST /api/audio/reset}}
+\apiendpoint{POST}{/api/audio/reset}
 \label{sec:api-audio-reset}
 
 Restores \texttt{AudioProfile::factoryDefault()} (flat EQ, 0\,dB gains),
@@ -286,7 +287,7 @@ applies it to the DSP, and persists to NVS. Success response:
 \texttt{\{"status":"saved"\}}. HTTP status: \textbf{200 OK}; \textbf{500}
 on apply/persist failure.
 
-\subsection{\texttt{POST /api/audio/stereo-enhance}}
+\apiendpoint{POST}{/api/audio/stereo-enhance}
 \label{sec:api-audio-stereo-enhance}
 
 Adjusts stereo depth via a psychoacoustic PEQ overlay on bands 3--5
@@ -305,7 +306,7 @@ Success response: \texttt{\{"status":"saved"\}}. HTTP status:
 \textbf{200 OK}; \textbf{400} for invalid JSON or level; \textbf{500}
 when safeload or NVS persistence fails.
 
-\subsection{\texttt{POST /api/audio/bass-enhance}}
+\apiendpoint{POST}{/api/audio/bass-enhance}
 \label{sec:api-audio-bass-enhance}
 
 Adjusts bass emphasis via a PEQ overlay on bands 1--2 (100\,Hz /
@@ -316,7 +317,7 @@ Adjusts bass emphasis via a PEQ overlay on bands 1--2 (100\,Hz /
 % Bluetooth (Slice 7)
 % ------------------------------------------------------------------
 
-\subsection{\texttt{GET /api/bluetooth/status}}
+\apiendpoint{GET}{/api/bluetooth/status}
 \label{sec:api-bluetooth-status}
 
 Returns BT1035 boot flag, whether discoverable mode was requested, the
@@ -330,24 +331,24 @@ Serialised by \texttt{core::serializeBluetoothStatusJson()}.
 \end{drcode}
 \end{drnote}
 
-\subsection{\texttt{POST /api/bluetooth/pair}}
+\apiendpoint{POST}{/api/bluetooth/pair}
 \label{sec:api-bluetooth-pair}
 
 Enters discoverable mode (\texttt{AT+PAIR=1}). Success:
 \texttt{\{"status":"pairing"\}}.
 
-\subsection{\texttt{POST /api/bluetooth/pair/stop}}
+\apiendpoint{POST}{/api/bluetooth/pair/stop}
 \label{sec:api-bluetooth-pair-stop}
 
 Leaves discoverable mode (\texttt{AT+PAIR=0}). Success:
 \texttt{\{"status":"idle"\}}.
 
-\subsection{\texttt{POST /api/bluetooth/disconnect}}
+\apiendpoint{POST}{/api/bluetooth/disconnect}
 \label{sec:api-bluetooth-disconnect}
 
 Releases the current A2DP session (\texttt{AT+A2DPDISC}).
 
-\subsection{\texttt{GET /api/bluetooth/paired}}
+\apiendpoint{GET}{/api/bluetooth/paired}
 \label{sec:api-bluetooth-paired}
 
 Returns paired remotes from \texttt{AT+PLIST}, serialised by
@@ -359,7 +360,7 @@ Returns paired remotes from \texttt{AT+PLIST}, serialised by
 \end{drcode}
 \end{drnote}
 
-\subsection{\texttt{POST /api/bluetooth/auto-reconnect}}
+\apiendpoint{POST}{/api/bluetooth/auto-reconnect}
 \label{sec:api-bluetooth-auto-reconnect}
 
 Sets the module auto-reconnect retry count (\texttt{AT+AUTOCONN=0..15}).
@@ -376,29 +377,29 @@ Success: \texttt{\{"status":"saved"\}}.
 % Station presets (Slice 4)
 % ------------------------------------------------------------------
 
-\subsection{\texttt{GET /api/stations}}
+\apiendpoint{GET}{/api/stations}
 \label{sec:api-stations-get}
 
 Returns presets serialised by \texttt{core::serializeStationListJson()}.
 
-\subsection{\texttt{POST /api/stations}}
+\apiendpoint{POST}{/api/stations}
 \label{sec:api-stations-post}
 
 Adds one preset (\texttt{core::parseStationJson()}); persists via
 \texttt{ISecureStore::saveStationListJson()}.
 
-\subsection{\texttt{POST /api/stations/remove}}
+\apiendpoint{POST}{/api/stations/remove}
 \label{sec:api-stations-remove}
 
 Removes a preset by list index (\texttt{\{"index":0\}}).
 
-\subsection{\texttt{POST /api/stations/reorder}}
+\apiendpoint{POST}{/api/stations/reorder}
 \label{sec:api-stations-reorder}
 
 Reorders presets using \texttt{StationList::move()}. Body:
 \texttt{\{"from":1,"to":0\}}. Success: \texttt{\{"status":"reordered"\}}.
 
-\subsection{\texttt{POST /api/stations/tune}}
+\apiendpoint{POST}{/api/stations/tune}
 \label{sec:api-stations-tune}
 
 Recalls a preset via \texttt{integration::IntegrationService::recallPreset()}
@@ -435,10 +436,10 @@ as \texttt{last\_preset} (u8). Passwords are wrapped in
 \texttt{core::Secret} in RAM and are never logged or returned by the API.
 
 \begin{drcaution}[Encryption at rest]
-Firmware~0.8.3+ enables NVS encryption (\texttt{CONFIG\_NVS\_ENCRYPTION}) and
-flash encryption in development mode (\texttt{sdkconfig.defaults}). Keys live in
-the \texttt{nvs\_keys} partition; Wi-Fi passwords remain wrapped in
-\texttt{core::Secret} in RAM and are never logged. First upgrade from plain NVS
-requires \texttt{idf.py erase-flash}. HIL checklist:
-\texttt{Software/docs/security-flash-nvs.md}.
+Firmware~0.8.3+ enables NVS encryption
+(\texttt{CONFIG\_NVS\_ENCRYPTION}) and flash encryption in development mode
+(\texttt{sdkconfig.defaults}). Keys live in the \texttt{nvs\_keys} partition;
+Wi-Fi passwords remain wrapped in \texttt{core::Secret} in RAM and are never
+logged. First upgrade from plain NVS requires \texttt{idf.py erase-flash}.
+HIL checklist: \drpath{Software/docs/security-flash-nvs.md}.
 \end{drcaution}

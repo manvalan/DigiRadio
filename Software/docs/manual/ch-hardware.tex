@@ -36,7 +36,8 @@ interface.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}llll@{}}
+  \small
+  \begin{tabular}{@{}L{2.6cm}L{4.2cm}L{2.6cm}L{3.8cm}@{}}
     \drhead Device & Role & Control bus & Firmware \\
     \midrule
     Si4684           & DAB+/FM tuner            & SPI            & host-loaded image \\
@@ -152,7 +153,7 @@ The host speaks several interfaces, each chosen for its traffic:
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Bus & Devices & Purpose \\
     \midrule
     SPI    & Si4684                    & fast firmware-image upload, tuner control \\
@@ -192,7 +193,7 @@ and the companion chips. The firmware pin definitions
 \subsection{System and control lines}
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Signal & ESP32-S3 GPIO & Notes \\
     \midrule
     USB D$-$          & GPIO19 & native USB \\
@@ -207,7 +208,8 @@ and the companion chips. The firmware pin definitions
 \subsection{Si4684 tuner (SPI)}
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}llll@{}}
+  \small
+  \begin{tabular}{@{}L{2.4cm}L{2.2cm}L{2.8cm}L{5.8cm}@{}}
     \drhead Signal & Si4684 pin & ESP32-S3 GPIO & Notes \\
     \midrule
     SCLK                    & pin 30 & GPIO13 & \\
@@ -225,7 +227,7 @@ and the companion chips. The firmware pin definitions
 \subsection{ADAU1701 DSP (I\textsuperscript{2}C)}
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Signal & ADAU1701 pin & ESP32-S3 GPIO \\
     \midrule
     SDA     & --- & GPIO4 \\
@@ -247,7 +249,7 @@ serial number. Its 7-bit address is 0x52 (A0 to GND, A1 to 3V3).
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Device & 7-bit address & Set by \\
     \midrule
     ADAU1701          & 0x34 & ADDR0, ADDR1 = GND \\
@@ -261,7 +263,8 @@ serial number. Its 7-bit address is 0x52 (A0 to GND, A1 to 3V3).
 \subsection{FSC-BT1035 Bluetooth}
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}llll@{}}
+  \small
+  \begin{tabular}{@{}L{2.2cm}L{2.2cm}L{2.8cm}L{5.8cm}@{}}
     \drhead Signal & BT1035 pin & ESP32-S3 GPIO & Direction \\
     \midrule
     SYS\_CTL & pin 34 & GPIO15 & ESP32 $\rightarrow$ BT \\
@@ -285,7 +288,7 @@ I\textsuperscript{2}S source lines that feed the mixer.
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Signal & Path & ADAU1701 / BT1035 pins \\
     \midrule
     SDATA\_IN0  & Si4684 $\rightarrow$ ADAU & MP0 (pin 11) \\
@@ -302,7 +305,7 @@ I\textsuperscript{2}S source lines that feed the mixer.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Signal & ESP32-S3 GPIO & Direction \\
     \midrule
     BCLK       & GPIO6  & in from ADAU (master) \\
@@ -365,12 +368,13 @@ satisfying the +10\,\textmu s requirement in practice.
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{3.2cm}L{8.2cm}L{2.2cm}@{}}
     \drhead Check & Requirement (datasheet) & Status \\
     \midrule
     RSTB low at power-up   & held low until supplies stable +10\,\textmu s & verified (pull-down) \\
     RSTB release (firmware) & not before supplies stable; boot pulse only  & verified (driver) \\
-    RSTB glitch guard (firmware) & \texttt{GPIO\_PULLDOWN\_ENABLE} in \texttt{gpio\_config} & verified (driver) \\
+    RSTB glitch guard (firmware) &
+      \texttt{GPIO\_PULLDOWN\_ENABLE} in \texttt{gpio\_config} & verified \\
     Core supplies at 1.8\,V & VA = VCORE = VMEM = 1.8\,V                    & verified \\
     VIO level              & 1.62--3.6\,V (3.3\,V to talk to ESP32)        & verified \\
     Bypass caps            & 2.2\,nF + 1\,\textmu F per VIO/VMEM/VCORE rail & verified \\
@@ -379,19 +383,17 @@ satisfying the +10\,\textmu s requirement in practice.
     INTB                   & interrupt line, external pull-up (GPIO39)      & verified \\
     \bottomrule
   \end{tabular}
-  \caption{Si4684 design checks. References:
-    \texttt{Hardware/DATASHEET/SI4684-A10.pdf} (power sequencing, SPI,
-    supply levels) and \texttt{Hardware/DATASHEET/AN851.pdf} (bypass and layout).}
+  \caption{Si4684 design checks (datasheet references below).}
   \label{tab:hw-val-si4684}
 \end{table}
 
 \begin{drref}[Datasheet]
-Power sequencing and SPI framing:
-\texttt{Hardware/DATASHEET/SI4684-A10.pdf}. The user must not pulse SSB high
-between bytes; SSB frames the whole command/reply.
-Bypass-capacitor values and placement: \texttt{Hardware/DATASHEET/AN851.pdf},
-\emph{Si468x Schematic and Layout Guide}. Boot and command protocol: AN649.
-Local copies: \texttt{Hardware/DATASHEET/} (see \texttt{README.md}).
+Power sequencing and SPI framing: \drpath{Hardware/DATASHEET/SI4684-A10.pdf}.
+The user must not pulse SSB high between bytes; SSB frames the whole
+command/reply. Bypass-capacitor values and placement:
+\drpath{Hardware/DATASHEET/AN851.pdf}, \emph{Si468x Schematic and Layout
+Guide}. Boot and command protocol: AN649. Local copies:
+\drpath{Hardware/DATASHEET/} (see \drpath{README.md}).
 \end{drref}
 
 The core, memory, and analogue rails run at 1.8\,V; only VIO is at 3.3\,V
@@ -415,7 +417,7 @@ locks up when input data arrives.
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Check & Requirement (datasheet) & Status \\
     \midrule
     Clock loopback   & MP10$\rightarrow$MP4, MP11$\rightarrow$MP5 wired     & verified \\
@@ -452,18 +454,17 @@ Schematic \texttt{DigitalRadio.pdf} and BOM list R1 (SCL) and R16 (SDA) as
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{3.5cm}L{7.5cm}L{2.5cm}@{}}
     \drhead Check & Requirement & Status \\
     \midrule
     UART with flow control & TX/RX + RTS/CTS wired            & verified \\
-    I\textsuperscript{2}S init (firmware) & \texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=67} & driver rule \\
+    I\textsuperscript{2}S init (firmware) &
+      \texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=67} & driver rule \\
     I\textsuperscript{2}S input & receives clocks from ADAU master (slave) & verified \\
     Reset line             & RESET (GPIO17) driven by ESP32    & verified \\
     \bottomrule
   \end{tabular}
-  \caption{FSC-BT1035 design checks. Datasheet:
-    \texttt{Hardware/DATASHEET/FSC-BT1035\_Datasheet\_EN.pdf}; AT commands:
-    \texttt{FSC-BT1035\_programming\_user\_guide\_1.1.1.pdf} §5.}
+  \caption{FSC-BT1035 design checks (datasheets in \drpath{Hardware/DATASHEET/}).}
   \label{tab:hw-val-bt1035}
 \end{table}
 
@@ -479,7 +480,8 @@ UART 115200/8/N/1, SSP on, auto-reconnect configurable via
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \small
+  \begin{tabular}{@{}L{2.2cm}L{4.8cm}L{6.6cm}@{}}
     \drhead Area & Item & Status \\
     \midrule
     Si4684 & RSTB pull-down, 1.8\,V rails, bypass caps, SPI & verified \\
