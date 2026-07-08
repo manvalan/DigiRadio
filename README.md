@@ -7,7 +7,7 @@
 **Open-source digital radio — Si4684 tuner · ADAU1701 SigmaDSP · Bluetooth aptX Adaptive · ESP32-S3**
 
 ![Status](https://img.shields.io/badge/hardware-verified-brightgreen)
-![Firmware](https://img.shields.io/badge/firmware-0.8.3-blue)
+![Firmware](https://img.shields.io/badge/firmware-0.8.5-blue)
 ![CI](https://github.com/manvalan/DigiRadio/actions/workflows/ci.yml/badge.svg)
 ![PCB](https://img.shields.io/badge/PCB-6--layer-blue)
 ![Hardware License](https://img.shields.io/badge/hardware-CERN--OHL--S-lightgrey)
@@ -57,11 +57,11 @@ no analogue conversions are introduced between the tuner and the wireless link.
 - **6-layer impedance-controlled PCB**, 50 × 90 mm, two ground planes
 - Three antennas (ESP32 2.4 GHz, BT1035 2.4 GHz, FM/DAB SMA) with proper keep-outs
 
-### Firmware (ESP-IDF, C++23 — fw **0.8.3**)
+### Firmware (ESP-IDF, C++23 — fw **0.8.5**)
 
 | Area | Capability |
 |------|------------|
-| **Boot & chips** | Si4684 DAB+FM firmware load (HOST_LOAD blobs), ADAU1701 RAM program at every boot, BT1035 UART init |
+| **Boot & chips** | Si4684 DAB+FM firmware load (HOST_LOAD blobs), ADAU1701 RAM program at every boot, BT1035 I2S slave init (`AT+AUXCFG=3`, `AT+I2SCFG=67`) |
 | **Tuner** | FM tune/seek, DAB ensemble tune, service scan & play, RSQ/RDS, DAB event status |
 | **Now playing** | FM RDS (PS, RadioText, PI, PTY) and DAB Dynamic Label (DLS) in status JSON and web UI |
 | **Audio** | 6-band EQ, input mixer, stereo/bass enhancement overlays, profile persist in encrypted NVS |
@@ -83,6 +83,8 @@ Vertical slices landed on `main` (newest first):
 
 | Version | Highlights |
 |---------|------------|
+| **0.8.5** | BT1035 I2S slave boot init (schematic-aligned); I2C pull-ups R1/R16 confirmed 2 kΩ; `Hardware/DATASHEET/` bundle |
+| **0.8.4** | Dual OTA + DSP blob updates, EEPROM identity, System tab OTA/DSP upload |
 | **0.8.3** | NVS + flash encryption (development mode), `initEncryptedStorage`, security docs |
 | **0.8.2** | Tabbed Web UI (now-playing, 6-band EQ, all REST); Si4684 blob CI policy |
 | **0.8.1** | `IntegrationService` — boot preset recall, tune orchestration (tuner + audio + NVS `last_preset`); services stub removed |
@@ -228,10 +230,10 @@ Generated C++ API reference: run `doxygen Doxyfile` → `Software/docs/api/html/
 | **PCB layout** | 6-layer, DRC clean, plane continuity verified |
 | **BOM** | Finalised (manufacturable / sourced) |
 | **Prototype** | In fabrication (PCBWay) |
-| **Firmware** | **0.8.3** on `main` — encrypted NVS, full Web UI, integration, RDS/DLS |
+| **Firmware** | **0.8.5** on `main` — BT1035 I2S boot init, dual OTA, encrypted NVS, full Web UI |
 | **Web UI** | Tabbed SPA covering every REST endpoint |
 | **HIL** | Device validation pending PCB (`Software/docs/security-flash-nvs.md`) |
-| **Agent backlog** | Feature-complete on `main` (fw 0.8.3); see [`Software/docs/TODO.md`](Software/docs/TODO.md) |
+| **Agent backlog** | Feature-complete on `main` (fw 0.8.5); see [`Software/docs/TODO.md`](Software/docs/TODO.md) |
 
 ---
 
@@ -239,9 +241,12 @@ Generated C++ API reference: run `doxygen Doxyfile` → `Software/docs/api/html/
 
 The board is manufactured with **PCBWay** as a 6-layer, impedance-controlled PCB
 with turnkey assembly. The FSC-BT1035 Bluetooth module is sourced from Feasycom
-(the footprint uses a BT806-compatible, pin-identical land pattern). See the
-[Technical Manual](Software/docs/manual/manual.tex) hardware chapter and manufacturing
-notes for fabrication settings and MSL-3 handling of the BT module.
+(the footprint uses a BT806-compatible, pin-identical land pattern). Component
+datasheets for design review live in
+[`Hardware/DATASHEET/`](Hardware/DATASHEET/) (Si4684-A10, AN851, ADAU1701, FSC-BT1035).
+See the [Technical Manual](Software/docs/manual/manual.tex) hardware chapter
+and manufacturing notes for fabrication settings and MSL-3 handling of the BT
+module.
 
 ---
 

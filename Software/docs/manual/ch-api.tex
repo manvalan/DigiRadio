@@ -6,7 +6,7 @@ implemented in \texttt{SetupWebServer}. Request bodies are parsed into
 domain types in the pure core (\texttt{components/core}) before any
 persistence or driver call. Exact C++ signatures live in the generated
 Doxygen output under \texttt{docs/api/}; this chapter documents the
-wire protocol and behaviour as shipped in firmware~0.8.4.
+wire protocol and behaviour as shipped in firmware~0.8.5.
 
 \section{Transport and reachability}
 
@@ -36,7 +36,7 @@ Returns a health-check DTO serialised by
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"status":"ok","fw":"0.8.4","serialNumber":"0004A3123456",
+{"status":"ok","fw":"0.8.5","serialNumber":"0004A3123456",
  "chips":{"si4684":true,"adau1701":true,"bt1035":true}}
 \end{drcode}
 \begin{itemize}

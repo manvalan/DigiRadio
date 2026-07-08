@@ -16,7 +16,7 @@ added in the same change that introduces the class. A tooling check keeps
 this chapter in step with the code, so it is always current.
 \end{drnote}
 
-The class reference tracks firmware~0.8.4 on \texttt{main}. Public classes
+The class reference tracks firmware~0.8.5 on \texttt{main}. Public classes
 are grouped by layer: domain core, application services, and hardware drivers.
 
 % ------------------------------------------------------------------
@@ -163,7 +163,8 @@ index (1--8), 12-digit MAC, and optional friendly name. Parsed by
 \section{Bt1035Driver}\label{cls:Bt1035Driver}
 UART driver for the FSC-BT1035 (Chapter~\ref{ch:bt1035}). \texttt{boot()}
 pulses RESET\#, opens UART2 with RTS/CTS, and runs
-\texttt{core::bootInitSequence()} (Ping + \texttt{AT+AUXCFG=1}). Returns
+\texttt{core::bootInitSequence()} (Ping + \texttt{AT+AUXCFG=3} +
+\texttt{AT+I2SCFG=67}). Returns
 \texttt{Bt1035Error} on timeout, ERROR response, or UART failure.
 
 \section{Adau1701Driver}\label{cls:Adau1701Driver}

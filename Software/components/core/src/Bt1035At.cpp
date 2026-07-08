@@ -101,8 +101,10 @@ std::string buildBt1035AtLine(Bt1035AtCommand command)
     switch (command) {
     case Bt1035AtCommand::Ping:
         return "AT\r\n";
-    case Bt1035AtCommand::AuxLineIn:
-        return "AT+AUXCFG=1\r\n";
+    case Bt1035AtCommand::I2sMode:
+        return "AT+AUXCFG=3\r\n";
+    case Bt1035AtCommand::I2sSlave48k32:
+        return "AT+I2SCFG=67\r\n";
     case Bt1035AtCommand::PairDiscoverable:
         return "AT+PAIR=1\r\n";
     case Bt1035AtCommand::PairHidden:
@@ -129,11 +131,21 @@ std::string buildBt1035SetAutoConnLine(std::uint8_t times)
     return "AT+AUTOCONN=" + std::to_string(times) + "\r\n";
 }
 
+std::string buildBt1035SetNameLine(std::string_view name, bool enableMacSuffix)
+{
+    if (name.empty() || name.size() > 31U) {
+        return {};
+    }
+    return std::string("AT+NAME=") + std::string(name) + ","
+           + (enableMacSuffix ? "1" : "0") + "\r\n";
+}
+
 std::array<Bt1035AtCommand, kBt1035BootInitCommandCount> bootInitSequence() noexcept
 {
     return std::array<Bt1035AtCommand, kBt1035BootInitCommandCount>{
         Bt1035AtCommand::Ping,
-        Bt1035AtCommand::AuxLineIn,
+        Bt1035AtCommand::I2sMode,
+        Bt1035AtCommand::I2sSlave48k32,
     };
 }
 

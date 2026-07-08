@@ -9,8 +9,8 @@ The Feasycom FSC-BT1035 (Qualcomm QCC3056) is the wireless output stage of
 DigiRadio: it receives PCM from the ADAU1701 over I\textsuperscript{2}S and
 streams Bluetooth audio with aptX, aptX~HD, and aptX~Adaptive. This chapter
 documents how the ESP32-S3 controls the module over UART (AT commands with
-RTS/CTS), why Line-In mode is mandatory, and how \texttt{bt1035::Bt1035Driver}
-implements the bring-up sequence.
+RTS/CTS), why I\textsuperscript{2}S slave mode is mandatory, and how
+\texttt{bt1035::Bt1035Driver} implements the bring-up sequence.
 
 \begin{drref}[Hardware context]
 Board wiring (UART pins, I\textsuperscript{2}S to the module, flow control)
@@ -29,9 +29,10 @@ samples for Bluetooth; it only configures the module so the wired path is
 accepted and encoded for transmission.
 
 Without firmware init the module may stay in a default mode that ignores the
-Line-In from the DSP. The mandatory \texttt{AT+AUXCFG=1} command selects
-auxiliary/Line-In input --- omitting it silently breaks the entire wireless
-output (Section~\ref{sec:bt1035-linein}).
+I\textsuperscript{2}S bus from the ADAU1701. The mandatory
+\texttt{AT+AUXCFG=3} and \texttt{AT+I2SCFG=67} commands select I\textsuperscript{2}S
+slave input at 48\,kHz --- omitting them silently breaks the entire wireless
+output (Section~\ref{sec:bt1035-i2s}).
 
 \section{Control interface}
 \label{sec:bt1035-uart}
@@ -67,17 +68,19 @@ Every command expects a module reply containing \texttt{OK} or
 \end{itemize}
 
 Host tests in \texttt{components/core/test/bt1035\_at\_test.cpp} lock the
-init sequence (including \texttt{AT+AUXCFG=1}) and the parser.
+init sequence (\texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=67}) and the parser.
 
-\section{Mandatory Line-In mode}
-\label{sec:bt1035-linein}
+\section{Mandatory I\textsuperscript{2}S slave mode}
+\label{sec:bt1035-i2s}
 
-\begin{drcaution}[AT+AUXCFG=1 is not optional]
-The documented init sequence must include \texttt{AT+AUXCFG=1} after a
-successful \texttt{AT} ping. This tells the QCC3056 firmware to take audio
-from the wired I\textsuperscript{2}S/Line-In port (the ADAU1701 output)
-rather than an internal source. AGENTS.md and the hardware manual both treat
-skipping this step as a production bug.
+\begin{drcaution}[I\textsuperscript{2}S init is not optional]
+The board routes ADAU1701 \texttt{SDATA\_OUT0} (MP6) to the module PCM input
+with shared BCLK/LRCLK (see Chapter~\ref{ch:hardware}). The init sequence
+must therefore use \texttt{AT+AUXCFG=3} (I\textsuperscript{2}S mode per
+programming guide §5.1.25) followed by \texttt{AT+I2SCFG=67} (I\textsuperscript{2}S
+slave, 48\,kHz, 32-bit per §5.1.4). \texttt{AT+AUXCFG=1} (Line-In) does
+\textbf{not} match the schematic. AGENTS.md treats skipping I\textsuperscript{2}S
+init as a production bug.
 \end{drcaution}
 
 \section{Boot sequence}
@@ -85,7 +88,7 @@ skipping this step as a production bug.
 
 At power-up \texttt{HardwareBootstrap::boot()} runs the Si4684 and ADAU1701
 first, applies the saved audio profile, then initialises the BT1035 so the
-Line-In path is ready before Wi-Fi starts.
+I\textsuperscript{2}S path is ready before Wi-Fi starts.
 
 \begin{figure}[htbp]
   \centering
@@ -99,10 +102,12 @@ Line-In path is ready before Wi-Fi starts.
     \node[drstep, fill=black!8, below=of uart] (at)
       {Send \texttt{AT} --- expect OK};
     \node[drstep, fill=black!10, below=of at] (aux)
-      {Send \texttt{AT+AUXCFG=1} --- expect OK (Line-In)};
-    \node[drstep, fill=black!6, below=of aux] (done)
+      {Send \texttt{AT+AUXCFG=3} --- expect OK (I\textsuperscript{2}S)};
+    \node[drstep, fill=black!10, below=of aux] (i2s)
+      {Send \texttt{AT+I2SCFG=67} --- expect OK (slave 48\,kHz)};
+    \node[drstep, fill=black!6, below=of i2s] (done)
       {\texttt{Bt1035Driver::isBooted()} = true};
-    \foreach \a/\b in {sys/uart, uart/at, at/aux, aux/done} {
+    \foreach \a/\b in {sys/uart, uart/at, at/aux, aux/i2s, i2s/done} {
       \draw[->] (\a) -- (\b);
     }
   \end{tikzpicture}
@@ -112,7 +117,7 @@ Line-In path is ready before Wi-Fi starts.
 
 Pairing, codec selection, and volume over Bluetooth are handled by the
 module's own firmware and NVS; DigiRadio firmware currently implements
-only the Line-In bring-up required for the wired audio path.
+only the I\textsuperscript{2}S bring-up required for the wired audio path.
 
 \section{Software architecture}
 \label{sec:bt1035-stack}
@@ -139,29 +144,37 @@ only the Line-In bring-up required for the wired audio path.
 \section{Supported AT command subset}
 \label{sec:bt1035-at}
 
-The firmware enumerates every command it sends. Extending the subset requires
-updating \texttt{core::Bt1035AtCommand}, the manual, and a host test.
+The firmware enumerates every command it sends. Wire formats follow
+\texttt{Hardware/DATASHEET/FSC-BT1035\_programming\_user\_guide\_1.1.1.pdf}
+(§5 commands, §6 events). Extending the subset requires updating
+\texttt{core::Bt1035AtCommand}, the manual, and a host test.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
-    \drhead Enum & Line sent & Purpose \\
+  \small
+  \begin{tabular}{@{}llp{5.2cm}@{}}
+    \drhead Enum & Line sent & Programming guide \\
     \midrule
-    \texttt{Ping}      & \texttt{AT}           & Verify UART link \\
-    \texttt{AuxLineIn}   & \texttt{AT+AUXCFG=1}  & Enable Line-In from ADAU \\
-    \texttt{PairDiscoverable} & \texttt{AT+PAIR=1} & Enter discoverable mode \\
-    \texttt{PairHidden}       & \texttt{AT+PAIR=0} & Leave discoverable mode \\
-    \texttt{A2dpStat}         & \texttt{AT+A2DPSTAT} & Read link state \\
-    \texttt{A2dpDisconnect}   & \texttt{AT+A2DPDISC} & Release A2DP session \\
-    \texttt{QueryName}        & \texttt{AT+NAME}     & Read module friendly name \\
-    \texttt{QueryAutoConn}    & \texttt{AT+AUTOCONN} & Read auto-reconnect count \\
-    \texttt{QueryPairedList}  & \texttt{AT+PLIST}    & List paired remotes \\
+    \texttt{Ping}           & \texttt{AT}              & link check \\
+    \texttt{I2sMode}        & \texttt{AT+AUXCFG=3}     & §5.1.25 Param=3 I2S \\
+    \texttt{I2sSlave48k32}  & \texttt{AT+I2SCFG=67}    & §5.1.4 slave 48\,kHz 32-bit \\
+    \texttt{PairDiscoverable} & \texttt{AT+PAIR=1} & §5.1.20 enter discoverable \\
+    \texttt{PairHidden}       & \texttt{AT+PAIR=0} & §5.1.20 leave discoverable \\
+    \texttt{A2dpStat}         & \texttt{AT+A2DPSTAT} & §5.3.1; states 1--5 \\
+    \texttt{A2dpDisconnect}   & \texttt{AT+A2DPDISC} & §5.3.3 \\
+    \texttt{QueryName}        & \texttt{AT+NAME}     & §5.1.16 read \texttt{+NAME=} \\
+    \texttt{QueryAutoConn}    & \texttt{AT+AUTOCONN} & §5.1.11 read \texttt{+AUTOCONN=} \\
+    \texttt{QueryPairedList}  & \texttt{AT+PLIST}    & §5.1.22; ends with \texttt{+PLIST=E} \\
     \bottomrule
   \end{tabular}
   \caption{Enumerated AT commands (\texttt{core::Bt1035AtCommand}). Boot
-    uses Ping + AuxLineIn only; pairing commands are runtime.}
+    uses Ping + I2sMode + I2sSlave48k32; pairing commands are runtime.}
   \label{tab:bt1035-at}
 \end{table}
+
+Boot also calls \texttt{AT+NAME=<identity>,0} and \texttt{AT+AUTOCONN=3}
+from \texttt{hardware\_bootstrap.cpp} (§5.1.16 suffix disabled, §5.1.11
+reconnect count).
 
 \section{Bt1035Driver API}
 \label{sec:bt1035-driver}
@@ -176,7 +189,7 @@ updating \texttt{core::Bt1035AtCommand}, the manual, and a host test.
     \textbf{Method} & \textbf{Purpose} \\
     \midrule
     \texttt{boot()} & Reset, UART init, run \texttt{bootInitSequence()} \\
-    \texttt{isBooted()} & \texttt{true} after Line-In init succeeded \\
+    \texttt{isBooted()} & \texttt{true} after I\textsuperscript{2}S init succeeded \\
     \texttt{sendCommand(cmd)} & Send one typed command, expect OK \\
     \texttt{enterPairingMode()} & \texttt{AT+PAIR=1} \\
     \texttt{leavePairingMode()} & \texttt{AT+PAIR=0} \\
@@ -226,19 +239,22 @@ Boot order:
   \item Si4684 \texttt{boot(Dab)} --- tuner image in RAM.
   \item ADAU1701 \texttt{boot()} --- SigmaStudio program in RAM.
   \item \texttt{AudioService::loadAndApply()} --- user mixer/EQ profile.
-  \item BT1035 \texttt{boot()} --- Line-In enabled for wireless output.
+  \item BT1035 \texttt{boot()} --- I\textsuperscript{2}S slave enabled for wireless output.
 \end{enumerate}
 
 \section{Typical usage (firmware developer)}
 \label{sec:bt1035-usage}
 
 After a successful \texttt{HardwareBootstrap::boot()}, the module is ready;
-no further calls are required for basic listening. To re-send Line-In config
+no further calls are required for basic listening. To re-send I\textsuperscript{2}S config
 after a module reset:
 
 \begin{verbatim}
 bt1035::Bt1035Driver& bt = ...;
-if (auto r = bt.sendCommand(core::Bt1035AtCommand::AuxLineIn); !r) {
+if (auto r = bt.sendCommand(core::Bt1035AtCommand::I2sMode); !r) {
+  // handle Bt1035Error
+}
+if (auto r = bt.sendCommand(core::Bt1035AtCommand::I2sSlave48k32); !r) {
   // handle Bt1035Error
 }
 \end{verbatim}
@@ -247,9 +263,12 @@ if (auto r = bt.sendCommand(core::Bt1035AtCommand::AuxLineIn); !r) {
 \label{sec:bt1035-reading}
 
 \begin{itemize}
-  \item Feasycom FSC-BT1035 AT command manual (vendor) --- full command set;
-        firmware wraps name, paired list, and auto-reconnect for the Web UI.
+  \item \texttt{Hardware/DATASHEET/FSC-BT1035\_programming\_user\_guide\_1.1.1.pdf}
+        --- authoritative AT command and event reference (§5--§6).
+  \item \texttt{Hardware/DATASHEET/FSC-BT1035\_Datasheet\_EN.pdf} --- module
+        electrical and pinout specification.
   \item Chapter~\ref{ch:hardware} --- pin map and I\textsuperscript{2}S routing.
   \item Chapter~\ref{ch:adau1701} --- DSP output that feeds the module.
-  \item \texttt{components/core/test/bt1035\_at\_test.cpp} --- init sequence test.
+  \item \texttt{components/core/test/bt1035\_at\_test.cpp} --- init sequence
+        and parser host tests.
 \end{itemize}

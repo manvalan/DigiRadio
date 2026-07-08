@@ -27,7 +27,7 @@ namespace core {
 struct CompanionChipStatus {
     bool si4684Ready;   ///< Si4684 HOST_LOAD completed.
     bool adau1701Ready; ///< ADAU1701 SigmaStudio download completed.
-    bool bt1035Ready;   ///< BT1035 Line-In init (AT+AUXCFG=1) completed.
+    bool bt1035Ready;   ///< BT1035 I2S init (AUXCFG=3 + I2SCFG=67) completed.
 };
 
 } // namespace core

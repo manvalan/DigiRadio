@@ -37,7 +37,8 @@ namespace core {
  */
 enum class Bt1035AtCommand {
     Ping,             ///< AT — link check.
-    AuxLineIn,        ///< AT+AUXCFG=1 — wired Line-In from ADAU1701 (mandatory).
+    I2sMode,          ///< AT+AUXCFG=3 — I2S input from ADAU1701 (mandatory).
+    I2sSlave48k32,    ///< AT+I2SCFG=67 — I2S slave 48 kHz 32-bit (§5.1.4).
     PairDiscoverable, ///< AT+PAIR=1 — enter BR/EDR/BLE discoverable mode.
     PairHidden,       ///< AT+PAIR=0 — leave discoverable mode.
     A2dpStat,         ///< AT+A2DPSTAT — read A2DP link state.
@@ -83,7 +84,10 @@ enum class Bt1035AtResponseKind {
 };
 
 /** Number of commands in bootInitSequence(). */
-inline constexpr std::size_t kBt1035BootInitCommandCount = 2U;
+inline constexpr std::size_t kBt1035BootInitCommandCount = 3U;
+
+/** Feasycom programming guide §5.1.4: I2S slave, 48 kHz, 32-bit. */
+inline constexpr std::uint8_t kBt1035I2sSlave48k32Param = 67U;
 
 /**
  * @brief    buildBt1035AtLine — serialise a command with CRLF terminator.
@@ -102,7 +106,7 @@ inline constexpr std::size_t kBt1035BootInitCommandCount = 2U;
  * @brief    bootInitSequence — mandatory bring-up commands in order.
  *
  * @dname    bootInitSequence
- * @return   Ping then AuxLineIn (AT+AUXCFG=1).
+ * @return   Ping, I2sMode (AUXCFG=3), I2sSlave48k32 (I2SCFG=67).
  * @pubstate none
  *
  * @author   Michele Bigi
@@ -164,6 +168,21 @@ parseBt1035A2dpStatResponse(std::string_view response);
  * @date     2026-07-07
  */
 [[nodiscard]] std::string buildBt1035SetAutoConnLine(std::uint8_t times);
+
+/**
+ * @brief    buildBt1035SetNameLine — AT+NAME with optional MAC suffix flag.
+ *
+ * @dname    buildBt1035SetNameLine
+ * @param    name  BR/EDR local name (1--31 ASCII bytes per Feasycom §5.1.16).
+ * @param    enableMacSuffix  false sends Param2=0 (disable module suffix).
+ * @return   Full AT line including CRLF.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-07-08
+ */
+[[nodiscard]] std::string buildBt1035SetNameLine(std::string_view name,
+                                                 bool enableMacSuffix = false);
 
 /**
  * @brief    parseBt1035NameResponse — extract +NAME= value.

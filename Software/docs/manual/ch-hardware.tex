@@ -128,11 +128,11 @@ control (RTS/CTS). The host sends commands and parses the module's
 responses explicitly, treating timeouts as errors. Some settings are held
 in the module's own non-volatile memory.
 
-\begin{drcaution}[Line-In mode]
-The initialisation sequence must enable Line-In mode (\texttt{AT+AUXCFG=1})
-so the module accepts the wired audio coming from the DSP. Omitting it
-silently breaks the audio path. Driver boot flow and AT subset are documented
-in Chapter~\ref{ch:bt1035}.
+\begin{drcaution}[I\textsuperscript{2}S slave mode]
+The PCB routes ADAU1701 \texttt{SDATA\_OUT0} to the module over
+I\textsuperscript{2}S (BCLK, LRCLK, PCM data). Firmware must initialise
+\texttt{AT+AUXCFG=3} and \texttt{AT+I2SCFG=67}, not Line-In
+(\texttt{AT+AUXCFG=1}). See Chapter~\ref{ch:bt1035}, Section~\ref{sec:bt1035-i2s}.
 \end{drcaution}
 
 \section{The host: ESP32-S3}
@@ -379,16 +379,19 @@ satisfying the +10\,\textmu s requirement in practice.
     INTB                   & interrupt line, external pull-up (GPIO39)      & verified \\
     \bottomrule
   \end{tabular}
-  \caption{Si4684 design checks. References: Si4684-A10 datasheet
-    (power sequencing, SPI, supply levels) and AN851 (bypass and layout).}
+  \caption{Si4684 design checks. References:
+    \texttt{Hardware/DATASHEET/SI4684-A10.pdf} (power sequencing, SPI,
+    supply levels) and \texttt{Hardware/DATASHEET/AN851.pdf} (bypass and layout).}
   \label{tab:hw-val-si4684}
 \end{table}
 
 \begin{drref}[Datasheet]
-Power sequencing and SPI framing: Si4684-A10 data sheet. The user must not
-pulse SSB high between bytes; SSB frames the whole command/reply.
-Bypass-capacitor values and placement: AN851, \emph{Si468x Schematic and
-Layout Guide}. Boot and command protocol: AN649.
+Power sequencing and SPI framing:
+\texttt{Hardware/DATASHEET/SI4684-A10.pdf}. The user must not pulse SSB high
+between bytes; SSB frames the whole command/reply.
+Bypass-capacitor values and placement: \texttt{Hardware/DATASHEET/AN851.pdf},
+\emph{Si468x Schematic and Layout Guide}. Boot and command protocol: AN649.
+Local copies: \texttt{Hardware/DATASHEET/} (see \texttt{README.md}).
 \end{drref}
 
 The core, memory, and analogue rails run at 1.8\,V; only VIO is at 3.3\,V
@@ -419,7 +422,7 @@ locks up when input data arrives.
     Output master     & serial output port in Master Mode                   & verified \\
     MCLK ratio        & exactly 256\,$\times$\,f\textsubscript{S}           & verified \\
     MCLK value        & 12.288\,MHz oscillator (256\,$\times$\,48\,kHz)      & verified \\
-    I\textsuperscript{2}C pull-ups & 2.2\,k\(\Omega\) on SDA and SCL          & to verify \\
+    I\textsuperscript{2}C pull-ups & 2\,k\(\Omega\) on SDA/SCL (R16/R1)     & verified \\
     I\textsuperscript{2}C address  & 0x34 (ADDR0 = ADDR1 = GND)               & verified \\
     Self-boot         & disabled (host RAM load)                            & verified \\
     \bottomrule
@@ -430,17 +433,18 @@ locks up when input data arrives.
 \end{table}
 
 \begin{drref}[Datasheet]
-Master-clock loopback and serial-port modes: ADAU1701 data sheet, Rev.~C,
-Table~63 and the serial-port section. The master clock must be exactly
-256\,$\times$\,f\textsubscript{S}. I\textsuperscript{2}C lines require
-2.2\,k\(\Omega\) pull-ups.
+Master-clock loopback and serial-port modes:
+\texttt{Hardware/DATASHEET/adau1701.pdf}, Rev.~C, Table~63 and the serial-port
+section. The master clock must be exactly 256\,$\times$\,f\textsubscript{S}.
+I\textsuperscript{2}C lines require pull-up resistors on SDA and SCL.
+DigiRadio uses \textbf{2\,k\(\Omega\)} (schematic R1/R16; ADAU1701 datasheet
+recommends 2.2\,k\(\Omega\) --- acceptable at 3.3\,V).
 \end{drref}
 
-\begin{drcaution}[Open item --- I\textsuperscript{2}C pull-ups]
-The ADAU1701 datasheet requires 2.2\,k\(\Omega\) pull-up resistors on SDA
-and SCL. Confirm these are present on the board (shared bus with the
-EEPROM); this is the one ADAU check still to close.
-\end{drcaution}
+\begin{drnote}[I\textsuperscript{2}C pull-ups confirmed]
+Schematic \texttt{DigitalRadio.pdf} and BOM list R1 (SCL) and R16 (SDA) as
+2\,k\(\Omega\) to 3V3 on the shared ADAU1701/EEPROM bus.
+\end{drnote}
 
 \subsection{FSC-BT1035 (QCC3056)}
 \label{sec:hw-val-bt1035}
@@ -452,16 +456,23 @@ EEPROM); this is the one ADAU check still to close.
     \drhead Check & Requirement & Status \\
     \midrule
     UART with flow control & TX/RX + RTS/CTS wired            & verified \\
-    Line-In enable (firmware) & \texttt{AT+AUXCFG=1} in init   & driver rule \\
+    I\textsuperscript{2}S init (firmware) & \texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=67} & driver rule \\
     I\textsuperscript{2}S input & receives clocks from ADAU master (slave) & verified \\
     Reset line             & RESET (GPIO17) driven by ESP32    & verified \\
     \bottomrule
   \end{tabular}
-  \caption{FSC-BT1035 design checks. The module is an I\textsuperscript{2}S
-    slave fed by the ADAU master; audio arrives on its I\textsuperscript{2}S
-    input pins.}
+  \caption{FSC-BT1035 design checks. Datasheet:
+    \texttt{Hardware/DATASHEET/FSC-BT1035\_Datasheet\_EN.pdf}; AT commands:
+    \texttt{FSC-BT1035\_programming\_user\_guide\_1.1.1.pdf} §5.}
   \label{tab:hw-val-bt1035}
 \end{table}
+
+\begin{drref}[Programming guide defaults]
+Module defaults (Feasycom release 1.1.1): BR/EDR name \texttt{FSC-BT1035},
+UART 115200/8/N/1, SSP on, auto-reconnect configurable via
+\texttt{AT+AUTOCONN=0..15}. DigiRadio overrides the name from EEPROM identity
+(\texttt{AT+NAME=<name>,0} disables the module MAC suffix).
+\end{drref}
 
 \subsection{System-level summary}
 \label{sec:hw-val-summary}
@@ -474,7 +485,7 @@ EEPROM); this is the one ADAU check still to close.
     Si4684 & RSTB pull-down, 1.8\,V rails, bypass caps, SPI & verified \\
     Si4684 & RSTB release only in \texttt{Si4684Driver::boot()} & verified \\
     ADAU1701 & clock loopback, master mode, 256$\times$f\textsubscript{S} & verified \\
-    ADAU1701 & I\textsuperscript{2}C 2.2\,k\(\Omega\) pull-ups & to verify \\
+    ADAU1701 & I\textsuperscript{2}C 2\,k\(\Omega\) pull-ups (R1/R16) & verified \\
     FSC-BT1035 & UART + flow control, I\textsuperscript{2}S slave & verified \\
     Clocking & single 48\,kHz domain, ADAU master & verified \\
     \bottomrule
@@ -483,6 +494,6 @@ EEPROM); this is the one ADAU check still to close.
   \label{tab:hw-val-summary}
 \end{table}
 
-The only open hardware check is the presence of the 2.2\,k\(\Omega\)
-I\textsuperscript{2}C pull-ups on the ADAU/EEPROM bus. All damage-class
-items (Si4684 power sequencing and supply levels) are verified.
+The consolidated pre-fabrication validation is complete for all
+damage-class items (Si4684 power sequencing and supply levels) and the
+shared I\textsuperscript{2}C bus.
