@@ -46,7 +46,7 @@ authoritative DSP program for firmware builds.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}llp{6.5cm}@{}}
+  \begin{tabular}{@{}L{3.8cm}L{3.5cm}L{6.2cm}@{}}
     \toprule
     \textbf{File} & \textbf{Role} & \textbf{Used by firmware} \\
     \midrule
@@ -151,7 +151,7 @@ separates concerns as follows:
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}llp{5.8cm}@{}}
+  \begin{tabular}{@{}L{2.5cm}L{3.8cm}L{6.2cm}@{}}
     \drhead Layer & Type & Responsibility \\
     \midrule
     HTTP / UI       & \texttt{SetupWebServer}, web UI &
@@ -189,7 +189,7 @@ successful \texttt{boot()}.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \toprule
     \textbf{Method} & \textbf{Purpose} \\
     \midrule
@@ -205,7 +205,7 @@ successful \texttt{boot()}.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \toprule
     \textbf{Method} & \textbf{Purpose} \\
     \midrule
@@ -237,7 +237,7 @@ runtime-adjustable, matching Table~\ref{tab:ss-runtime}.
 \subsection{Gain and EQ coefficient path}
 
 Volume cells (faders, master) store linear gain as ADAU \textbf{8.23 fixpoint}.
-\texttt{core::gainDbToLinearFixpoint()} converts \texttt{GainDb} before
+\texttt{core::gainDbTo\-LinearFixpoint()} converts \texttt{GainDb} before
 \texttt{sigma\_safeload\_param()}.
 
 PEQ bands use \texttt{core::designPeakingEq()} at 48\,kHz sample rate to
@@ -259,13 +259,13 @@ header \texttt{DigiRadio\_IC\_1\_PARAM.h} defines \texttt{ADDR\_*} symbols;
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}L{2.4cm}L{3.6cm}L{7.2cm}@{}}
     \drhead Domain & \texttt{ADDR\_*} & SigmaStudio block \\
     \midrule
     Si4684 L/R   & \texttt{SI4674}, \texttt{SI4674\_1} & Si4674 fader \\
     ESP32 L/R    & \texttt{ESP32}, \texttt{ESP32\_1}   & ESP32 fader \\
-    Mix L/R      & \texttt{STMIXER1\_ST0/1\_VOLUME}    & St Mixer1 \\
-    EQ band $n$  & \texttt{PARAMEQ1\_ST$n$\_B0} + 0..4 & Param EQ1 coeffs \\
+    Mix L/R      & {\footnotesize\texttt{STMIXER1\_ST0/1\_VOLUME}} & St Mixer1 \\
+    EQ band $n$  & {\footnotesize\texttt{PARAMEQ1\_ST$n$\_B0} + 0..4} & Param EQ1 coeffs \\
     Master L/R   & \texttt{MULTIPLE1}, \texttt{MULTIPLE1\_1} & Multiple 1 \\
     \bottomrule
   \end{tabular}
@@ -335,7 +335,7 @@ use for audio path control:
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \toprule
     \textbf{Method} & \textbf{Effect} \\
     \midrule
@@ -423,7 +423,7 @@ only if band indices and centre frequencies still match; otherwise reset via
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}ll@{}}
+  \begin{tabular}{@{}L{4.2cm}L{9.2cm}@{}}
     \drhead Error & Typical cause \\
     \midrule
     \texttt{ResetFailed}        & GPIO reset line configuration \\
