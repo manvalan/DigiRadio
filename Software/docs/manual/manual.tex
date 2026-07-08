@@ -35,6 +35,11 @@
 {\color{drGray}Hardware: CERN-OHL-S v2 \quad\textbullet\quad Firmware: Apache-2.0\par}
 \vspace{2mm}
 {\color{drGray}\small \url{https://github.com/manvalan/DigiRadio}\par}
+\vspace{1.2cm}
+{\color{drGray}\small
+Prototype PCB fabrication and assembly supported by
+\href{https://www.pcbway.com/}{\textcolor{drTeal}{\textbf{PCBWay}}}.
+\par}
 \end{titlepage}
 
 % ---------------- Contents ----------------
@@ -54,5 +59,33 @@
 \include{ch-classes}
 \include{ch-build}
 \include{ch-licensing}
+
+% ---------------- Back cover (acknowledgements) ----------------
+\cleardoublepage
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{center}
+{\color{drPetrol}\Large\bfseries Acknowledgements\par}
+\vspace{1.2cm}
+\begin{minipage}{0.82\textwidth}
+\centering
+{\color{drInk}
+This open-source hardware project was made possible with generous support from
+\textbf{PCBWay}, who sponsored prototype PCB fabrication and assembly for
+DigiRadio. Our sincere thanks and deep gratitude go to the PCBWay team for
+believing in the project and helping bring the first boards to life.\par}
+\vspace{1.2cm}
+\IfFileExists{figures/pcbway-logo.pdf}{%
+  \includegraphics[width=0.32\textwidth]{figures/pcbway-logo}%
+  \vspace{0.8cm}
+  {\color{drGray}\small\url{https://www.pcbway.com}\par}
+}{%
+  {\color{drTeal}\Large\bfseries PCBWay\par}
+  \vspace{0.4cm}
+  {\color{drGray}\small\url{https://www.pcbway.com}\par}
+}
+\end{minipage}
+\end{center}
+\vspace*{\fill}
 
 \end{document}
