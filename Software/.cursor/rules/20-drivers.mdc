@@ -29,6 +29,6 @@ Full spec: @AGENTS.md §7.1–7.3.
 
 ## FSC-BT1035 (QCC3056, AT over UART)
 - Typed command builder; explicit OK/ERROR/timeout parsing.
-- AT+AUXCFG=1 (Line-In) is mandatory in the init sequence and covered by
-  a test on the command string. Unknown responses are an error, not
-  ignored.
+- AT+AUXCFG=3 and AT+I2SCFG=67 (I2S slave 48 kHz) are mandatory in the
+  init sequence and covered by host tests. Unknown responses are an error,
+  not ignored.

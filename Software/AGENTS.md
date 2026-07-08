@@ -397,9 +397,11 @@ Layered, dependencies point inward only:
 
 - Controlled by AT commands over UART. Build commands with a typed
   builder; parse responses with explicit `OK`/`ERROR`/timeout handling.
-- **Line-In mode is mandatory:** the `AT+AUXCFG=1` step must be part of
-  the documented init sequence and covered by a test on the command
-  string. Losing it silently breaks the audio path.
+- **I\textsuperscript{2}S slave mode is mandatory:** `AT+AUXCFG=3` and
+  `AT+I2SCFG=67` (Feasycom programming guide §5.1.25 / §5.1.4) must be part
+  of the documented init sequence and covered by host tests. The PCB routes
+  ADAU I\textsuperscript{2}S to the module; `AT+AUXCFG=1` (Line-In) does not
+  match the schematic.
 - The AT subset in use is enumerated and documented; unknown responses
   are an error value, not ignored.
 

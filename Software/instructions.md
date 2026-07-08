@@ -4,7 +4,7 @@ Read this together with `AGENTS.md` and everything under
 `.cursor/rules/`. Those define *how* to write code; this file defines
 *what we are building* and the current state on `main`.
 
-**Firmware on `main`:** **0.8.4** — agent tasks T1–T12 complete; device HIL
+**Firmware on `main`:** **0.8.5** — agent tasks T1–T12 complete; device HIL
 pending PCB arrival.
 
 ## What DigiRadio is
@@ -66,7 +66,8 @@ unless the user requests them.
 
 - ESP-IDF `esp32s3`, C++23, `components/core` host-testable.
 - SoftAP `DigiRadio-<suffix>` (or setup fallback), gzipped page, `GET /api/health`.
-- Health JSON includes `fw` (today **0.8.4**), `serialNumber`, companion-chip flags.
+- Health JSON includes `fw` (today **0.8.5**), `serialNumber`, companion-chip flags.
+- BT1035 boot must send `AT+AUXCFG=3` and `AT+I2SCFG=67` (I2S from ADAU1701).
 
 ## Slice 2 — Secure store + Wi-Fi STA (complete)
 

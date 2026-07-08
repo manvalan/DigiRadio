@@ -169,10 +169,14 @@ std::expected<void, Bt1035Error> Bt1035Driver::setDeviceName(
     if (auto ready = ensureBooted(); !ready) {
         return ready;
     }
-    if (name.empty() || name.size() > 32U) {
+    if (name.empty() || name.size() > 31U) {
         return std::unexpected(Bt1035Error::UnexpectedResponse);
     }
-    std::string line = std::string("AT+NAME=") + std::string(name) + "\r\n";
+    const std::string line =
+        core::buildBt1035SetNameLine(name, false);
+    if (line.empty()) {
+        return std::unexpected(Bt1035Error::UnexpectedResponse);
+    }
     return transmitAndExpectOk(line);
 }
 
@@ -315,7 +319,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
     }
 
     booted_ = true;
-    ESP_LOGI(kTag, "Line-In mode enabled (AT+AUXCFG=1)");
+    ESP_LOGI(kTag, "I2S slave mode enabled (AT+AUXCFG=3, AT+I2SCFG=67)");
     return {};
 }
 

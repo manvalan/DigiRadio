@@ -2,14 +2,14 @@
 
 Open-source Hi-Fi DAB+/FM receiver firmware for the ESP32-S3.
 
-**Status:** fw **0.8.4** on `main` — dual OTA + DSP blob updates, EEPROM identity,
+**Status:** fw **0.8.5** on `main` — BT1035 I2S slave boot init, dual OTA + DSP blob updates, EEPROM identity,
 NVS + flash encryption (development mode), tabbed Web UI with **System** uploads,
 **15** host tests, **4** CI jobs. Agent tasks T1–T12 complete; device HIL pending
 first PCB.
 
-| Area | Shipped in 0.8.4 |
+| Area | Shipped in 0.8.5 |
 |------|------------------|
-| Boot | Si4684 HOST_LOAD, ADAU1701 RAM program, BT1035 Line-In init |
+| Boot | Si4684 HOST_LOAD, ADAU1701 RAM program, BT1035 I2S slave init (`AUXCFG=3`, `I2SCFG=67`) |
 | Tuner | FM/DAB tune, seek up/down, RSQ, RDS, DAB services + DLS |
 | Audio | 6-band EQ, mixer, stereo/bass enhance, NVS profile |
 | Updates | ESP32 dual-OTA, ADAU1701 `dsp` partition blob replay |
@@ -85,7 +85,7 @@ Header shows EEPROM serial from `/api/health`. Source:
 `components/net/www/index.html` · regenerate embed:
 `tools/gzip-www.sh`.
 
-## HTTP API (fw 0.8.4)
+## HTTP API (fw 0.8.5)
 
 | Method | Path | Purpose |
 |--------|------|---------|

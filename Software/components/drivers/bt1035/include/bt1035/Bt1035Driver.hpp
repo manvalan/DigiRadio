@@ -48,7 +48,7 @@ struct Bt1035Pins {
  * @dname    Bt1035Driver
  * @return   n/a (type)
  * @pubstate Owns UART port after boot(). booted_ true after init sequence
- *           including AT+AUXCFG=1 (Line-In from ADAU1701).
+ *           including AT+AUXCFG=3 and AT+I2SCFG=67 (I2S slave from ADAU1701).
  *
  * @author   Michele Bigi
  * @date     2026-07-06
@@ -86,7 +86,7 @@ public:
      *
      * @dname    boot
      * @return   Ok on success, or Bt1035Error.
-     * @pubstate sets booted_ after Ping + AT+AUXCFG=1 both return OK.
+     * @pubstate sets booted_ after Ping + I2S init both return OK.
      *
      * Sequence: hardware reset, UART @ 115200 with RTS/CTS, then
      * core::bootInitSequence() (see manual chapter bt1035).
@@ -97,7 +97,7 @@ public:
     [[nodiscard]] std::expected<void, Bt1035Error> boot();
 
     /**
-     * @brief    isBooted — query whether Line-In init succeeded.
+     * @brief    isBooted — query whether I2S init succeeded.
      *
      * @dname    isBooted
      * @return   true after successful boot().
@@ -177,7 +177,7 @@ public:
      * @dname    setDeviceName
      * @param    name  Bluetooth name (Feasycom FSC-BT1035 AT+NAME command).
      * @return   Ok on success, or Bt1035Error.
-     * @pubstate sends AT+NAME after boot; does not alter AT+AUXCFG=1 init.
+     * @pubstate sends AT+NAME after boot; does not alter I2S init sequence.
      *
      * @author   Michele Bigi
      * @date     2026-07-07

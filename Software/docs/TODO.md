@@ -3,7 +3,7 @@
 Agent task list and hardware-in-the-loop backlog. Working directory for all
 commands is `Software/`.
 
-**Current firmware:** `0.8.4` — dual OTA + DSP blob updates, EEPROM identity,
+**Current firmware:** `0.8.5` — BT1035 I2S slave boot init, dual OTA + DSP blob updates, EEPROM identity,
 NVS + flash encryption (dev mode), tabbed Web UI with System uploads, CI gate
 (4 jobs).
 
@@ -14,7 +14,7 @@ NVS + flash encryption (dev mode), tabbed Web UI with System uploads, CI gate
 
 ---
 
-## Completed agent tasks (T1–T12, fw 0.7.1–0.8.4)
+## Completed agent tasks (T1–T12, fw 0.7.1–0.8.5)
 
 | Task | Version | Summary |
 |------|---------|---------|
@@ -30,6 +30,10 @@ NVS + flash encryption (dev mode), tabbed Web UI with System uploads, CI gate
 | **T10** | 0.8.4 | EEPROM EUI-48 identity — SoftAP/BT/hostname/serial |
 | **T11** | 0.8.4 | Updatable ADAU1701 program — `POST /api/dsp/program`, DRAD blob |
 | **T12** | 0.8.4 | ESP32 OTA — `POST /api/system/ota`, rollback confirm on boot |
+
+**0.8.5** (hardware/doc alignment): BT1035 boot uses `AT+AUXCFG=3` +
+`AT+I2SCFG=67` (I2S from ADAU1701, not Line-In); I2C pull-ups R1/R16
+confirmed 2\,kΩ; `Hardware/DATASHEET/` bundle + manual cross-refs.
 
 Also landed (not numbered): BT1035 pairing (`BluetoothService`), station presets
 (fw 0.7.0), companion-chip boot (Slice 3), ADAU1701 runtime (Slice 5).
@@ -62,13 +66,14 @@ a sacrificial unit; confirm RELEASE mode policy before shipping.
 
 ## Open firmware polish (non-blocking)
 
-Done in fw 0.8.4 unless noted:
+Done in fw 0.8.5 unless noted:
 
-- FM seek down — `POST /api/tuner/seek` with `{"direction":"down"}`.
+- BT1035 boot — I2S slave init (`AT+AUXCFG=3`, `AT+I2SCFG=67`) per PCB routing (0.8.5).
+- FM seek down — `POST /api/tuner/seek` with `{"direction":"down"}` (0.8.4).
 - BT1035 — query/set name, paired list (`AT+PLIST`), auto-reconnect
-  (`AT+AUTOCONN`) per Feasycom BT1035 manual.
+  (`AT+AUTOCONN`) per Feasycom BT1035 manual (0.8.4).
 - Si4684 — `STOP_DIGITAL_SERVICE` (0x82) before FM band switch when DAB
-  audio is active; ensemble metrics remain via `DAB_DIGRAD_STATUS` in status.
+  audio is active; ensemble metrics remain via `DAB_DIGRAD_STATUS` in status (0.8.4).
 
 ---
 

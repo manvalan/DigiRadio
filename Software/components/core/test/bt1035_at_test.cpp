@@ -28,13 +28,24 @@ namespace {
         std::cerr << "init sequence size mismatch\n";
         return EXIT_FAILURE;
     }
-    if (sequence[1U] != core::Bt1035AtCommand::AuxLineIn) {
-        std::cerr << "AUXCFG=1 must be in init sequence\n";
+    if (sequence[1U] != core::Bt1035AtCommand::I2sMode) {
+        std::cerr << "I2S mode must be in init sequence\n";
         return EXIT_FAILURE;
     }
-    const std::string aux = core::buildBt1035AtLine(core::Bt1035AtCommand::AuxLineIn);
-    if (aux != "AT+AUXCFG=1\r\n") {
-        std::cerr << "AUXCFG command line mismatch\n";
+    if (sequence[2U] != core::Bt1035AtCommand::I2sSlave48k32) {
+        std::cerr << "I2SCFG must be in init sequence\n";
+        return EXIT_FAILURE;
+    }
+    const std::string i2sMode =
+        core::buildBt1035AtLine(core::Bt1035AtCommand::I2sMode);
+    if (i2sMode != "AT+AUXCFG=3\r\n") {
+        std::cerr << "AUXCFG=3 command line mismatch\n";
+        return EXIT_FAILURE;
+    }
+    const std::string i2sCfg =
+        core::buildBt1035AtLine(core::Bt1035AtCommand::I2sSlave48k32);
+    if (i2sCfg != "AT+I2SCFG=67\r\n") {
+        std::cerr << "I2SCFG=67 command line mismatch\n";
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
@@ -115,6 +126,11 @@ namespace {
     }
     if (core::buildBt1035SetAutoConnLine(5) != "AT+AUTOCONN=5\r\n") {
         std::cerr << "AUTOCONN command line mismatch\n";
+        return EXIT_FAILURE;
+    }
+    if (core::buildBt1035SetNameLine("DigiRadio-A1B2", false)
+        != "AT+NAME=DigiRadio-A1B2,0\r\n") {
+        std::cerr << "NAME set command line mismatch\n";
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
