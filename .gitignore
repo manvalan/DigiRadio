@@ -11,3 +11,14 @@
 # Editor
 .vscode/
 .idea/
+
+# LaTeX build outputs (Software/docs/manual/)
+Software/docs/manual/*.aux
+Software/docs/manual/*.fdb_latexmk
+Software/docs/manual/*.fls
+Software/docs/manual/*.listing
+Software/docs/manual/*.log
+Software/docs/manual/*.out
+Software/docs/manual/*.pdf
+Software/docs/manual/*.synctex.gz
+Software/docs/manual/*.toc
