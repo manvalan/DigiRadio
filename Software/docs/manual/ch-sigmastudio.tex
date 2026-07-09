@@ -28,7 +28,10 @@ channel to compile; it is never used for a real download in this project.
 \label{sec:ss-hwcfg}
 
 The Hardware Configuration tab must mirror the board exactly. The key
-settings are collected in Table~\ref{tab:ss-hwcfg}.
+settings are collected in Table~\ref{tab:ss-hwcfg}. The 48\,kHz system
+sample rate follows from the \textbf{board strapping}, not from a
+SigmaStudio preference alone: X1 is a 12.288\,MHz crystal, PLL\_MODE selects
+256\,$\times$\,f\textsubscript{S}, and 12.288\,MHz\,/\,256 = 48\,kHz.
 
 \begin{table}[htbp]
   \centering
@@ -37,8 +40,8 @@ settings are collected in Table~\ref{tab:ss-hwcfg}.
     \midrule
     Control port (I\textsuperscript{2}C address) & 0x34 (ADDR0/ADDR1 = GND) \\
     Self-boot                     & Disabled (host RAM load) \\
-    System sample rate            & 48\,kHz \\
-    MCLK                          & 12.288\,MHz active oscillator \\
+    System sample rate            & 48\,kHz (256\,$\times$\,f\textsubscript{S} strapping) \\
+    MCLK                          & 12.288\,MHz crystal (256\,$\times$\,f\textsubscript{S}) \\
     Serial Input format           & I\textsuperscript{2}S, 24-bit \\
     Serial Output                 & \textbf{Master Mode} (ADAU generates clocks) \\
     Word length                   & 24 bits \\
@@ -48,6 +51,14 @@ settings are collected in Table~\ref{tab:ss-hwcfg}.
   \caption{ADAU1701 hardware settings in SigmaStudio.}
   \label{tab:ss-hwcfg}
 \end{table}
+
+\begin{drnote}[Clock source on the board]
+SigmaStudio's 48\,kHz sample-rate field must agree with the fabricated
+hardware: passive crystal X1 (12.288\,MHz, CL = 12\,pF) on MCLKI/OSCO with
+22\,pF load caps, PLL\_MODE0 = GND and PLL\_MODE1 = 3V3 (256\,$\times$\,f\textsubscript{S}).
+The ADAU1701 internal oscillator multiplies the crystal; it is not an active
+oscillator module. See Chapter~\ref{ch:hardware}, Section~\ref{sec:hw-val-adau}.
+\end{drnote}
 
 \subsection{Multipurpose pin (MP) assignment}
 
