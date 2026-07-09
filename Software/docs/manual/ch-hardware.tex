@@ -334,10 +334,20 @@ the pin definitions in the source code must match it exactly.
 \section{Design validation and critical checks}
 \label{sec:hw-validation}
 
+A datasheet-level design review was performed in July~2026, before prototype
+fabrication, against \drpath{Hardware/DATASHEET/adau1701.pdf} and
+\drpath{Hardware/DATASHEET/SI4684-A10.pdf}. It found and corrected two
+defects on the schematic: \textbf{PLL\_MODE1} was tied to GND (which would
+have selected 64\,$\times$\,f\textsubscript{S} and run the ADAU1701 clock
+domain at 192\,kHz instead of 48\,kHz), and the Si4684 reference-crystal
+load capacitors were 12\,pF instead of the 15\,pF required for the
+10\,pF crystal (frequency pull, degraded RF). The board shipped with both
+fixes applied; the tables below record the \emph{as-fabricated} values.
+
 This section records the design-review checks performed against the
 component datasheets before fabrication, chip by chip. Items marked
 \emph{critical} can cause permanent damage or a non-functional board if
-violated, and were verified explicitly.
+violated, and were verified explicitly against the schematic.
 
 \subsection{Si4684 tuner}
 \label{sec:hw-val-si4684}
@@ -379,6 +389,9 @@ satisfying the +10\,\textmu s requirement in practice.
     VIO level              & 1.62--3.6\,V (3.3\,V to talk to ESP32)        & verified \\
     Bypass caps            & 2.2\,nF + 1\,\textmu F per VIO/VMEM/VCORE rail & verified \\
     SPI mode               & Mode 0 or 3, up to 10\,MHz, SMODE = GND       & verified \\
+    Reference crystal      & U7: 19.2\,MHz, CL = 10\,pF (XTALI/XTALO)     & verified \\
+    Crystal load caps      & C49/C50: 15\,pF C0G each (was 12\,pF in review) & verified \\
+    RSTB / INTB resistors  & 10\,k\(\Omega\) pull-down / 10\,k\(\Omega\) pull-up & verified \\
     SSB framing (firmware) & SSB held low for the whole transaction        & driver rule \\
     INTB                   & interrupt line, external pull-up (GPIO39)      & verified \\
     \bottomrule
@@ -395,6 +408,18 @@ command/reply. Bypass-capacitor values and placement:
 Guide}. Boot and command protocol: AN649. Local copies:
 \drpath{Hardware/DATASHEET/} (see \drpath{README.md}).
 \end{drref}
+
+\begin{drnote}[Reference crystal and load capacitors]
+U7 is a 19.2\,MHz quartz (ABRACON ABM8-19.200MHZ-10-1-U-T) with
+\textbf{CL = 10\,pF} on XTALI (pin~15) and XTALO (pin~16). Load capacitors
+C49 and C50 are \textbf{15\,pF C0G/NP0} ($\pm$5\%) --- not X5R/X7R, which
+drift with temperature and bias. Quartz load caps must be C0G/NP0.
+
+Effective load: \(C_{L,\mathrm{eff}} = \frac{C_1 C_2}{C_1 + C_2} + C_{\mathrm{stray}}\).
+With 15\,pF caps the effective load is $\sim$9.5\,pF (correct for CL = 10\,pF).
+The original 12\,pF pair gave $\sim$8\,pF effective, pulling the oscillator
+high by roughly +10..25\,ppm and degrading tuner RF performance.
+\end{drnote}
 
 The core, memory, and analogue rails run at 1.8\,V; only VIO is at 3.3\,V
 to interface the ESP32. The 2.2\,nF and 1\,\textmu F bypass pairs are
@@ -414,19 +439,41 @@ loopback (MP10$\rightarrow$MP4, MP11$\rightarrow$MP5). Without it the DSP
 locks up when input data arrives.
 \end{drkey}
 
+\begin{drcaution}[PLL\_MODE strapping --- static, not GPIO]
+The ADAU1701 PLL multiplier is selected by \textbf{PLL\_MODE0} (pin~38) and
+\textbf{PLL\_MODE1} (pin~39). These are \emph{static straps} on the board;
+the ESP32 must never drive them. The datasheet requires both pins to be
+stable while RESET is held low, because the clock mode is latched as the
+device leaves reset.
+
+On the fabricated board: PLL\_MODE0 = GND; PLL\_MODE1 = 3V3 via R2
+(10\,k\(\Omega\)). This selects \textbf{256\,$\times$\,f\textsubscript{S}}:
+12.288\,MHz\,/\,256 = 48\,kHz.
+
+\textbf{Both pins tied to GND} selects 64\,$\times$\,f\textsubscript{S}
+(192\,kHz) and breaks the entire 48\,kHz I\textsuperscript{2}S clock domain
+--- the defect caught in the July~2026 review.
+\end{drcaution}
+
 \begin{table}[htbp]
   \centering
-  \small
-  \begin{tabular}{@{}L{2.2cm}L{3.6cm}L{7.2cm}@{}}
-    \drhead Check & Requirement (datasheet) & Status \\
+  \footnotesize
+  \begin{tabular}{@{}L{3.0cm}L{8.0cm}L{2.2cm}@{}}
+    \drhead Check & Requirement (datasheet / schematic) & Status \\
     \midrule
     Clock loopback   & MP10$\rightarrow$MP4, MP11$\rightarrow$MP5 wired     & verified \\
     Output master     & serial output port in Master Mode                   & verified \\
     MCLK ratio        & exactly 256\,$\times$\,f\textsubscript{S}           & verified \\
-    MCLK value        & 12.288\,MHz oscillator (256\,$\times$\,48\,kHz)      & verified \\
-    I\textsuperscript{2}C pull-ups & 2\,k\(\Omega\) on SDA/SCL (R16/R1)     & verified \\
+    MCLK source       & X1: 12.288\,MHz crystal (CL = 12\,pF); MCLKI/OSCO;
+      C41/C46 = 22\,pF; R17 = 100\,$\Omega$ on OSCO & verified \\
+    PLL\_MODE strapping & MODE0 = GND, MODE1 = 3V3 (256\,$\times$\,f\textsubscript{S}) & verified \\
+    I\textsuperscript{2}C pull-ups & 2\,k\(\Omega\) on SDA/SCL (R1/R16)     & verified \\
     I\textsuperscript{2}C address  & 0x34 (ADDR0 = ADDR1 = GND)               & verified \\
-    Self-boot         & disabled (host RAM load)                            & verified \\
+    VDRIVE (pin 17)   & tied to GND --- external 1.8\,V rail (TPS7A2018)   & verified \\
+    DVDD (pins 13, 24) & both on 1V8 rail                                & verified \\
+    SELFBOOT (pin 6)  & GND --- control-port mode, no self-boot             & verified \\
+    RSVD (pin 30)     & GND, as datasheet requires                        & verified \\
+    Self-boot policy  & disabled (host RAM load)                            & verified \\
     \bottomrule
   \end{tabular}
   \caption{ADAU1701 design checks. Reference: ADAU1701 data sheet (Rev.~C),
@@ -436,16 +483,35 @@ locks up when input data arrives.
 
 \begin{drref}[Datasheet]
 Master-clock loopback and serial-port modes:
-\texttt{Hardware/DATASHEET/adau1701.pdf}, Rev.~C, Table~63 and the serial-port
+\drpath{Hardware/DATASHEET/adau1701.pdf}, Rev.~C, Table~63 and the serial-port
 section. The master clock must be exactly 256\,$\times$\,f\textsubscript{S}.
-I\textsuperscript{2}C lines require pull-up resistors on SDA and SCL.
-DigiRadio uses \textbf{2\,k\(\Omega\)} (schematic R1/R16; ADAU1701 datasheet
+The 12.288\,MHz reference is a \textbf{passive crystal} (X1) between MCLKI
+(pin~32) and OSCO (pin~31) with 22\,pF load capacitors; the ADAU1701 uses its
+internal oscillator. I\textsuperscript{2}C lines require pull-up resistors on
+SDA and SCL. DigiRadio uses \textbf{2\,k\(\Omega\)} (schematic R1/R16; datasheet
 recommends 2.2\,k\(\Omega\) --- acceptable at 3.3\,V).
 \end{drref}
 
+\begin{drnote}[VDRIVE grounded]
+Pin~17 (VDRIVE) is tied to GND. The board provides an external 1.8\,V rail
+from the TPS7A2018, so the ADAU1701 internal regulator is unused. The
+datasheet allows VDRIVE to be tied to ground when an external DVDD supply is
+present.
+\end{drnote}
+
 \begin{drnote}[I\textsuperscript{2}C pull-ups confirmed]
 Schematic \texttt{DigitalRadio.pdf} and BOM list R1 (SCL) and R16 (SDA) as
-2\,k\(\Omega\) to 3V3 on the shared ADAU1701/EEPROM bus.
+2\,k\(\Omega\) to 3V3 on the shared ADAU1701/EEPROM bus (ESP32 sheet).
+\end{drnote}
+
+\begin{drnote}[CM and FILTD deviation --- analogue path unused]
+The ADAU1701 datasheet specifies 47\,\textmu F on CM (pin~40) and 10\,\textmu F
+on FILTD (pin~41). The fabricated board uses smaller values. This is
+acceptable because the audio chain is entirely digital (I\textsuperscript{2}S):
+ADC0/ADC1/ADC\_RES and VOUT0..VOUT3 are left floating, and the on-chip
+ADCs/DACs are powered down via the SigmaStudio ADC/power-control register.
+\textbf{Restore the datasheet capacitor values if the on-chip ADCs or DACs are
+ever used.}
 \end{drnote}
 
 \subsection{FSC-BT1035 (QCC3056)}
@@ -484,9 +550,9 @@ UART 115200/8/N/1, SSP on, auto-reconnect configurable via
   \begin{tabular}{@{}L{2.2cm}L{4.8cm}L{6.6cm}@{}}
     \drhead Area & Item & Status \\
     \midrule
-    Si4684 & RSTB pull-down, 1.8\,V rails, bypass caps, SPI & verified \\
-    Si4684 & RSTB release only in \texttt{Si4684Driver::boot()} & verified \\
-    ADAU1701 & clock loopback, master mode, 256$\times$f\textsubscript{S} & verified \\
+    Si4684 & RSTB/INTB 10\,k\(\Omega\) resistors, 19.2\,MHz crystal & verified \\
+    ADAU1701 & X1 crystal, PLL\_MODE 256$\times$f\textsubscript{S} & verified \\
+    ADAU1701 & clock loopback, master mode, VDRIVE/DVDD/SELFBOOT & verified \\
     ADAU1701 & I\textsuperscript{2}C 2\,k\(\Omega\) pull-ups (R1/R16) & verified \\
     FSC-BT1035 & UART + flow control, I\textsuperscript{2}S slave & verified \\
     Clocking & single 48\,kHz domain, ADAU master & verified \\
@@ -496,6 +562,7 @@ UART 115200/8/N/1, SSP on, auto-reconnect configurable via
   \label{tab:hw-val-summary}
 \end{table}
 
-The consolidated pre-fabrication validation is complete for all
-damage-class items (Si4684 power sequencing and supply levels) and the
-shared I\textsuperscript{2}C bus.
+The consolidated pre-fabrication validation is \textbf{complete}: every
+check in this section is closed against the as-fabricated schematic, including
+the July~2026 corrections to PLL\_MODE strapping and Si4684 crystal load
+capacitors. No hardware validation items remain open before fabrication.
