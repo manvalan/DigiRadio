@@ -105,7 +105,8 @@ std::expected<std::string, Bt1035Error> Bt1035Driver::transmitAndCollect(
 std::expected<void, Bt1035Error> Bt1035Driver::transmitAndExpectOk(
     std::string_view commandLine)
 {
-    if (auto collected = transmitAndCollect(commandLine); collected) {
+    auto collected = transmitAndCollect(commandLine);
+    if (collected) {
         return {};
     }
     return std::unexpected(collected.error());

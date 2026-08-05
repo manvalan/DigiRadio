@@ -22,3 +22,10 @@ Software/docs/manual/*.out
 Software/docs/manual/*.pdf
 Software/docs/manual/*.synctex.gz
 Software/docs/manual/*.toc
+
+# Debug logs e file temporanei (DigiRadio Si4684 debug)
+Software/boot*.log
+Software/sdkconfig 2
+Software/sdkconfig 3
+Software/sdkconfig 4
+.DS_Store

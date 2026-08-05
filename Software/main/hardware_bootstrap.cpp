@@ -92,7 +92,7 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
     }
 
     if (auto tunerResult = gSi4684.boot(si4684::Si4684Band::Dab); !tunerResult) {
-        ESP_LOGE(kTag, "Si4684 boot failed");
+        ESP_LOGE(kTag, "Si4684 boot failed: error %d", static_cast<int>(tunerResult.error()));
         return std::unexpected(HardwareBootError::Si4684BootFailed);
     }
 
@@ -104,7 +104,7 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         }
     }
 
-    const auto* busHandle =
+    auto* busHandle =
         static_cast<i2c_master_bus_handle_t>(gAdau1701.i2cBusHandle());
     eeprom24aa::Eeprom24aa eeprom(busHandle,
                                   static_cast<std::uint8_t>(

@@ -17,12 +17,17 @@
 #include "net/NetBootstrap.hpp"
 #include "ota/OtaService.hpp"
 #include "secure_store/NvsSecureStore.hpp"
+#include "si4684/Si4684Tuner.hpp"
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#if CONFIG_TEST_FIRMWARE
+#include "test_firmware.hpp"
+#endif
 
 namespace {
 
@@ -58,6 +63,11 @@ extern "C" void app_main()
         ESP_LOGE(kTag, "companion chip boot failed — halting");
         return;
     }
+
+#if CONFIG_TEST_FIRMWARE
+    test_firmware::runTestFirmware();
+    return;
+#endif
 
     static secure_store::NvsSecureStore store;
 

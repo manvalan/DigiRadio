@@ -25,7 +25,8 @@ namespace adau1701 {
 namespace {
 
 constexpr char kTag[] = "FlashDsp";
-constexpr std::uint8_t kDspPartitionSubtype = 0x40U;
+constexpr esp_partition_subtype_t kDspPartitionSubtype =
+    static_cast<esp_partition_subtype_t>(0x40U);
 
 [[nodiscard]] const esp_partition_t* dspPartition()
 {

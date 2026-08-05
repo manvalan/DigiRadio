@@ -23,6 +23,7 @@
 #include <array>
 #include <cstring>
 #include <span>
+#include "esp_heap_caps.h"
 
 namespace si4684 {
 
@@ -31,7 +32,7 @@ namespace {
 constexpr char kTag[] = "Si4684";
 constexpr std::size_t kSpiBufferSize = 4096U;
 constexpr int kCtsPollMs = 2;
-constexpr int kCtsRetries = 200;
+constexpr int kCtsRetries = 5000;
 constexpr int kStcRetries = 250;
 constexpr int kStcPollMs = 20;
 
@@ -213,35 +214,56 @@ std::expected<void, Si4684Error> Si4684Driver::writeCommand(
 std::expected<void, Si4684Error> Si4684Driver::hostLoadBlob(
     const core::IFirmwareBlobReader& blob, std::size_t chunkPayload)
 {
+    // Buffer DMA-capable e allineato: obbligatorio per spi_device_transmit
+    // con trasferimenti grandi. Un buffer sullo stack non e' DMA-safe e puo'
+    // corrompere i dati sui blob grossi (patch/firmware).
+    const std::size_t txSize = 4U + chunkPayload;
+    auto* tx = static_cast<std::uint8_t*>(
+        heap_caps_malloc(txSize, MALLOC_CAP_DMA | MALLOC_CAP_8BIT));
+    if (tx == nullptr) {
+        return std::unexpected(Si4684Error::ImageLoadFailed);
+    }
+
     std::array<std::byte, 2044> payload = {};
     std::size_t offset = 0U;
+    Si4684Error err = Si4684Error::ImageLoadFailed;
+    bool failed = false;
 
     while (offset < blob.size()) {
         const std::size_t maxChunk = std::min(chunkPayload, payload.size());
         const std::size_t copied =
             blob.read(offset, std::span<std::byte>(payload.data(), maxChunk));
         if (copied == 0U) {
-            return std::unexpected(Si4684Error::ImageLoadFailed);
+            failed = true;
+            break;
         }
 
-        std::array<std::uint8_t, kSpiBufferSize> tx = {};
+        std::memset(tx, 0, txSize);
         tx[0] = static_cast<std::uint8_t>(Command::HostLoad);
         tx[1] = 0x00U;
         tx[2] = 0x00U;
         tx[3] = 0x00U;
-        std::memcpy(tx.data() + 4U, payload.data(), copied);
+        std::memcpy(tx + 4U, payload.data(), copied);
 
         spi_transaction_t txn = {};
-        txn.length = (4U + copied) * 8U;
-        txn.tx_buffer = tx.data();
+        txn.length = txSize * 8U;
+        txn.tx_buffer = tx;
         if (spi_device_transmit(static_cast<spi_device_handle_t>(spiDevice_),
                                 &txn) != ESP_OK) {
-            return std::unexpected(Si4684Error::ImageLoadFailed);
+            failed = true;
+            break;
         }
         if (auto cts = waitCts(); !cts) {
-            return cts;
+            err = cts.error();
+            failed = true;
+            break;
         }
         offset += copied;
+    }
+
+    heap_caps_free(tx);
+    if (failed) {
+        return std::unexpected(err);
     }
     return {};
 }
@@ -396,7 +418,7 @@ std::expected<void, Si4684Error> Si4684Driver::boot(Si4684Band band)
     gpio_set_level(static_cast<gpio_num_t>(pins_.rstbGpio), 0);
     vTaskDelay(pdMS_TO_TICKS(5));
     gpio_set_level(static_cast<gpio_num_t>(pins_.rstbGpio), 1);
-    vTaskDelay(pdMS_TO_TICKS(3));
+    vTaskDelay(pdMS_TO_TICKS(20));
 
     if (!spiBusActive_) {
         spi_bus_config_t busCfg = {};
@@ -442,7 +464,7 @@ std::expected<void, Si4684Error> Si4684Driver::boot(Si4684Band band)
         return std::unexpected(Si4684Error::PowerUpFailed);
     }
 
-    vTaskDelay(pdMS_TO_TICKS(1));
+    vTaskDelay(pdMS_TO_TICKS(20));
 
     if (auto li = writeCommand(Command::LoadInit, nullptr, 0U); !li) {
         return std::unexpected(Si4684Error::PatchLoadFailed);
@@ -557,18 +579,18 @@ std::expected<Si4684FmRsq, Si4684Error> Si4684Driver::readFmRsq()
         return std::unexpected(rd.error());
     }
 
-    Si4684FmRsq rsq = {};
     const auto khz = chipFmFreqToKHz(readLe16(raw.data() + 6));
     if (auto freq = core::FrequencyKHz::tryFromKhz(khz); freq) {
-        rsq.frequency = *freq;
-    } else {
-        return std::unexpected(Si4684Error::CommandFailed);
+        Si4684FmRsq rsq{
+            *freq,
+            static_cast<std::int8_t>(raw[8]),
+            static_cast<std::int8_t>(raw[9]),
+            (raw[4] & 0x01U) != 0U,
+            (raw[4] & 0x02U) != 0U,
+        };
+        return rsq;
     }
-    rsq.valid = (raw[4] & 0x01U) != 0U;
-    rsq.stereo = (raw[4] & 0x02U) != 0U;
-    rsq.rssiDbuV = static_cast<std::int8_t>(raw[8]);
-    rsq.snrDb = static_cast<std::int8_t>(raw[9]);
-    return rsq;
+    return std::unexpected(Si4684Error::CommandFailed);
 }
 
 std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
