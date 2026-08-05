@@ -33,7 +33,7 @@ constexpr int kBaudRate = 115200;
 constexpr int kUartRxBuffer = 512;
 constexpr int kUartTxBuffer = 256;
 constexpr int kResponseTimeoutMs = 2000;
-constexpr int kPostResetMs = 300;
+constexpr int kPostResetMs = 500;
 constexpr int kPostUartMs = 100;
 } // namespace
 
@@ -276,7 +276,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
 
     gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 1);
     gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 0);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(100));
     gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 1);
     vTaskDelay(pdMS_TO_TICKS(kPostResetMs));
 
@@ -286,8 +286,8 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
             .data_bits = UART_DATA_8_BITS,
             .parity = UART_PARITY_DISABLE,
             .stop_bits = UART_STOP_BITS_1,
-            .flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS,
-            .rx_flow_ctrl_thresh = 122,
+            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+            .rx_flow_ctrl_thresh = 0,
             .source_clk = UART_SCLK_DEFAULT,
         };
 
@@ -303,7 +303,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         }
 
         if (uart_set_pin(static_cast<uart_port_t>(uartPort_), pins_.uartTx,
-                         pins_.uartRx, pins_.rtsGpio, pins_.ctsGpio)
+                         pins_.uartRx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE)
             != ESP_OK) {
             return std::unexpected(Bt1035Error::UartInitFailed);
         }
