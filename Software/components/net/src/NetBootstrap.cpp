@@ -47,7 +47,7 @@ constexpr char kTag[] = "NetBootstrap";
 {
     const auto nvsResult = secure_store::initEncryptedStorage();
     if (!nvsResult) {
-        ESP_LOGE(kTag, "encrypted NVS init failed");
+        ESP_LOGE(kTag, "NVS init failed");
         return std::unexpected(NetError::NvsInitFailed);
     }
 
@@ -151,16 +151,24 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
 {
     auto credsResult = store.loadWifiCredentials();
     if (!credsResult) {
-        ESP_LOGE(kTag, "stored credentials missing");
+        ESP_LOGE(kTag, "stored credentials missing or unreadable");
         return std::unexpected(NetError::CredentialsNotFound);
     }
+
+    const auto& creds = credsResult.value();
+    ESP_LOGI(kTag, "joining SSID %.*s",
+             static_cast<int>(creds.ssid().value().size()),
+             creds.ssid().value().data());
 
     esp_netif_create_default_wifi_sta();
 
     StaClient sta;
     if (auto staResult =
-            sta.connect(credsResult.value(), deviceIdentity.hostname());
+            sta.connect(creds, deviceIdentity.hostname());
         !staResult) {
+        ESP_LOGW(kTag, "STA connect failed for SSID %.*s — credentials kept in NVS",
+                 static_cast<int>(creds.ssid().value().size()),
+                 creds.ssid().value().data());
         return std::unexpected(staResult.error());
     }
 
@@ -207,7 +215,11 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
         if (staResult) {
             return staResult;
         }
-        ESP_LOGW(kTag, "STA join failed — falling back to setup SoftAP");
+        ESP_LOGW(kTag,
+                 "STA join failed — Wi-Fi credentials are stored; check "
+                 "SSID/password or signal (falling back to setup SoftAP)");
+    } else {
+        ESP_LOGI(kTag, "no stored Wi-Fi credentials — entering setup SoftAP");
     }
 
     return startSetupMode(store, tuner, audio, bluetooth, stations, integration,

@@ -1,6 +1,7 @@
 # DigiRadio — default Kconfig (development / first-board bring-up)
-# Security: NVS + flash encryption — see docs/security-flash-nvs.md
-# Production release mode: sdkconfig.defaults.production (overlay at build time)
+# NVS + flash encryption intentionally OFF for Si4684 bring-up (do not re-enable
+# without idf.py erase-flash and docs/security-flash-nvs.md migration).
+# Production overlay: sdkconfig.defaults.production (not used on current boards).
 
 CONFIG_IDF_TARGET="esp32s3"
 

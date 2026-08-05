@@ -23,6 +23,32 @@ namespace {
 constexpr char kTag[] = "NvsPlatformInit";
 
 /**
+ * @brief    isRecoverableNvsInitError — true when erase + re-init may help.
+ *
+ * @dname    isRecoverableNvsInitError
+ * @param    err  Return code from nvs_flash_init().
+ * @return   true for layout/encryption mismatch errors.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] bool isRecoverableNvsInitError(esp_err_t err) noexcept
+{
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES
+        || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        return true;
+    }
+#if !CONFIG_NVS_ENCRYPTION
+    // Plain-NVS build after encrypted-NVS flash: erase once to migrate.
+    return err == ESP_ERR_NVS_WRONG_ENCRYPTION
+           || err == ESP_ERR_NVS_CORRUPT_KEY_PART;
+#else
+    return err == ESP_ERR_NVS_CORRUPT_KEY_PART;
+#endif
+}
+
+/**
  * @brief    logEncryptionMode — log active NVS security Kconfig (no secrets).
  *
  * @dname    logEncryptionMode
@@ -42,7 +68,7 @@ void logEncryptionMode() noexcept
     ESP_LOGW(kTag, "NVS encryption without flash encryption — check Kconfig");
 #endif
 #else
-    ESP_LOGW(kTag, "NVS encryption disabled — not for production");
+    ESP_LOGI(kTag, "NVS plain mode (encryption off — current bring-up default)");
 #endif
 }
 
@@ -53,9 +79,15 @@ std::expected<void, NvsInitError> initEncryptedStorage() noexcept
     logEncryptionMode();
 
     esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES
-        || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_LOGW(kTag, "NVS partition needs erase (err=0x%x)", static_cast<unsigned>(err));
+    if (err == ESP_OK) {
+        return {};
+    }
+
+    if (isRecoverableNvsInitError(err)) {
+        ESP_LOGW(kTag,
+                 "NVS partition incompatible (0x%x) — erasing (stored Wi-Fi "
+                 "and presets will be cleared)",
+                 static_cast<unsigned>(err));
         err = nvs_flash_erase();
         if (err != ESP_OK) {
             ESP_LOGE(kTag, "nvs_flash_erase failed (0x%x)", static_cast<unsigned>(err));

@@ -15,6 +15,7 @@
 #include "bluetooth/BluetoothService.hpp"
 #include "integration/IntegrationService.hpp"
 #include "net/NetBootstrap.hpp"
+#include "secure_store/NvsPlatformInit.hpp"
 #include "ota/OtaService.hpp"
 #include "secure_store/NvsSecureStore.hpp"
 #include "si4684/Si4684Tuner.hpp"
@@ -68,6 +69,11 @@ extern "C" void app_main()
     test_firmware::runTestFirmware();
     return;
 #endif
+
+    if (auto nvsResult = secure_store::initEncryptedStorage(); !nvsResult) {
+        ESP_LOGE(kTag, "NVS init failed — halting");
+        return;
+    }
 
     static secure_store::NvsSecureStore store;
 

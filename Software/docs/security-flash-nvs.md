@@ -1,5 +1,12 @@
 # Flash and NVS encryption (T8)
 
+> **Current bring-up (2026):** `sdkconfig.defaults` keeps
+> `CONFIG_NVS_ENCRYPTION` and `CONFIG_SECURE_FLASH_ENC_ENABLED` **disabled**
+> for Si4684 board validation. Wi-Fi credentials are stored in **plain NVS**.
+> After flashing firmware that previously used encrypted NVS, run
+> `idf.py erase-flash flash` once so the partition format matches (or rely on
+> automatic NVS erase on `ESP_ERR_NVS_WRONG_ENCRYPTION` at boot).
+
 DigiRadio stores Wi-Fi credentials, preset lists, audio profiles, and the last
 preset index in the `digiradio` NVS namespace. Firmware **0.8.3+** enables:
 
