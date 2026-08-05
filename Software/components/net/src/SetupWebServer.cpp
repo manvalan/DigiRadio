@@ -648,12 +648,25 @@ esp_err_t wifiPostHandler(httpd_req_t* req)
     }
 
     std::array<char, 512> body{};
+    const int contentLen = req->content_len;
+    if (contentLen <= 0 || contentLen >= static_cast<int>(body.size())) {
+        const std::string json =
+            core::serializeWifiProvisionErrorJson("invalid_json");
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
     int received = 0;
-    while (received < static_cast<int>(body.size()) - 1) {
+    while (received < contentLen) {
         const int chunk = httpd_req_recv(req, body.data() + received,
-                                         body.size() - 1 - received);
+                                         contentLen - received);
         if (chunk <= 0) {
-            break;
+            const std::string json =
+                core::serializeWifiProvisionErrorJson("invalid_json");
+            httpd_resp_set_status(req, "400 Bad Request");
+            httpd_resp_set_type(req, "application/json");
+            return httpd_resp_send(req, json.c_str(), json.size());
         }
         received += chunk;
     }

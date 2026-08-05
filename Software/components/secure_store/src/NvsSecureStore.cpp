@@ -18,6 +18,7 @@
 
 #include "secure_store/NvsSecureStore.hpp"
 
+#include "esp_log.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 
@@ -32,12 +33,16 @@ constexpr char kSsidKey[] = "wifi_ssid";
 constexpr char kPasswordKey[] = "wifi_pwd";
 constexpr char kStationListKey[] = "station_list";
 constexpr char kLastPresetKey[] = "last_preset";
+constexpr char kTag[] = "NvsSecureStore";
 } // namespace
 
 bool NvsSecureStore::hasWifiCredentials() const
 {
     nvs_handle_t handle = 0;
-    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) {
+    const esp_err_t openErr = nvs_open(kNamespace, NVS_READONLY, &handle);
+    if (openErr != ESP_OK) {
+        ESP_LOGW(kTag, "nvs_open failed in hasWifiCredentials (0x%x)",
+                 static_cast<unsigned>(openErr));
         return false;
     }
 
@@ -53,7 +58,9 @@ std::expected<void, core::StoreError>
 NvsSecureStore::saveWifiCredentials(const core::WifiCredentials& creds)
 {
     nvs_handle_t handle = 0;
-    if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
+    const esp_err_t openErr = nvs_open(kNamespace, NVS_READWRITE, &handle);
+    if (openErr != ESP_OK) {
+        ESP_LOGE(kTag, "nvs_open failed (0x%x)", static_cast<unsigned>(openErr));
         return std::unexpected(core::StoreError::IoFailed);
     }
 
@@ -76,8 +83,10 @@ NvsSecureStore::saveWifiCredentials(const core::WifiCredentials& creds)
     }
 
     if (err != ESP_OK) {
+        ESP_LOGE(kTag, "save wifi credentials failed (0x%x)", static_cast<unsigned>(err));
         return std::unexpected(core::StoreError::IoFailed);
     }
+    ESP_LOGI(kTag, "Wi-Fi credentials saved");
     return {};
 }
 
@@ -85,7 +94,10 @@ std::expected<core::WifiCredentials, core::StoreError>
 NvsSecureStore::loadWifiCredentials() const
 {
     nvs_handle_t handle = 0;
-    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) {
+    const esp_err_t openErr = nvs_open(kNamespace, NVS_READONLY, &handle);
+    if (openErr != ESP_OK) {
+        ESP_LOGW(kTag, "nvs_open failed in loadWifiCredentials (0x%x)",
+                 static_cast<unsigned>(openErr));
         return std::unexpected(core::StoreError::NotFound);
     }
 

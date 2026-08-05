@@ -36,9 +36,9 @@ enum class NvsInitError {
  *
  * @dname    initEncryptedStorage
  * @return   Ok on success, or NvsInitError describing the failure.
- * @pubstate When CONFIG_NVS_ENCRYPTION is set, nvs_flash_init() uses the
- *           nvs_keys partition and flash-encryption key protection per
- *           ESP-IDF v5.5 security docs. Erases and retries on layout mismatch.
+ * @pubstate Plain NVS by default (encryption off in sdkconfig.defaults).
+ *           Erases and retries on layout or encryption-format mismatch.
+ *           When CONFIG_NVS_ENCRYPTION is set, uses nvs_keys per ESP-IDF docs.
  *
  * @author   Michele Bigi
  * @date     2026-07-07
