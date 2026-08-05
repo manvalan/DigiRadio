@@ -100,6 +100,21 @@ public:
     NetBootstrap& operator=(const NetBootstrap&) = delete;
 
     /**
+     * @brief    NetBootstrap — construct a started bootstrap.
+     *
+     * @dname    NetBootstrap
+     * @param    softAp  Optional SoftAP mode host.
+     * @param    sta     Optional STA client instance.
+     * @param    webServer  HTTP server instance.
+     * @param    state   Initial network state.
+     * @pubstate Transfers ownership of optional network resources.
+     */
+    NetBootstrap(std::optional<SoftApHost> softAp,
+                 std::optional<StaClient> sta,
+                 SetupWebServer webServer,
+                 NetState state);
+
+    /**
      * @brief    NetBootstrap — move-construct from a started bootstrap.
      *
      * @dname    NetBootstrap
@@ -148,11 +163,6 @@ public:
     [[nodiscard]] NetState state() const noexcept;
 
 private:
-    NetBootstrap(std::optional<SoftApHost> softAp,
-                 std::optional<StaClient> sta,
-                 SetupWebServer webServer,
-                 NetState state);
-
     std::optional<SoftApHost> softAp_;
     std::optional<StaClient> sta_;
     SetupWebServer webServer_;

@@ -63,10 +63,10 @@ constexpr char kTag[] = "SetupWebServer";
 constexpr char kFirmwareVersion[] = "0.8.5";
 constexpr unsigned kRebootDelaySec = 3;
 
-extern const uint8_t www_index_html_gz_start[] asm(
-    "_binary_www_index_html_gz_start");
-extern const uint8_t www_index_html_gz_end[] asm(
-    "_binary_www_index_html_gz_end");
+extern const uint8_t index_html_gz_start[] asm(
+    "_binary_index_html_gz_start");
+extern const uint8_t index_html_gz_end[] asm(
+    "_binary_index_html_gz_end");
 
 /**
  * @brief    routeContextFrom — read handler dependencies from user_ctx.
@@ -81,7 +81,7 @@ extern const uint8_t www_index_html_gz_end[] asm(
  */
 [[nodiscard]] HttpRouteContext* routeContextFrom(httpd_req_t* req) noexcept
 {
-    return static_cast<HttpRouteContext*>(httpd_req_get_user_ctx(req));
+    return static_cast<HttpRouteContext*>(req->user_ctx);
 }
 
 /**
@@ -421,7 +421,7 @@ esp_err_t tunerSeekPostHandler(httpd_req_t* req)
     }
 
     std::array<char, 128> body{};
-    readRequestBody(req, body);
+    (void)readRequestBody(req, body);
     const auto direction = core::parseTunerSeekJson(std::string_view(body.data()));
     if (!direction) {
         const std::string json =
@@ -620,11 +620,11 @@ esp_err_t audioBassEnhancePostHandler(httpd_req_t* req)
 esp_err_t indexGetHandler(httpd_req_t* req)
 {
     const size_t length =
-        static_cast<size_t>(www_index_html_gz_end - www_index_html_gz_start);
+        static_cast<size_t>(index_html_gz_end - index_html_gz_start);
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     return httpd_resp_send(req,
-                           reinterpret_cast<const char*>(www_index_html_gz_start),
+                           reinterpret_cast<const char*>(index_html_gz_start),
                            length);
 }
 
@@ -935,7 +935,7 @@ esp_err_t bluetoothAutoReconnectPostHandler(httpd_req_t* req)
     }
 
     std::array<char, 128> body{};
-    readRequestBody(req, body);
+    (void)readRequestBody(req, body);
     const auto times =
         core::parseBluetoothAutoReconnectJson(std::string_view(body.data()));
     if (!times) {
@@ -1112,7 +1112,8 @@ SetupWebServer::SetupWebServer()
     , stations_(nullptr)
     , integration_(nullptr)
     , routeContext_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                    nullptr, {}}
+                    nullptr, core::CompanionChipStatus{false, false, false},
+                    core::DeviceIdentity::unknown()}
 {
 }
 
@@ -1163,7 +1164,8 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         other.stations_ = nullptr;
         other.integration_ = nullptr;
         other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
-                               nullptr, {}, core::DeviceIdentity::unknown()};
+                               nullptr, nullptr, core::CompanionChipStatus{false, false, false},
+                               core::DeviceIdentity::unknown()};
     }
     return *this;
 }
@@ -1175,7 +1177,8 @@ SetupWebServer::~SetupWebServer()
         server_ = nullptr;
     }
     routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                     nullptr, {}, core::DeviceIdentity::unknown()};
+                     nullptr, core::CompanionChipStatus{false, false, false},
+                     core::DeviceIdentity::unknown()};
 }
 
 std::expected<void, NetError> SetupWebServer::start(
@@ -1218,7 +1221,8 @@ std::expected<void, NetError> SetupWebServer::start(
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
         routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                         nullptr, {}, core::DeviceIdentity::unknown()};
+                         nullptr, core::CompanionChipStatus{false, false, false},
+                         core::DeviceIdentity::unknown()};
         return std::unexpected(NetError::HttpServerStartFailed);
     }
 

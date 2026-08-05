@@ -23,9 +23,8 @@
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
 
+#include "esp_http_server.h"
 #include <expected>
-
-struct httpd_req;
 
 namespace audio {
 class AudioService;
@@ -172,7 +171,7 @@ public:
         const core::DeviceIdentity& deviceIdentity);
 
 private:
-    httpd_handle* server_;
+    httpd_handle_t server_;
     core::ISecureStore* store_;
     NetState netState_;
     tuner::TunerService* tuner_;

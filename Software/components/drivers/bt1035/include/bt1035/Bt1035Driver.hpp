@@ -244,6 +244,8 @@ private:
     [[nodiscard]] std::expected<void, Bt1035Error> transmitAndExpectOk(
         std::string_view commandLine);
 
+    static constexpr int kResponseTimeoutMs = 2000;
+
     Bt1035Pins pins_;
     bool booted_;
     bool uartInstalled_;

@@ -172,7 +172,8 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneFm(
 std::expected<core::FrequencyKHz, core::TunerError> Si4684Tuner::seekFm(
     core::SeekDirection direction)
 {
-    if (auto result = driver_.seekFm(direction, SeekBandWrap::Wrap); !result) {
+    const auto result = driver_.seekFm(direction, SeekBandWrap::Wrap);
+    if (!result) {
         return std::unexpected(mapError(result.error()));
     }
     fmFrequency_ = *result;
@@ -191,7 +192,8 @@ Si4684Tuner::listDabServices()
         return std::unexpected(mapError(events.error()));
     }
 
-    if (auto list = driver_.fetchDabServiceList(); list) {
+    const auto list = driver_.fetchDabServiceList();
+    if (list) {
         std::vector<core::TunerServiceEntry> out;
         out.reserve(list->size());
         for (const auto& item : *list) {
