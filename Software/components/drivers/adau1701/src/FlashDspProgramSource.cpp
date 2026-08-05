@@ -19,6 +19,7 @@
 #include "esp_partition.h"
 
 #include <vector>
+#include <memory>
 
 namespace adau1701 {
 
@@ -56,15 +57,44 @@ FlashDspProgramSource::loadProgram()
         return std::unexpected(core::DspProgramError::FlashReadFailed);
     }
 
-    std::vector<std::uint8_t> buffer(part->size);
-    if (esp_partition_read(part, 0, buffer.data(), part->size) != ESP_OK) {
+    // Rileva la partizione vuota leggendo solo un piccolo header, PRIMA di
+    // allocare l'intera partizione (256KB). Con eccezioni C++ disabilitate,
+    // allocare un vector cosi' grande su OOM chiama abort(). La partizione
+    // vergine e' tutta 0xFF.
+    constexpr std::size_t kProbeSize = 64U;
+    std::uint8_t probe[kProbeSize] = {};
+    if (esp_partition_read(part, 0, probe, kProbeSize) != ESP_OK) {
         return std::unexpected(core::DspProgramError::FlashReadFailed);
     }
-    if (partitionLooksEmpty(buffer)) {
+    bool allErased = true;
+    for (std::size_t i = 0; i < kProbeSize; ++i) {
+        if (probe[i] != 0xFFU) { allErased = false; break; }
+    }
+    if (allErased) {
+        ESP_LOGW(kTag, "dsp partition empty (erased) - using fallback");
         return std::unexpected(core::DspProgramError::Empty);
     }
 
-    return core::parseDspProgramBlob(buffer);
+    // Partizione non vuota: alloca il backing store con new(nothrow), cosi'
+    // un OOM ritorna nullptr invece di abortire (nessuna eccezione).
+    auto* raw = new (std::nothrow) std::uint8_t[part->size];
+    if (raw == nullptr) {
+        ESP_LOGE(kTag, "dsp buffer alloc failed (%u byte)",
+                 static_cast<unsigned>(part->size));
+        return std::unexpected(core::DspProgramError::FlashReadFailed);
+    }
+    std::unique_ptr<std::uint8_t[]> guard(raw);
+
+    if (esp_partition_read(part, 0, raw, part->size) != ESP_OK) {
+        return std::unexpected(core::DspProgramError::FlashReadFailed);
+    }
+
+    std::span<const std::uint8_t> view(raw, part->size);
+    if (partitionLooksEmpty(view)) {
+        return std::unexpected(core::DspProgramError::Empty);
+    }
+
+    return core::parseDspProgramBlob(view);
 }
 
 std::expected<void, core::DspProgramError>
