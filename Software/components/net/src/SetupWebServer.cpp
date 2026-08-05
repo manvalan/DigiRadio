@@ -1215,6 +1215,7 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext_.deviceIdentity = deviceIdentity;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 40;
     config.server_port = 80;
     config.lru_purge_enable = true;
 
