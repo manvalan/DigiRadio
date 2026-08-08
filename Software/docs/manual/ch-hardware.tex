@@ -132,7 +132,7 @@ in the module's own non-volatile memory.
 \begin{drcaution}[I\textsuperscript{2}S slave mode]
 The PCB routes ADAU1701 \texttt{SDATA\_OUT0} to the module over
 I\textsuperscript{2}S (BCLK, LRCLK, PCM data). Firmware must initialise
-\texttt{AT+AUXCFG=3} and \texttt{AT+I2SCFG=67}, not Line-In
+\texttt{AT+AUXCFG=3} and \texttt{AT+I2SCFG=35}, not Line-In
 (\texttt{AT+AUXCFG=1}). See Chapter~\ref{ch:bt1035}, Section~\ref{sec:bt1035-i2s}.
 \end{drcaution}
 
@@ -525,7 +525,7 @@ ever used.}
     \midrule
     UART with flow control & TX/RX + RTS/CTS wired            & verified \\
     I\textsuperscript{2}S init (firmware) &
-      \texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=67} & driver rule \\
+      \texttt{AT+AUXCFG=3}, \texttt{AT+I2SCFG=35} & driver rule \\
     I\textsuperscript{2}S input & receives clocks from ADAU master (slave) & verified \\
     Reset line             & RESET (GPIO17) driven by ESP32    & verified \\
     \bottomrule

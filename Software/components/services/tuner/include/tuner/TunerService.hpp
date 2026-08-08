@@ -16,6 +16,7 @@
 #include "core/ITuner.hpp"
 #include "core/SeekDirection.hpp"
 #include "core/TunerError.hpp"
+#include "core/TunerJson.hpp"
 #include "core/TunerStatus.hpp"
 
 #include <cstdint>
@@ -108,6 +109,20 @@ public:
      */
     [[nodiscard]] std::expected<core::FrequencyKHz, core::TunerError> seekFm(
         core::SeekDirection direction);
+
+    /**
+     * @brief    scanForStation — FM seek or DAB ensemble search with optional name.
+     *
+     * @dname    scanForStation
+     * @param    request  Band, step limit, and optional label substring.
+     * @return   Scan outcome; TunerError only on driver failure.
+     * @pubstate tunes/plays first matching station; updates last tune caches.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] std::expected<core::TunerScanResult, core::TunerError>
+    scanForStation(const core::TunerScanRequest& request);
 
     /**
      * @brief    listDabServices — programmes available on the current ensemble.

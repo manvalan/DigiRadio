@@ -18,6 +18,9 @@ docs/api/
 __pycache__/
 *.pyc
 
+# clangd index cache
+.cache/
+
 # Proprietary Si4684 firmware blobs (Skyworks / uGreen — local only, not in git)
 Firmware/Si4684-Firmware/*.bin
 Firmware/Si4684-Firmware/.ugreen-extract-*/

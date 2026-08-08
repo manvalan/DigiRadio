@@ -27,6 +27,7 @@
 #include "secure_store/NvsPlatformInit.hpp"
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
+#include "webradio/WebRadioService.hpp"
 
 namespace net {
 
@@ -102,10 +103,12 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
                station::StationService& stations,
                integration::IntegrationService& integration,
                ota::OtaService& ota,
+               webradio::WebRadioService& webRadio,
                core::CompanionChipStatus companionChips,
                const core::DeviceIdentity& deviceIdentity)
 {
     esp_netif_create_default_wifi_ap();
+    esp_netif_create_default_wifi_sta();
 
     SoftApHost softAp(SoftApConfig::forSsid(deviceIdentity.softApSsid()));
     if (auto apResult = softAp.start(); !apResult) {
@@ -115,17 +118,23 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::SoftApSetup, tuner, audio,
-                            bluetooth, stations, integration, ota,
+                            bluetooth, stations, integration, ota, webRadio,
                             companionChips, deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
+    }
+
+    SigmaStudioTcpServer sigmaStudio;
+    if (auto sigmaResult = sigmaStudio.start(); !sigmaResult) {
+        ESP_LOGW(kTag, "SigmaStudio TCP bridge failed to start — continuing "
+                       "without it");
     }
 
     ESP_LOGI(kTag, "setup mode ready — SSID %.*s",
              static_cast<int>(deviceIdentity.softApSsid().size()),
              deviceIdentity.softApSsid().data());
     return NetBootstrap(std::move(softAp), std::nullopt, std::move(webServer),
-                        NetState::SoftApSetup);
+                        std::move(sigmaStudio), NetState::SoftApSetup);
 }
 
 /**
@@ -146,6 +155,7 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
              station::StationService& stations,
              integration::IntegrationService& integration,
              ota::OtaService& ota,
+             webradio::WebRadioService& webRadio,
              core::CompanionChipStatus companionChips,
              const core::DeviceIdentity& deviceIdentity)
 {
@@ -175,17 +185,23 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::StaConnected, tuner, audio,
-                            bluetooth, stations, integration, ota,
+                            bluetooth, stations, integration, ota, webRadio,
                             companionChips, deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
+    }
+
+    SigmaStudioTcpServer sigmaStudio;
+    if (auto sigmaResult = sigmaStudio.start(); !sigmaResult) {
+        ESP_LOGW(kTag, "SigmaStudio TCP bridge failed to start — continuing "
+                       "without it");
     }
 
     ESP_LOGI(kTag, "STA mode ready — hostname %.*s.local",
              static_cast<int>(deviceIdentity.hostname().size()),
              deviceIdentity.hostname().data());
     return NetBootstrap(std::nullopt, std::move(sta), std::move(webServer),
-                        NetState::StaConnected);
+                        std::move(sigmaStudio), NetState::StaConnected);
 }
 
 } // namespace
@@ -197,6 +213,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
                     station::StationService& stations,
                     integration::IntegrationService& integration,
                     ota::OtaService& ota,
+                    webradio::WebRadioService& webRadio,
                     core::CompanionChipStatus companionChips,
                     const core::DeviceIdentity& deviceIdentity)
 {
@@ -210,8 +227,8 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
 
     if (store.hasWifiCredentials()) {
         auto staResult = startStaMode(store, tuner, audio, bluetooth, stations,
-                                      integration, ota, companionChips,
-                                      deviceIdentity);
+                                      integration, ota, webRadio,
+                                      companionChips, deviceIdentity);
         if (staResult) {
             return staResult;
         }
@@ -223,16 +240,18 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
     }
 
     return startSetupMode(store, tuner, audio, bluetooth, stations, integration,
-                          ota, companionChips, deviceIdentity);
+                          ota, webRadio, companionChips, deviceIdentity);
 }
 
 NetBootstrap::NetBootstrap(std::optional<SoftApHost> softAp,
                            std::optional<StaClient> sta,
                            SetupWebServer webServer,
+                           SigmaStudioTcpServer sigmaStudio,
                            NetState state)
     : softAp_(std::move(softAp))
     , sta_(std::move(sta))
     , webServer_(std::move(webServer))
+    , sigmaStudio_(std::move(sigmaStudio))
     , state_(state)
 {
 }

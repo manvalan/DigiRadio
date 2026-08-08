@@ -37,10 +37,12 @@ enum class NetError {
     WifiConfigFailed,
     WifiStartFailed,
     HttpServerStartFailed,
+    TcpServerStartFailed,
     StaConnectTimeout,
     StaConnectFailed,
     StoreSaveFailed,
     CredentialsNotFound,
+    WifiScanFailed,
 };
 
 } // namespace net

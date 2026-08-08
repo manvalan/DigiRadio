@@ -89,4 +89,12 @@ std::expected<void, core::DspError> Adau1701Dsp::setEqBand(
     return {};
 }
 
+std::expected<void, core::DspError> Adau1701Dsp::setBeepEnabled(bool enabled)
+{
+    if (auto result = driver_.setBeepEnabled(enabled); !result) {
+        return std::unexpected(mapError(result.error()));
+    }
+    return {};
+}
+
 } // namespace adau1701

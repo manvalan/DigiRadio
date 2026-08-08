@@ -14,6 +14,8 @@
 
 #include "core/Bt1035At.hpp"
 #include "core/Bt1035PairedDevice.hpp"
+#include "core/Bt1035ScannedDevice.hpp"
+#include "core/BtSpeakerTarget.hpp"
 
 #include <cstdint>
 #include <string>
@@ -37,6 +39,22 @@ struct BluetoothStatus {
     Bt1035A2dpState a2dpState; ///< Last read A2DP link state.
     std::string deviceName;   ///< GAP friendly name from AT+NAME.
     std::uint8_t autoReconnect; ///< Power-on reconnect count (0 = off).
+};
+
+/**
+ * @brief    BluetoothConnectRequest — POST /api/bluetooth/connect body.
+ *
+ * @dname    BluetoothConnectRequest
+ * @return   n/a (type)
+ * @pubstate Parsed by parseBluetoothConnectJson().
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+struct BluetoothConnectRequest {
+    std::string mac;  ///< 12-char module MAC.
+    std::string name; ///< Optional label stored when save is true.
+    bool save;        ///< Persist as default speaker on success.
 };
 
 /**
@@ -93,5 +111,75 @@ struct BluetoothStatus {
  */
 [[nodiscard]] std::expected<std::uint8_t, ParseError>
 parseBluetoothAutoReconnectJson(std::string_view json);
+
+/**
+ * @brief    serializeBluetoothScanJson — serialise scan result list.
+ *
+ * @dname    serializeBluetoothScanJson
+ * @param    devices  Parsed +SCAN entries.
+ * @return   JSON object with a devices array.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] std::string serializeBluetoothScanJson(
+    const std::vector<Bt1035ScannedDevice>& devices);
+
+/**
+ * @brief    parseBluetoothConnectJson — validate POST /api/bluetooth/connect.
+ *
+ * @dname    parseBluetoothConnectJson
+ * @param    json  Request body with 12-char \c mac field.
+ * @return   Normalised uppercase MAC on success, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] std::expected<std::string, ParseError>
+parseBluetoothConnectJson(std::string_view json);
+
+/**
+ * @brief    parseBluetoothConnectRequest — mac, optional name, save flag.
+ *
+ * @dname    parseBluetoothConnectRequest
+ * @param    json  POST /api/bluetooth/connect body.
+ * @return   Parsed connect request (mac may be empty if invalid).
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] BluetoothConnectRequest parseBluetoothConnectRequest(
+    std::string_view json);
+
+/**
+ * @brief    serializeBluetoothSpeakerJson — saved default speaker for HTTP.
+ *
+ * @dname    serializeBluetoothSpeakerJson
+ * @param    target  Stored speaker, or nullptr when not configured.
+ * @return   JSON object with configured flag.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] std::string serializeBluetoothSpeakerJson(
+    const BtSpeakerTarget* target);
+
+/**
+ * @brief    parseBluetoothSpeakerJson — validate POST /api/bluetooth/speaker.
+ *
+ * @dname    parseBluetoothSpeakerJson
+ * @param    json  Request body with mac and optional name.
+ * @return   BtSpeakerTarget on success, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] std::expected<BtSpeakerTarget, ParseError>
+parseBluetoothSpeakerJson(std::string_view json);
 
 } // namespace core

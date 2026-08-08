@@ -21,11 +21,9 @@
 #include "core/AudioProfile.hpp"
 #include "core/AudioProfileJson.hpp"
 #include "core/BluetoothJson.hpp"
+#include "core/Bt1035ScannedDevice.hpp"
 #include "core/CompanionChipStatus.hpp"
 #include "core/DspProgramBlob.hpp"
-#include "core/FirmwareVersion.hpp"
-#include "core/HealthStatus.hpp"
-#include "core/HealthStatusJson.hpp"
 #include "core/IntegrationError.hpp"
 #include "core/ParseError.hpp"
 #include "core/SeekDirection.hpp"
@@ -33,6 +31,8 @@
 #include "core/StoreError.hpp"
 #include "core/TunerJson.hpp"
 #include "core/WifiProvisionJson.hpp"
+#include "core/WifiScanJson.hpp"
+#include "net/WifiScanner.hpp"
 #include "tuner/TunerService.hpp"
 #include "audio/AudioService.hpp"
 #include "bluetooth/BluetoothService.hpp"
@@ -42,10 +42,13 @@
 #include "ota/OtaService.hpp"
 #include "ota/OtaError.hpp"
 #include "core/OtaAppDescriptor.hpp"
+#include "core/WebRadioJson.hpp"
 #include "bt1035/Bt1035Error.hpp"
+#include "webradio/WebRadioService.hpp"
 
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -53,6 +56,8 @@
 #include <array>
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -69,6 +74,49 @@ extern const uint8_t index_html_gz_end[] asm(
     "_binary_index_html_gz_end");
 
 /**
+ * @brief    routeContextStorage — app-lifetime HTTP handler dependencies.
+ *
+ * @dname    routeContextStorage
+ * @return   Reference to the singleton route context.
+ * @pubstate Populated in SetupWebServer::start(); stable across moves so
+ *           esp_http_server user_ctx never goes stale.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] HttpRouteContext& routeContextStorage() noexcept
+{
+    static HttpRouteContext ctx{
+        .store = nullptr,
+        .tuner = nullptr,
+        .audio = nullptr,
+        .bluetooth = nullptr,
+        .stations = nullptr,
+        .integration = nullptr,
+        .ota = nullptr,
+        .webRadio = nullptr,
+        .companionChips = {},
+        .deviceIdentity = core::DeviceIdentity::unknown(),
+    };
+    return ctx;
+}
+
+/**
+ * @brief    routeContextReady — whether start() populated route dependencies.
+ *
+ * @dname    routeContextReady
+ * @return   true after SetupWebServer::start() succeeds.
+ * @pubstate reads routeContextStorage().store.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] bool routeContextReady() noexcept
+{
+    return routeContextStorage().store != nullptr;
+}
+
+/**
  * @brief    routeContextFrom — read handler dependencies from user_ctx.
  *
  * @dname    routeContextFrom
@@ -81,7 +129,10 @@ extern const uint8_t index_html_gz_end[] asm(
  */
 [[nodiscard]] HttpRouteContext* routeContextFrom(httpd_req_t* req) noexcept
 {
-    return static_cast<HttpRouteContext*>(req->user_ctx);
+    if (req != nullptr && req->user_ctx != nullptr) {
+        return static_cast<HttpRouteContext*>(req->user_ctx);
+    }
+    return routeContextReady() ? &routeContextStorage() : nullptr;
 }
 
 /**
@@ -216,21 +267,64 @@ template <std::size_t N>
 esp_err_t healthGetHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
-    const core::CompanionChipStatus chips =
-        ctx != nullptr
-            ? ctx->companionChips
-            : core::CompanionChipStatus{
-                  .si4684Ready = false,
-                  .adau1701Ready = false,
-                  .bt1035Ready = false,
-              };
-    const core::HealthStatus status = core::HealthStatus::ok(
-        core::FirmwareVersion(kFirmwareVersion), chips,
-        ctx != nullptr ? ctx->deviceIdentity.serialNumber()
-                       : std::string_view("unknown"));
-    const std::string json = core::serializeHealthStatusJson(status);
+
+    bool si4684Ready = false;
+    bool adau1701Ready = false;
+    bool bt1035Ready = false;
+    const char* serialNumber = "unknown";
+    if (ctx != nullptr) {
+        si4684Ready = ctx->companionChips.si4684Ready;
+        adau1701Ready = ctx->companionChips.adau1701Ready;
+        bt1035Ready = ctx->companionChips.bt1035Ready;
+        const std::string_view serial = ctx->deviceIdentity.serialNumber();
+        if (!serial.empty() && serial.size() <= 32U) {
+            serialNumber = serial.data();
+        }
+    }
+
+    char ipAddr[16] = {};
+    esp_netif_t* staNetif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (staNetif != nullptr) {
+        esp_netif_ip_info_t ipInfo{};
+        if (esp_netif_get_ip_info(staNetif, &ipInfo) == ESP_OK
+            && ipInfo.ip.addr != 0U) {
+            std::snprintf(ipAddr, sizeof(ipAddr), IPSTR, IP2STR(&ipInfo.ip));
+        }
+    }
+    if (ipAddr[0] == '\0') {
+        esp_netif_t* apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+        if (apNetif != nullptr) {
+            esp_netif_ip_info_t ipInfo{};
+            if (esp_netif_get_ip_info(apNetif, &ipInfo) == ESP_OK
+                && ipInfo.ip.addr != 0U) {
+                std::snprintf(ipAddr, sizeof(ipAddr), IPSTR, IP2STR(&ipInfo.ip));
+            }
+        }
+    }
+
+    char json[320];
+    int jsonLen = 0;
+    if (ipAddr[0] != '\0') {
+        jsonLen = std::snprintf(
+            json, sizeof(json),
+            R"({"status":"ok","fw":"%s","serialNumber":"%s","ip":"%s","chips":{"si4684":%s,"adau1701":%s,"bt1035":%s}})",
+            kFirmwareVersion, serialNumber, ipAddr,
+            si4684Ready ? "true" : "false", adau1701Ready ? "true" : "false",
+            bt1035Ready ? "true" : "false");
+    } else {
+        jsonLen = std::snprintf(
+            json, sizeof(json),
+            R"({"status":"ok","fw":"%s","serialNumber":"%s","chips":{"si4684":%s,"adau1701":%s,"bt1035":%s}})",
+            kFirmwareVersion, serialNumber, si4684Ready ? "true" : "false",
+            adau1701Ready ? "true" : "false", bt1035Ready ? "true" : "false");
+    }
+    if (jsonLen <= 0 || jsonLen >= static_cast<int>(sizeof(json))) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
     httpd_resp_set_type(req, "application/json");
-    return httpd_resp_send(req, json.c_str(), json.size());
+    return httpd_resp_send(req, json, static_cast<std::size_t>(jsonLen));
 }
 
 /**
@@ -447,6 +541,61 @@ esp_err_t tunerSeekPostHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    tunerScanPostHandler — automatic FM/DAB station search (test mode).
+ *
+ * @dname    tunerScanPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate uses route context tuner service; may block tens of seconds.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+esp_err_t tunerScanPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->tuner == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 512> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed =
+        core::parseTunerScanJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeTunerErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    ESP_LOGI(kTag, "tuner scan HTTP band=%s max_steps=%u name='%.*s'",
+             parsed->band == core::TunerBand::Fm ? "fm" : "dab",
+             static_cast<unsigned>(parsed->maxSteps),
+             static_cast<int>(parsed->nameFilter.size()),
+             parsed->nameFilter.c_str());
+
+    auto result = ctx->tuner->scanForStation(*parsed);
+    if (!result) {
+        const std::string json =
+            core::serializeTunerErrorJson(tunerErrorToken(result.error()));
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeTunerScanJson(*result);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
  * @brief    audioProfileGetHandler — serve GET /api/audio/profile JSON.
  *
  * @dname    audioProfileGetHandler
@@ -609,6 +758,125 @@ esp_err_t audioBassEnhancePostHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    audioBeepPostHandler — toggle the ADAU1701 Beep1 tone generator.
+ *
+ * @dname    audioBeepPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate live-only safeload; does not touch AudioProfile or NVS.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-07
+ */
+esp_err_t audioBeepPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed = core::parseBeepEnabledJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeAudioErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto applied = ctx->audio->setBeepEnabled(*parsed); !applied) {
+        const std::string json = core::serializeAudioErrorJson("dsp_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeAudioSavedJson();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    streamingGetHandler — serve GET /api/streaming as JSON.
+ *
+ * @dname    streamingGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads route context web radio service snapshot.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-08
+ */
+esp_err_t streamingGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->webRadio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    const std::string json =
+        core::serializeWebRadioConfigJson(ctx->webRadio->config());
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    streamingPostHandler — accept POST /api/streaming JSON.
+ *
+ * @dname    streamingPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate persists config to NVS and updates the live streaming task
+ *           config; takes effect without a reboot.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-08
+ */
+esp_err_t streamingPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->webRadio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 512> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed =
+        core::parseWebRadioConfigJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeWebRadioErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto applied = ctx->webRadio->setConfig(*parsed); !applied) {
+        const std::string json =
+            core::serializeWebRadioErrorJson("store_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeWebRadioConfigJson(*parsed);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
  * @brief    indexGetHandler — serve gzipped setup page from flash.
  * @param    req  HTTP request handle from esp_http_server.
  * @return   ESP_OK on success, or an esp_err_t error code.
@@ -697,6 +965,35 @@ esp_err_t wifiPostHandler(httpd_req_t* req)
 
     xTaskCreate(rebootTask, "reboot", 2048, nullptr, 5, nullptr);
     return ESP_OK;
+}
+
+/**
+ * @brief    wifiScanPostHandler — list nearby Wi-Fi access points.
+ *
+ * @dname    wifiScanPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate runs esp_wifi scan via WifiScanner.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+esp_err_t wifiScanPostHandler(httpd_req_t* req)
+{
+    (void)req;
+
+    auto networks = WifiScanner::scanNearby();
+    if (!networks) {
+        const std::string json =
+            core::serializeWifiScanErrorJson("scan_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeWifiScanJson(*networks);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
 }
 
 /**
@@ -939,6 +1236,191 @@ esp_err_t bluetoothPairedGetHandler(httpd_req_t* req)
     return httpd_resp_send(req, json.c_str(), json.size());
 }
 
+esp_err_t bluetoothScanPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    ESP_LOGI(kTag, "bluetooth scan HTTP request");
+
+    std::uint8_t scanSeconds = 45U;
+    std::array<char, 128> body{};
+    if (readRequestBody(req, body)) {
+        const std::string_view payload(body.data());
+        const std::string needle = "\"seconds\":";
+        const std::size_t start = payload.find(needle);
+        if (start != std::string_view::npos) {
+            char* end = nullptr;
+            const unsigned long raw = std::strtoul(
+                payload.data() + start + needle.size(), &end, 10);
+            if (end != payload.data() + start + needle.size() && raw >= 1U
+                && raw <= 255U) {
+                scanSeconds = static_cast<std::uint8_t>(raw);
+            }
+        }
+    }
+    ESP_LOGI(kTag, "bluetooth scan HTTP seconds=%u",
+             static_cast<unsigned>(scanSeconds));
+
+    auto devices = ctx->bluetooth->scanNearby(scanSeconds);
+    if (!devices) {
+        ESP_LOGW(kTag, "bluetooth scan failed: %s",
+                 bt1035ErrorToken(devices.error()));
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(devices.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    ESP_LOGI(kTag, "bluetooth scan HTTP OK: %u device(s)",
+             static_cast<unsigned>(devices->size()));
+    for (const core::Bt1035ScannedDevice& device : *devices) {
+        ESP_LOGI(kTag, "bluetooth scan HTTP result: mac=%s name=%s rssi=%d",
+                 device.mac.c_str(),
+                 device.name.empty() ? "(no name)" : device.name.c_str(),
+                 static_cast<int>(device.rssiDbm));
+    }
+    const std::string json = core::serializeBluetoothScanJson(*devices);
+    ESP_LOGI(kTag, "bluetooth scan JSON length=%u",
+             static_cast<unsigned>(json.size()));
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+esp_err_t bluetoothConnectPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 256> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const core::BluetoothConnectRequest request =
+        core::parseBluetoothConnectRequest(std::string_view(body.data()));
+    if (request.mac.empty()) {
+        const std::string json =
+            core::serializeBluetoothErrorJson("invalid_mac");
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    ESP_LOGI(kTag, "bluetooth connect HTTP mac=%s save=%s",
+             request.mac.c_str(), request.save ? "yes" : "no");
+
+    if (auto result = ctx->bluetooth->connectTo(request); !result) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(result.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"connected\"}", 24);
+}
+
+esp_err_t bluetoothSpeakerGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    if (!ctx->bluetooth->hasSavedSpeaker()) {
+        const std::string json = core::serializeBluetoothSpeakerJson(nullptr);
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const auto target = ctx->bluetooth->loadSavedSpeaker();
+    if (!target) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const std::string json = core::serializeBluetoothSpeakerJson(&(*target));
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+esp_err_t bluetoothSpeakerPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 256> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto target = core::parseBluetoothSpeakerJson(std::string_view(body.data()));
+    if (!target) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(parseErrorToken(target.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto saved = ctx->bluetooth->saveSpeaker(*target); !saved) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"saved\"}", 18);
+}
+
+esp_err_t bluetoothSpeakerDeleteHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    (void)ctx->bluetooth->clearSavedSpeaker();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"cleared\"}", 20);
+}
+
+esp_err_t bluetoothReconnectPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    ESP_LOGI(kTag, "bluetooth reconnect HTTP request");
+    if (auto result = ctx->bluetooth->reconnectSavedSpeaker(true); !result) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(result.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"connected\"}", 24);
+}
+
 esp_err_t bluetoothAutoReconnectPostHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -1124,9 +1606,6 @@ SetupWebServer::SetupWebServer()
     , bluetooth_(nullptr)
     , stations_(nullptr)
     , integration_(nullptr)
-    , routeContext_{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                    nullptr, core::CompanionChipStatus{false, false, false},
-                    core::DeviceIdentity::unknown()}
 {
 }
 
@@ -1139,7 +1618,6 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     , bluetooth_(other.bluetooth_)
     , stations_(other.stations_)
     , integration_(other.integration_)
-    , routeContext_(other.routeContext_)
 {
     other.server_ = nullptr;
     other.store_ = nullptr;
@@ -1149,8 +1627,6 @@ SetupWebServer::SetupWebServer(SetupWebServer&& other) noexcept
     other.bluetooth_ = nullptr;
     other.stations_ = nullptr;
     other.integration_ = nullptr;
-    other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
-                           nullptr, nullptr, {}, core::DeviceIdentity::unknown()};
 }
 
 SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
@@ -1167,7 +1643,6 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         bluetooth_ = other.bluetooth_;
         stations_ = other.stations_;
         integration_ = other.integration_;
-        routeContext_ = other.routeContext_;
         other.server_ = nullptr;
         other.store_ = nullptr;
         other.netState_ = NetState::Uninitialized;
@@ -1176,9 +1651,6 @@ SetupWebServer& SetupWebServer::operator=(SetupWebServer&& other) noexcept
         other.bluetooth_ = nullptr;
         other.stations_ = nullptr;
         other.integration_ = nullptr;
-        other.routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr,
-                               nullptr, nullptr, core::CompanionChipStatus{false, false, false},
-                               core::DeviceIdentity::unknown()};
     }
     return *this;
 }
@@ -1189,9 +1661,6 @@ SetupWebServer::~SetupWebServer()
         httpd_stop(server_);
         server_ = nullptr;
     }
-    routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                     nullptr, core::CompanionChipStatus{false, false, false},
-                     core::DeviceIdentity::unknown()};
 }
 
 std::expected<void, NetError> SetupWebServer::start(
@@ -1203,6 +1672,7 @@ std::expected<void, NetError> SetupWebServer::start(
     station::StationService& stations,
     integration::IntegrationService& integration,
     ota::OtaService& ota,
+    webradio::WebRadioService& webRadio,
     core::CompanionChipStatus companionChips,
     const core::DeviceIdentity& deviceIdentity)
 {
@@ -1217,30 +1687,34 @@ std::expected<void, NetError> SetupWebServer::start(
     bluetooth_ = &bluetooth;
     stations_ = &stations;
     integration_ = &integration;
-    routeContext_.store = &store;
-    routeContext_.tuner = &tuner;
-    routeContext_.audio = &audio;
-    routeContext_.bluetooth = &bluetooth;
-    routeContext_.stations = &stations;
-    routeContext_.integration = &integration;
-    routeContext_.ota = &ota;
-    routeContext_.companionChips = companionChips;
-    routeContext_.deviceIdentity = deviceIdentity;
+    auto& routeContext = routeContextStorage();
+    routeContext.store = &store;
+    routeContext.tuner = &tuner;
+    routeContext.audio = &audio;
+    routeContext.bluetooth = &bluetooth;
+    routeContext.stations = &stations;
+    routeContext.integration = &integration;
+    routeContext.ota = &ota;
+    routeContext.webRadio = &webRadio;
+    routeContext.companionChips = companionChips;
+    routeContext.deviceIdentity = deviceIdentity;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.stack_size = 12288;
+    config.max_open_sockets = 3;
     config.max_uri_handlers = 40;
     config.server_port = 80;
     config.lru_purge_enable = true;
+    config.recv_wait_timeout = 60;
+    config.send_wait_timeout = 60;
 
     if (httpd_start(&server_, &config) != ESP_OK) {
         ESP_LOGE(kTag, "httpd_start failed");
-        routeContext_ = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                         nullptr, core::CompanionChipStatus{false, false, false},
-                         core::DeviceIdentity::unknown()};
+        routeContext.store = nullptr;
         return std::unexpected(NetError::HttpServerStartFailed);
     }
 
-    void* routeCtx = &routeContext_;
+    void* routeCtx = &routeContext;
 
     const httpd_uri_t healthUri = {
         .uri = "/api/health",
@@ -1265,6 +1739,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &wifiUri);
+
+    const httpd_uri_t wifiScanUri = {
+        .uri = "/api/wifi/scan",
+        .method = HTTP_POST,
+        .handler = wifiScanPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &wifiScanUri);
 
     const httpd_uri_t tunerStatusUri = {
         .uri = "/api/tuner/status",
@@ -1306,6 +1788,14 @@ std::expected<void, NetError> SetupWebServer::start(
     };
     httpd_register_uri_handler(server_, &tunerSeekUri);
 
+    const httpd_uri_t tunerScanUri = {
+        .uri = "/api/tuner/scan",
+        .method = HTTP_POST,
+        .handler = tunerScanPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &tunerScanUri);
+
     const httpd_uri_t audioProfileGetUri = {
         .uri = "/api/audio/profile",
         .method = HTTP_GET,
@@ -1345,6 +1835,30 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &audioBassEnhanceUri);
+
+    const httpd_uri_t audioBeepUri = {
+        .uri = "/api/audio/beep",
+        .method = HTTP_POST,
+        .handler = audioBeepPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &audioBeepUri);
+
+    const httpd_uri_t streamingGetUri = {
+        .uri = "/api/streaming",
+        .method = HTTP_GET,
+        .handler = streamingGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &streamingGetUri);
+
+    const httpd_uri_t streamingPostUri = {
+        .uri = "/api/streaming",
+        .method = HTTP_POST,
+        .handler = streamingPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &streamingPostUri);
 
     const httpd_uri_t dspProgramUri = {
         .uri = "/api/dsp/program",
@@ -1401,6 +1915,54 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &bluetoothPairedUri);
+
+    const httpd_uri_t bluetoothScanUri = {
+        .uri = "/api/bluetooth/scan",
+        .method = HTTP_POST,
+        .handler = bluetoothScanPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothScanUri);
+
+    const httpd_uri_t bluetoothConnectUri = {
+        .uri = "/api/bluetooth/connect",
+        .method = HTTP_POST,
+        .handler = bluetoothConnectPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothConnectUri);
+
+    const httpd_uri_t bluetoothSpeakerGetUri = {
+        .uri = "/api/bluetooth/speaker",
+        .method = HTTP_GET,
+        .handler = bluetoothSpeakerGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothSpeakerGetUri);
+
+    const httpd_uri_t bluetoothSpeakerPostUri = {
+        .uri = "/api/bluetooth/speaker",
+        .method = HTTP_POST,
+        .handler = bluetoothSpeakerPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothSpeakerPostUri);
+
+    const httpd_uri_t bluetoothSpeakerDeleteUri = {
+        .uri = "/api/bluetooth/speaker",
+        .method = HTTP_DELETE,
+        .handler = bluetoothSpeakerDeleteHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothSpeakerDeleteUri);
+
+    const httpd_uri_t bluetoothReconnectUri = {
+        .uri = "/api/bluetooth/reconnect",
+        .method = HTTP_POST,
+        .handler = bluetoothReconnectPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothReconnectUri);
 
     const httpd_uri_t bluetoothAutoReconnectUri = {
         .uri = "/api/bluetooth/auto-reconnect",

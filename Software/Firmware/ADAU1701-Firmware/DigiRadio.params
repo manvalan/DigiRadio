@@ -1,6 +1,6 @@
 Cell Name         = Si4674
 Parameter Name    = Gain1940AlgNS1
-Parameter Address = 0
+Parameter Address = 3
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -9,7 +9,7 @@ Parameter Data :
 
 Cell Name         = Si4674
 Parameter Name    = Gain1940AlgNS2
-Parameter Address = 1
+Parameter Address = 4
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -18,7 +18,7 @@ Parameter Data :
 
 Cell Name         = ESP32
 Parameter Name    = Gain1940AlgNS3
-Parameter Address = 2
+Parameter Address = 5
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -27,7 +27,7 @@ Parameter Data :
 
 Cell Name         = ESP32
 Parameter Name    = Gain1940AlgNS4
-Parameter Address = 3
+Parameter Address = 6
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -36,7 +36,7 @@ Parameter Data :
 
 Cell Name         = St Mixer1
 Parameter Name    = StereoMixerAlg12
-Parameter Address = 4
+Parameter Address = 9
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -45,7 +45,16 @@ Parameter Data :
 
 Cell Name         = St Mixer1
 Parameter Name    = StereoMixerAlg14
-Parameter Address = 5
+Parameter Address = 10
+Parameter Value   = 1
+Parameter Data :
+0x00, 0x80, 0x00, 0x00, 
+
+
+
+Cell Name         = St Mixer1
+Parameter Name    = StereoMixerAlg16
+Parameter Address = 11
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -54,7 +63,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan10B1
-Parameter Address = 6
+Parameter Address = 12
 Parameter Value   = 0.99815046787262
 Parameter Data :
 0x00 ,	0x7F ,	0xC3 ,	0x65 ,	
@@ -63,7 +72,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan11B1
-Parameter Address = 7
+Parameter Address = 13
 Parameter Value   = -1.99630105495453
 Parameter Data :
 0x0F ,	0x00 ,	0x79 ,	0x35 ,	
@@ -72,7 +81,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan12B1
-Parameter Address = 8
+Parameter Address = 14
 Parameter Value   = 0.99815046787262
 Parameter Data :
 0x00 ,	0x7F ,	0xC3 ,	0x65 ,	
@@ -81,7 +90,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan11A1
-Parameter Address = 9
+Parameter Address = 15
 Parameter Value   = 1.99629759788513
 Parameter Data :
 0x00 ,	0xFF ,	0x86 ,	0xAE ,	
@@ -90,7 +99,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan12A1
-Parameter Address = 10
+Parameter Address = 16
 Parameter Value   = -0.996304392814636
 Parameter Data :
 0x0F ,	0x80 ,	0x79 ,	0x19 ,	
@@ -99,7 +108,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan10B2
-Parameter Address = 11
+Parameter Address = 17
 Parameter Value   = 1
 Parameter Data :
 0x00 ,	0x80 ,	0x00 ,	0x00 ,	
@@ -108,60 +117,6 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan11B2
-Parameter Address = 12
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B2
-Parameter Address = 13
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A2
-Parameter Address = 14
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A2
-Parameter Address = 15
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B3
-Parameter Address = 16
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B3
-Parameter Address = 17
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B3
 Parameter Address = 18
 Parameter Value   = 0
 Parameter Data :
@@ -170,7 +125,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A3
+Parameter Name    = PEQ1Chan12B2
 Parameter Address = 19
 Parameter Value   = 0
 Parameter Data :
@@ -179,7 +134,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A3
+Parameter Name    = PEQ1Chan11A2
 Parameter Address = 20
 Parameter Value   = 0
 Parameter Data :
@@ -188,17 +143,8 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B4
+Parameter Name    = PEQ1Chan12A2
 Parameter Address = 21
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B4
-Parameter Address = 22
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -206,7 +152,16 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B4
+Parameter Name    = PEQ1Chan10B3
+Parameter Address = 22
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B3
 Parameter Address = 23
 Parameter Value   = 0
 Parameter Data :
@@ -215,7 +170,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A4
+Parameter Name    = PEQ1Chan12B3
 Parameter Address = 24
 Parameter Value   = 0
 Parameter Data :
@@ -224,7 +179,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A4
+Parameter Name    = PEQ1Chan11A3
 Parameter Address = 25
 Parameter Value   = 0
 Parameter Data :
@@ -233,17 +188,8 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B5
+Parameter Name    = PEQ1Chan12A3
 Parameter Address = 26
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B5
-Parameter Address = 27
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -251,7 +197,16 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B5
+Parameter Name    = PEQ1Chan10B4
+Parameter Address = 27
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B4
 Parameter Address = 28
 Parameter Value   = 0
 Parameter Data :
@@ -260,7 +215,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A5
+Parameter Name    = PEQ1Chan12B4
 Parameter Address = 29
 Parameter Value   = 0
 Parameter Data :
@@ -269,7 +224,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A5
+Parameter Name    = PEQ1Chan11A4
 Parameter Address = 30
 Parameter Value   = 0
 Parameter Data :
@@ -278,17 +233,8 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B6
+Parameter Name    = PEQ1Chan12A4
 Parameter Address = 31
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B6
-Parameter Address = 32
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -296,7 +242,16 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B6
+Parameter Name    = PEQ1Chan10B5
+Parameter Address = 32
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B5
 Parameter Address = 33
 Parameter Value   = 0
 Parameter Data :
@@ -305,7 +260,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A6
+Parameter Name    = PEQ1Chan12B5
 Parameter Address = 34
 Parameter Value   = 0
 Parameter Data :
@@ -314,8 +269,62 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A6
+Parameter Name    = PEQ1Chan11A5
 Parameter Address = 35
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan12A5
+Parameter Address = 36
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan10B6
+Parameter Address = 37
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B6
+Parameter Address = 38
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan12B6
+Parameter Address = 39
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11A6
+Parameter Address = 40
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan12A6
+Parameter Address = 41
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -324,7 +333,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan10B1
-Parameter Address = 6
+Parameter Address = 12
 Parameter Value   = 0.99815046787262
 Parameter Data :
 0x00 ,	0x7F ,	0xC3 ,	0x65 ,	
@@ -333,7 +342,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan11B1
-Parameter Address = 7
+Parameter Address = 13
 Parameter Value   = -1.99630105495453
 Parameter Data :
 0x0F ,	0x00 ,	0x79 ,	0x35 ,	
@@ -342,7 +351,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan12B1
-Parameter Address = 8
+Parameter Address = 14
 Parameter Value   = 0.99815046787262
 Parameter Data :
 0x00 ,	0x7F ,	0xC3 ,	0x65 ,	
@@ -351,7 +360,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan11A1
-Parameter Address = 9
+Parameter Address = 15
 Parameter Value   = 1.99629759788513
 Parameter Data :
 0x00 ,	0xFF ,	0x86 ,	0xAE ,	
@@ -360,7 +369,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan12A1
-Parameter Address = 10
+Parameter Address = 16
 Parameter Value   = -0.996304392814636
 Parameter Data :
 0x0F ,	0x80 ,	0x79 ,	0x19 ,	
@@ -369,7 +378,7 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan10B2
-Parameter Address = 11
+Parameter Address = 17
 Parameter Value   = 1
 Parameter Data :
 0x00 ,	0x80 ,	0x00 ,	0x00 ,	
@@ -378,60 +387,6 @@ Parameter Data :
 
 Cell Name         = Param EQ1
 Parameter Name    = PEQ1Chan11B2
-Parameter Address = 12
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B2
-Parameter Address = 13
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A2
-Parameter Address = 14
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A2
-Parameter Address = 15
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B3
-Parameter Address = 16
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B3
-Parameter Address = 17
-Parameter Value   = 0
-Parameter Data :
-0x00 ,	0x00 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B3
 Parameter Address = 18
 Parameter Value   = 0
 Parameter Data :
@@ -440,7 +395,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A3
+Parameter Name    = PEQ1Chan12B2
 Parameter Address = 19
 Parameter Value   = 0
 Parameter Data :
@@ -449,7 +404,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A3
+Parameter Name    = PEQ1Chan11A2
 Parameter Address = 20
 Parameter Value   = 0
 Parameter Data :
@@ -458,17 +413,8 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B4
+Parameter Name    = PEQ1Chan12A2
 Parameter Address = 21
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B4
-Parameter Address = 22
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -476,7 +422,16 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B4
+Parameter Name    = PEQ1Chan10B3
+Parameter Address = 22
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B3
 Parameter Address = 23
 Parameter Value   = 0
 Parameter Data :
@@ -485,7 +440,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A4
+Parameter Name    = PEQ1Chan12B3
 Parameter Address = 24
 Parameter Value   = 0
 Parameter Data :
@@ -494,7 +449,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A4
+Parameter Name    = PEQ1Chan11A3
 Parameter Address = 25
 Parameter Value   = 0
 Parameter Data :
@@ -503,17 +458,8 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B5
+Parameter Name    = PEQ1Chan12A3
 Parameter Address = 26
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B5
-Parameter Address = 27
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -521,7 +467,16 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B5
+Parameter Name    = PEQ1Chan10B4
+Parameter Address = 27
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B4
 Parameter Address = 28
 Parameter Value   = 0
 Parameter Data :
@@ -530,7 +485,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A5
+Parameter Name    = PEQ1Chan12B4
 Parameter Address = 29
 Parameter Value   = 0
 Parameter Data :
@@ -539,7 +494,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A5
+Parameter Name    = PEQ1Chan11A4
 Parameter Address = 30
 Parameter Value   = 0
 Parameter Data :
@@ -548,17 +503,8 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan10B6
+Parameter Name    = PEQ1Chan12A4
 Parameter Address = 31
-Parameter Value   = 1
-Parameter Data :
-0x00 ,	0x80 ,	0x00 ,	0x00 ,	
-
-
-
-Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11B6
-Parameter Address = 32
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -566,7 +512,16 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12B6
+Parameter Name    = PEQ1Chan10B5
+Parameter Address = 32
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B5
 Parameter Address = 33
 Parameter Value   = 0
 Parameter Data :
@@ -575,7 +530,7 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan11A6
+Parameter Name    = PEQ1Chan12B5
 Parameter Address = 34
 Parameter Value   = 0
 Parameter Data :
@@ -584,8 +539,62 @@ Parameter Data :
 
 
 Cell Name         = Param EQ1
-Parameter Name    = PEQ1Chan12A6
+Parameter Name    = PEQ1Chan11A5
 Parameter Address = 35
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan12A5
+Parameter Address = 36
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan10B6
+Parameter Address = 37
+Parameter Value   = 1
+Parameter Data :
+0x00 ,	0x80 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11B6
+Parameter Address = 38
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan12B6
+Parameter Address = 39
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan11A6
+Parameter Address = 40
+Parameter Value   = 0
+Parameter Data :
+0x00 ,	0x00 ,	0x00 ,	0x00 ,	
+
+
+
+Cell Name         = Param EQ1
+Parameter Name    = PEQ1Chan12A6
+Parameter Address = 41
 Parameter Value   = 0
 Parameter Data :
 0x00 ,	0x00 ,	0x00 ,	0x00 ,	
@@ -594,7 +603,7 @@ Parameter Data :
 
 Cell Name         = Multiple 1
 Parameter Name    = Gain1940AlgNS5
-Parameter Address = 36
+Parameter Address = 42
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -603,7 +612,7 @@ Parameter Data :
 
 Cell Name         = Multiple 1
 Parameter Name    = Gain1940AlgNS6
-Parameter Address = 37
+Parameter Address = 43
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -612,7 +621,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1slope_1
-Parameter Address = 38
+Parameter Address = 44
 Parameter Value   = -0.014285683631897
 Parameter Data :
 0x0F, 0xFE, 0x2B, 0xE3, 
@@ -621,7 +630,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1inter_1
-Parameter Address = 39
+Parameter Address = 45
 Parameter Value   = 0.27142858505249
 Parameter Data :
 0x00, 0x22, 0xBE, 0x2C, 
@@ -630,7 +639,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1slope_2
-Parameter Address = 40
+Parameter Address = 46
 Parameter Value   = -0.166666626930237
 Parameter Data :
 0x0F, 0xEA, 0xAA, 0xAB, 
@@ -639,7 +648,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1inter_2
-Parameter Address = 41
+Parameter Address = 47
 Parameter Value   = 0.833333373069763
 Parameter Data :
 0x00, 0x6A, 0xAA, 0xAB, 
@@ -648,7 +657,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1slope_3
-Parameter Address = 42
+Parameter Address = 48
 Parameter Value   = -0.79365074634552
 Parameter Data :
 0x0F, 0x9A, 0x69, 0xA7, 
@@ -657,7 +666,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1inter_3
-Parameter Address = 43
+Parameter Address = 49
 Parameter Value   = 1.98412692546844
 Parameter Data :
 0x00, 0xFD, 0xF7, 0xDF, 
@@ -666,7 +675,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1slope_4
-Parameter Address = 44
+Parameter Address = 50
 Parameter Value   = -15.5279502868652
 Parameter Data :
 0x08, 0x3C, 0x6C, 0x20, 
@@ -675,7 +684,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1inter_4
-Parameter Address = 45
+Parameter Address = 51
 Parameter Value   = 7.91925466060638
 Parameter Data :
 0x03, 0xF5, 0xAA, 0x23, 
@@ -684,7 +693,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1comp1
-Parameter Address = 46
+Parameter Address = 52
 Parameter Value   = 3
 Parameter Data :
 0x01, 0x80, 0x00, 0x00, 
@@ -693,7 +702,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1comp2
-Parameter Address = 47
+Parameter Address = 53
 Parameter Value   = 2
 Parameter Data :
 0x01, 0x00, 0x00, 0x00, 
@@ -702,7 +711,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1comp3
-Parameter Address = 48
+Parameter Address = 54
 Parameter Value   = 0.399999976158142
 Parameter Data :
 0x00, 0x33, 0x33, 0x33, 
@@ -711,7 +720,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1RMS_MONO_TCONST
-Parameter Address = 50
+Parameter Address = 56
 Parameter Value   = 0.000239849090576172
 Parameter Data :
 0x00, 0x00, 0x07, 0xDC, 
@@ -720,7 +729,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1threshold
-Parameter Address = 49
+Parameter Address = 55
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -729,7 +738,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1decay
-Parameter Address = 51
+Parameter Address = 57
 Parameter Value   = 0.000244140625
 Parameter Data :
 0x00, 0x00, 0x08, 0x00, 
@@ -738,7 +747,7 @@ Parameter Data :
 
 Cell Name         = Limiter 1
 Parameter Name    = limiterAlg1decaycomplement
-Parameter Address = 52
+Parameter Address = 58
 Parameter Value   = 0.99951171875
 Parameter Data :
 0x00, 0x7F, 0xF0, 0x00, 
@@ -747,7 +756,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2slope_1
-Parameter Address = 53
+Parameter Address = 59
 Parameter Value   = -0.014285683631897
 Parameter Data :
 0x0F, 0xFE, 0x2B, 0xE3, 
@@ -756,7 +765,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2inter_1
-Parameter Address = 54
+Parameter Address = 60
 Parameter Value   = 0.27142858505249
 Parameter Data :
 0x00, 0x22, 0xBE, 0x2C, 
@@ -765,7 +774,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2slope_2
-Parameter Address = 55
+Parameter Address = 61
 Parameter Value   = -0.166666626930237
 Parameter Data :
 0x0F, 0xEA, 0xAA, 0xAB, 
@@ -774,7 +783,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2inter_2
-Parameter Address = 56
+Parameter Address = 62
 Parameter Value   = 0.833333373069763
 Parameter Data :
 0x00, 0x6A, 0xAA, 0xAB, 
@@ -783,7 +792,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2slope_3
-Parameter Address = 57
+Parameter Address = 63
 Parameter Value   = -0.79365074634552
 Parameter Data :
 0x0F, 0x9A, 0x69, 0xA7, 
@@ -792,7 +801,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2inter_3
-Parameter Address = 58
+Parameter Address = 64
 Parameter Value   = 1.98412692546844
 Parameter Data :
 0x00, 0xFD, 0xF7, 0xDF, 
@@ -801,7 +810,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2slope_4
-Parameter Address = 59
+Parameter Address = 65
 Parameter Value   = -15.5279502868652
 Parameter Data :
 0x08, 0x3C, 0x6C, 0x20, 
@@ -810,7 +819,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2inter_4
-Parameter Address = 60
+Parameter Address = 66
 Parameter Value   = 7.91925466060638
 Parameter Data :
 0x03, 0xF5, 0xAA, 0x23, 
@@ -819,7 +828,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2comp1
-Parameter Address = 61
+Parameter Address = 67
 Parameter Value   = 3
 Parameter Data :
 0x01, 0x80, 0x00, 0x00, 
@@ -828,7 +837,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2comp2
-Parameter Address = 62
+Parameter Address = 68
 Parameter Value   = 2
 Parameter Data :
 0x01, 0x00, 0x00, 0x00, 
@@ -837,7 +846,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2comp3
-Parameter Address = 63
+Parameter Address = 69
 Parameter Value   = 0.399999976158142
 Parameter Data :
 0x00, 0x33, 0x33, 0x33, 
@@ -846,7 +855,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2RMS_MONO_TCONST
-Parameter Address = 65
+Parameter Address = 71
 Parameter Value   = 0.000239849090576172
 Parameter Data :
 0x00, 0x00, 0x07, 0xDC, 
@@ -855,7 +864,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2threshold
-Parameter Address = 64
+Parameter Address = 70
 Parameter Value   = 1
 Parameter Data :
 0x00, 0x80, 0x00, 0x00, 
@@ -864,7 +873,7 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2decay
-Parameter Address = 66
+Parameter Address = 72
 Parameter Value   = 0.000244140625
 Parameter Data :
 0x00, 0x00, 0x08, 0x00, 
@@ -873,15 +882,66 @@ Parameter Data :
 
 Cell Name         = Limiter 2
 Parameter Name    = limiterAlg2decaycomplement
-Parameter Address = 67
+Parameter Address = 73
 Parameter Value   = 0.99951171875
 Parameter Data :
 0x00, 0x7F, 0xF0, 0x00, 
 
 
 
+Cell Name         = Beep1
+Parameter Name    = beep_freqBeepAlg1
+Parameter Address = 2
+Parameter Value   = 0.00331640243530273
+Parameter Data :
+0x00, 0x00, 0x6C, 0xAC, 
+
+
+
+Cell Name         = Beep1
+Parameter Name    = enableBeepAlg1
+Parameter Address = 0
+Parameter Value   = 0
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Cell Name         = Beep1
+Parameter Name    = kickBeepAlg1
+Parameter Address = 1
+Parameter Value   = 0
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Cell Name         = Single 1
+Parameter Name    = Gain1940AlgNS7
+Parameter Address = 7
+Parameter Value   = 1
+Parameter Data :
+0x00, 0x80, 0x00, 0x00, 
+
+
+
+Cell Name         = S Splitter1
+Parameter Name    = SingleCtrlSplit1
+Parameter Address = 8
+Parameter Value   = 1
+Parameter Data :
+0x00, 0x80, 0x00, 0x00, 
+
+
+
 Parameter data for: IC 1 (Hexadecimal format starting at parameter address 0)
 See also DigiRadio.hex file
+0x00 , 	0x00 , 	0x00 , 	0x00 , 	
+0x00 , 	0x00 , 	0x00 , 	0x00 , 	
+0x00 , 	0x00 , 	0x6C , 	0xAC , 	
+0x00 , 	0x80 , 	0x00 , 	0x00 , 	
+0x00 , 	0x80 , 	0x00 , 	0x00 , 	
+0x00 , 	0x80 , 	0x00 , 	0x00 , 	
 0x00 , 	0x80 , 	0x00 , 	0x00 , 	
 0x00 , 	0x80 , 	0x00 , 	0x00 , 	
 0x00 , 	0x80 , 	0x00 , 	0x00 , 	
@@ -1900,14 +1960,14 @@ See also DigiRadio.hex file
 0x00 , 	0x00 , 	0x00 , 	0x00 , 	
 0x00 , 	0x00 , 	0x00 , 	0x00 , 	
 0x00 , 	0x00 , 	0x00 , 	0x00 , 	
-0x00 , 	0x00 , 	0x00 , 	0x00 , 	
-0x00 , 	0x00 , 	0x00 , 	0x00 , 	
-0x00 , 	0x00 , 	0x00 , 	0x00 , 	
-0x00 , 	0x00 , 	0x00 , 	0x00 , 	
-0x00 , 	0x00 , 	0x00 , 	0x00 , 	
-0x00 , 	0x00 , 	0x00 , 	0x00 , 	
 
 Parameter data for: IC 1 (Binary format starting at parameter address 0)
+00000000	00000000	00000000	00000000	
+00000000	00000000	00000000	00000000	
+00000000	00000000	01101100	10101100	
+00000000	10000000	00000000	00000000	
+00000000	10000000	00000000	00000000	
+00000000	10000000	00000000	00000000	
 00000000	10000000	00000000	00000000	
 00000000	10000000	00000000	00000000	
 00000000	10000000	00000000	00000000	
@@ -1976,12 +2036,6 @@ Parameter data for: IC 1 (Binary format starting at parameter address 0)
 00000000	00000000	00000111	11011100	
 00000000	00000000	00001000	00000000	
 00000000	01111111	11110000	00000000	
-00000000	00000000	00000000	00000000	
-00000000	00000000	00000000	00000000	
-00000000	00000000	00000000	00000000	
-00000000	00000000	00000000	00000000	
-00000000	00000000	00000000	00000000	
-00000000	00000000	00000000	00000000	
 00000000	00000000	00000000	00000000	
 00000000	00000000	00000000	00000000	
 00000000	00000000	00000000	00000000	

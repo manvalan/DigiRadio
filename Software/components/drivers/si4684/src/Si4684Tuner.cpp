@@ -13,11 +13,16 @@
 
 #include "si4684/Si4684Tuner.hpp"
 
+#include "esp_log.h"
 #include "si4684/Si4684Band.hpp"
 
 namespace si4684 {
 
 namespace {
+constexpr char kTag[] = "Si4684Tuner";
+constexpr std::uint32_t kFmSeekStepKhz = 100U;
+constexpr std::uint32_t kFmBandBottomKhz = 87500U;
+constexpr std::uint32_t kFmBandTopKhz = 107900U;
 
 [[nodiscard]] core::FrequencyKHz defaultFmFrequency()
 {
@@ -30,7 +35,8 @@ Si4684Tuner::Si4684Tuner(Si4684Driver& driver)
     : driver_(driver)
     , dabIndex_(0U)
     , fmFrequency_(defaultFmFrequency())
-    , volume_(40U)
+    , volume_(63U)
+    , fmBandReady_(false)
 {
 }
 
@@ -44,6 +50,9 @@ core::TunerError Si4684Tuner::mapError(Si4684Error error) noexcept
     case Si4684Error::TuneFailed:
     case Si4684Error::StcTimeout:
         return core::TunerError::TuneFailed;
+    case Si4684Error::CtsTimeout:
+    case Si4684Error::CommandFailed:
+        return core::TunerError::HardwareFailed;
     default:
         return core::TunerError::HardwareFailed;
     }
@@ -66,6 +75,58 @@ std::expected<core::TunerBand, core::TunerError> Si4684Tuner::currentBand() cons
     }
     return driver_.loadedBand() == Si4684Band::Fm ? core::TunerBand::Fm
                                                   : core::TunerBand::Dab;
+}
+
+std::expected<void, core::TunerError> Si4684Tuner::ensureBandLoaded(
+    core::TunerBand band)
+{
+    const Si4684Band hwTarget =
+        (band == core::TunerBand::Fm) ? Si4684Band::Fm : Si4684Band::Dab;
+    if (driver_.isBooted() && driver_.loadedBand() == hwTarget) {
+        if (hwTarget != Si4684Band::Fm || fmBandReady_) {
+            return {};
+        }
+    }
+
+    const bool reloading =
+        !(driver_.isBooted() && driver_.loadedBand() == hwTarget);
+    if (reloading) {
+        ESP_LOGI(kTag, "band switch -> %s",
+                 band == core::TunerBand::Fm ? "FM" : "DAB");
+    }
+
+    if (driver_.isBooted() && driver_.loadedBand() == Si4684Band::Dab
+        && hwTarget == Si4684Band::Fm && lastDabServiceId_
+        && lastDabComponentId_) {
+        (void)driver_.stopDabService(*lastDabServiceId_, *lastDabComponentId_);
+        lastDabServiceId_.reset();
+        lastDabComponentId_.reset();
+        dabDynamicLabel_.reset();
+    }
+
+    if (auto loaded = boot(band); !loaded) {
+        return loaded;
+    }
+
+    if (auto vol = driver_.setVolume(volume_); !vol) {
+        return std::unexpected(mapError(vol.error()));
+    }
+
+    if (band == core::TunerBand::Fm) {
+        rdsMetadata_.reset();
+        fmFrequency_ = defaultFmFrequency();
+        fmBandReady_ = false;
+        if (auto tuned = driver_.tuneFm(fmFrequency_); !tuned) {
+            return std::unexpected(mapError(tuned.error()));
+        }
+        fmBandReady_ = true;
+    } else {
+        fmBandReady_ = false;
+        dabDynamicLabel_.reset();
+        lastDabServiceId_.reset();
+        lastDabComponentId_.reset();
+    }
+    return {};
 }
 
 std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
@@ -106,11 +167,20 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         status.fmFrequency = fmFrequency_;
         if (auto rsq = driver_.readFmRsq(); rsq) {
             status.locked = rsq->valid;
-            status.fmFrequency = rsq->frequency;
             status.fmRssiDbuV = rsq->rssiDbuV;
             status.fmSnrDb = rsq->snrDb;
             status.fmStereo = rsq->stereo;
-            fmFrequency_ = rsq->frequency;
+            status.fmChipReadFrequency = rsq->frequency;
+            // Keep commanded frequency when chip READFREQ is stale (stuck at band
+            // bottom); adopt READFREQ only when valid or it matches our target.
+            status.fmFrequency = fmFrequency_;
+            if (rsq->frequency) {
+                const std::uint32_t chipKhz = rsq->frequency->value();
+                if (rsq->valid || chipKhz == fmFrequency_.value()) {
+                    status.fmFrequency = *rsq->frequency;
+                    fmFrequency_ = *rsq->frequency;
+                }
+            }
         } else {
             return std::unexpected(mapError(rsq.error()));
         }
@@ -118,7 +188,8 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         for (int attempt = 0; attempt < 8; ++attempt) {
             auto rds = driver_.readFmRds();
             if (!rds) {
-                return std::unexpected(mapError(rds.error()));
+                ESP_LOGW(kTag, "FM RDS read failed (attempt %d)", attempt);
+                break;
             }
             if (!rds->received) {
                 break;
@@ -140,6 +211,9 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
 std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
     std::uint8_t freqIndex)
 {
+    if (auto ready = ensureBandLoaded(core::TunerBand::Dab); !ready) {
+        return ready;
+    }
     if (auto result = driver_.tuneDab(freqIndex); !result) {
         return std::unexpected(mapError(result.error()));
     }
@@ -153,14 +227,9 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
 std::expected<void, core::TunerError> Si4684Tuner::tuneFm(
     core::FrequencyKHz frequency)
 {
-    if (driver_.loadedBand() == Si4684Band::Dab && lastDabServiceId_
-        && lastDabComponentId_) {
-        (void)driver_.stopDabService(*lastDabServiceId_, *lastDabComponentId_);
-        lastDabServiceId_.reset();
-        lastDabComponentId_.reset();
-        dabDynamicLabel_.reset();
+    if (auto ready = ensureBandLoaded(core::TunerBand::Fm); !ready) {
+        return ready;
     }
-
     if (auto result = driver_.tuneFm(frequency); !result) {
         return std::unexpected(mapError(result.error()));
     }
@@ -172,18 +241,55 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneFm(
 std::expected<core::FrequencyKHz, core::TunerError> Si4684Tuner::seekFm(
     core::SeekDirection direction)
 {
-    const auto result = driver_.seekFm(direction, SeekBandWrap::Wrap);
-    if (!result) {
-        return std::unexpected(mapError(result.error()));
+    if (auto ready = ensureBandLoaded(core::TunerBand::Fm); !ready) {
+        return std::unexpected(ready.error());
     }
-    fmFrequency_ = *result;
-    rdsMetadata_.reset();
-    return *result;
+    const core::FrequencyKHz before = fmFrequency_;
+    const auto hw = driver_.seekFm(direction, SeekBandWrap::Wrap);
+    if (hw && hw->value() != before.value()) {
+        fmFrequency_ = *hw;
+        rdsMetadata_.reset();
+        return *hw;
+    }
+
+    // hitech95/si468x_dab_receiver uses HW seek + INTB STC; when READFREQ does
+    // not move, step by FM_SEEK_FREQUENCY_SPACING (100 kHz) via FM_TUNE_FREQ.
+    std::uint32_t nextKhz = before.value();
+    if (direction == core::SeekDirection::Up) {
+        nextKhz += kFmSeekStepKhz;
+        if (nextKhz > kFmBandTopKhz) {
+            nextKhz = kFmBandBottomKhz;
+        }
+    } else {
+        nextKhz = (nextKhz > kFmBandBottomKhz + kFmSeekStepKhz)
+                      ? nextKhz - kFmSeekStepKhz
+                      : kFmBandTopKhz;
+    }
+    const auto next = core::FrequencyKHz::tryFromKhz(nextKhz);
+    if (!next) {
+        return std::unexpected(core::TunerError::TuneFailed);
+    }
+    if (auto stepped = tuneFm(*next); !stepped) {
+        return std::unexpected(stepped.error());
+    }
+    if (auto rsq = driver_.readFmRsq(); rsq && rsq->frequency) {
+        ESP_LOGI(kTag, "FM software seek %s -> %u kHz (chip READFREQ)",
+                 direction == core::SeekDirection::Up ? "UP" : "DOWN",
+                 static_cast<unsigned>(rsq->frequency->value()));
+        return *rsq->frequency;
+    }
+    ESP_LOGI(kTag, "FM software seek %s -> %u kHz",
+             direction == core::SeekDirection::Up ? "UP" : "DOWN",
+             static_cast<unsigned>(nextKhz));
+    return *next;
 }
 
 std::expected<std::vector<core::TunerServiceEntry>, core::TunerError>
 Si4684Tuner::listDabServices()
 {
+    if (auto ready = ensureBandLoaded(core::TunerBand::Dab); !ready) {
+        return std::unexpected(ready.error());
+    }
     if (auto events = driver_.readDabEventStatus(); events) {
         if (!events->serviceListReady) {
             return std::unexpected(core::TunerError::ServiceListEmpty);
@@ -215,6 +321,9 @@ std::expected<void, core::TunerError> Si4684Tuner::playDabService(
     std::uint32_t serviceId,
     std::uint32_t componentId)
 {
+    if (auto ready = ensureBandLoaded(core::TunerBand::Dab); !ready) {
+        return ready;
+    }
     if (auto result = driver_.startDabService(serviceId, componentId); !result) {
         return std::unexpected(mapError(result.error()));
     }

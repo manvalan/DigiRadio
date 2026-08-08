@@ -35,15 +35,58 @@ constexpr int kCtsPollMs = 2;
 constexpr int kCtsRetries = 5000;
 constexpr int kStcRetries = 250;
 constexpr int kStcPollMs = 20;
+/** SPI readRaw: byte 0 is a lead-in; STATUS0 is at index 1 (AN649). */
+constexpr std::size_t kSpiReplyLeadIn = 1U;
+/** FM_RSQ_STATUS field indices with kSpiReplyLeadIn (AN649 RESP5–10). */
+constexpr std::size_t kFmRsqOffValid = 6U;
+constexpr std::size_t kFmRsqOffReadFreq = 7U;
+constexpr std::size_t kFmRsqOffRssi = 10U;
+constexpr std::size_t kFmRsqOffSnr = 11U;
 
 constexpr std::uint16_t kPropDigitalIoOutputSelect = 0x0200U;
+constexpr std::uint16_t kPropDigitalIoOutputFormat = 0x0202U;
 constexpr std::uint16_t kPropDigitalIoSampleRate = 0x0201U;
+/** I2S slave — ADAU1701 is bus master (AN649 property 0x0200, bit15=0). */
+constexpr std::uint16_t kSi4684I2sSlaveSelect = 0x0000U;
+/** 24-bit samples in 32-bit I2S slots (SAMPL=0x18, SLOT=0x7, I2S mode). */
+constexpr std::uint16_t kSi4684I2sOutputFormat = 0x1870U;
+/** 48000 Hz — matches ADAU1701 48 kHz master clock domain. */
+constexpr std::uint16_t kSi4684I2sSampleRateHz = 0xBB80U;
 constexpr std::uint16_t kPropPinConfigEnable = 0x0800U;
 constexpr std::uint16_t kPropAudioVolume = 0x0300U;
+constexpr std::uint16_t kPropAudioMute = 0x0301U;
+constexpr std::uint16_t kPropAudioOutputConfig = 0x0302U;
+/** AN649 AUDIO_OUTPUT_CONFIG bit1 I2SOUTEN — required for I2S to ADAU1701. */
+constexpr std::uint16_t kSi4684I2sOutEnable = 0x0002U;
+/** Si4684 volume: 0=mute, 63=max (AN649 AUDIO_ANALOG_VOLUME). */
+constexpr std::uint8_t kSi4684VolumeMax = 63U;
 constexpr std::uint16_t kPropFmRdsConfig = 0x3C02U;
+/** AN649 FM valid tune properties (defaults RSSI 17 dBµV, SNR 10 dB). */
+constexpr std::uint16_t kPropFmValidRssiThreshold = 0x3202U;
+constexpr std::uint16_t kPropFmValidSnrThreshold = 0x3204U;
+constexpr std::uint16_t kFmValidRssiThresholdDbuV = 0x0005U;
+constexpr std::uint16_t kFmValidSnrThresholdDb = 0x0003U;
+/** AN649 FM seek band/spacing (10 kHz units): 87.5–107.9 MHz, 100 kHz steps. */
+constexpr std::uint16_t kPropFmSeekBandBottom = 0x3100U;
+constexpr std::uint16_t kPropFmSeekBandTop = 0x3101U;
+constexpr std::uint16_t kPropFmSeekSpacing = 0x3102U;
+constexpr std::uint16_t kFmSeekBandBottomChip = 8750U;
+constexpr std::uint16_t kFmSeekBandTopChip = 10790U;
+constexpr std::uint16_t kFmSeekSpacingChip = 10U;
+/** AN851 §"Varactor Tuning Properties" recommended-network table: FM slope/
+ *  intercept for 0x1710/0x1711 (Table, "FM" row: 0xEDB5 / 0x01E3). */
+constexpr std::uint16_t kFmTuneFeVarm = 0xEDB5U;
+constexpr std::uint16_t kFmTuneFeVarb = 0x01E3U;
+constexpr std::uint16_t kFmTuneFeCfgEnable = 0x0001U;
 constexpr std::uint16_t kPropDabTuneFeCfg = 0x1712U;
+constexpr std::uint16_t kPropFmTuneFeCfg = 0x1712U;
 constexpr std::uint16_t kPropDabXpadEnable = 0xB400U;
 constexpr std::uint16_t kPropDigitalServiceIntSource = 0x8100U;
+/** AN649 INT_CTL_ENABLE / INT_CTL_REPEAT — route STC to INTB until STCACK. */
+constexpr std::uint16_t kPropIntCtlEnable = 0x0000U;
+constexpr std::uint16_t kPropIntCtlRepeat = 0x0001U;
+constexpr std::uint16_t kIntCtlStcEnable = 0x0001U;   ///< STCIEN
+constexpr std::uint16_t kIntCtlStcRepeat = 0x0001U;   ///< STCREP
 
 std::uint16_t readLe16(const std::uint8_t* p)
 {
@@ -140,26 +183,81 @@ std::expected<void, Si4684Error> Si4684Driver::waitCts()
     return std::unexpected(Si4684Error::CtsTimeout);
 }
 
-std::expected<void, Si4684Error> Si4684Driver::waitStc()
+std::expected<bool, Si4684Error> Si4684Driver::pollStc()
 {
     std::array<std::uint8_t, 5> pollTx = {};
     std::array<std::uint8_t, 5> pollRx = {};
-
-    for (int attempt = 0; attempt < kStcRetries; ++attempt) {
-        vTaskDelay(pdMS_TO_TICKS(kStcPollMs));
-        spi_transaction_t txn = {};
-        txn.length = pollTx.size() * 8U;
-        txn.tx_buffer = pollTx.data();
-        txn.rx_buffer = pollRx.data();
-        if (spi_device_transmit(static_cast<spi_device_handle_t>(spiDevice_),
-                                &txn) != ESP_OK) {
-            return std::unexpected(Si4684Error::SpiInitFailed);
+    spi_transaction_t txn = {};
+    txn.length = pollTx.size() * 8U;
+    txn.tx_buffer = pollTx.data();
+    txn.rx_buffer = pollRx.data();
+    if (spi_device_transmit(static_cast<spi_device_handle_t>(spiDevice_),
+                            &txn) != ESP_OK) {
+        return std::unexpected(Si4684Error::SpiInitFailed);
+    }
+    // STATUS0 STCINT (AN649 D0) is at pollRx[1] after the SPI lead-in byte.
+    if ((pollRx[1] & 0x01U) != 0U) {
+        return true;
+    }
+    if (pins_.intbGpio >= 0) {
+        const gpio_num_t intb = static_cast<gpio_num_t>(pins_.intbGpio);
+        if (gpio_get_level(intb) == 0) {
+            return true;
         }
-        if ((pollRx[1] & 0x01U) != 0U) {
+    }
+    return false;
+}
+
+std::expected<void, Si4684Error> Si4684Driver::waitStc(int maxRetries)
+{
+    for (int attempt = 0; attempt < maxRetries; ++attempt) {
+        vTaskDelay(pdMS_TO_TICKS(kStcPollMs));
+        auto stc = pollStc();
+        if (!stc) {
+            return std::unexpected(stc.error());
+        }
+        if (*stc) {
             return {};
         }
     }
+    // Diagnostic: dump the final poll so a STC timeout is distinguishable
+    // between "chip replies but STCINT never sets" (register/offset bug)
+    // and "chip stopped replying" (SPI/CTS problem) without guessing.
+    std::array<std::uint8_t, 5> pollTx = {};
+    std::array<std::uint8_t, 5> pollRx = {};
+    spi_transaction_t txn = {};
+    txn.length = pollTx.size() * 8U;
+    txn.tx_buffer = pollTx.data();
+    txn.rx_buffer = pollRx.data();
+    const esp_err_t spiResult = spi_device_transmit(
+        static_cast<spi_device_handle_t>(spiDevice_), &txn);
+    const int intbLevel = pins_.intbGpio >= 0
+        ? gpio_get_level(static_cast<gpio_num_t>(pins_.intbGpio))
+        : -1;
+    ESP_LOGW(kTag,
+             "STC timeout: last poll spi_err=%d status=%02x %02x %02x %02x "
+             "%02x INTB=%d",
+             static_cast<int>(spiResult), pollRx[0], pollRx[1], pollRx[2],
+             pollRx[3], pollRx[4], intbLevel);
     return std::unexpected(Si4684Error::StcTimeout);
+}
+
+std::expected<void, Si4684Error> Si4684Driver::clearFmStc()
+{
+    if (auto band = ensureBand(Si4684Band::Fm); !band) {
+        return band;
+    }
+    // AN649 FM_RSQ_STATUS ARG1 STCACK=1 clears a latched STCINT.
+    const std::uint8_t args[] = {0x01U};
+    if (auto cmd = writeCommand(Command::FmRsqStatus, args, sizeof(args));
+        !cmd) {
+        return cmd;
+    }
+    std::array<std::uint8_t, 23> raw = {};
+    if (auto rd = readRaw(raw); !rd) {
+        return rd;
+    }
+    return {};
 }
 
 std::expected<void, Si4684Error> Si4684Driver::sendCommand(
@@ -314,7 +412,7 @@ std::expected<Si4684PartInfo, Si4684Error> Si4684Driver::getPartInfo()
     }
 
     Si4684PartInfo info = {};
-    info.chipId = readLe16(raw.data() + 9);
+    info.chipId = readLe16(raw.data() + 9U);
     info.firmwareMajor = fnRaw[5];
     info.firmwareMinor = fnRaw[6];
     info.firmwareBuild = fnRaw[7];
@@ -341,14 +439,21 @@ std::expected<Si4684SysState, Si4684Error> Si4684Driver::getSysState()
 std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
     Si4684Band band)
 {
+    if (auto stcEn = setProperty(kPropIntCtlEnable, kIntCtlStcEnable); !stcEn) {
+        return stcEn;
+    }
+    if (auto stcRep = setProperty(kPropIntCtlRepeat, kIntCtlStcRepeat); !stcRep) {
+        return stcRep;
+    }
+
     if (band == Si4684Band::Dab) {
         if (auto plan = installDefaultDabFrequencyPlan(); !plan) {
             return plan;
         }
+        // AN851 recommended-network table, "DAB" row: 0xF8A9 / 0x01C6.
         static constexpr std::uint16_t kDabProps[][2] = {
-            {0x0202U, 0x1600U},
-            {0x1710U, 0xFC4AU},
-            {0x1711U, 0x00F8U},
+            {0x1710U, 0xF8A9U},
+            {0x1711U, 0x01C6U},
             {0x8101U, 0x0064U},
             {0xB200U, 0x0000U},
             {0xB201U, 0x0080U},
@@ -366,32 +471,92 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
         if (auto xpad = setProperty(kPropDabXpadEnable, 0x0097U); !xpad) {
             return xpad;
         }
+        if (auto dabFe = setProperty(kPropDabTuneFeCfg, 0x0001U); !dabFe) {
+            ESP_LOGW(kTag, "DAB TUNE_FE_CFG (0x1712) failed");
+            return dabFe;
+        }
+        if (auto dsrv = setProperty(kPropDigitalServiceIntSource, 0x0001U);
+            !dsrv) {
+            ESP_LOGW(kTag, "DIGITAL_SERVICE_INT_SOURCE (0x8100) failed");
+            return dsrv;
+        }
     } else {
+    // FM varactor cal per hitech95/uGreen DTS (not DAB PE5PVB values).
+        static constexpr std::uint16_t kFmFeProps[][2] = {
+            {0x1710U, kFmTuneFeVarm},
+            {0x1711U, kFmTuneFeVarb},
+        };
+        for (const auto& prop : kFmFeProps) {
+            if (auto set = setProperty(prop[0], prop[1]); !set) {
+                return set;
+            }
+        }
+        if (auto feCfg = setProperty(kPropFmTuneFeCfg, kFmTuneFeCfgEnable);
+            !feCfg) {
+            return feCfg;
+        }
+        static constexpr std::uint16_t kFmSeekProps[][2] = {
+            {kPropFmSeekBandBottom, kFmSeekBandBottomChip},
+            {kPropFmSeekBandTop, kFmSeekBandTopChip},
+            {kPropFmSeekSpacing, kFmSeekSpacingChip},
+        };
+        for (const auto& prop : kFmSeekProps) {
+            if (auto set = setProperty(prop[0], prop[1]); !set) {
+                return set;
+            }
+        }
         if (auto rds = setProperty(kPropFmRdsConfig, 0x0001U); !rds) {
             return rds;
         }
+        // AN649 §0x3202/0x3204: lower seek/tune validity for weak lab antennas.
+        if (auto rssi = setProperty(kPropFmValidRssiThreshold,
+                                    kFmValidRssiThresholdDbuV);
+            !rssi) {
+            return rssi;
+        }
+        if (auto snr = setProperty(kPropFmValidSnrThreshold,
+                                   kFmValidSnrThresholdDb);
+            !snr) {
+            return snr;
+        }
+        ESP_LOGI(kTag, "FM valid tune: RSSI>=%u dBuV SNR>=%u dB",
+                 static_cast<unsigned>(kFmValidRssiThresholdDbuV),
+                 static_cast<unsigned>(kFmValidSnrThresholdDb));
     }
 
-    if (auto i2s = setProperty(kPropDigitalIoOutputSelect, 0x8000U); !i2s) {
-        return i2s;
+    if (auto i2sRole =
+            setProperty(kPropDigitalIoOutputSelect, kSi4684I2sSlaveSelect);
+        !i2sRole) {
+        return i2sRole;
     }
-    if (auto rate = setProperty(kPropDigitalIoSampleRate, 0xAC44U); !rate) {
+    if (auto i2sFmt =
+            setProperty(kPropDigitalIoOutputFormat, kSi4684I2sOutputFormat);
+        !i2sFmt) {
+        return i2sFmt;
+    }
+    if (auto rate =
+            setProperty(kPropDigitalIoSampleRate, kSi4684I2sSampleRateHz);
+        !rate) {
         return rate;
     }
     if (auto pins = setProperty(kPropPinConfigEnable, 0x0003U); !pins) {
         return pins;
     }
-    if (auto dabFe = setProperty(kPropDabTuneFeCfg, 0x0001U); !dabFe) {
-        return dabFe;
+    if (auto mute = setProperty(kPropAudioMute, 0x0000U); !mute) {
+        return mute;
     }
-    if (auto dsrv = setProperty(kPropDigitalServiceIntSource, 0x0001U);
-        !dsrv) {
-        return dsrv;
+    if (auto outCfg = setProperty(kPropAudioOutputConfig, kSi4684I2sOutEnable);
+        !outCfg) {
+        return outCfg;
+    }
+    if (auto vol = setProperty(kPropAudioVolume, kSi4684VolumeMax); !vol) {
+        return vol;
     }
     return {};
 }
 
-std::expected<void, Si4684Error> Si4684Driver::boot(Si4684Band band)
+std::expected<void, Si4684Error> Si4684Driver::boot(
+    Si4684Band band, std::uint8_t xtalIbias, std::uint8_t xtalCtun)
 {
     if (booted_ && loadedBand_ == band) {
         return {};
@@ -451,12 +616,25 @@ std::expected<void, Si4684Error> Si4684Driver::boot(Si4684Band band)
         spiDevice_ = dev;
     }
 
+    if (pins_.intbGpio >= 0) {
+        gpio_config_t intCfg = {};
+        intCfg.pin_bit_mask = 1ULL << pins_.intbGpio;
+        intCfg.mode = GPIO_MODE_INPUT;
+        intCfg.pull_up_en = GPIO_PULLUP_ENABLE;
+        if (gpio_config(&intCfg) != ESP_OK) {
+            return std::unexpected(Si4684Error::SpiInitFailed);
+        }
+    }
+
     if (auto st = writeCommand(Command::GetSysState, nullptr, 0U); !st) {
         return st;
     }
 
-    const std::uint8_t powerUp[] = {
-        0x17, 0x48, 0x00, 0xf8, 0x24, 0x01, 0x1F, 0x10,
+    // ARG2=0x17(CLK_MODE=crystal,TR_SIZE), ARG3=IBIAS, ARG4-7=XTAL_FREQ
+    // 19.2 MHz (0x0124F800), ARG8=CTUN, ARG9=0x10 (fixed bit4=1 per AN649
+    // §Command 0x01), ARG10-15=0 (AN649 POWER_UP argument table).
+    std::uint8_t powerUp[] = {
+        0x17, xtalIbias, 0x00, 0xf8, 0x24, 0x01, xtalCtun, 0x10,
         0x00, 0x00, 0x00, 0x18, 0x00, 0x00,
     };
     if (auto pu = writeCommand(Command::PowerUp, powerUp, sizeof(powerUp));
@@ -517,6 +695,9 @@ std::expected<void, Si4684Error> Si4684Driver::tuneFm(
     if (auto band = ensureBand(Si4684Band::Fm); !band) {
         return band;
     }
+    if (auto cleared = clearFmStc(); !cleared) {
+        return cleared;
+    }
     const std::uint16_t chipFreq = kHzToChipFmFreq(frequency.value());
     const std::uint8_t args[] = {
         0x00U,
@@ -524,13 +705,38 @@ std::expected<void, Si4684Error> Si4684Driver::tuneFm(
         static_cast<std::uint8_t>(chipFreq >> 8),
         0x00U,
         0x00U,
+        0x00U, // PROG_ID (AN649 ARG6; ignored when DIR_TUNE=0)
     };
     if (auto cmd = writeCommand(Command::FmTuneFreq, args, sizeof(args));
         !cmd) {
         return std::unexpected(Si4684Error::TuneFailed);
     }
-    if (auto stc = waitStc(); !stc) {
-        return stc;
+    if (auto stc = waitStc(kStcRetries); !stc) {
+        ESP_LOGW(kTag, "FM tune STC timeout at %u kHz — settling 150 ms",
+                 static_cast<unsigned>(frequency.value()));
+        vTaskDelay(pdMS_TO_TICKS(150));
+    } else {
+        (void)clearFmStc();
+    }
+    if (auto rsq = readFmRsq(); rsq) {
+        const std::uint32_t readKhz =
+            rsq->frequency ? rsq->frequency->value() : 0U;
+        if (readKhz != 0U && readKhz != frequency.value()) {
+            ESP_LOGW(kTag,
+                     "FM tune READFREQ mismatch: want %u kHz got %u kHz",
+                     static_cast<unsigned>(frequency.value()),
+                     static_cast<unsigned>(readKhz));
+        }
+        ESP_LOGI(kTag,
+                 "FM tuned %u kHz rssi=%d dBuV snr=%d dB valid=%d readfreq=%u",
+                 static_cast<unsigned>(frequency.value()),
+                 static_cast<int>(rsq->rssiDbuV),
+                 static_cast<int>(rsq->snrDb),
+                 static_cast<int>(rsq->valid),
+                 static_cast<unsigned>(readKhz));
+    } else {
+        ESP_LOGI(kTag, "FM tuned %u kHz (RSQ read failed)",
+                 static_cast<unsigned>(frequency.value()));
     }
     return {};
 }
@@ -541,27 +747,54 @@ std::expected<core::FrequencyKHz, Si4684Error> Si4684Driver::seekFm(
     if (auto band = ensureBand(Si4684Band::Fm); !band) {
         return std::unexpected(band.error());
     }
+    if (auto cleared = clearFmStc(); !cleared) {
+        return std::unexpected(cleared.error());
+    }
+    std::optional<std::uint32_t> prevKhz;
+    if (auto before = readFmRsq(); before && before->frequency) {
+        prevKhz = before->frequency->value();
+    }
     const bool seekUp = direction == core::SeekDirection::Up;
     const bool wrapBand = wrap == SeekBandWrap::Wrap;
+    // AN649 FM_SEEK_START: ARG1=tune/injection, ARG2=SEEKUP|WRAP.
+    const std::uint8_t seekFlags =
+        static_cast<std::uint8_t>(((seekUp ? 1U : 0U) << 1U)
+                                  | (wrapBand ? 1U : 0U));
     const std::uint8_t args[] = {
-        0x10U,
-        static_cast<std::uint8_t>(((seekUp ? 1U : 0U) << 1U) | (wrapBand ? 1U : 0U)),
+        0x00U,
+        seekFlags,
         0x00U,
         0x00U,
         0x00U,
     };
     if (auto cmd = writeCommand(Command::FmSeekStart, args, sizeof(args));
         !cmd) {
+        ESP_LOGW(kTag, "FM seek command failed (flags=0x%02x)",
+                 static_cast<unsigned>(seekFlags));
         return std::unexpected(Si4684Error::TuneFailed);
     }
-    if (auto stc = waitStc(); !stc) {
+    if (auto stc = waitStc(kStcRetries); !stc) {
+        ESP_LOGW(kTag, "FM seek STC timeout (flags=0x%02x)",
+                 static_cast<unsigned>(seekFlags));
         return std::unexpected(stc.error());
     }
+    (void)clearFmStc();
     auto rsq = readFmRsq();
     if (!rsq) {
+        ESP_LOGW(kTag, "FM seek RSQ read failed");
         return std::unexpected(rsq.error());
     }
-    return rsq->frequency;
+    if (!rsq->frequency) {
+        ESP_LOGW(kTag, "FM seek READFREQ out of band (valid=%d)",
+                 static_cast<int>(rsq->valid));
+        return std::unexpected(Si4684Error::TuneFailed);
+    }
+    if (prevKhz && rsq->frequency->value() == *prevKhz) {
+        ESP_LOGW(kTag, "FM seek READFREQ unchanged at %u kHz",
+                 static_cast<unsigned>(*prevKhz));
+        return std::unexpected(Si4684Error::TuneFailed);
+    }
+    return *rsq->frequency;
 }
 
 std::expected<Si4684FmRsq, Si4684Error> Si4684Driver::readFmRsq()
@@ -579,18 +812,42 @@ std::expected<Si4684FmRsq, Si4684Error> Si4684Driver::readFmRsq()
         return std::unexpected(rd.error());
     }
 
-    const auto khz = chipFmFreqToKHz(readLe16(raw.data() + 6));
-    if (auto freq = core::FrequencyKHz::tryFromKhz(khz); freq) {
-        Si4684FmRsq rsq{
-            *freq,
-            static_cast<std::int8_t>(raw[8]),
-            static_cast<std::int8_t>(raw[9]),
-            (raw[4] & 0x01U) != 0U,
-            (raw[4] & 0x02U) != 0U,
-        };
-        return rsq;
+    if (raw.size() < kFmRsqOffSnr + 1U) {
+        return std::unexpected(Si4684Error::ReplyTooShort);
     }
-    return std::unexpected(Si4684Error::CommandFailed);
+    ESP_LOGI(kTag,
+             "FM RSQ raw: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+             "%02x %02x",
+             raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7],
+             raw[8], raw[9], raw[10], raw[11]);
+    const auto khz =
+        chipFmFreqToKHz(readLe16(raw.data() + kFmRsqOffReadFreq));
+    const auto freq = core::FrequencyKHz::tryFromKhz(khz);
+    const bool freqInBand = static_cast<bool>(freq);
+    const bool chipValid = (raw[kFmRsqOffValid] & 0x01U) != 0U;
+    if (!freqInBand && khz != 0U) {
+        ESP_LOGW(kTag,
+                 "FM RSQ out-of-band freq %u kHz (st=%02x %02x %02x %02x "
+                 "freq=%02x %02x rssi=%02x snr=%02x)",
+                 static_cast<unsigned>(khz), raw[kSpiReplyLeadIn],
+                 raw[kSpiReplyLeadIn + 1U],
+                 raw[kSpiReplyLeadIn + 2U], raw[kSpiReplyLeadIn + 3U],
+                 raw[kFmRsqOffReadFreq], raw[kFmRsqOffReadFreq + 1U],
+                 raw[kFmRsqOffRssi], raw[kFmRsqOffSnr]);
+    } else if (khz == 0U && raw[kSpiReplyLeadIn] == 0U
+               && raw[kSpiReplyLeadIn + 1U] == 0U) {
+        ESP_LOGW(kTag, "FM RSQ empty reply (st=%02x %02x %02x %02x)",
+                 raw[kSpiReplyLeadIn], raw[kSpiReplyLeadIn + 1U],
+                 raw[kSpiReplyLeadIn + 2U], raw[kSpiReplyLeadIn + 3U]);
+    }
+    Si4684FmRsq rsq{
+        freqInBand ? std::optional<core::FrequencyKHz>{*freq} : std::nullopt,
+        static_cast<std::int8_t>(raw[kFmRsqOffRssi]),
+        static_cast<std::int8_t>(raw[kFmRsqOffSnr]),
+        freqInBand && chipValid,
+        false,
+    };
+    return rsq;
 }
 
 std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
@@ -611,10 +868,10 @@ std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
     Si4684FmRdsStatus rds = {};
     rds.received = (raw[4] & 0x01U) != 0U;
     rds.fifoUsed = raw[10];
-    rds.blockA = readLe16(raw.data() + 12);
-    rds.blockB = readLe16(raw.data() + 14);
-    rds.blockC = readLe16(raw.data() + 16);
-    rds.blockD = readLe16(raw.data() + 18);
+    rds.blockA = readLe16(raw.data() + 12U);
+    rds.blockB = readLe16(raw.data() + 14U);
+    rds.blockC = readLe16(raw.data() + 16U);
+    rds.blockD = readLe16(raw.data() + 18U);
     return rds;
 }
 
@@ -708,7 +965,7 @@ std::expected<void, Si4684Error> Si4684Driver::tuneDab(std::uint8_t freqIndex)
         !cmd) {
         return std::unexpected(Si4684Error::TuneFailed);
     }
-    if (auto stc = waitStc(); !stc) {
+    if (auto stc = waitStc(kStcRetries); !stc) {
         return stc;
     }
     return {};

@@ -190,10 +190,25 @@ private:
      */
     [[nodiscard]] static core::TunerError mapError(Si4684Error error) noexcept;
 
+    /**
+     * @brief    ensureBandLoaded — HOST_LOAD FM/DAB image when band differs.
+     *
+     * @dname    ensureBandLoaded
+     * @param    band  Required application band for the next operation.
+     * @return   Ok when the chip runs the requested image.
+     * @pubstate may reload firmware (~1 s) and stop an active DAB service.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] std::expected<void, core::TunerError> ensureBandLoaded(
+        core::TunerBand band);
+
     Si4684Driver& driver_;
     std::uint8_t dabIndex_;
     core::FrequencyKHz fmFrequency_;
     std::uint8_t volume_;
+    bool fmBandReady_;
     core::RdsMetadataAccumulator rdsMetadata_;
     core::DabDynamicLabelAccumulator dabDynamicLabel_;
     std::optional<std::uint32_t> lastDabServiceId_;

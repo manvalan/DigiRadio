@@ -59,6 +59,43 @@ struct TunerPlayRequest {
 };
 
 /**
+ * @brief    TunerScanRequest — parsed POST /api/tuner/scan body.
+ *
+ * @dname    TunerScanRequest
+ * @return   n/a (type)
+ * @pubstate Plain DTO filled by parseTunerScanJson at the HTTP boundary.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+struct TunerScanRequest {
+    TunerBand band;           ///< FM seek scan or DAB ensemble scan.
+    std::uint8_t maxSteps;    ///< Max FM seeks or DAB ensemble indices to try.
+    std::string nameFilter;   ///< Optional case-insensitive substring (PS/DAB label).
+};
+
+/**
+ * @brief    TunerScanResult — outcome of an automatic station search.
+ *
+ * @dname    TunerScanResult
+ * @return   n/a (type)
+ * @pubstate Built by TunerService::scanForStation().
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+struct TunerScanResult {
+    bool found;               ///< True when a station matched criteria.
+    TunerBand band;           ///< Band that was scanned.
+    std::uint16_t stepsTried; ///< Seek or ensemble attempts performed.
+    std::optional<FrequencyKHz> fmFrequency; ///< FM centre when found on FM.
+    std::optional<std::uint8_t> dabFreqIndex; ///< Ensemble index when found on DAB.
+    std::optional<std::uint32_t> dabServiceId;    ///< Started DAB service id.
+    std::optional<std::uint32_t> dabComponentId;  ///< Started DAB component id.
+    std::optional<BroadcastLabel> stationName;    ///< RDS PS or DAB label when known.
+};
+
+/**
  * @brief    serializeTunerStatusJson — serialise a tuner snapshot for GET status.
  *
  * @dname    serializeTunerStatusJson
@@ -142,5 +179,32 @@ struct TunerPlayRequest {
  */
 [[nodiscard]] std::expected<SeekDirection, ParseError> parseTunerSeekJson(
     std::string_view json);
+
+/**
+ * @brief    parseTunerScanJson — validate POST /api/tuner/scan body.
+ *
+ * @dname    parseTunerScanJson
+ * @param    json  Untrusted request body from the HTTP handler.
+ * @return   TunerScanRequest on success, or a ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] std::expected<TunerScanRequest, ParseError> parseTunerScanJson(
+    std::string_view json);
+
+/**
+ * @brief    serializeTunerScanJson — serialise automatic scan outcome.
+ *
+ * @dname    serializeTunerScanJson
+ * @param    result  Scan result from TunerService::scanForStation().
+ * @return   JSON object for the HTTP response body.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-05
+ */
+[[nodiscard]] std::string serializeTunerScanJson(const TunerScanResult& result);
 
 } // namespace core

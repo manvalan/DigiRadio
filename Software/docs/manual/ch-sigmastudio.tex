@@ -21,8 +21,17 @@ the program, not to drive the chip in operation.
 The whole program can be built and exported offline, without a physical
 ADAU1701 or a USBi programmer connected. A USBi block is placed in the
 Hardware Configuration only because SigmaStudio requires a communication
-channel to compile; it is never used for a real download in this project.
+channel to compile.
 \end{drkey}
+
+\begin{drref}[Live connection is also possible]
+Since firmware~0.9.0, DigiRadio's \texttt{net::SigmaStudioTcpServer}
+(Chapter~\ref{ch:adau1701}, Section~\ref{sec:adau1701-sigmastudio-tcp})
+exposes a TCP:8086 bridge so SigmaStudio can \emph{Connect} and
+\emph{Link Compile Download} directly against a running board, for live DSP
+tuning and bench debugging. The export-only workflow below remains the
+simplest path for ordinary firmware builds.
+\end{drref}
 
 \section{Hardware Configuration}
 \label{sec:ss-hwcfg}
@@ -270,9 +279,11 @@ The firmware's ADAU1701 driver replays the program data over
 I\textsuperscript{2}C at boot, and uses the parameter addresses for
 safeload updates.
 
-\begin{drnote}[No download needed]
-Since there is no ADAU1701 attached during development, do \emph{not} use
-\emph{Link Compile Download} (it would fail trying to reach the chip).
-\emph{Export System Files} compiles the schematic and writes the files
-directly.
+\begin{drnote}[Export System Files vs. Link Compile Download]
+Without a physical ADAU1701/USBi attached, \emph{Export System Files} is what
+you want: it compiles the schematic and writes the files directly, with no
+chip connection required. \emph{Link Compile Download} instead needs a live
+communication channel to a chip --- either the classic USBi/ICP dongle, or
+DigiRadio's own TCP:8086 SigmaStudio bridge (Section~\ref{sec:adau1701-sigmastudio-tcp})
+when connecting live to a running board.
 \end{drnote}

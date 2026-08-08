@@ -90,4 +90,18 @@ namespace core {
 [[nodiscard]] std::expected<EnhanceLevel, ParseError> parseEnhanceLevelJson(
     std::string_view json);
 
+/**
+ * @brief    parseBeepEnabledJson — parse POST body {"enabled":true|false}.
+ *
+ * @dname    parseBeepEnabledJson
+ * @param    json  Untrusted request body.
+ * @return   Parsed enabled flag, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-07
+ */
+[[nodiscard]] std::expected<bool, ParseError> parseBeepEnabledJson(
+    std::string_view json);
+
 } // namespace core

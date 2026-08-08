@@ -130,6 +130,21 @@ public:
      */
     [[nodiscard]] virtual std::expected<void, DspError> setEqBand(
         EqBandIndex band, GainDb gain, FrequencyHz center, float q) = 0;
+
+    /**
+     * @brief    setBeepEnabled — gate the SigmaStudio Beep1 tone generator.
+     *
+     * @dname    setBeepEnabled
+     * @param    enabled  true unmutes Beep1, false mutes it.
+     * @return   Ok on success, or DspError.
+     * @pubstate writes ADAU1701 parameter RAM via safeload. Not part of
+     *           AudioProfile — live-only, never persisted.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-07
+     */
+    [[nodiscard]] virtual std::expected<void, DspError> setBeepEnabled(
+        bool enabled) = 0;
 };
 
 } // namespace core

@@ -50,6 +50,10 @@ namespace tuner {
 class TunerService;
 } // namespace tuner
 
+namespace webradio {
+class WebRadioService;
+} // namespace webradio
+
 struct httpd_handle;
 
 namespace net {
@@ -73,6 +77,7 @@ struct HttpRouteContext {
     station::StationService* stations; ///< Preset list REST routes.
     integration::IntegrationService* integration; ///< Preset recall orchestration.
     ota::OtaService* ota;                         ///< Firmware OTA streaming.
+    webradio::WebRadioService* webRadio; ///< Streaming config REST routes.
     core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
     core::DeviceIdentity deviceIdentity;       ///< EEPROM-derived unit identity.
 };
@@ -152,6 +157,7 @@ public:
      * @param    stations        Station preset service for list REST routes.
      * @param    integration     Application orchestration for preset recall.
      * @param    ota             Firmware OTA service for POST /api/system/ota.
+     * @param    webRadio        Streaming config for GET/POST /api/streaming.
      * @param    companionChips  Boot flags for GET /api/health.
      * @param    deviceIdentity  Unit identity for /api/health serialNumber.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
@@ -167,6 +173,7 @@ public:
         station::StationService& stations,
         integration::IntegrationService& integration,
         ota::OtaService& ota,
+        webradio::WebRadioService& webRadio,
         core::CompanionChipStatus companionChips,
         const core::DeviceIdentity& deviceIdentity);
 
@@ -179,7 +186,6 @@ private:
     bluetooth::BluetoothService* bluetooth_;
     station::StationService* stations_;
     integration::IntegrationService* integration_;
-    HttpRouteContext routeContext_;
 };
 
 } // namespace net

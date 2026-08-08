@@ -18,6 +18,7 @@
 
 #include "net/SoftApHost.hpp"
 
+#include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
 
@@ -69,8 +70,14 @@ std::expected<void, NetError> SoftApHost::start()
         return {};
     }
 
-    if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK) {
+    if (esp_wifi_set_mode(WIFI_MODE_APSTA) != ESP_OK) {
         ESP_LOGE(kTag, "esp_wifi_set_mode failed");
+        return std::unexpected(NetError::WifiConfigFailed);
+    }
+
+    wifi_config_t staCfg = {};
+    if (esp_wifi_set_config(WIFI_IF_STA, &staCfg) != ESP_OK) {
+        ESP_LOGE(kTag, "esp_wifi_set_config STA failed");
         return std::unexpected(NetError::WifiConfigFailed);
     }
 

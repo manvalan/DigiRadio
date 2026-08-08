@@ -79,11 +79,20 @@ Minimal HTTP server: gzipped setup UI and typed JSON REST handlers:
   \item Audio: \texttt{/api/audio/*}
   \item Bluetooth: \texttt{/api/bluetooth/*}
   \item Presets: \texttt{/api/stations/*}
+  \item Streaming: \texttt{/api/streaming}
 \end{itemize}
 JSON parsing and serialisation delegate to the pure core; credentials persist via \texttt{ISecureStore};
 tuner via \texttt{tuner::TunerService}; audio via
 \texttt{audio::AudioService}; Bluetooth via \texttt{bluetooth::BluetoothService};
-presets via \texttt{station::StationService}.
+presets via \texttt{station::StationService}; streaming via
+\texttt{webradio::WebRadioService}.
+
+\section{WifiScanner}\label{cls:WifiScanner}
+Stateless shell helper wrapping \texttt{esp\_wifi} scan for the setup UI's
+Wi-Fi tab. \texttt{scanNearby()} temporarily switches an AP-only radio to
+APSTA mode when needed, runs a blocking scan, dedupes access points by
+SSID (keeping the strongest RSSI), and maps results to
+\texttt{core::WifiScannedNetwork}. Called from \texttt{POST /api/wifi/scan}.
 
 \section{NetBootstrap}\label{cls:NetBootstrap}
 Owns network resources for setup or STA mode. Initialises encrypted NVS via
@@ -168,7 +177,7 @@ index (1--8), 12-digit MAC, and optional friendly name. Parsed by
 UART driver for the FSC-BT1035 (Chapter~\ref{ch:bt1035}). \texttt{boot()}
 pulses RESET\#, opens UART2 with RTS/CTS, and runs
 \texttt{core::bootInitSequence()} (Ping + \texttt{AT+AUXCFG=3} +
-\texttt{AT+I2SCFG=67}). Returns
+\texttt{AT+I2SCFG=35}). Returns
 \texttt{Bt1035Error} on timeout, ERROR response, or UART failure.
 
 \section{Adau1701Driver}\label{cls:Adau1701Driver}
@@ -340,5 +349,13 @@ Application service wrapping \texttt{esp\_ota\_ops}: streams firmware into
 the inactive OTA slot, validates the app descriptor via
 \texttt{core::validateOtaAppDescriptor()}, and exposes
 \texttt{confirmBoot()} for rollback cancellation after a healthy network boot.
+
+\section{WebRadioService}\label{cls:WebRadioService}
+Thread-safe holder for the internet radio streaming config (enabled flag +
+HTTP MP3 URL), backed by \texttt{core::ISecureStore}. A FreeRTOS mutex
+guards an in-RAM copy so \texttt{setConfig()} from an HTTP handler and
+\texttt{config()} polled by the streaming task in
+\texttt{main/web\_radio\_stream.cpp} never race. Exposed on
+\texttt{/api/streaming}.
 
 % ------------------------------------------------------------------

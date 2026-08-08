@@ -61,6 +61,9 @@ public:
         core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center,
         float q) override;
 
+    [[nodiscard]] std::expected<void, core::DspError> setBeepEnabled(
+        bool enabled) override;
+
 private:
     [[nodiscard]] static core::DspError mapError(Adau1701Error error) noexcept;
 

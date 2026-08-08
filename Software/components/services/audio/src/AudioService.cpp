@@ -134,6 +134,25 @@ std::expected<void, core::StoreError> AudioService::setMasterVolume(
     return {};
 }
 
+std::expected<void, core::StoreError> AudioService::applyRadioFirstMix(
+    bool persist)
+{
+    const core::GainDb unity = core::GainDb::zero();
+    profile_.mixer = core::MixerState::radioFirst();
+    profile_.masterLeft = unity;
+    profile_.masterRight = unity;
+    if (auto applied = dsp_.applyMixer(profile_.mixer); !applied) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    if (auto master = dsp_.setMasterVolume(unity, unity); !master) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    if (persist) {
+        return persistProfile();
+    }
+    return {};
+}
+
 std::expected<void, core::StoreError> AudioService::setEqBand(
     core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center, float q,
     bool persist)
@@ -158,6 +177,11 @@ std::expected<void, core::StoreError> AudioService::setBassEnhance(
 {
     profile_.enhancements.bass = level;
     return applyEffectiveEq(persist);
+}
+
+std::expected<void, core::DspError> AudioService::setBeepEnabled(bool enabled)
+{
+    return dsp_.setBeepEnabled(enabled);
 }
 
 } // namespace audio

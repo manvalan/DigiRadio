@@ -124,8 +124,6 @@ void runTestFirmware()
         bt1035::Bt1035Pins{
             .uartTx = board::pins::Bt1035UartTx,
             .uartRx = board::pins::Bt1035UartRx,
-            .rtsGpio = board::pins::Bt1035Rts,
-            .ctsGpio = board::pins::Bt1035Cts,
             .resetGpio = board::pins::Bt1035Reset,
             .sysCtlGpio = board::pins::Bt1035SysCtl,
         });
@@ -178,9 +176,12 @@ void runTestFirmware()
 
     if (auto rsqResult = si4684.readFmRsq(); rsqResult) {
         ESP_LOGI(kTag,
-                 "FM RSQ: snr=%u, afc=%d, blend=%u, stere=%u, rssi=%d",
-                 rsqResult->snr, rsqResult->afc, rsqResult->blend,
-                 rsqResult->stere, rsqResult->rssi);
+                 "FM RSQ: freq=%u kHz rssi=%d dBuV snr=%d dB valid=%d stereo=%d",
+                 rsqResult->frequency ? rsqResult->frequency->value() : 0U,
+                 static_cast<int>(rsqResult->rssiDbuV),
+                 static_cast<int>(rsqResult->snrDb),
+                 static_cast<int>(rsqResult->valid),
+                 static_cast<int>(rsqResult->stereo));
     } else {
         logError("Si4684 read FM RSQ", static_cast<int>(rsqResult.error()));
     }

@@ -28,4 +28,18 @@ MixerState MixerState::factoryDefault() noexcept
     };
 }
 
+MixerState MixerState::radioFirst() noexcept
+{
+    const GainDb unity = GainDb::zero();
+    const GainDb muted = *GainDb::tryFromDb(GainDb::kMinDb);
+    return MixerState{
+        .si4684Left = unity,
+        .si4684Right = unity,
+        .esp32Left = muted,
+        .esp32Right = muted,
+        .mixLeft = unity,
+        .mixRight = muted,
+    };
+}
+
 } // namespace core

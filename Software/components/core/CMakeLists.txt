@@ -9,6 +9,7 @@ idf_component_register(
         "src/WifiSsid.cpp"
         "src/WifiCredentials.cpp"
         "src/WifiProvisionJson.cpp"
+        "src/WifiScanJson.cpp"
         "src/EmbeddedBlobReader.cpp"
         "src/TunerJson.cpp"
         "src/FrequencyKHz.cpp"
@@ -38,6 +39,7 @@ idf_component_register(
         "src/RegisterWrite.cpp"
         "src/DspProgramBlob.cpp"
         "src/OtaAppDescriptor.cpp"
+        "src/WebRadioJson.cpp"
     INCLUDE_DIRS "include"
 )
 

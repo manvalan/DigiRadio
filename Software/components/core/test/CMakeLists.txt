@@ -21,6 +21,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/WifiSsid.cpp"
     "${CORE_SRC_DIR}/WifiCredentials.cpp"
     "${CORE_SRC_DIR}/WifiProvisionJson.cpp"
+    "${CORE_SRC_DIR}/WifiScanJson.cpp"
     "${CORE_SRC_DIR}/EmbeddedBlobReader.cpp"
     "${CORE_SRC_DIR}/TunerJson.cpp"
     "${CORE_SRC_DIR}/FrequencyKHz.cpp"
@@ -50,6 +51,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/RegisterWrite.cpp"
     "${CORE_SRC_DIR}/DspProgramBlob.cpp"
     "${CORE_SRC_DIR}/OtaAppDescriptor.cpp"
+    "${CORE_SRC_DIR}/WebRadioJson.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -74,6 +76,10 @@ add_test(NAME health_status_test COMMAND health_status_test)
 add_executable(wifi_provision_test wifi_provision_test.cpp)
 target_link_libraries(wifi_provision_test PRIVATE digiradio_core)
 add_test(NAME wifi_provision_test COMMAND wifi_provision_test)
+
+add_executable(wifi_scan_test wifi_scan_test.cpp)
+target_link_libraries(wifi_scan_test PRIVATE digiradio_core)
+add_test(NAME wifi_scan_test COMMAND wifi_scan_test)
 
 add_executable(embedded_blob_reader_test embedded_blob_reader_test.cpp)
 target_link_libraries(embedded_blob_reader_test PRIVATE digiradio_core)
@@ -101,6 +107,7 @@ add_test(NAME enhancements_design_test COMMAND enhancements_design_test)
 
 add_executable(station_service_test station_service_test.cpp)
 target_include_directories(station_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/host_stubs"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../services/station/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../services/tuner/include"
 )
@@ -123,8 +130,13 @@ add_executable(broadcast_metadata_test broadcast_metadata_test.cpp)
 target_link_libraries(broadcast_metadata_test PRIVATE digiradio_core)
 add_test(NAME broadcast_metadata_test COMMAND broadcast_metadata_test)
 
+add_executable(web_radio_json_test web_radio_json_test.cpp)
+target_link_libraries(web_radio_json_test PRIVATE digiradio_core)
+add_test(NAME web_radio_json_test COMMAND web_radio_json_test)
+
 add_executable(integration_service_test integration_service_test.cpp)
 target_include_directories(integration_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/host_stubs"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../services/integration/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../services/station/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../services/tuner/include"

@@ -131,6 +131,20 @@ public:
         core::GainDb left, core::GainDb right, bool persist);
 
     /**
+     * @brief    applyRadioFirstMix — route Si4684 to output, mute ESP32 path.
+     *
+     * @dname    applyRadioFirstMix
+     * @param    persist When true and store is set, write NVS.
+     * @return   Ok on success, or StoreError.
+     * @pubstate updates profile_.mixer and master; safeloads ADAU1701.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] std::expected<void, core::StoreError> applyRadioFirstMix(
+        bool persist);
+
+    /**
      * @brief    setEqBand — update one PEQ band and apply live.
      *
      * @dname    setEqBand
@@ -178,6 +192,21 @@ public:
      */
     [[nodiscard]] std::expected<void, core::StoreError> setBassEnhance(
         core::EnhanceLevel level, bool persist);
+
+    /**
+     * @brief    setBeepEnabled — toggle the ADAU1701 Beep1 tone generator.
+     *
+     * @dname    setBeepEnabled
+     * @param    enabled  true unmutes Beep1, false mutes it.
+     * @return   Ok on success, or DspError.
+     * @pubstate live-only: not part of AudioProfile, never persisted, does
+     *           not touch profile_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-07
+     */
+    [[nodiscard]] std::expected<void, core::DspError> setBeepEnabled(
+        bool enabled);
 
 private:
     [[nodiscard]] std::expected<void, core::StoreError> persistProfile() const;

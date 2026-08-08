@@ -16,6 +16,7 @@
 
 #include "core/Bt1035At.hpp"
 
+#include <cstdint>
 #include <expected>
 #include <string>
 #include <string_view>
@@ -36,8 +37,6 @@ namespace bt1035 {
 struct Bt1035Pins {
     int uartTx;     ///< ESP32 TX -> module RX.
     int uartRx;     ///< ESP32 RX <- module TX.
-    int rtsGpio;    ///< RTS (flow control).
-    int ctsGpio;    ///< CTS (flow control).
     int resetGpio;  ///< Module RESET (active level per schematic).
     int sysCtlGpio; ///< SYS_CTL (optional module enable).
 };
@@ -48,7 +47,7 @@ struct Bt1035Pins {
  * @dname    Bt1035Driver
  * @return   n/a (type)
  * @pubstate Owns UART port after boot(). booted_ true after init sequence
- *           including AT+AUXCFG=3 and AT+I2SCFG=67 (I2S slave from ADAU1701).
+ *           including AT+AUXCFG=3 and AT+I2SCFG=35 (I2S slave from ADAU1701).
  *
  * @author   Michele Bigi
  * @date     2026-07-06
@@ -160,6 +159,22 @@ public:
     queryA2dpState();
 
     /**
+     * @brief    queryA2dpEncoder — read negotiated A2DP codec (AT+A2DPENC).
+     *
+     * @dname    queryA2dpEncoder
+     * @return   Parsed codec on success, or Bt1035Error. Failing here while
+     *           queryA2dpState() reports Streaming means the module has a
+     *           link but is not actually encoding audio — a real fault,
+     *           not just a quiet source.
+     * @pubstate writes UART; parses +A2DPENC from the reply.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-07
+     */
+    [[nodiscard]] std::expected<core::Bt1035A2dpCodec, Bt1035Error>
+    queryA2dpEncoder();
+
+    /**
      * @brief    disconnectA2dp — release the active A2DP session (AT+A2DPDISC).
      *
      * @dname    disconnectA2dp
@@ -236,15 +251,115 @@ public:
     [[nodiscard]] std::expected<std::vector<core::Bt1035PairedDevice>, Bt1035Error>
     queryPairedList();
 
+    /**
+     * @brief    scanNearbyBrEdr — inquiry for nearby A2DP sink devices.
+     *
+     * @dname    scanNearbyBrEdr
+     * @param    scanSeconds  BR/EDR scan duration 1–255 (default 20 in service).
+     * @return   Parsed +SCAN entries, or Bt1035Error.
+     * @pubstate sends AT+SCAN=1,n and collects until +SCAN=E.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] std::expected<std::vector<core::Bt1035ScannedDevice>, Bt1035Error>
+    scanNearbyBrEdr(std::uint8_t scanSeconds = 20U);
+
+    /**
+     * @brief    stopScan — abort an active AT+SCAN inquiry.
+     *
+     * @dname    stopScan
+     * @return   Ok on success, or Bt1035Error.
+     * @pubstate sends AT+SCAN=0.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> stopScan();
+
+    /**
+     * @brief    prepareForOutgoingConnect — disable auto-link before A2DPCONN.
+     *
+     * @dname    prepareForOutgoingConnect
+     * @pubstate sends LINKCFG/AUTOCONN off; does not clear PLIST.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    void prepareForOutgoingConnect();
+
+    /**
+     * @brief    waitForA2dpConnected — poll until A2DP link is up.
+     *
+     * @dname    waitForA2dpConnected
+     * @param    timeoutMs  Maximum wait in milliseconds.
+     * @return   true when Connected/Streaming/Paused, false on timeout.
+     * @pubstate polls AT+A2DPSTAT.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] bool waitForA2dpConnected(int timeoutMs);
+
+    /**
+     * @brief    startA2dpAudio — send AT+A2DPAUDIO=1 (Feasycom §5.3.6).
+     *
+     * @dname    startA2dpAudio
+     * @return   Ok on module OK, or Bt1035Error.
+     * @pubstate writes UART.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> startA2dpAudio();
+
+    /**
+     * @brief    waitForA2dpStreaming — poll until +A2DPSTAT=4 (Streaming).
+     *
+     * @dname    waitForA2dpStreaming
+     * @param    timeoutMs  Maximum wait in milliseconds.
+     * @return   true when Streaming, false on timeout.
+     * @pubstate polls AT+A2DPSTAT; sends A2DPAUDIO=1 when stuck at Connected.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] bool waitForA2dpStreaming(int timeoutMs);
+
+    /**
+     * @brief    connectA2dp — pair/connect to a remote by MAC (AT+A2DPCONN).
+     *
+     * @dname    connectA2dp
+     * @param    mac  12-char ASCII MAC from scan results.
+     * @return   Ok on success, or Bt1035Error.
+     * @pubstate may take several seconds while the module pairs.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> connectA2dp(
+        std::string_view mac);
+
 private:
     [[nodiscard]] std::expected<void, Bt1035Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Bt1035Error> runInitSequence();
     [[nodiscard]] std::expected<std::string, Bt1035Error> transmitAndCollect(
         std::string_view commandLine, int timeoutMs = kResponseTimeoutMs);
+    [[nodiscard]] std::expected<std::string, Bt1035Error> transmitAndCollectUntil(
+        std::string_view commandLine, std::string_view endMarker, int timeoutMs,
+        std::uint8_t minScanSeconds = 0U);
     [[nodiscard]] std::expected<void, Bt1035Error> transmitAndExpectOk(
         std::string_view commandLine);
+    [[nodiscard]] std::expected<void, Bt1035Error> transmitAndExpectOkLogged(
+        std::string_view label, std::string_view commandLine);
+
+    void prepareForInquiryScan();
+    [[nodiscard]] bool waitForA2dpIdle(int timeoutMs);
+    [[nodiscard]] std::expected<std::vector<core::Bt1035ScannedDevice>, Bt1035Error>
+    runInquiryScan(std::uint8_t scanType, std::uint8_t scanSeconds);
 
     static constexpr int kResponseTimeoutMs = 2000;
+    static constexpr int kConnectTimeoutMs = 15000;
 
     Bt1035Pins pins_;
     bool booted_;

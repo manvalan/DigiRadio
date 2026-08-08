@@ -54,6 +54,25 @@ namespace {
     return end != json.data() + valueStart;
 }
 
+[[nodiscard]] bool extractJsonBool(std::string_view json,
+                                   std::string_view key,
+                                   bool& out)
+{
+    const std::string trueNeedle =
+        std::string("\"") + std::string(key) + "\":true";
+    const std::string falseNeedle =
+        std::string("\"") + std::string(key) + "\":false";
+    if (json.find(trueNeedle) != std::string_view::npos) {
+        out = true;
+        return true;
+    }
+    if (json.find(falseNeedle) != std::string_view::npos) {
+        out = false;
+        return true;
+    }
+    return false;
+}
+
 [[nodiscard]] std::expected<GainDb, ParseError> parseGainField(
     std::string_view json, std::string_view key)
 {
@@ -275,6 +294,19 @@ std::expected<EnhanceLevel, ParseError> parseEnhanceLevelJson(
         return std::unexpected(ParseError::MissingField);
     }
     return EnhanceLevel::tryFromLevel(level);
+}
+
+std::expected<bool, ParseError> parseBeepEnabledJson(std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+
+    bool enabled = false;
+    if (!extractJsonBool(json, "enabled", enabled)) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    return enabled;
 }
 
 } // namespace core

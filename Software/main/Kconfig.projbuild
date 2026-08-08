@@ -1,0 +1,20 @@
+menu "DigiRadio"
+
+config TEST_FIRMWARE
+    bool "Run minimal test_firmware instead of app_main"
+    default n
+    help
+        Replaces normal boot with board/chip smoke tests (see test_firmware.cpp).
+
+config I2S_SDATA_PROBE
+    bool "I2S SDATA capture probe (ADAU -> BT1035 data line)"
+    default n
+    help
+        One-shot boot-time capture: reconfigures board_pins::I2sDataOut (GPIO16)
+        as I2S slave RX (using the existing BCLK/LRCLK inputs) and logs whether
+        real, non-silent PCM content is present. Requires physically rewiring
+        GPIO16 from its old ESP32->ADAU MP1 net to the ADAU MP6->BT1035 PCM
+        input trace (or an equivalent test point) -- enabling this without the
+        rewire just reads whatever GPIO16 happens to be floating/connected to.
+
+endmenu

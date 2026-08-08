@@ -106,14 +106,21 @@ public:
      *           rail ramp before app_main runs.
      *
      * @dname    boot
-     * @param    band  DAB or FM application to load.
+     * @param    band       DAB or FM application to load.
+     * @param    xtalIbias  POWER_UP ARG3 IBIAS, 10 uA steps (AN649 §Command
+     *                      0x01); default matches the values already
+     *                      verified live (72 = 720 uA startup bias).
+     * @param    xtalCtun   POWER_UP ARG8 CTUN, 0-63 (AN649 §Command 0x01);
+     *                      default matches the values already verified live.
      * @return   Ok on success, or Si4684Error.
      * @pubstate writes booted_ and loadedBand_ on success.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
      */
-    [[nodiscard]] std::expected<void, Si4684Error> boot(Si4684Band band);
+    [[nodiscard]] std::expected<void, Si4684Error> boot(
+        Si4684Band band, std::uint8_t xtalIbias = 72U,
+        std::uint8_t xtalCtun = 31U);
 
     /**
      * @brief    isBooted — query whether boot completed successfully.
@@ -387,7 +394,10 @@ private:
     [[nodiscard]] std::expected<void, Si4684Error> ensureBand(
         Si4684Band band) const;
     [[nodiscard]] std::expected<void, Si4684Error> waitCts();
-    [[nodiscard]] std::expected<void, Si4684Error> waitStc();
+    [[nodiscard]] std::expected<void, Si4684Error> waitStc(
+        int maxRetries = 250);
+    [[nodiscard]] std::expected<bool, Si4684Error> pollStc();
+    [[nodiscard]] std::expected<void, Si4684Error> clearFmStc();
     [[nodiscard]] std::expected<void, Si4684Error> sendCommand(
         std::span<const std::uint8_t> bytes);
     [[nodiscard]] std::expected<void, Si4684Error> readRaw(
