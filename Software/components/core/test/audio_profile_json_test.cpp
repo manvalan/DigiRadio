@@ -72,11 +72,39 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+[[nodiscard]] int runBeepEnabledJsonTest()
+{
+    const auto onParsed = core::parseBeepEnabledJson(R"({"enabled":true})");
+    if (!onParsed || *onParsed != true) {
+        std::cerr << "beep enabled=true parse mismatch\n";
+        return EXIT_FAILURE;
+    }
+    const auto offParsed = core::parseBeepEnabledJson(R"({"enabled":false})");
+    if (!offParsed || *offParsed != false) {
+        std::cerr << "beep enabled=false parse mismatch\n";
+        return EXIT_FAILURE;
+    }
+    const auto missing = core::parseBeepEnabledJson(R"({})");
+    if (missing) {
+        std::cerr << "beep missing field should fail\n";
+        return EXIT_FAILURE;
+    }
+    const auto malformed = core::parseBeepEnabledJson("not json");
+    if (malformed) {
+        std::cerr << "beep malformed body should fail\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main()
 {
     if (runRoundTripTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runBeepEnabledJsonTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

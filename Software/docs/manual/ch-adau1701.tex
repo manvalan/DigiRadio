@@ -99,10 +99,14 @@ renamed cells):
         signal chain changed.
 \end{enumerate}
 
-\begin{drnote}[No USBi download on DigiRadio]
-Do \emph{not} rely on SigmaStudio \emph{Link Compile Download} on this
-hardware path. Export-only workflow is sufficient: the ESP32 is the programmer
-at every power-up.
+\begin{drnote}[Export-only workflow still recommended]
+The export-only workflow above remains the simplest path: the ESP32 replays
+the committed export at every power-up, so \emph{Link Compile Download} is
+not required for day-to-day firmware builds. Since firmware~0.9.0, however,
+DigiRadio does expose SigmaStudio's Remote Connection over TCP for live DSP
+work and bench debugging --- see Section~\ref{sec:adau1701-sigmastudio-tcp}.
+A completed Download over that path is automatically persisted to flash and
+becomes the boot program, exactly like re-exporting and rebuilding.
 \end{drnote}
 
 \section{Boot sequence (I\textsuperscript{2}C RAM load)}
@@ -134,13 +138,96 @@ the DSP program and writes it into RAM after each reset.
   \label{fig:adau1701-boot}
 \end{figure}
 
-\texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} streams each write in 64-byte I\textsuperscript{2}C
-chunks (payloads may exceed 255 bytes). The active script comes from the
+\texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} streams each write in $\leq$64-byte
+I\textsuperscript{2}C chunks, rounded down to a whole number of words for the
+target region (Parameter RAM = 4~bytes/word, Program RAM = 5, control
+registers = 2) so chunk boundaries never split a word or desynchronise the
+running address (payloads may exceed 255 bytes). The active script comes from the
 \texttt{dsp} data partition when a valid \texttt{DRAD} blob is present; otherwise
 the embedded SigmaStudio export is used (Section~\ref{sec:api-dsp-program}).
 After download, \texttt{loadAndApply()} restores the saved
 \texttt{core::AudioProfile} from NVS (or factory defaults) so user settings
 survive power cycles without re-writing the whole program.
+
+\section{SigmaStudio Remote Connection (TCP bridge)}
+\label{sec:adau1701-sigmastudio-tcp}
+
+\texttt{net::SigmaStudioTcpServer}\label{cls:SigmaStudioTcpServer} exposes the
+ADAU1701 to SigmaStudio running on a PC over TCP/IP, so SigmaStudio's own
+\emph{Connect} and \emph{Link Compile Download} work against DigiRadio exactly
+as they would against a USBi/ICP dongle. It listens on port \textbf{8086} in
+both SoftAP setup mode and STA mode, started from \texttt{NetBootstrap}
+alongside \texttt{SetupWebServer}. The socket is unauthenticated, consistent
+with the existing LAN-exposed \texttt{POST /api/system/ota} and
+\texttt{POST /api/dsp/program} endpoints.
+
+\begin{drref}[Protocol source]
+This implements the subset of SigmaStudio's TCPi wire protocol needed for
+Connect, Download, register read/write, and runtime safeload, ported from the
+\href{https://github.com/rarranzb/ADAU1701-TCPi-ESP32}{ADAU1701-TCPi-ESP32}
+reference project (MIT licence). Analog Devices' TCPi protocol itself is
+closed/undocumented; this is a single third-party reverse-engineering source,
+cross-checked against DigiRadio's own generated \texttt{DigiRadio\_IC\_1.h}
+memory-map constants (Program RAM at word-address \texttt{0x0400}, Parameter
+RAM at \texttt{0x0000}, core control register at \texttt{0x081C}) which match
+exactly. Verify with a real SigmaStudio Connect + Download session before
+relying on it for production DSP work.
+\end{drref}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}L{2.2cm}L{9.8cm}@{}}
+    \drhead Frame & Layout \\
+    \midrule
+    \texttt{0x09} WRITE &
+      \texttt{[op][safeload][rsvd][totalLen:2][chipAddr][dataLen:2][addr:2][payload]} \\
+    \texttt{0x0A} READ\_REQ &
+      \texttt{[op][totalLen:2][chipAddr][dataLen:2][addr:2]} \\
+    \texttt{0x0B} READ\_RESP &
+      \texttt{[op][size:2][chipAddr][dataLen:2][addr:2][status][data]} \\
+    \bottomrule
+  \end{tabular}
+  \caption{TCPi frame layout (all multi-byte fields big-endian).}
+  \label{tab:adau1701-tcpi-frames}
+\end{table}
+
+Direct (non-safeload) writes reuse the region-aware
+\texttt{SIGMA\_WRITE\_REGISTER\_BLOCK} (Section~\ref{sec:adau1701-boot} boot
+path). Safeload writes forward SigmaStudio's already-encoded 4-byte words
+verbatim via \texttt{sigma\_safeload\_raw\_block()} --- unlike
+\texttt{sigma\_safeload\_block()} (Section~\ref{sec:adau1701-safeload}), which
+reconstructs the payload from a host \texttt{int}, this path never
+reinterprets network bytes. A new \texttt{sigma\_studio\_lock()} /
+\texttt{sigma\_studio\_unlock()} pair in \texttt{SigmaStudioFW.c} serialises
+whole safeload/write sequences against \texttt{Adau1701Driver}'s own
+REST-triggered safeload calls, so a live SigmaStudio session and
+\texttt{/api/audio/*} traffic cannot interleave mid-transaction.
+
+\subsection{Persisting a Download as the boot program}
+
+A completed \emph{Link Compile Download} is captured and made the program
+DigiRadio boots with next time --- the same outcome as re-exporting and
+rebuilding. \texttt{SigmaStudioTcpServer} coalesces contiguous direct writes
+into a handful of regions per connection (mirroring the five-block shape
+of \texttt{EmbeddedDspProgramSource}), completion is detected the same way
+the reference project detects it: a direct write to \texttt{0x081C} that sets
+the DSPRUN bit. On completion the coalesced regions are serialised
+(\texttt{core::serializeDspProgramBlob()}) and written to the \texttt{dsp}
+flash partition via \texttt{adau1701::FlashDspProgramSource::storeBlob()} ---
+the same function \texttt{POST /api/dsp/program} already uses
+(Section~\ref{sec:api-dsp-program}). If a session is too fragmented to fit the
+blob's own caps (32 regions / 16\,KiB per region / 200\,KiB total), the
+persist step is skipped for that session only; the DSP still runs from what
+was written live over I\textsuperscript{2}C.
+
+\begin{drcaution}[Not ported from the reference project]
+DigiRadio does not implement the reference project's EEPROM self-boot capture
+(binary format for an external self-boot EEPROM) or its Wi-Fi/GPIO
+configuration web UI --- DigiRadio has no self-boot EEPROM on this bus (the
+24AA025E48 at \texttt{0x52} is an EUI-48 identity chip only), and Wi-Fi
+provisioning already exists via \texttt{POST /api/wifi}.
+\end{drcaution}
 
 \section{Software architecture}
 \label{sec:adau1701-stack}

@@ -13,6 +13,7 @@
 
 #include "core/Bt1035At.hpp"
 
+#include <cctype>
 #include <cstdlib>
 #include <vector>
 
@@ -99,18 +100,22 @@ namespace {
 std::string buildBt1035AtLine(Bt1035AtCommand command)
 {
     switch (command) {
+    case Bt1035AtCommand::Reset:
+        return "AT+RESET\r\n";
     case Bt1035AtCommand::Ping:
         return "AT\r\n";
     case Bt1035AtCommand::I2sMode:
         return "AT+AUXCFG=3\r\n";
-    case Bt1035AtCommand::I2sSlave48k32:
-        return "AT+I2SCFG=67\r\n";
+    case Bt1035AtCommand::I2sSlave48k24:
+        return "AT+I2SCFG=35\r\n";
     case Bt1035AtCommand::PairDiscoverable:
         return "AT+PAIR=1\r\n";
     case Bt1035AtCommand::PairHidden:
         return "AT+PAIR=0\r\n";
     case Bt1035AtCommand::A2dpStat:
         return "AT+A2DPSTAT\r\n";
+    case Bt1035AtCommand::A2dpEncoder:
+        return "AT+A2DPENC\r\n";
     case Bt1035AtCommand::A2dpDisconnect:
         return "AT+A2DPDISC\r\n";
     case Bt1035AtCommand::QueryName:
@@ -145,7 +150,7 @@ std::array<Bt1035AtCommand, kBt1035BootInitCommandCount> bootInitSequence() noex
     return std::array<Bt1035AtCommand, kBt1035BootInitCommandCount>{
         Bt1035AtCommand::Ping,
         Bt1035AtCommand::I2sMode,
-        Bt1035AtCommand::I2sSlave48k32,
+        Bt1035AtCommand::I2sSlave48k24,
     };
 }
 
@@ -202,6 +207,43 @@ const char* a2dpStateToken(Bt1035A2dpState state) noexcept
         return "streaming";
     case Bt1035A2dpState::Paused:
         return "paused";
+    }
+    return "unknown";
+}
+
+std::expected<Bt1035A2dpCodec, ParseError>
+parseBt1035A2dpEncoderResponse(std::string_view response)
+{
+    constexpr std::string_view kPrefix = "+A2DPENC=";
+    const std::size_t pos = response.find(kPrefix);
+    if (pos == std::string_view::npos) {
+        return std::unexpected(ParseError::MissingField);
+    }
+
+    const std::size_t valueStart = pos + kPrefix.size();
+    char* end = nullptr;
+    const unsigned long raw =
+        std::strtoul(response.data() + valueStart, &end, 10);
+    if (end == response.data() + valueStart || raw < 1U || raw > 5U) {
+        return std::unexpected(ParseError::MissingField);
+    }
+
+    return static_cast<Bt1035A2dpCodec>(raw);
+}
+
+const char* a2dpCodecToken(Bt1035A2dpCodec codec) noexcept
+{
+    switch (codec) {
+    case Bt1035A2dpCodec::Sbc:
+        return "sbc";
+    case Bt1035A2dpCodec::Aptx:
+        return "aptx";
+    case Bt1035A2dpCodec::AptxHd:
+        return "aptx-hd";
+    case Bt1035A2dpCodec::AptxLl:
+        return "aptx-ll";
+    case Bt1035A2dpCodec::AptxAdaptive:
+        return "aptx-adaptive";
     }
     return "unknown";
 }
@@ -281,6 +323,181 @@ parseBt1035PairedListResponse(std::string_view response)
         if (comma2 != std::string_view::npos) {
             entry.name = std::string(line.substr(comma2 + 1U));
         }
+        devices.push_back(std::move(entry));
+    }
+    return devices;
+}
+
+std::string buildBt1035StartScanLine(std::uint8_t scanType, std::uint8_t scanSeconds)
+{
+    const std::uint8_t type = (scanType == 2U) ? 2U : 1U;
+    if (scanSeconds == 0U) {
+        return "AT+SCAN=" + std::to_string(type) + "\r\n";
+    }
+    return "AT+SCAN=" + std::to_string(type) + ","
+           + std::to_string(scanSeconds) + "\r\n";
+}
+
+std::string buildBt1035StopScanLine()
+{
+    return "AT+SCAN=0\r\n";
+}
+
+std::string buildBt1035EnablePrintLine()
+{
+    return "AT+PRINT=1\r\n";
+}
+
+std::string buildBt1035DisconnectAllLine()
+{
+    return "AT+DSCA\r\n";
+}
+
+std::string buildBt1035DisableAutoLinkLine()
+{
+    return "AT+LINKCFG=0,0\r\n";
+}
+
+std::string buildBt1035ClearPairedListLine()
+{
+    return "AT+PLIST=0\r\n";
+}
+
+bool isValidBt1035Mac(std::string_view mac) noexcept
+{
+    if (mac.size() != 12U) {
+        return false;
+    }
+    for (const char ch : mac) {
+        if (!std::isxdigit(static_cast<unsigned char>(ch))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] std::string normalizeBt1035Mac(std::string_view mac)
+{
+    std::string normalized;
+    normalized.reserve(12U);
+    for (const char ch : mac) {
+        if (ch == ':' || ch == '-') {
+            continue;
+        }
+        normalized.push_back(
+            static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+    }
+    return normalized;
+}
+
+std::string buildBt1035A2dpConnectLine(std::string_view mac)
+{
+    if (!isValidBt1035Mac(mac)) {
+        return {};
+    }
+    return std::string("AT+A2DPCONN=") + std::string(mac) + "\r\n";
+}
+
+std::string buildBt1035A2dpAudioLine(bool establish)
+{
+    return establish ? "AT+A2DPAUDIO=1\r\n" : "AT+A2DPAUDIO=0\r\n";
+}
+
+std::expected<std::vector<Bt1035ScannedDevice>, ParseError>
+parseBt1035ScanResponse(std::string_view response)
+{
+    std::vector<Bt1035ScannedDevice> devices;
+    std::size_t pos = 0;
+    while ((pos = response.find("+SCAN", pos)) != std::string_view::npos) {
+        std::size_t start = pos + 5U;
+        if (start < response.size() && response[start] == '=') {
+            ++start;
+        }
+        while (start < response.size()
+               && (response[start] == ' ' || response[start] == '\t')) {
+            ++start;
+        }
+        const std::size_t end = response.find_first_of("\r\n", start);
+        const std::string_view line =
+            end == std::string_view::npos ? response.substr(start)
+                                          : response.substr(start, end - start);
+        pos = end == std::string_view::npos ? response.size() : end + 1U;
+        if (line.empty() || line == "E" || line.front() == 'E') {
+            continue;
+        }
+
+        const std::string lineStr(line);
+
+        const std::size_t comma1 = lineStr.find(',');
+        const std::size_t comma2 =
+            comma1 == std::string_view::npos ? std::string_view::npos
+                                             : lineStr.find(',', comma1 + 1U);
+        const std::size_t comma3 =
+            comma2 == std::string_view::npos ? std::string_view::npos
+                                             : lineStr.find(',', comma2 + 1U);
+        const std::size_t comma4 =
+            comma3 == std::string_view::npos ? std::string_view::npos
+                                             : lineStr.find(',', comma3 + 1U);
+        if (comma4 == std::string_view::npos) {
+            continue;
+        }
+
+        char* endIdx = nullptr;
+        const unsigned long index =
+            std::strtoul(lineStr.c_str(), &endIdx, 10);
+        if (endIdx == lineStr.c_str() || index == 0U) {
+            continue;
+        }
+
+        const unsigned long addrType =
+            std::strtoul(lineStr.c_str() + comma1 + 1U, &endIdx, 10);
+        const std::string mac =
+            normalizeBt1035Mac(lineStr.substr(comma2 + 1U, comma3 - comma2 - 1U));
+        if (!isValidBt1035Mac(mac)) {
+            continue;
+        }
+
+        const long rssi =
+            std::strtol(lineStr.c_str() + comma3 + 1U, &endIdx, 10);
+        const unsigned long nameLen =
+            std::strtoul(lineStr.c_str() + comma4 + 1U, &endIdx, 10);
+        const std::size_t afterNameLen =
+            static_cast<std::size_t>(endIdx - lineStr.c_str());
+
+        std::string name;
+        std::string deviceClass;
+        if (nameLen > 0U) {
+            if (afterNameLen >= lineStr.size() || lineStr[afterNameLen] != ',') {
+                continue;
+            }
+            const std::size_t nameStart = afterNameLen + 1U;
+            if (nameStart + nameLen > lineStr.size()) {
+                continue;
+            }
+            name.assign(lineStr.substr(nameStart, nameLen));
+            const std::size_t afterName = nameStart + nameLen;
+            if (afterName < lineStr.size() && lineStr[afterName] == ',') {
+                deviceClass.assign(lineStr.substr(afterName + 1U));
+            }
+        } else if (afterNameLen < lineStr.size()
+                   && lineStr[afterNameLen] == ',') {
+            const std::size_t classStart = afterNameLen + 1U;
+            if (classStart < lineStr.size()) {
+                if (lineStr[classStart] == ',') {
+                    deviceClass.assign(lineStr.substr(classStart + 1U));
+                } else {
+                    deviceClass.assign(lineStr.substr(classStart));
+                }
+            }
+        }
+
+        Bt1035ScannedDevice entry = {};
+        entry.index = static_cast<std::uint8_t>(index);
+        entry.addressType = static_cast<std::uint8_t>(addrType);
+        entry.mac = mac;
+        entry.rssiDbm = static_cast<std::int16_t>(rssi);
+        entry.name = std::move(name);
+        entry.deviceClass = std::move(deviceClass);
         devices.push_back(std::move(entry));
     }
     return devices;

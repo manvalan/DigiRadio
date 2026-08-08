@@ -15,40 +15,87 @@
       --text-lg: 1.25rem;
       --text-xl: 1.75rem;
       --text-2xl: 2.25rem;
-      --accent: #c47a2c;
-      --accent-dim: #8f5a1f;
-      --bg: #0f1114;
-      --surface: #1a1d22;
-      --surface-2: #242830;
-      --text: #e8eaed;
-      --muted: #9aa0a6;
-      --ok: #7cb342;
-      --err: #e57373;
-      --radius: 0.5rem;
-      --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --accent: #ff9a3c;
+      --accent-2: #ff6a88;
+      --accent-dim: #c4701f;
+      --bg: #0b0c10;
+      --surface: #16181d;
+      --surface-2: #1e2128;
+      --surface-3: #262a33;
+      --border: #2a2e37;
+      --text: #f1f2f4;
+      --muted: #9aa0ac;
+      --ok: #6fd08c;
+      --err: #ff7a7a;
+      --radius: 0.85rem;
+      --radius-sm: 0.55rem;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+      --font: "SF Pro Display", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    :root[data-theme="light"] {
+      --bg: #f3f2ef;
+      --surface: #ffffff;
+      --surface-2: #f6f5f2;
+      --surface-3: #ececea;
+      --border: #e4e2dd;
+      --text: #1c1c1e;
+      --muted: #6b6f76;
+      --shadow: 0 1px 2px rgba(20,20,20,0.05), 0 10px 24px -16px rgba(20,20,20,0.25);
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg: #f3f2ef;
+        --surface: #ffffff;
+        --surface-2: #f6f5f2;
+        --surface-3: #ececea;
+        --border: #e4e2dd;
+        --text: #1c1c1e;
+        --muted: #6b6f76;
+        --shadow: 0 1px 2px rgba(20,20,20,0.05), 0 10px 24px -16px rgba(20,20,20,0.25);
+      }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: var(--font);
       font-size: var(--text-base);
       line-height: 1.5;
-      background: var(--bg);
+      background:
+        radial-gradient(1200px 480px at 15% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
       padding: var(--space-2);
+      -webkit-font-smoothing: antialiased;
     }
     .shell {
-      max-width: 40rem;
+      max-width: 42rem;
       margin: 0 auto;
     }
     header {
-      background: var(--surface);
+      background: linear-gradient(155deg, var(--surface) 0%, var(--surface-2) 100%);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: var(--space-3);
-      border-top: 3px solid var(--accent);
       margin-bottom: var(--space-2);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
     }
-    header h1 { font-size: var(--text-xl); font-weight: 600; }
+    header::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    header h1 {
+      font-size: var(--text-xl);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, var(--text), var(--text) 60%, var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
     .meta {
       display: flex;
       flex-wrap: wrap;
@@ -59,105 +106,171 @@
       color: var(--muted);
     }
     .dot {
-      width: 0.55rem;
-      height: 0.55rem;
+      width: 0.5rem;
+      height: 0.5rem;
       border-radius: 50%;
       background: var(--accent);
       flex-shrink: 0;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
     }
     .chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
     .chip {
       font-size: 0.75rem;
-      padding: 0.15rem 0.45rem;
+      font-weight: 500;
+      padding: 0.2rem 0.55rem;
       border-radius: 999px;
-      background: var(--surface-2);
+      background: var(--surface-3);
       color: var(--muted);
+      border: 1px solid var(--border);
     }
-    .chip.on { color: var(--ok); border: 1px solid var(--ok); }
-    .chip.off { opacity: 0.55; }
+    .chip.on { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+    .chip.off { opacity: 0.5; }
     nav.tabs {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.35rem;
+      gap: 0.3rem;
       margin-bottom: var(--space-2);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.3rem;
+      box-shadow: var(--shadow);
     }
     nav.tabs button {
       flex: 1 1 auto;
-      min-width: 4.5rem;
-      padding: 0.55rem 0.65rem;
-      border: 1px solid #333;
-      border-radius: var(--radius);
-      background: var(--surface);
+      min-width: 4rem;
+      padding: 0.55rem 0.6rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
       color: var(--muted);
       font: inherit;
       font-size: var(--text-sm);
+      font-weight: 500;
       cursor: pointer;
+      transition: background 0.15s, color 0.15s;
     }
+    nav.tabs button:hover { color: var(--text); }
     nav.tabs button.active {
-      color: var(--text);
-      border-color: var(--accent);
-      background: var(--surface-2);
+      color: var(--bg);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      font-weight: 600;
+      box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 60%, transparent);
     }
     .panel {
       display: none;
       background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: var(--space-3);
+      box-shadow: var(--shadow);
+      animation: panel-in 0.18s ease-out;
+    }
+    @keyframes panel-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .panel.active { display: block; }
     h2 {
       font-size: var(--text-lg);
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: -0.01em;
       margin-bottom: var(--space-1);
+    }
+    h3.subhead {
+      font-size: var(--text-base);
+      font-weight: 600;
+      margin: var(--space-3) 0 var(--space-1);
+      padding-top: var(--space-2);
+      border-top: 1px solid var(--border);
     }
     .lede {
       color: var(--muted);
       font-size: var(--text-sm);
       margin-bottom: var(--space-2);
     }
+    .hint {
+      color: var(--muted);
+      font-size: var(--text-sm);
+      margin-bottom: var(--space-1);
+    }
+    .bt-guide {
+      margin-bottom: var(--space-2);
+      padding: var(--space-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      font-size: var(--text-sm);
+    }
+    .bt-guide summary { cursor: pointer; font-weight: 600; }
+    .bt-guide ol {
+      margin: var(--space-1) 0 0 1.25rem;
+      padding: 0;
+    }
+    .bt-guide li { margin-bottom: 0.35rem; }
     label {
       display: block;
       font-size: var(--text-sm);
+      font-weight: 500;
       color: var(--muted);
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.3rem;
     }
     input, select {
       width: 100%;
-      padding: var(--space-1) var(--space-2);
+      padding: 0.65rem var(--space-2);
       margin-bottom: var(--space-2);
-      border: 1px solid #333;
-      border-radius: var(--radius);
-      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
       color: var(--text);
       font: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
     }
     input[type="file"] {
       padding: var(--space-1);
       font-size: var(--text-sm);
     }
     input[type="range"] { padding: 0; accent-color: var(--accent); }
+    input[type="checkbox"] {
+      width: auto;
+      margin: 0 0.4rem 0 0;
+      accent-color: var(--accent);
+      vertical-align: middle;
+    }
     button.action {
       width: 100%;
-      padding: var(--space-2);
+      padding: 0.75rem var(--space-2);
       border: none;
-      border-radius: var(--radius);
-      background: var(--accent);
-      color: var(--bg);
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #1a1206;
       font: inherit;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.15s, opacity 0.15s;
+      box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--accent) 55%, transparent);
     }
+    button.action:hover { transform: translateY(-1px); }
+    button.action:active { transform: translateY(0); }
     button.action.secondary {
-      background: transparent;
-      color: var(--accent);
-      border: 1px solid var(--accent);
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
     }
-    button.action:disabled { opacity: 0.55; cursor: wait; }
+    button.action.secondary:hover { border-color: var(--accent); }
+    button.action:disabled { opacity: 0.5; cursor: wait; transform: none; }
     button.action.compact {
       width: auto;
       padding: 0.35rem 0.65rem;
       font-size: var(--text-sm);
-      font-weight: 500;
+      font-weight: 600;
+      box-shadow: none;
     }
     .row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
     .row .action { flex: 1; }
@@ -170,13 +283,14 @@
     .msg.err { color: var(--err); }
     code {
       font-size: 0.9em;
-      background: var(--bg);
-      padding: 0.1em 0.35em;
-      border-radius: 0.25rem;
+      background: var(--surface-3);
+      padding: 0.1em 0.4em;
+      border-radius: 0.3rem;
     }
     .now-title {
       font-size: var(--text-2xl);
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: -0.02em;
       line-height: 1.2;
       margin-bottom: var(--space-1);
       word-break: break-word;
@@ -195,12 +309,14 @@
       margin-bottom: var(--space-2);
     }
     .stat {
-      background: var(--bg);
-      border-radius: var(--radius);
-      padding: var(--space-1) var(--space-2);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem var(--space-2);
       font-size: var(--text-sm);
+      font-weight: 600;
     }
-    .stat span { display: block; color: var(--muted); font-size: 0.75rem; }
+    .stat span { display: block; color: var(--muted); font-size: 0.7rem; font-weight: 500; margin-bottom: 0.1rem; }
     .band-panel { display: none; }
     .band-panel.show { display: block; }
     ul.list {
@@ -214,10 +330,11 @@
       justify-content: space-between;
       align-items: center;
       gap: var(--space-1);
-      padding: var(--space-1) 0;
-      border-bottom: 1px solid #2a2d33;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
       font-size: var(--text-sm);
     }
+    ul.list li:last-child { border-bottom: none; }
     ul.list li .label {
       flex: 1;
       min-width: 0;
@@ -228,6 +345,48 @@
       flex-wrap: wrap;
       gap: 0.25rem;
       justify-content: flex-end;
+    }
+    ul.pick-list {
+      list-style: none;
+      margin-bottom: var(--space-2);
+      max-height: 16rem;
+      overflow-y: auto;
+    }
+    ul.pick-list li.pick-item {
+      display: block;
+      padding: var(--space-2);
+      margin-bottom: var(--space-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      cursor: pointer;
+      font-size: var(--text-sm);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    ul.pick-list li.pick-item:hover {
+      border-color: var(--accent);
+    }
+    ul.pick-list li.pick-item.selected {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+    ul.pick-list li.pick-item .pick-title {
+      font-weight: 600;
+      word-break: break-word;
+    }
+    ul.pick-list li.pick-item .pick-meta {
+      margin-top: 0.2rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    ul.pick-list li.pick-hint {
+      padding: var(--space-2);
+      color: var(--muted);
+      font-size: var(--text-sm);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      text-align: center;
     }
     .eq-band {
       display: grid;
@@ -254,6 +413,59 @@
       text-align: right;
       color: var(--muted);
     }
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+    .switch-row .switch-label { flex: 1; }
+    .switch-row .switch-label strong { display: block; color: var(--text); font-size: var(--text-base); font-weight: 600; }
+    .switch-row .switch-label span { display: block; color: var(--muted); font-size: var(--text-sm); margin-top: 0.15rem; }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 3rem;
+      height: 1.75rem;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      z-index: 1;
+    }
+    .switch .track {
+      position: absolute;
+      inset: 0;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      transition: background 0.2s;
+    }
+    .switch .thumb {
+      position: absolute;
+      top: 0.2rem;
+      left: 0.2rem;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: transform 0.2s, background 0.2s;
+    }
+    .switch input:checked ~ .track {
+      background: color-mix(in srgb, var(--accent) 35%, var(--surface-3));
+      border-color: var(--accent);
+    }
+    .switch input:checked ~ .thumb {
+      transform: translateX(1.25rem);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    }
   </style>
 </head>
 <body>
@@ -272,6 +484,7 @@
       <button type="button" data-tab="radio" role="tab">Radio</button>
       <button type="button" data-tab="presets" role="tab">Presets</button>
       <button type="button" data-tab="audio" role="tab">Audio</button>
+      <button type="button" data-tab="stream" role="tab">Stream</button>
       <button type="button" data-tab="bt" role="tab">BT</button>
       <button type="button" data-tab="wifi" role="tab">Wi‑Fi</button>
       <button type="button" data-tab="system" role="tab">System</button>
@@ -315,6 +528,12 @@
         </div>
       </div>
       <p class="msg" id="tuner-msg" aria-live="polite"></p>
+      <h3 class="subhead">Test — cerca stazione</h3>
+      <p class="hint">FM: seek automatico fino a trovare segnale (e nome RDS se indicato). DAB: prova gli ensemble.</p>
+      <label for="scan-name">Nome stazione (opzionale)</label>
+      <input id="scan-name" type="text" maxlength="32" placeholder="es. monte carlo">
+      <button type="button" class="action secondary" id="tuner-scan">Cerca stazione</button>
+      <p class="msg" id="scan-msg" aria-live="polite"></p>
     </section>
 
     <section id="panel-presets" class="panel" role="tabpanel" hidden>
@@ -366,10 +585,67 @@
       <p class="msg" id="audio-msg" aria-live="polite"></p>
     </section>
 
+    <section id="panel-stream" class="panel" role="tabpanel" hidden>
+      <h2>Internet radio streaming</h2>
+      <p class="lede">Streams an HTTP MP3 URL, decodes it on the ESP32, and plays it through the ADAU1701 — independent of Si4684 FM/DAB. Takes effect immediately, no reboot needed.</p>
+      <div class="switch-row">
+        <div class="switch-label">
+          <strong>Streaming</strong>
+          <span id="stream-status-text">Loading…</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="stream-enabled">
+          <span class="track"></span>
+          <span class="thumb"></span>
+        </label>
+      </div>
+      <label for="stream-url">Stream URL (http://)</label>
+      <input id="stream-url" type="text" autocomplete="off" placeholder="http://example.com/stream.mp3">
+      <button type="button" class="action" id="stream-save">Save &amp; apply</button>
+      <p class="hint">No sample-rate conversion — best results with 48 kHz MP3 streams.</p>
+      <p class="msg" id="stream-msg" aria-live="polite"></p>
+    </section>
+
     <section id="panel-bt" class="panel" role="tabpanel" hidden>
       <h2>Bluetooth</h2>
-      <p class="lede">FSC-BT1035 aptX — pair headphones or speakers.</p>
+      <p class="lede">Soundbar senza display (Bose): <strong>salva il MAC</strong> e connetti con <code>AT+A2DPCONN</code> — lo scan spesso non la trova.</p>
+      <h3 class="subhead">Soundbar predefinita (NVS)</h3>
+      <p class="hint" id="bt-saved-speaker">Caricamento…</p>
+      <div class="row">
+        <button type="button" class="action secondary" id="bt-reconnect-saved">Reconnect saved</button>
+        <button type="button" class="action secondary" id="bt-clear-saved">Rimuovi salvata</button>
+      </div>
+      <label><input type="checkbox" id="bt-save-default" checked> Salva come soundbar predefinita dopo Connect</label>
+      <details class="bt-guide" open>
+        <summary>Bose Solo II — accoppiamento (solo telecomando)</summary>
+        <ol>
+          <li>Sul telecomando Bose: tieni premuto <strong>Bluetooth</strong> finché la spia Bluetooth <strong>lampeggia blu</strong> (non bianca).</li>
+          <li>Sul telefono nelle vicinanze: <strong>Bluetooth spento</strong> (evita che la Bose si connetta al phone).</li>
+          <li>Spegni o allontana altri dispositivi BT (proiettori, casse).</li>
+          <li>Avvia <strong>Scan</strong> qui sotto entro 10 secondi.</li>
+          <li>Se compare <strong>Bose Solo</strong> o <strong>(no name)</strong>, selezionala e premi <strong>Connect</strong>.</li>
+          <li>Se non compare in scan: inserisci il <strong>MAC</strong> sotto e premi <strong>Connect MAC</strong> (con Bose in blu lampeggiante).</li>
+          <li>Spunta <strong>Salva come predefinita</strong> — all'accensione il DigiRadio farà <code>A2DPCONN</code> automatico.</li>
+        </ol>
+        <p class="hint">La spia arancione a sinistra = Dialogue mode (audio), non c’entra con il Bluetooth. Discoverable sul DigiRadio <em>non</em> serve per la Bose (non può scegliere dispositivi senza schermo).</p>
+      </details>
       <div class="stat-grid" id="bt-stats"></div>
+      <h3 class="subhead">Nearby devices</h3>
+      <ul class="pick-list" id="bt-scan-list"></ul>
+      <div class="row">
+        <button type="button" class="action" id="bt-scan">Scan</button>
+        <button type="button" class="action" id="bt-connect-selected" disabled>Connect</button>
+      </div>
+      <h3 class="subhead">Connessione manuale (MAC)</h3>
+      <p class="hint">12 caratteri hex, senza due punti — es. <code>A1B2C3D4E5F6</code></p>
+      <div class="row">
+        <input id="bt-mac-manual" type="text" autocomplete="off" maxlength="17"
+               placeholder="MAC Bluetooth soundbar" pattern="[0-9A-Fa-f:]{12,17}">
+        <input id="bt-speaker-name" type="text" autocomplete="off" maxlength="31"
+               placeholder="Nome (es. Bose Solo II)">
+        <button type="button" class="action secondary" id="bt-connect-mac">Connect MAC</button>
+      </div>
+      <h3 class="subhead">Paired devices</h3>
       <ul class="list" id="bt-paired-list"></ul>
       <div class="slider-row">
         <label for="bt-auto-reconnect">Auto-reconnect</label>
@@ -377,12 +653,10 @@
       </div>
       <input id="bt-auto-reconnect" type="range" min="0" max="15" step="1" value="0">
       <div class="row">
-        <button type="button" class="action" id="bt-refresh">Refresh</button>
-        <button type="button" class="action secondary" id="bt-pair">Pair</button>
-      </div>
-      <div class="row">
         <button type="button" class="action secondary" id="bt-load-paired">Paired list</button>
-        <button type="button" class="action secondary" id="bt-stop-pair">Stop pairing</button>
+        <button type="button" class="action secondary" id="bt-refresh">Refresh</button>
+        <button type="button" class="action secondary" id="bt-pair">Discoverable</button>
+        <button type="button" class="action secondary" id="bt-stop-pair">Stop discoverable</button>
       </div>
       <div class="row">
         <button type="button" class="action secondary" id="bt-disconnect">Disconnect</button>
@@ -393,7 +667,13 @@
 
     <section id="panel-wifi" class="panel" role="tabpanel" hidden>
       <h2>Wi‑Fi</h2>
-      <p class="lede">Provision STA credentials (setup mode: join <code>DigiRadio-setup</code>, open <code>192.168.4.1</code>).</p>
+      <p class="lede">Join the DigiRadio SoftAP and open <code>192.168.4.1</code>. Tap a network to select it, enter the password, then save.</p>
+      <h3 class="subhead">Nearby networks</h3>
+      <ul class="pick-list" id="wifi-scan-list"></ul>
+      <div class="row">
+        <button type="button" class="action" id="wifi-scan">Scan</button>
+      </div>
+      <h3 class="subhead">Selected network</h3>
       <form id="wifi-form">
         <label for="ssid">Network name (SSID)</label>
         <input id="ssid" name="ssid" autocomplete="off" required maxlength="32">
@@ -413,6 +693,10 @@
       <label for="dsp-file" style="margin-top: var(--space-2);">ADAU1701 program (DRAD blob)</label>
       <input id="dsp-file" type="file" accept=".bin,.dsp,application/octet-stream">
       <button type="button" class="action secondary" id="dsp-upload">Upload DSP program</button>
+      <h3 class="subhead">ADAU1701 test tone</h3>
+      <p class="lede">Beep1 generator in the DSP program — bring-up aid, not saved to the audio profile.</p>
+      <button type="button" class="action secondary" id="beep-on">Start tone</button>
+      <button type="button" class="action secondary" id="beep-off">Stop tone</button>
       <p class="msg" id="system-msg" aria-live="polite"></p>
     </section>
   </div>
@@ -421,6 +705,8 @@
     var audioProfile = null;
     var lastTunerStatus = null;
     var pollTimer = null;
+    var selectedBtDevice = null;
+    var selectedWifiSsid = null;
 
     function $(id) { return document.getElementById(id); }
 
@@ -498,6 +784,12 @@
         panel.classList.toggle("active", on);
         panel.hidden = !on;
       });
+      if (name === "wifi") {
+        loadWifiScan();
+      }
+      if (name === "stream") {
+        loadStreamingConfig();
+      }
     }
 
     document.querySelectorAll("nav.tabs button").forEach(function (btn) {
@@ -580,12 +872,6 @@
         .then(function (res) {
           if (res.ok && res.d.booted != null) {
             renderNowPlaying(res.d);
-            if (res.d.band === "fm") {
-              $("band").value = "fm";
-            } else if (res.d.band === "dab") {
-              $("band").value = "dab";
-            }
-            syncBandPanels();
             showMsg($("tuner-msg"), "", true);
           } else {
             showMsg($("tuner-msg"), "Status: " + (res.d.reason || "error"), false);
@@ -705,6 +991,47 @@
       }
     }
 
+    function loadStreamingConfig() {
+      return api("/api/streaming")
+        .then(function (res) {
+          if (!res.ok) {
+            $("stream-status-text").textContent = "Unavailable.";
+            return;
+          }
+          $("stream-enabled").checked = !!res.d.enabled;
+          $("stream-url").value = res.d.url || "";
+          $("stream-status-text").textContent = res.d.enabled
+            ? "Playing — audio replaces the DSP mixer's ESP32 input."
+            : "Off.";
+        })
+        .catch(function () {
+          $("stream-status-text").textContent = "Load failed.";
+        });
+    }
+
+    $("stream-save").addEventListener("click", function () {
+      var url = $("stream-url").value.trim();
+      var enabled = $("stream-enabled").checked;
+      if (enabled && url.indexOf("http://") !== 0) {
+        showMsg($("stream-msg"), "URL must start with http://", false);
+        return;
+      }
+      api("/api/streaming", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: enabled, url: url })
+      })
+        .then(function (res) {
+          if (res.ok) {
+            showMsg($("stream-msg"), "Saved and applied.", true);
+            loadStreamingConfig();
+          } else {
+            showMsg($("stream-msg"), "Save failed: " + (res.d.reason || "unknown"), false);
+          }
+        })
+        .catch(function () { showMsg($("stream-msg"), "Save request failed.", false); });
+    });
+
     function refreshBluetooth() {
       return api("/api/bluetooth/status")
         .then(function (res) {
@@ -717,7 +1044,8 @@
         })
         .catch(function () {
           showMsg($("bt-msg"), "BT request failed.", false);
-        });
+        })
+        .then(function () { return loadSavedSpeaker(); });
     }
 
     function renderPresets(data) {
@@ -743,6 +1071,8 @@
           return b;
         }
         actions.appendChild(mkBtn("Tune", false, function () {
+          $("band").value = s.band;
+          syncBandPanels();
           api("/api/stations/tune", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -838,21 +1168,233 @@
         .catch(function () { showMsg($("bt-msg"), "Paired list failed.", false); });
     }
 
-    api("/api/health")
-      .then(function (res) {
-        if (res.ok) {
-          var serial = res.d.serialNumber || "unknown";
-          $("health-text").innerHTML =
-            'Status <code>' + res.d.status + "</code> · FW <code>" + res.d.fw +
-            "</code> · SN <code>" + serial + "</code>";
-          renderChips(res.d.chips);
-        } else {
-          $("health-text").textContent = "Health check failed.";
-        }
-      })
-      .catch(function () {
-        $("health-text").textContent = "Health check failed.";
+    function showPickHint(listEl, text) {
+      listEl.innerHTML = "";
+      var li = document.createElement("li");
+      li.className = "pick-hint";
+      li.textContent = text;
+      listEl.appendChild(li);
+    }
+
+    function markPickSelected(listEl, keyAttr, keyValue) {
+      listEl.querySelectorAll(".pick-item").forEach(function (item) {
+        item.classList.toggle("selected", item.getAttribute(keyAttr) === keyValue);
       });
+    }
+
+    function updateBtConnectButton() {
+      var btn = $("bt-connect-selected");
+      btn.disabled = !selectedBtDevice;
+      btn.textContent = selectedBtDevice
+        ? "Connect · " + (selectedBtDevice.name || selectedBtDevice.mac)
+        : "Connect";
+    }
+
+    function normalizeBtMac(raw) {
+      return String(raw || "").replace(/[^0-9A-Fa-f]/g, "").toUpperCase();
+    }
+
+    function loadSavedSpeaker() {
+      return api("/api/bluetooth/speaker")
+        .then(function (res) {
+          var el = $("bt-saved-speaker");
+          if (!res.ok || !res.d.configured) {
+            el.textContent = "Nessuna soundbar salvata — usa Connect MAC o Scan + Salva.";
+            return;
+          }
+          el.textContent = (res.d.name || "(no name)") + " · " + res.d.mac;
+          if (!$("bt-mac-manual").value) {
+            $("bt-mac-manual").value = res.d.mac;
+          }
+        })
+        .catch(function () {
+          $("bt-saved-speaker").textContent = "Impossibile leggere soundbar salvata.";
+        });
+    }
+
+    function connectBluetooth(mac, name) {
+      var normalized = normalizeBtMac(mac);
+      if (normalized.length !== 12) {
+        showMsg($("bt-msg"), "MAC non valido — servono 12 caratteri hex.", false);
+        return Promise.resolve();
+      }
+      var save = $("bt-save-default").checked;
+      var label = name || $("bt-speaker-name").value || normalized;
+      showMsg($("bt-msg"), "Connecting to " + label + "… (~30 s)", true);
+      return api("/api/bluetooth/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mac: normalized, name: label, save: save })
+      })
+        .then(function (res) {
+          if (res.ok) {
+            showMsg($("bt-msg"), "Connesso e " + (save ? "salvato in NVS." : "OK."), true);
+            loadSavedSpeaker();
+            return refreshBluetooth();
+          }
+          showMsg($("bt-msg"), "Connect failed: " + (res.d.reason || "error"), false);
+        })
+        .catch(function () { showMsg($("bt-msg"), "Connect request failed.", false); });
+    }
+
+    function loadBluetoothScan() {
+      var btn = $("bt-scan");
+      btn.disabled = true;
+      selectedBtDevice = null;
+      updateBtConnectButton();
+      showMsg($("bt-msg"), "Scanning classic Bluetooth (~45 s) — speaker must be in pairing mode now.", true);
+      console.log("[bt] scan start");
+      return api("/api/bluetooth/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seconds: 45 })
+      })
+        .then(function (res) {
+          console.log("[bt] scan response", res.status, res.d);
+          var list = $("bt-scan-list");
+          list.innerHTML = "";
+          if (!res.ok || !res.d.devices) {
+            showPickHint(list, "Scan failed — press Scan to retry.");
+            showMsg($("bt-msg"), "Scan failed: " + (res.d.reason || "error"), false);
+            return;
+          }
+          if (res.d.devices.length === 0) {
+            showPickHint(list, "No devices found — put the speaker in pairing mode (Bose: Bluetooth button until blue blink), then scan again.");
+            showMsg($("bt-msg"), "No devices found.", false);
+            return;
+          }
+          res.d.devices.forEach(function (device) {
+            var li = document.createElement("li");
+            li.className = "pick-item";
+            li.setAttribute("data-mac", device.mac);
+            li.setAttribute("role", "button");
+            li.setAttribute("tabindex", "0");
+            var title = document.createElement("div");
+            title.className = "pick-title";
+            title.textContent = device.name || "(no name)";
+            var meta = document.createElement("div");
+            meta.className = "pick-meta";
+            var rssi = device.rssi_dbm != null ? device.rssi_dbm + " dBm · " : "";
+            meta.textContent = rssi + device.mac;
+            li.appendChild(title);
+            li.appendChild(meta);
+            function selectDevice() {
+              selectedBtDevice = device;
+              markPickSelected(list, "data-mac", device.mac);
+              updateBtConnectButton();
+              showMsg($("bt-msg"), "Selected \"" + (device.name || device.mac) + "\" — press Connect.", true);
+            }
+            li.addEventListener("click", selectDevice);
+            li.addEventListener("keydown", function (e) {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectDevice();
+              }
+            });
+            list.appendChild(li);
+          });
+          showMsg($("bt-msg"), res.d.devices.length + " device(s) — tap one to select.", true);
+        })
+        .catch(function () {
+          showPickHint($("bt-scan-list"), "Scan request failed — press Scan to retry.");
+          showMsg($("bt-msg"), "Scan request failed.", false);
+        })
+        .finally(function () { btn.disabled = false; });
+    }
+
+    function refreshHealth() {
+      return api("/api/health")
+        .then(function (res) {
+          if (res.ok && res.d.status === "ok") {
+            var serial = res.d.serialNumber || "unknown";
+            var ipLine = res.d.ip ? ' · IP <code>' + res.d.ip + "</code>" : "";
+            $("health-text").innerHTML =
+              'Status <code>' + res.d.status + "</code> · FW <code>" + res.d.fw +
+              "</code> · SN <code>" + serial + "</code>" + ipLine;
+            renderChips(res.d.chips);
+          } else {
+            $("health-text").textContent = "Health check failed — retrying…";
+          }
+        })
+        .catch(function () {
+          $("health-text").textContent = "Health check failed — retrying…";
+        });
+    }
+
+    refreshHealth()
+      .then(function () { return refreshTunerStatus(); })
+      .then(function () { return refreshBluetooth(); })
+      .then(function () { return loadPresets(); })
+      .then(function () { return loadAudioProfile(); })
+      .then(function () { return loadStreamingConfig(); });
+
+    setInterval(refreshHealth, 5000);
+    pollTimer = setInterval(function () { refreshTunerStatus(); }, 5000);
+
+    function loadWifiScan() {
+      var btn = $("wifi-scan");
+      btn.disabled = true;
+      showMsg($("wifi-msg"), "Scanning nearby networks (~5 s)…", true);
+      return api("/api/wifi/scan", { method: "POST" })
+        .then(function (res) {
+          var list = $("wifi-scan-list");
+          list.innerHTML = "";
+          if (!res.ok || !res.d.networks) {
+            showPickHint(list, "Scan failed — press Scan to retry.");
+            showMsg($("wifi-msg"), "Scan failed: " + (res.d.reason || "error"), false);
+            return;
+          }
+          if (res.d.networks.length === 0) {
+            showPickHint(list, "No networks found — press Scan to retry.");
+            showMsg($("wifi-msg"), "No networks found.", false);
+            return;
+          }
+          res.d.networks.forEach(function (network) {
+            var li = document.createElement("li");
+            li.className = "pick-item";
+            li.setAttribute("data-ssid", network.ssid);
+            li.setAttribute("role", "button");
+            li.setAttribute("tabindex", "0");
+            var title = document.createElement("div");
+            title.className = "pick-title";
+            title.textContent = network.ssid;
+            var meta = document.createElement("div");
+            meta.className = "pick-meta";
+            var rssi = network.rssi_dbm != null ? network.rssi_dbm + " dBm · " : "";
+            var auth = network.auth || "unknown";
+            var channel = network.channel != null ? " · ch " + network.channel : "";
+            meta.textContent = rssi + auth + channel;
+            li.appendChild(title);
+            li.appendChild(meta);
+            function selectNetwork() {
+              selectedWifiSsid = network.ssid;
+              $("ssid").value = network.ssid;
+              markPickSelected(list, "data-ssid", network.ssid);
+              $("password").focus();
+              showMsg($("wifi-msg"), "Selected \"" + network.ssid + "\" — enter password and save.", true);
+            }
+            li.addEventListener("click", selectNetwork);
+            li.addEventListener("keydown", function (e) {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectNetwork();
+              }
+            });
+            list.appendChild(li);
+          });
+          showMsg($("wifi-msg"), res.d.networks.length + " network(s) — tap one to select.", true);
+        })
+        .catch(function () {
+          showPickHint($("wifi-scan-list"), "Scan request failed — press Scan to retry.");
+          showMsg($("wifi-msg"), "Scan request failed.", false);
+        })
+        .finally(function () { btn.disabled = false; });
+    }
+
+    showPickHint($("wifi-scan-list"), "Press Scan or open this tab to search networks.");
+    showPickHint($("bt-scan-list"), "Press Scan to search Bluetooth devices.");
+
+    $("wifi-scan").addEventListener("click", loadWifiScan);
 
     $("wifi-form").addEventListener("submit", function (e) {
       e.preventDefault();
@@ -870,7 +1412,12 @@
       })
         .then(function (res) {
           if (res.ok && res.d.status === "saved") {
-            showMsg(msg, "Saved. Rebooting in " + res.d.reboot_in_sec + "s…", true);
+            var ssid = $("ssid").value;
+            showMsg(msg,
+              "Saved. DigiRadio reboots in " + res.d.reboot_in_sec +
+              "s — then connect THIS phone/PC to Wi‑Fi \"" + ssid +
+              "\" and open http://digiradio-CC4DB4.local/ (or the IP in serial log).",
+              true);
           } else {
             showMsg(msg, "Error: " + (res.d.reason || "unknown"), false);
             btn.disabled = false;
@@ -882,7 +1429,7 @@
         });
     });
 
-    $("now-refresh").addEventListener("click", refreshTunerStatus);
+    $("now-refresh").addEventListener("click", function () { refreshTunerStatus(); });
 
     $("tune-dab").addEventListener("click", function () {
       var idx = parseInt($("dab-index").value, 10);
@@ -922,6 +1469,58 @@
 
     $("seek-fm-up").addEventListener("click", function () { seekFm("up"); });
     $("seek-fm-down").addEventListener("click", function () { seekFm("down"); });
+
+    $("tuner-scan").addEventListener("click", function () {
+      var btn = $("tuner-scan");
+      var band = $("band").value;
+      var name = $("scan-name").value.trim();
+      btn.disabled = true;
+      showMsg($("scan-msg"),
+        band === "fm"
+          ? "Scansione FM in corso (~30–60 s)…"
+          : "Scansione DAB in corso (~1–2 min)…",
+        true);
+      var body = { band: band, max_steps: band === "fm" ? 45 : 38 };
+      if (name) body.name = name;
+      api("/api/tuner/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok) {
+            showMsg($("scan-msg"), "Scan failed: " + (res.d.reason || "error"), false);
+            return;
+          }
+          if (res.d.status === "found") {
+            var label = res.d.station_name || "(no name)";
+            if (band === "fm" && res.d.frequency_khz) {
+              $("fm-khz").value = res.d.frequency_khz;
+              showMsg($("scan-msg"),
+                "Trovata: " + label + " · " + res.d.frequency_khz + " kHz (" + res.d.steps + " step)",
+                true);
+            } else if (band === "dab" && res.d.freq_index != null) {
+              $("dab-index").value = res.d.freq_index;
+              showMsg($("scan-msg"),
+                "Trovata: " + label + " · ensemble " + res.d.freq_index + " (" + res.d.steps + " step)",
+                true);
+            } else {
+              showMsg($("scan-msg"), "Trovata: " + label, true);
+            }
+            refreshTunerStatus();
+            setTab("now");
+            return;
+          }
+          showMsg($("scan-msg"),
+            "Nessuna stazione trovata dopo " + (res.d.steps || "?") + " tentativi.",
+            false);
+        })
+        .catch(function () {
+          btn.disabled = false;
+          showMsg($("scan-msg"), "Scan request failed.", false);
+        });
+    });
 
     $("load-services").addEventListener("click", function () {
       var list = $("service-list");
@@ -1020,17 +1619,43 @@
     });
 
     $("bt-refresh").addEventListener("click", refreshBluetooth);
+    $("bt-scan").addEventListener("click", loadBluetoothScan);
+    $("bt-connect-selected").addEventListener("click", function () {
+      if (!selectedBtDevice) return;
+      connectBluetooth(selectedBtDevice.mac, selectedBtDevice.name);
+    });
+    $("bt-connect-mac").addEventListener("click", function () {
+      connectBluetooth($("bt-mac-manual").value, $("bt-speaker-name").value);
+    });
+    $("bt-reconnect-saved").addEventListener("click", function () {
+      showMsg($("bt-msg"), "Reconnect saved speaker…", true);
+      api("/api/bluetooth/reconnect", { method: "POST" })
+        .then(function (res) {
+          showMsg($("bt-msg"), res.ok ? "Reconnect OK." : ("Failed: " + (res.d.reason || "error")), res.ok);
+          if (res.ok) refreshBluetooth();
+        })
+        .catch(function () { showMsg($("bt-msg"), "Reconnect failed.", false); });
+    });
+    $("bt-clear-saved").addEventListener("click", function () {
+      api("/api/bluetooth/speaker", { method: "DELETE" })
+        .then(function (res) {
+          showMsg($("bt-msg"), res.ok ? "Soundbar salvata rimossa." : "Clear failed.", res.ok);
+          loadSavedSpeaker();
+        });
+    });
     $("bt-pair").addEventListener("click", function () {
       api("/api/bluetooth/pair", { method: "POST" })
         .then(function (res) {
-          showMsg($("bt-msg"), res.ok ? "Discoverable — pair from your phone." : "Pair failed.", res.ok);
+          showMsg($("bt-msg"), res.ok
+            ? "Discoverable attivo — utile solo se un altro dispositivo deve trovare il DigiRadio (non per Bose)."
+            : "Discoverable mode failed.", res.ok);
           if (res.ok) refreshBluetooth();
         });
     });
     $("bt-stop-pair").addEventListener("click", function () {
       api("/api/bluetooth/pair/stop", { method: "POST" })
         .then(function (res) {
-          showMsg($("bt-msg"), res.ok ? "Pairing stopped." : "Stop failed.", res.ok);
+          showMsg($("bt-msg"), res.ok ? "Discoverable mode stopped." : "Stop failed.", res.ok);
           if (res.ok) refreshBluetooth();
         });
     });
@@ -1093,6 +1718,24 @@
         .catch(function () { showMsg(msg, "DSP upload failed.", false); });
     });
 
+    function postBeep(enabled) {
+      var msg = $("system-msg");
+      return api("/api/audio/beep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: enabled })
+      }).then(function (res) {
+        if (res.ok) {
+          showMsg(msg, enabled ? "Tone started." : "Tone stopped.", true);
+        } else {
+          showMsg(msg, "Beep failed: " + (res.d.error || res.d.reason || "unknown"), false);
+        }
+      }).catch(function () { showMsg(msg, "Beep request failed.", false); });
+    }
+
+    $("beep-on").addEventListener("click", function () { postBeep(true); });
+    $("beep-off").addEventListener("click", function () { postBeep(false); });
+
     $("save-preset").addEventListener("click", function () {
       var name = $("preset-name").value.trim();
       if (!name) {
@@ -1125,13 +1768,6 @@
     bindSlider("esp32-db", "esp32-db-out");
     bindSlider("stereo-level", "stereo-level-out");
     bindSlider("bass-level", "bass-level-out");
-
-    refreshTunerStatus();
-    refreshBluetooth();
-    loadPresets();
-    loadAudioProfile();
-
-    pollTimer = setInterval(refreshTunerStatus, 5000);
   </script>
 </body>
 </html>

@@ -60,6 +60,7 @@ struct TunerStatus {
     std::optional<std::uint32_t> dabPlayingServiceId;    ///< Last played DAB service.
     std::optional<std::uint32_t> dabPlayingComponentId;  ///< Last played DAB component.
     std::optional<FrequencyKHz> fmFrequency; ///< Tuned FM centre frequency.
+    std::optional<FrequencyKHz> fmChipReadFrequency; ///< FM_RSQ READFREQ (may lag commanded).
     std::optional<std::int8_t> fmRssiDbuV;  ///< FM RSSI in dBµV.
     std::optional<std::int8_t> fmSnrDb;     ///< FM SNR in dB.
     std::optional<bool> fmStereo;           ///< FM stereo pilot detected.

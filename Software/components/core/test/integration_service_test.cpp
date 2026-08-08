@@ -15,6 +15,7 @@
 #include "core/FrequencyKHz.hpp"
 #include "core/IDsp.hpp"
 #include "core/ISecureStore.hpp"
+#include "core/BtSpeakerTarget.hpp"
 #include "core/StationName.hpp"
 #include "core/TunerBand.hpp"
 #include "integration/IntegrationService.hpp"
@@ -65,6 +66,12 @@ public:
 
     [[nodiscard]] std::expected<void, core::DspError> setEqBand(
         core::EqBandIndex, core::GainDb, core::FrequencyHz, float) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> setBeepEnabled(
+        bool) override
     {
         return {};
     }
@@ -217,9 +224,60 @@ public:
         return {};
     }
 
+    [[nodiscard]] bool hasBtSpeakerTarget() const override
+    {
+        return btSpeaker_.has_value();
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError> saveBtSpeakerTarget(
+        const core::BtSpeakerTarget& target) override
+    {
+        btSpeaker_ = target;
+        return {};
+    }
+
+    [[nodiscard]] std::expected<core::BtSpeakerTarget, core::StoreError>
+    loadBtSpeakerTarget() const override
+    {
+        if (!btSpeaker_) {
+            return std::unexpected(core::StoreError::NotFound);
+        }
+        return *btSpeaker_;
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError> clearBtSpeakerTarget()
+        override
+    {
+        btSpeaker_.reset();
+        return {};
+    }
+
+    [[nodiscard]] bool hasWebRadioConfig() const override
+    {
+        return webRadioJson_.has_value();
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    saveWebRadioConfigJson(std::string_view json) override
+    {
+        webRadioJson_ = std::string(json);
+        return {};
+    }
+
+    [[nodiscard]] std::expected<std::string, core::StoreError>
+    loadWebRadioConfigJson() const override
+    {
+        if (!webRadioJson_) {
+            return std::unexpected(core::StoreError::NotFound);
+        }
+        return *webRadioJson_;
+    }
+
 private:
     std::optional<std::string> stationJson_;
     std::optional<std::uint8_t> lastPresetIndex_;
+    std::optional<core::BtSpeakerTarget> btSpeaker_;
+    std::optional<std::string> webRadioJson_;
 };
 
 [[nodiscard]] core::Station makeFmStation(const char* name, std::uint32_t khz)

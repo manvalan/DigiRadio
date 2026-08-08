@@ -122,6 +122,25 @@ public:
 
     [[nodiscard]] std::expected<void, core::StoreError>
     clearLastPresetIndex() override;
+
+    [[nodiscard]] bool hasBtSpeakerTarget() const override;
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    saveBtSpeakerTarget(const core::BtSpeakerTarget& target) override;
+
+    [[nodiscard]] std::expected<core::BtSpeakerTarget, core::StoreError>
+    loadBtSpeakerTarget() const override;
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    clearBtSpeakerTarget() override;
+
+    [[nodiscard]] bool hasWebRadioConfig() const override;
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    saveWebRadioConfigJson(std::string_view json) override;
+
+    [[nodiscard]] std::expected<std::string, core::StoreError>
+    loadWebRadioConfigJson() const override;
 };
 
 } // namespace secure_store

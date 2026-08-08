@@ -18,7 +18,7 @@
 #include "esp_log.h"
 #include "esp_partition.h"
 
-#include <vector>
+#include <cstdlib>
 #include <memory>
 
 namespace adau1701 {
@@ -75,26 +75,60 @@ FlashDspProgramSource::loadProgram()
         return std::unexpected(core::DspProgramError::Empty);
     }
 
-    // Partizione non vuota: alloca il backing store con new(nothrow), cosi'
-    // un OOM ritorna nullptr invece di abortire (nessuna eccezione).
-    auto* raw = new (std::nothrow) std::uint8_t[part->size];
+    // Determine exact blob size by scanning DRAD write records before
+    // allocating — the full partition (256 KB) exceeds the available heap
+    // on ESP32-S3, and new(nothrow) still invokes __cxa_allocate_exception
+    // when exceptions are disabled, causing abort().
+
+    // Read DRAD header (12 bytes) to get write_count.
+    constexpr std::size_t kHdrSize = 12U;
+    std::uint8_t hdr[kHdrSize] = {};
+    if (esp_partition_read(part, 0, hdr, kHdrSize) != ESP_OK) {
+        return std::unexpected(core::DspProgramError::FlashReadFailed);
+    }
+    // Quick magic/version check (full validation done by parseDspProgramBlob).
+    if (hdr[0] != 'D' || hdr[1] != 'R' || hdr[2] != 'A' || hdr[3] != 'D'
+        || static_cast<std::uint16_t>(hdr[4] | (hdr[5] << 8)) != 1U) {
+        return std::unexpected(core::DspProgramError::FlashReadFailed);
+    }
+    const auto writeCount =
+        static_cast<std::uint16_t>(hdr[6] | (hdr[7] << 8));
+    if (writeCount == 0U || writeCount > 32U) {
+        return std::unexpected(core::DspProgramError::FlashReadFailed);
+    }
+
+    // Scan write record headers (4 bytes each) to compute total payload size.
+    std::size_t payloadSize = 0U;
+    for (std::uint16_t i = 0U; i < writeCount; ++i) {
+        std::uint8_t rec[4] = {};
+        if (esp_partition_read(part, kHdrSize + payloadSize, rec, 4U)
+            != ESP_OK) {
+            return std::unexpected(core::DspProgramError::FlashReadFailed);
+        }
+        const auto dataLen =
+            static_cast<std::uint16_t>(rec[2] | (rec[3] << 8));
+        if (dataLen == 0U || dataLen > 16384U) {
+            return std::unexpected(core::DspProgramError::FlashReadFailed);
+        }
+        payloadSize += 4U + dataLen;
+    }
+
+    const std::size_t totalSize = kHdrSize + payloadSize;
+
+    // Use malloc — avoids C++ exception machinery entirely (no nothrow workaround).
+    auto* raw = static_cast<std::uint8_t*>(::malloc(totalSize));
     if (raw == nullptr) {
-        ESP_LOGE(kTag, "dsp buffer alloc failed (%u byte)",
-                 static_cast<unsigned>(part->size));
+        ESP_LOGE(kTag, "dsp buffer alloc failed (%u bytes)",
+                 static_cast<unsigned>(totalSize));
         return std::unexpected(core::DspProgramError::FlashReadFailed);
     }
-    std::unique_ptr<std::uint8_t[]> guard(raw);
+    std::unique_ptr<std::uint8_t, decltype(&::free)> guard(raw, ::free);
 
-    if (esp_partition_read(part, 0, raw, part->size) != ESP_OK) {
+    if (esp_partition_read(part, 0, raw, totalSize) != ESP_OK) {
         return std::unexpected(core::DspProgramError::FlashReadFailed);
     }
 
-    std::span<const std::uint8_t> view(raw, part->size);
-    if (partitionLooksEmpty(view)) {
-        return std::unexpected(core::DspProgramError::Empty);
-    }
-
-    return core::parseDspProgramBlob(view);
+    return core::parseDspProgramBlob({raw, totalSize});
 }
 
 std::expected<void, core::DspProgramError>

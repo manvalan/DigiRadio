@@ -18,6 +18,7 @@
 #pragma once
 
 #include "core/StoreError.hpp"
+#include "core/BtSpeakerTarget.hpp"
 #include "core/WifiCredentials.hpp"
 
 #include <cstdint>
@@ -210,6 +211,97 @@ public:
      */
     [[nodiscard]] virtual std::expected<void, StoreError>
     clearLastPresetIndex() = 0;
+
+    /**
+     * @brief    hasBtSpeakerTarget — check whether a default speaker MAC is stored.
+     *
+     * @dname    hasBtSpeakerTarget
+     * @return   true when loadBtSpeakerTarget would succeed.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] virtual bool hasBtSpeakerTarget() const = 0;
+
+    /**
+     * @brief    saveBtSpeakerTarget — persist default A2DP speaker MAC/name.
+     *
+     * @dname    saveBtSpeakerTarget
+     * @param    target  Validated MAC and optional display name.
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate writes backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] virtual std::expected<void, StoreError>
+    saveBtSpeakerTarget(const BtSpeakerTarget& target) = 0;
+
+    /**
+     * @brief    loadBtSpeakerTarget — read stored default speaker.
+     *
+     * @dname    loadBtSpeakerTarget
+     * @return   BtSpeakerTarget on success, or StoreError.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] virtual std::expected<BtSpeakerTarget, StoreError>
+    loadBtSpeakerTarget() const = 0;
+
+    /**
+     * @brief    clearBtSpeakerTarget — erase stored default speaker.
+     *
+     * @dname    clearBtSpeakerTarget
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate clears backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] virtual std::expected<void, StoreError>
+    clearBtSpeakerTarget() = 0;
+
+    /**
+     * @brief    hasWebRadioConfig — check whether a streaming config is stored.
+     *
+     * @dname    hasWebRadioConfig
+     * @return   true when loadWebRadioConfigJson would succeed.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-08
+     */
+    [[nodiscard]] virtual bool hasWebRadioConfig() const = 0;
+
+    /**
+     * @brief    saveWebRadioConfigJson — persist serialised streaming config.
+     *
+     * @dname    saveWebRadioConfigJson
+     * @param    json  Output of core::serializeWebRadioConfigJson().
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate writes backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-08
+     */
+    [[nodiscard]] virtual std::expected<void, StoreError>
+    saveWebRadioConfigJson(std::string_view json) = 0;
+
+    /**
+     * @brief    loadWebRadioConfigJson — read stored streaming config.
+     *
+     * @dname    loadWebRadioConfigJson
+     * @return   JSON blob on success, or StoreError.
+     * @pubstate reads backing storage via implementation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-08
+     */
+    [[nodiscard]] virtual std::expected<std::string, StoreError>
+    loadWebRadioConfigJson() const = 0;
 };
 
 } // namespace core

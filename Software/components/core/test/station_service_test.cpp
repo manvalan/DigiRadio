@@ -171,9 +171,54 @@ public:
         return {};
     }
 
+    [[nodiscard]] bool hasBtSpeakerTarget() const override
+    {
+        return false;
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError> saveBtSpeakerTarget(
+        const core::BtSpeakerTarget&) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<core::BtSpeakerTarget, core::StoreError>
+    loadBtSpeakerTarget() const override
+    {
+        return std::unexpected(core::StoreError::NotFound);
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError> clearBtSpeakerTarget()
+        override
+    {
+        return {};
+    }
+
+    [[nodiscard]] bool hasWebRadioConfig() const override
+    {
+        return webRadioJson_.has_value();
+    }
+
+    [[nodiscard]] std::expected<void, core::StoreError>
+    saveWebRadioConfigJson(std::string_view json) override
+    {
+        webRadioJson_ = std::string(json);
+        return {};
+    }
+
+    [[nodiscard]] std::expected<std::string, core::StoreError>
+    loadWebRadioConfigJson() const override
+    {
+        if (!webRadioJson_) {
+            return std::unexpected(core::StoreError::NotFound);
+        }
+        return *webRadioJson_;
+    }
+
 private:
     std::optional<std::string> stationJson_;
     std::optional<std::uint8_t> lastPresetIndex_;
+    std::optional<std::string> webRadioJson_;
 };
 
 [[nodiscard]] core::Station makeFmStation(const char* name, std::uint32_t khz)

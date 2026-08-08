@@ -33,11 +33,11 @@ struct MixerState {
     GainDb si4684Right;  ///< Si4674 volume control, right channel.
     GainDb esp32Left;    ///< ESP32 volume control, left channel.
     GainDb esp32Right;   ///< ESP32 volume control, right channel.
-    GainDb mixLeft;      ///< St Mixer1 left blend level.
-    GainDb mixRight;     ///< St Mixer1 right blend level.
+    GainDb mixLeft;      ///< St Mixer1 ST0 (Si4684) input level.
+    GainDb mixRight;     ///< St Mixer1 ST1 (ESP32) input level.
 
     /**
-     * @brief    factoryDefault — unity gains on all paths (radio-first mix).
+     * @brief    factoryDefault — unity gains on all paths.
      *
      * @dname    factoryDefault
      * @return   MixerState with 0 dB on every control.
@@ -47,6 +47,18 @@ struct MixerState {
      * @date     2026-07-06
      */
     [[nodiscard]] static MixerState factoryDefault() noexcept;
+
+    /**
+     * @brief    radioFirst — Si4684 path open, ESP32 path muted.
+     *
+     * @dname    radioFirst
+     * @return   MixerState for FM/DAB tuner audio to the Bose I2S chain.
+     * @pubstate none
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-05
+     */
+    [[nodiscard]] static MixerState radioFirst() noexcept;
 };
 
 } // namespace core

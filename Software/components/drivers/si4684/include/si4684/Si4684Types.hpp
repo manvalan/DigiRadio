@@ -18,6 +18,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace si4684 {
@@ -91,11 +92,11 @@ struct Si4684SysState {
  * @date     2026-07-06
  */
 struct Si4684FmRsq {
-    core::FrequencyKHz frequency; ///< Tuned centre frequency in kHz.
-    std::int8_t rssiDbuV;         ///< RSSI in dBµV.
-    std::int8_t snrDb;            ///< SNR in dB.
-    bool valid;                   ///< RSQ valid flag from the chip.
-    bool stereo;                  ///< Stereo pilot detected.
+    std::optional<core::FrequencyKHz> frequency; ///< READFREQ when in FM band.
+    std::int8_t rssiDbuV;                      ///< RSSI in dBµV.
+    std::int8_t snrDb;                         ///< SNR in dB.
+    bool valid;                                ///< RSQ valid flag from the chip.
+    bool stereo;                               ///< Stereo pilot detected.
 };
 
 /**

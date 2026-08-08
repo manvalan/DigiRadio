@@ -75,8 +75,6 @@ bt1035::Bt1035Driver gBt1035(
     bt1035::Bt1035Pins{
         .uartTx = board::pins::Bt1035UartTx,
         .uartRx = board::pins::Bt1035UartRx,
-        .rtsGpio = board::pins::Bt1035Rts,
-        .ctsGpio = board::pins::Bt1035Cts,
         .resetGpio = board::pins::Bt1035Reset,
         .sysCtlGpio = board::pins::Bt1035SysCtl,
     });
@@ -121,6 +119,11 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
 
     if (auto audioResult = gAudioService.loadAndApply(); !audioResult) {
         ESP_LOGW(kTag, "ADAU1701 profile apply failed");
+    }
+    if (auto radioMix = gAudioService.applyRadioFirstMix(false); !radioMix) {
+        ESP_LOGW(kTag, "ADAU1701 radio-first mix failed");
+    } else {
+        ESP_LOGI(kTag, "ADAU1701 Si4684 input routed (radio-first mix)");
     }
 
     if (auto btResult = gBt1035.boot(); !btResult) {

@@ -1,7 +1,7 @@
 /*
- * File:           C:\Users\mikbi\Documents\Allegati\Desktop\DigiRadio\DigiRadio_IC_1_REG.h
+ * File:           C:\Users\mikbi\Documents\Allegati\Desktop\DigiRadio\DigiRadioModificato\DigiRadio_IC_1_REG.h
  *
- * Created:        Monday, July 6, 2026 2:41:28 PM
+ * Created:        Friday, August 7, 2026 3:19:11 AM
  * Description:    DigiRadio:IC 1 control register definitions.
  *
  * This software is distributed in the hope that it will be useful,
@@ -93,7 +93,7 @@
 /* RAMRegister  - Registers (IC 1) */
 #define REG_RAMREGISTER_IC_1_ADDR                 0x81D
 #define REG_RAMREGISTER_IC_1_BYTE                 1
-#define REG_RAMREGISTER_IC_1_VALUE                0x8
+#define REG_RAMREGISTER_IC_1_VALUE                0xB
 
 /* SerialOutRegister1  - Registers (IC 1) */
 #define REG_SERIALOUTREGISTER1_IC_1_ADDR          0x81E
@@ -286,7 +286,7 @@
 #define R13_EXTMEM_SPEED_IC_1_SHIFT               12
 
 /* RAMRegister (IC 1) */
-#define R14_RAM_MODULO_IC_1                       0x8    /* 1000b	[3:0] */
+#define R14_RAM_MODULO_IC_1                       0xB    /* 1011b	[3:0] */
 #define R14_RAM_MODULO_IC_1_MASK                  0xF
 #define R14_RAM_MODULO_IC_1_SHIFT                 0
 

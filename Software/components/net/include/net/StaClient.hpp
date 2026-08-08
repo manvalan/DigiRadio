@@ -20,6 +20,8 @@
 #include "core/WifiCredentials.hpp"
 #include "net/NetError.hpp"
 
+#include "esp_event.h"
+
 #include <expected>
 #include <string_view>
 
@@ -107,6 +109,8 @@ public:
 
 private:
     bool connected_;
+    esp_event_handler_instance_t wifiHandler_;
+    esp_event_handler_instance_t ipHandler_;
 };
 
 } // namespace net

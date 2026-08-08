@@ -220,6 +220,20 @@ public:
         core::EqBandIndex band, core::GainDb gain, core::FrequencyHz center,
         float q);
 
+    /**
+     * @brief    setBeepEnabled — gate the SigmaStudio Beep1 tone generator.
+     *
+     * @dname    setBeepEnabled
+     * @param    enabled  true unmutes Beep1, false mutes it.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload (ADDR_BEEP1_ENABLE).
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-07
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> setBeepEnabled(
+        bool enabled);
+
 private:
     [[nodiscard]] std::expected<void, Adau1701Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Adau1701Error> safeloadGain(

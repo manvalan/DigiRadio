@@ -1,7 +1,7 @@
 /*
  * File:           defines.h
  *
- * Created:        Monday, July 6, 2026 2:41:28 PM
+ * Created:        Friday, August 7, 2026 3:19:11 AM
  * Description:    DigiRadio IC default download data definitions.
  *
  * This software is distributed in the hope that it will be useful,

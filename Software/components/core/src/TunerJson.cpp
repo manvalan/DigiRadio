@@ -246,4 +246,74 @@ std::expected<SeekDirection, ParseError> parseTunerSeekJson(
     return std::unexpected(ParseError::InvalidJson);
 }
 
+std::expected<TunerScanRequest, ParseError> parseTunerScanJson(
+    std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+
+    const std::string_view band = extractJsonString(json, "band");
+    if (band.empty()) {
+        return std::unexpected(ParseError::MissingField);
+    }
+
+    TunerScanRequest req = {};
+    unsigned long maxSteps = 0U;
+    if (band == "fm") {
+        req.band = TunerBand::Fm;
+        req.maxSteps = 45U;
+    } else if (band == "dab") {
+        req.band = TunerBand::Dab;
+        req.maxSteps = 38U;
+    } else {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+
+    if (extractJsonUint(json, "max_steps", maxSteps)) {
+        if (maxSteps == 0U || maxSteps > 255U) {
+            return std::unexpected(ParseError::InvalidJson);
+        }
+        req.maxSteps = static_cast<std::uint8_t>(maxSteps);
+    }
+
+    const std::string_view name = extractJsonString(json, "name");
+    if (!name.empty()) {
+        req.nameFilter.assign(name.begin(), name.end());
+        for (char& ch : req.nameFilter) {
+            if (ch >= 'A' && ch <= 'Z') {
+                ch = static_cast<char>(ch - 'A' + 'a');
+            }
+        }
+    }
+    return req;
+}
+
+std::string serializeTunerScanJson(const TunerScanResult& result)
+{
+    std::ostringstream out;
+    out << "{\"status\":\"" << (result.found ? "found" : "not_found") << '"'
+        << ",\"band\":\"" << bandToken(result.band) << '"'
+        << ",\"steps\":" << result.stepsTried;
+
+    if (result.fmFrequency) {
+        out << ",\"frequency_khz\":" << result.fmFrequency->value();
+    }
+    if (result.dabFreqIndex) {
+        out << ",\"freq_index\":" << static_cast<unsigned>(*result.dabFreqIndex);
+    }
+    if (result.dabServiceId) {
+        out << ",\"service_id\":" << *result.dabServiceId;
+    }
+    if (result.dabComponentId) {
+        out << ",\"component_id\":" << *result.dabComponentId;
+    }
+    if (result.stationName) {
+        out << ",\"station_name\":";
+        appendJsonString(out, result.stationName->value());
+    }
+    out << '}';
+    return out.str();
+}
+
 } // namespace core

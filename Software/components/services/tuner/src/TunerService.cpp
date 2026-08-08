@@ -13,13 +13,122 @@
 
 #include "tuner/TunerService.hpp"
 
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#include <algorithm>
+#include <cctype>
+#include <string>
+
 namespace tuner {
 
 namespace {
+constexpr char kTag[] = "TunerSvc";
+constexpr int kDabTuneSettleMs = 600;
+/** FM scan step size (100 kHz spacing). */
+constexpr std::uint32_t kFmScanStepKhz = 100U;
+constexpr int kFmTuneSettleMs = 120;
+constexpr int kFmNamePollMs = 250;
+constexpr int kFmNamePollAttempts = 6;
+constexpr std::int8_t kMinFmScanRssiDbuV = 5;
+constexpr std::int8_t kMinFmScanSnrDb = 10;
+/** Max |READFREQ − commanded| for scan hit without RDS lock (kHz). */
+constexpr std::uint32_t kFmScanChipFreqSlackKhz = 150U;
+constexpr std::uint8_t kMinDabFicQuality = 35U;
+/** European FM band top used for scan/seek wrap (107.9 MHz). */
+constexpr std::uint32_t kFmScanMaxKhz = 107900U;
+/** European FM band bottom used for full-band scan (87.5 MHz). */
+constexpr std::uint32_t kFmScanMinKhz = 87500U;
+
+[[nodiscard]] core::FrequencyKHz fmScanStartFrequency(
+    core::FrequencyKHz current,
+    std::string_view nameFilter)
+{
+    if (!nameFilter.empty()) {
+        return current;
+    }
+    const std::uint32_t khz = current.value();
+    if (khz > kFmScanMaxKhz || khz < kFmScanMinKhz) {
+        return *core::FrequencyKHz::tryFromKhz(kFmScanMinKhz);
+    }
+    return current;
+}
 
 [[nodiscard]] core::FrequencyKHz defaultFmFrequency()
 {
     return *core::FrequencyKHz::tryFromKhz(101500U);
+}
+
+[[nodiscard]] std::string toLowerAscii(std::string_view text)
+{
+    std::string lowered;
+    lowered.reserve(text.size());
+    for (const char ch : text) {
+        lowered.push_back(static_cast<char>(std::tolower(
+            static_cast<unsigned char>(ch))));
+    }
+    return lowered;
+}
+
+[[nodiscard]] bool nameMatchesFilter(const std::optional<core::BroadcastLabel>& label,
+                                     std::string_view filterLower)
+{
+    if (filterLower.empty()) {
+        return true;
+    }
+    if (!label) {
+        return false;
+    }
+    const std::string haystack = toLowerAscii(label->value());
+    return haystack.find(filterLower) != std::string::npos;
+}
+
+[[nodiscard]] bool nameMatchesFilter(std::string_view label,
+                                     std::string_view filterLower)
+{
+    if (filterLower.empty()) {
+        return true;
+    }
+    const std::string haystack = toLowerAscii(label);
+    return haystack.find(filterLower) != std::string::npos;
+}
+
+[[nodiscard]] bool fmStatusUsableForScan(const core::TunerStatus& status,
+                                     std::uint32_t commandedKhz,
+                                     bool requireLocked)
+{
+    if (!status.fmRssiDbuV || *status.fmRssiDbuV < kMinFmScanRssiDbuV) {
+        return false;
+    }
+    if (requireLocked) {
+        return status.locked;
+    }
+    if (!status.fmSnrDb || *status.fmSnrDb < kMinFmScanSnrDb) {
+        return false;
+    }
+    if (status.fmChipReadFrequency) {
+        const std::uint32_t chipKhz = status.fmChipReadFrequency->value();
+        const std::uint32_t diff =
+            chipKhz > commandedKhz ? chipKhz - commandedKhz
+                                   : commandedKhz - chipKhz;
+        if (diff > kFmScanChipFreqSlackKhz) {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] core::TunerScanResult makeScanResult(
+    const core::TunerScanRequest& request,
+    std::uint16_t steps,
+    bool found)
+{
+    core::TunerScanResult result = {};
+    result.found = found;
+    result.band = request.band;
+    result.stepsTried = steps;
+    return result;
 }
 
 } // namespace
@@ -75,6 +184,160 @@ std::expected<core::FrequencyKHz, core::TunerError> TunerService::seekFm(
         lastFmFrequency_ = *result;
     }
     return result;
+}
+
+std::expected<core::TunerScanResult, core::TunerError>
+TunerService::scanForStation(const core::TunerScanRequest& request)
+{
+    const std::string_view nameFilter = request.nameFilter;
+
+    if (request.band == core::TunerBand::Fm) {
+        const core::FrequencyKHz scanStart =
+            fmScanStartFrequency(lastFmFrequency_, nameFilter);
+        if (auto tuned = tuneFm(scanStart); !tuned) {
+            return std::unexpected(tuned.error());
+        }
+
+        const std::uint32_t startFreq = lastFmFrequency_.value();
+        const bool requireLocked = !nameFilter.empty();
+        std::uint32_t freqKhz = startFreq;
+
+        ESP_LOGI(kTag, "FM scan start from %u kHz (max %u steps, name='%.*s')",
+         static_cast<unsigned>(startFreq), static_cast<unsigned>(request.maxSteps),
+         static_cast<int>(nameFilter.size()), nameFilter.data());
+
+        for (std::uint16_t step = 1U; step <= request.maxSteps; ++step) {
+            freqKhz += kFmScanStepKhz;
+            if (freqKhz > kFmScanMaxKhz) {
+                freqKhz = kFmScanMinKhz;
+            }
+            if (freqKhz == startFreq) {
+                ESP_LOGI(kTag, "FM scan wrapped to start frequency");
+                break;
+            }
+
+            const auto next = core::FrequencyKHz::tryFromKhz(freqKhz);
+            if (!next) {
+                return std::unexpected(core::TunerError::TuneFailed);
+            }
+            if (auto tuned = tuneFm(*next); !tuned) {
+                ESP_LOGW(kTag, "FM scan step %u tune failed at %u kHz (err=%d)",
+                    static_cast<unsigned>(step), static_cast<unsigned>(freqKhz),
+                    static_cast<int>(tuned.error()));
+                return std::unexpected(tuned.error());
+            }
+            vTaskDelay(pdMS_TO_TICKS(kFmTuneSettleMs));
+
+            std::optional<core::BroadcastLabel> stationName;
+            bool usable = false;
+            for (int attempt = 0; attempt < kFmNamePollAttempts; ++attempt) {
+                auto status = refreshStatus();
+                if (!status) {
+                    return std::unexpected(status.error());
+                }
+                if (attempt == 0) {
+                    ESP_LOGI(kTag,
+                             "FM scan step %u at %u kHz: valid=%d rssi=%d dBuV "
+                             "snr=%d dB",
+                             static_cast<unsigned>(step),
+                             static_cast<unsigned>(lastFmFrequency_.value()),
+                             static_cast<int>(status->locked),
+                             status->fmRssiDbuV ? *status->fmRssiDbuV : -128,
+                             status->fmSnrDb ? *status->fmSnrDb : -128);
+                }
+                if (!fmStatusUsableForScan(*status, freqKhz, requireLocked)) {
+                    break;
+                }
+                usable = true;
+                stationName = status->fmStationName;
+                if (nameFilter.empty()
+                    || nameMatchesFilter(stationName, nameFilter)) {
+                    break;
+                }
+                if (attempt + 1 < kFmNamePollAttempts) {
+                    vTaskDelay(pdMS_TO_TICKS(kFmNamePollMs));
+                }
+            }
+
+            if (!usable) {
+                continue;
+            }
+
+            if (nameFilter.empty() || nameMatchesFilter(stationName, nameFilter)) {
+                auto status = refreshStatus();
+                if (!status) {
+                    return std::unexpected(status.error());
+                }
+
+                core::TunerScanResult result = makeScanResult(request, step, true);
+                result.fmFrequency = status->fmFrequency;
+                result.stationName = status->fmStationName;
+                ESP_LOGI(kTag, "FM scan found %u kHz after %u steps",
+                    static_cast<unsigned>(result.fmFrequency ? result.fmFrequency->value() : 0U),
+                    static_cast<unsigned>(step));
+                return result;
+            }
+        }
+
+        ESP_LOGW(kTag, "FM scan: no station found");
+        return makeScanResult(request, request.maxSteps, false);
+    }
+
+    ESP_LOGI(kTag, "DAB scan start (max %u ensembles, name='%.*s')",
+             static_cast<unsigned>(request.maxSteps),
+             static_cast<int>(nameFilter.size()), nameFilter.data());
+
+    for (std::uint16_t step = 0U; step < request.maxSteps; ++step) {
+        const std::uint8_t freqIndex = static_cast<std::uint8_t>(step);
+        if (auto tuned = tuneDab(freqIndex); !tuned) {
+            return std::unexpected(tuned.error());
+        }
+        vTaskDelay(pdMS_TO_TICKS(kDabTuneSettleMs));
+
+        auto status = refreshStatus();
+        if (!status) {
+            return std::unexpected(status.error());
+        }
+        if (!status->locked || !status->dabFicQuality
+            || *status->dabFicQuality < kMinDabFicQuality) {
+            continue;
+        }
+
+        auto services = listDabServices();
+        if (!services || services->empty()) {
+            continue;
+        }
+
+        for (const core::TunerServiceEntry& service : *services) {
+            const std::string_view label(service.label.data());
+            if (!nameMatchesFilter(label, nameFilter)) {
+                continue;
+            }
+            if (auto played =
+                    playDabService(service.serviceId, service.componentId);
+                !played) {
+                continue;
+            }
+
+            core::TunerScanResult result =
+                makeScanResult(request, static_cast<std::uint16_t>(step + 1U), true);
+            result.dabFreqIndex = freqIndex;
+            result.dabServiceId = service.serviceId;
+            result.dabComponentId = service.componentId;
+            if (auto parsed = core::BroadcastLabel::tryFromChipBytes(label);
+                parsed) {
+                result.stationName = std::move(*parsed);
+            }
+            ESP_LOGI(kTag, "DAB scan found idx=%u svc=%u after %u steps",
+                     static_cast<unsigned>(freqIndex),
+                     static_cast<unsigned>(service.serviceId),
+                     static_cast<unsigned>(step + 1U));
+            return result;
+        }
+    }
+
+    ESP_LOGW(kTag, "DAB scan: no station found");
+    return makeScanResult(request, request.maxSteps, false);
 }
 
 std::expected<std::vector<core::TunerServiceEntry>, core::TunerError>

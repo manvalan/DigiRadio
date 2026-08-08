@@ -23,6 +23,7 @@
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
 #include "net/SetupWebServer.hpp"
+#include "net/SigmaStudioTcpServer.hpp"
 #include "net/SoftApHost.hpp"
 #include "net/StaClient.hpp"
 
@@ -53,6 +54,10 @@ namespace tuner {
 class TunerService;
 } // namespace tuner
 
+namespace webradio {
+class WebRadioService;
+} // namespace webradio
+
 namespace net {
 
 /**
@@ -60,8 +65,9 @@ namespace net {
  *
  * @dname    NetBootstrap
  * @return   n/a (type)
- * @pubstate Owns optional softAp_, optional sta_, and webServer_. Must
- *           outlive app_main; keep one instance alive for process lifetime.
+ * @pubstate Owns optional softAp_, optional sta_, webServer_, and
+ *           sigmaStudio_. Must outlive app_main; keep one instance alive
+ *           for process lifetime.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
@@ -79,6 +85,7 @@ public:
      * @param    stations        Station preset service for REST routes.
      * @param    integration     Application orchestration for preset recall.
      * @param    ota             Firmware OTA service for POST /api/system/ota.
+     * @param    webRadio        Streaming config for GET/POST /api/streaming.
      * @param    companionChips  Boot flags exposed on GET /api/health.
      * @param    deviceIdentity  EEPROM-derived SSID, hostname, and serial.
      * @return   NetBootstrap on success, or a NetError.
@@ -93,6 +100,7 @@ public:
           station::StationService& stations,
           integration::IntegrationService& integration,
           ota::OtaService& ota,
+          webradio::WebRadioService& webRadio,
           core::CompanionChipStatus companionChips,
           const core::DeviceIdentity& deviceIdentity);
 
@@ -106,12 +114,14 @@ public:
      * @param    softAp  Optional SoftAP mode host.
      * @param    sta     Optional STA client instance.
      * @param    webServer  HTTP server instance.
+     * @param    sigmaStudio  SigmaStudio TCP:8086 bridge instance.
      * @param    state   Initial network state.
      * @pubstate Transfers ownership of optional network resources.
      */
     NetBootstrap(std::optional<SoftApHost> softAp,
                  std::optional<StaClient> sta,
                  SetupWebServer webServer,
+                 SigmaStudioTcpServer sigmaStudio,
                  NetState state);
 
     /**
@@ -119,7 +129,7 @@ public:
      *
      * @dname    NetBootstrap
      * @param    other  Source instance; left empty after the move.
-     * @pubstate transfers softAp_, sta_, and webServer_ from other.
+     * @pubstate transfers softAp_, sta_, webServer_, and sigmaStudio_ from other.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -132,7 +142,7 @@ public:
      * @dname    operator=
      * @param    other  Source instance; left empty after the move.
      * @return   Reference to this instance.
-     * @pubstate transfers softAp_, sta_, and webServer_ from other.
+     * @pubstate transfers softAp_, sta_, webServer_, and sigmaStudio_ from other.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -143,7 +153,7 @@ public:
      * @brief    ~NetBootstrap — tear down network subsystems.
      *
      * @dname    ~NetBootstrap
-     * @pubstate destroys softAp_, sta_, and webServer_.
+     * @pubstate destroys softAp_, sta_, webServer_, and sigmaStudio_.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -166,6 +176,7 @@ private:
     std::optional<SoftApHost> softAp_;
     std::optional<StaClient> sta_;
     SetupWebServer webServer_;
+    SigmaStudioTcpServer sigmaStudio_;
     NetState state_;
 };
 
