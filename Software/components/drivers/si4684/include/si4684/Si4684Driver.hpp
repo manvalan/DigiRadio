@@ -203,6 +203,11 @@ public:
      *
      * @dname    tuneFm
      * @param    frequency  FM centre frequency in kHz.
+     * @param    antCap     FM_TUNE_FREQ ARG4/5 ANTCAP (AN649 Command 0x30).
+     *                      0 = automatic (varactor set from FE_VARM/VARB
+     *                      properties); 1-128 bypasses auto-tune and forces
+     *                      the on-chip antenna varactor directly (AN851
+     *                      Appendix A calibration procedure).
      * @return   Ok on success, or Si4684Error::WrongBand / TuneFailed.
      * @pubstate sends FM_TUNE_FREQ and waits for STC (AN649).
      *
@@ -210,7 +215,7 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, Si4684Error> tuneFm(
-        core::FrequencyKHz frequency);
+        core::FrequencyKHz frequency, std::uint8_t antCap = 0U);
 
     /**
      * @brief    seekFm — seek FM in the given direction.

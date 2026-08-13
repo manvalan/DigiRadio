@@ -15,6 +15,7 @@
 
 #include "core/AudioProfileJson.hpp"
 
+#include "esp_log.h"
 #include "nvs.h"
 
 #include <string>
@@ -23,6 +24,7 @@
 namespace secure_store {
 
 namespace {
+constexpr char kTag[] = "NvsAudioProfileStore";
 constexpr char kNamespace[] = "digiradio";
 constexpr char kProfileKey[] = "audio_profile_json";
 } // namespace
@@ -46,13 +48,23 @@ std::expected<void, core::StoreError> NvsAudioProfileStore::saveProfile(
     const std::string json = core::serializeAudioProfileJson(profile);
 
     nvs_handle_t handle = 0;
-    if (nvs_open(kNamespace, NVS_READWRITE, &handle) != ESP_OK) {
+    esp_err_t openErr = nvs_open(kNamespace, NVS_READWRITE, &handle);
+    if (openErr != ESP_OK) {
+        ESP_LOGW(kTag, "nvs_open failed (0x%x)", static_cast<unsigned>(openErr));
         return std::unexpected(core::StoreError::IoFailed);
     }
 
     esp_err_t err = nvs_set_str(handle, kProfileKey, json.c_str());
-    if (err == ESP_OK) {
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "nvs_set_str failed (0x%x) json_len=%u",
+                static_cast<unsigned>(err),
+                static_cast<unsigned>(json.size()));
+    } else {
         err = nvs_commit(handle);
+        if (err != ESP_OK) {
+            ESP_LOGW(kTag, "nvs_commit failed (0x%x)",
+                    static_cast<unsigned>(err));
+        }
     }
     nvs_close(handle);
 
