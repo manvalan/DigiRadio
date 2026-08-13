@@ -690,7 +690,7 @@ Si4684Band Si4684Driver::loadedBand() const noexcept
 }
 
 std::expected<void, Si4684Error> Si4684Driver::tuneFm(
-    core::FrequencyKHz frequency)
+    core::FrequencyKHz frequency, std::uint8_t antCap)
 {
     if (auto band = ensureBand(Si4684Band::Fm); !band) {
         return band;
@@ -703,8 +703,8 @@ std::expected<void, Si4684Error> Si4684Driver::tuneFm(
         0x00U,
         static_cast<std::uint8_t>(chipFreq & 0xFFU),
         static_cast<std::uint8_t>(chipFreq >> 8),
-        0x00U,
-        0x00U,
+        antCap, // ANTCAP[7:0] -- 0 = auto (FE_VARM/VARB), else forced value
+        0x00U,  // ANTCAP[15:8] -- range is 0-128, high byte always 0
         0x00U, // PROG_ID (AN649 ARG6; ignored when DIR_TUNE=0)
     };
     if (auto cmd = writeCommand(Command::FmTuneFreq, args, sizeof(args));
@@ -728,8 +728,10 @@ std::expected<void, Si4684Error> Si4684Driver::tuneFm(
                      static_cast<unsigned>(readKhz));
         }
         ESP_LOGI(kTag,
-                 "FM tuned %u kHz rssi=%d dBuV snr=%d dB valid=%d readfreq=%u",
+                 "FM tuned %u kHz antcap=%u rssi=%d dBuV snr=%d dB valid=%d "
+                 "readfreq=%u",
                  static_cast<unsigned>(frequency.value()),
+                 static_cast<unsigned>(antCap),
                  static_cast<int>(rsq->rssiDbuV),
                  static_cast<int>(rsq->snrDb),
                  static_cast<int>(rsq->valid),

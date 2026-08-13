@@ -13,9 +13,13 @@
 
 #include "audio/AudioService.hpp"
 
+#include "esp_log.h"
+
 namespace audio {
 
 namespace {
+
+constexpr char kTag[] = "AudioService";
 
 [[nodiscard]] core::AudioProfile profileForHardware(
     const core::AudioProfile& profile) noexcept
@@ -59,7 +63,11 @@ std::expected<void, core::StoreError> AudioService::persistProfile() const
     if (store_ == nullptr) {
         return {};
     }
-    return store_->saveProfile(profile_);
+    auto saved = store_->saveProfile(profile_);
+    if (!saved) {
+        ESP_LOGW(kTag, "persistProfile: NVS save failed");
+    }
+    return saved;
 }
 
 std::expected<void, core::StoreError> AudioService::applyProfileToDsp(
@@ -67,6 +75,7 @@ std::expected<void, core::StoreError> AudioService::applyProfileToDsp(
 {
     const core::AudioProfile hardware = profileForHardware(profile);
     if (auto applied = dsp_.applyProfile(hardware); !applied) {
+        ESP_LOGW(kTag, "applyProfileToDsp: DSP safeload failed");
         return std::unexpected(core::StoreError::IoFailed);
     }
     return {};

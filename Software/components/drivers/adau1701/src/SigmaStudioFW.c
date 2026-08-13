@@ -16,6 +16,7 @@
 #include "driver/i2c_master.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 #include <string.h>
 
@@ -135,9 +136,22 @@ static int sigma_i2c_write(unsigned int reg, const unsigned char* data,
     buf[0] = (unsigned char)((reg >> 8) & 0xFFU);
     buf[1] = (unsigned char)(reg & 0xFFU);
     memcpy(buf + 2U, data, length);
-    const esp_err_t err =
-        i2c_master_transmit(s_dev, buf, (size_t)(2U + length), 1000);
-    return err == ESP_OK ? 0 : -1;
+
+    // Long safeload sequences (e.g. one EQ band = 5 params x 2 writes +
+    // trigger) chain dozens of back-to-back transactions; a single
+    // transient NACK anywhere in that chain used to abort the whole
+    // sequence. Retry a few times before giving up -- cheap and matches
+    // how every other bus driver in this codebase tolerates bus noise.
+    static const int kMaxAttempts = 3;
+    esp_err_t err = ESP_FAIL;
+    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+        err = i2c_master_transmit(s_dev, buf, (size_t)(2U + length), 1000);
+        if (err == ESP_OK) {
+            return 0;
+        }
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
+    return -1;
 }
 
 /*

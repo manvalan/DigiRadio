@@ -241,12 +241,14 @@ namespace adau1701
                                          mixer.si4684Right);
             !result)
         {
+            ESP_LOGW(kTag, "applyMixer: si4684 input safeload failed");
             return result;
         }
         if (auto result = setInputVolume(core::MixSource::Esp32, mixer.esp32Left,
                                          mixer.esp32Right);
             !result)
         {
+            ESP_LOGW(kTag, "applyMixer: esp32 input safeload failed");
             return result;
         }
         if (auto result =
@@ -254,10 +256,17 @@ namespace adau1701
                              mixer.mixLeft);
             !result)
         {
+            ESP_LOGW(kTag, "applyMixer: st0 safeload failed");
             return result;
         }
-        return safeloadGain(static_cast<unsigned>(ADDR_STMIXER1_ST1_VOLUME),
-                            mixer.mixRight);
+        if (auto result = safeloadGain(
+                static_cast<unsigned>(ADDR_STMIXER1_ST1_VOLUME), mixer.mixRight);
+            !result)
+        {
+            ESP_LOGW(kTag, "applyMixer: st1 safeload failed");
+            return result;
+        }
+        return {};
     }
 
     std::expected<void, Adau1701Error> Adau1701Driver::setEqBand(
@@ -344,6 +353,8 @@ namespace adau1701
             if (auto result = setEqBand(*index, band.gain, band.center, band.q);
                 !result)
             {
+                ESP_LOGW(kTag, "applyEq: band %u safeload failed",
+                        static_cast<unsigned>(i));
                 return result;
             }
         }
