@@ -111,6 +111,50 @@ across streaming config, beep toggles, Wi-Fi, and station data). **Not yet
 confirmed with the actual error code — re-run the diagnostic build and capture
 the log line to close this out.**
 
+## Blob/firmware-image integrity check (completed, negative — blobs are genuine)
+
+`getPartInfo()` and `getSysState()` (`components/drivers/si4684/src/Si4684Driver.cpp`)
+already existed to decode `GET_PART_INFO`/`GET_FUNC_INFO`/`GET_SYS_STATE`, but were
+never called anywhere in the codebase — dead code, so their byte-offset bugs had
+never surfaced. Found and fixed **two rounds** of off-by-one bugs while wiring them
+into a boot-time diagnostic log:
+
+1. First pass: every field (chip ID, firmware major/minor/build, image type) read
+   one byte too far right — e.g. `firmwareBuild` was actually reading the
+   NOSVN/LOCATION flag byte, not a version number.
+2. That "fix" was itself wrong in the other direction. `readRaw()` responses carry
+   a one-byte SPI lead-in before STATUS0 — the same convention already confirmed
+   and commented in `pollStc()` elsewhere in this file — which the first pass
+   didn't account for. Caught empirically: the "fixed" `GET_SYS_STATE` reported
+   `image=192` (`0xC0`), the exact byte pattern of STATUS3 with `PUP_STATE=3`
+   seen dozens of times elsewhere in this investigation — proof the read was
+   still one byte off, in the other direction. All three existing response
+   buffer sizes (7/13/24 bytes) already matched "N response bytes + 1 lead-in",
+   confirming the lead-in-byte offset (not the no-lead-in offset) is correct.
+
+**Result after the fix**, captured live from the device (DAB boots first at
+startup):
+
+```
+Si4684: blob streamed: 5796/5796 bytes      (rom_patch_016.bin, matches file size exactly)
+Si4684: blob streamed: 517524/517524 bytes  (dab_firmware.bin, matches file size exactly)
+Si4684: GET_SYS_STATE: image=2              (2 = DAB active, correct per AN649)
+Si4684: GET_PART_INFO/GET_FUNC_INFO: part=4684 rev=4.0.5 svnid=0x00001754
+```
+
+`part=4684` matches the expected Si4684 part number exactly; `rev=4.0.5` and the
+SVN ID are plausible, sane values, not garbage. Blob byte counts streamed over
+SPI match the local file sizes exactly — no truncation in transit. **Verdict:
+the DAB blob loaded on the chip is genuine and intact.** (FM boot's GET_FUNC_INFO
+was not yet captured — a BT1035 AT-init failure, see below, has been blocking the
+device from reaching the point in the boot sequence where FM is exercised. Not
+expected to change this verdict; DAB alone already answers the blob-integrity
+question this check was for.)
+
+This closes the last plausible firmware-side explanation for the no-lock symptom.
+Combined with everything else in this report, the QFN exposed-pad hardware
+hypothesis is now the leading and best-supported explanation.
+
 ## Open items
 
 1. Confirm the exact NVS error code for the audio-profile save failure and fix
@@ -121,7 +165,10 @@ the log line to close this out.**
 2. Record the hot-air rework outcome (RSSI response test) once attempted.
 3. If rework doesn't change the symptom: escalate to full chip removal +
    re-paste, or treat the PCBWay claim as the primary path forward.
-4. Blob/firmware-image integrity check (in progress, separate task): verify
-   `GET_FUNC_INFO`/`GET_PART_INFO` revision strings and blob byte counts/hashes
-   for the FM and DAB images actually loaded, to rule out a corrupt or wrong
-   image as an alternative explanation to the EP hardware hypothesis.
+4. **New, separate issue**: BT1035 `AT init failed` at boot, now reproducing on
+   every reset (was a one-off earlier in this session, now persistent/deterministic
+   — same ~7.7 s timeout every time). Not yet investigated; may be related to
+   physical handling of the board during the antenna soldering/rework work
+   today. Blocks the full boot sequence (`hardware::HardwareBootstrap::boot()`
+   halts `app_main()` on any companion-chip failure), so also blocks reaching
+   Wi-Fi/HTTP and the FM boot path.

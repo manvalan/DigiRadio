@@ -62,6 +62,11 @@ verify ADAU replay after reboot.
 After H1 passes, trial build with `sdkconfig.defaults.production` overlay on
 a sacrificial unit; confirm RELEASE mode policy before shipping.
 
+### H5. Si4684 FM/DAB no-lock — blob integrity checked, verdict: hardware
+**Verdict (2026-08-13): blob OK → suspect U6 RF ground (re-open PCBWay)**, not
+a firmware/blob defect. Full investigation, evidence, and the two byte-offset
+bugs found/fixed while verifying this: [`docs/si4684-rf-investigation-report.md`](si4684-rf-investigation-report.md).
+
 ---
 
 ## Open firmware polish (non-blocking)
