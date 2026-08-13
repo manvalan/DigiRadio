@@ -361,8 +361,13 @@ std::expected<void, Si4684Error> Si4684Driver::hostLoadBlob(
 
     heap_caps_free(tx);
     if (failed) {
+        ESP_LOGW(kTag, "blob stream failed: %u/%u bytes sent",
+                 static_cast<unsigned>(offset),
+                 static_cast<unsigned>(blob.size()));
         return std::unexpected(err);
     }
+    ESP_LOGI(kTag, "blob streamed: %u/%u bytes",
+             static_cast<unsigned>(offset), static_cast<unsigned>(blob.size()));
     return {};
 }
 
@@ -411,11 +416,20 @@ std::expected<Si4684PartInfo, Si4684Error> Si4684Driver::getPartInfo()
         return std::unexpected(rd.error());
     }
 
+    // readRaw() replies carry a one-byte SPI lead-in before STATUS0 -- the
+    // same convention already confirmed and documented in pollStc() below
+    // (raw[0]=lead-in, raw[1]=STATUS0 ... raw[4]=STATUS3, raw[5]=RESP4).
+    // The 24/13-byte buffer sizes above already account for this lead-in
+    // byte (23/12 real response bytes + 1); only the field indices need it.
+    // GET_PART_INFO (Cmd 0x08): PART[15:0] = RESP8/RESP9 = raw[9]/raw[10].
+    // GET_FUNC_INFO (Cmd 0x12): REVEXT/REVBRANCH/REVINT = RESP4/5/6 =
+    // fnRaw[5]/[6]/[7]; SVNID[31:0] = RESP8-11 = fnRaw[9..12] (little-endian).
     Si4684PartInfo info = {};
     info.chipId = readLe16(raw.data() + 9U);
     info.firmwareMajor = fnRaw[5];
     info.firmwareMinor = fnRaw[6];
     info.firmwareBuild = fnRaw[7];
+    info.svnId = readLe32(fnRaw.data() + 9U);
     return info;
 }
 
@@ -431,6 +445,10 @@ std::expected<Si4684SysState, Si4684Error> Si4684Driver::getSysState()
     if (auto rd = readRaw(raw); !rd) {
         return std::unexpected(rd.error());
     }
+    // readRaw() replies carry a one-byte SPI lead-in before STATUS0 (see the
+    // comment on getPartInfo() above): raw[0]=lead-in, raw[4]=STATUS3,
+    // raw[5]=RESP4=IMAGE. The 7-byte buffer above already accounts for it
+    // (STATUS0-3 + RESP4-5 + 1 lead-in = 7).
     Si4684SysState state = {};
     state.imageType = raw[5];
     return state;
@@ -676,6 +694,31 @@ std::expected<void, Si4684Error> Si4684Driver::boot(
 
     ESP_LOGI(kTag, "%s firmware booted",
              band == Si4684Band::Fm ? "FM" : "DAB");
+
+    // Blob integrity/identity diagnostic: confirms the loaded image is a
+    // real, complete Si4684 firmware (non-zero, sane version numbers) and
+    // which application actually took over the command interpreter after
+    // BOOT_CMD, rather than assuming it from what we intended to load.
+    if (auto sys = getSysState(); sys) {
+        ESP_LOGI(kTag, "GET_SYS_STATE: image=%u",
+                 static_cast<unsigned>(sys->imageType));
+    } else {
+        ESP_LOGW(kTag, "GET_SYS_STATE failed (err=%d)",
+                 static_cast<int>(sys.error()));
+    }
+    if (auto info = getPartInfo(); info) {
+        ESP_LOGI(kTag,
+                 "GET_PART_INFO/GET_FUNC_INFO: part=%u rev=%u.%u.%u "
+                 "svnid=0x%08x",
+                 static_cast<unsigned>(info->chipId),
+                 static_cast<unsigned>(info->firmwareMajor),
+                 static_cast<unsigned>(info->firmwareMinor),
+                 static_cast<unsigned>(info->firmwareBuild),
+                 static_cast<unsigned>(info->svnId));
+    } else {
+        ESP_LOGW(kTag, "GET_PART_INFO failed (err=%d)",
+                 static_cast<int>(info.error()));
+    }
     return {};
 }
 

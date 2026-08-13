@@ -62,9 +62,10 @@ enum class SeekBandWrap { Wrap, NoWrap };
  */
 struct Si4684PartInfo {
     std::uint16_t chipId;         ///< Part identifier from the chip.
-    std::uint8_t firmwareMajor;   ///< Loaded firmware major version.
-    std::uint8_t firmwareMinor;   ///< Loaded firmware minor version.
-    std::uint8_t firmwareBuild;   ///< Loaded firmware build number.
+    std::uint8_t firmwareMajor;   ///< Loaded function image major (REVEXT).
+    std::uint8_t firmwareMinor;   ///< Loaded function image minor (REVBRANCH).
+    std::uint8_t firmwareBuild;   ///< Loaded function image build (REVINT).
+    std::uint32_t svnId;          ///< GET_FUNC_INFO SVNID[31:0] build source.
 };
 
 /**
