@@ -49,6 +49,22 @@ void flushUartRx(int uartPort) noexcept
     }
 }
 
+// Diagnostic only: some BT1035 firmware prints an unsolicited boot banner on
+// UART right after the hardware RESET# pulse. Capturing it (or its absence)
+// tells us whether the UART link is electrically alive independent of the
+// AT command layer.
+void logRawUartBoot(int uartPort) noexcept
+{
+    std::array<std::uint8_t, 128> buf{};
+    const int n = uart_read_bytes(static_cast<uart_port_t>(uartPort), buf.data(),
+                                   buf.size(), pdMS_TO_TICKS(3500));
+    if (n <= 0) {
+        ESP_LOGW("Bt1035", "no spontaneous UART bytes after hardware reset");
+        return;
+    }
+    ESP_LOG_BUFFER_HEX("Bt1035", buf.data(), static_cast<std::size_t>(n));
+}
+
 constexpr int kBrEdrScanTimeoutMs = 90000;
 constexpr int kScanProgressLogMs = 5000;
 constexpr int kScanIdleCompleteMs = 4000;
@@ -945,16 +961,9 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         uartInstalled_ = true;
     }
 
+    logRawUartBoot(uartPort_);
     uart_flush_input(static_cast<uart_port_t>(uartPort_));
     vTaskDelay(pdMS_TO_TICKS(kPostUartMs));
-
-    // Best-effort: not gated on OK — some Feasycom firmware acks before
-    // rebooting, some resets silently. Either way, settle and flush before
-    // the mandatory init sequence below, which IS gated.
-    (void)transmitAndExpectOk(core::buildBt1035AtLine(core::Bt1035AtCommand::Reset));
-    vTaskDelay(pdMS_TO_TICKS(kPostResetMs));
-    uart_flush_input(static_cast<uart_port_t>(uartPort_));
-    ESP_LOGI(kTag, "AT+RESET sent");
 
     if (auto init = runInitSequence(); !init) {
         ESP_LOGE(kTag, "AT init failed");
