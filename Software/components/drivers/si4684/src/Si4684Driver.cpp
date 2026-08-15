@@ -742,8 +742,12 @@ std::expected<void, Si4684Error> Si4684Driver::tuneFm(
         return cleared;
     }
     const std::uint16_t chipFreq = kHzToChipFmFreq(frequency.value());
+    // writeCommand() always prepends a fixed ARG1=0x00 (DIR_TUNE=0,
+    // TUNE_MODE=0, INJECTION=0), so this array starts at ARG2 (AN649
+    // Command 0x30 table: ARG2=FREQ[7:0], ARG3=FREQ[15:8], ARG4=ANTCAP[7:0],
+    // ARG5=ANTCAP[15:8], ARG6=PROG_ID). Do not add a leading/trailing byte
+    // here or every field shifts into the wrong ARG slot.
     const std::uint8_t args[] = {
-        0x00U,
         static_cast<std::uint8_t>(chipFreq & 0xFFU),
         static_cast<std::uint8_t>(chipFreq >> 8),
         antCap, // ANTCAP[7:0] -- 0 = auto (FE_VARM/VARB), else forced value
@@ -1005,7 +1009,10 @@ std::expected<void, Si4684Error> Si4684Driver::tuneDab(std::uint8_t freqIndex)
     if (freqIndex >= kDefaultDabFrequencyKhz.size()) {
         return std::unexpected(Si4684Error::TuneFailed);
     }
-    const std::uint8_t args[] = {0x00U, freqIndex, 0x00U, 0x00U, 0x00U};
+    // writeCommand() always prepends a fixed ARG1=0x00 (INJECTION=0), so
+    // this array starts at ARG2 (AN649 Command 0xB0 table: ARG2=FREQ_INDEX,
+    // ARG3=0x00 fixed, ARG4=ANTCAP[7:0], ARG5=ANTCAP[15:8]).
+    const std::uint8_t args[] = {freqIndex, 0x00U, 0x00U, 0x00U};
     if (auto cmd = writeCommand(Command::DabTuneFreq, args, sizeof(args));
         !cmd) {
         return std::unexpected(Si4684Error::TuneFailed);
