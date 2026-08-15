@@ -261,3 +261,183 @@ after a soldering session, deterministic-then-intermittent) turned out to be
 100% software. Worth remembering as a caution against over-attributing
 intermittent symptoms to hardware without exhausting the code-path diff
 against a known-good commit first.
+
+## 2026-08-15 update: front-end network mismatch quantified — does not explain the total blackout
+
+Follow-up on the "Front-end network component mismatch" section above (board
+network `C13 33pF, L1 18nH, C14 2.7pF shunt, L3 120nH shunt, L2 22nH` vs
+AN851's reference `C1 33pF, L1 56nH, L2‖L3 120nH‖120nH`). The mismatch was
+flagged as a plausible contributor but never quantified. Real component
+coordinates were pulled directly from `DigiRadio.kicad_pcb` (RF1 at
+104.064,92.281; C13 111.811,92.281; L1 112.319,89.868; C14 114.097,91.519; L3
+115.621,89.868; L2 115.621,91.9; U6 121.717,90.122 — confirming the network's
+physical path and component identity), then modeled as a two-port ABCD chain
+(series C13 → series L1 → shunt bank C14‖L3‖L2 at the VHFI node), 50 Ω
+reference on both ports. This is a lumped-element approximation: it ignores
+PCB trace parasitics, the chip's real complex input impedance at VHFI, and
+antenna radiation — good for an order-of-magnitude comparison against the
+AN851 reference network, not an absolute number.
+
+(A pure EM/gerber-based simulation via `gerber2ems`/openEMS, initially
+considered, was ruled out for this specific question: per its own
+documentation, `gerber2ems` does not model discrete capacitors/inductors —
+"capacitors are not simulated... they can be approximated by shorting them
+using a trace" — which would misrepresent a network that is almost entirely
+discrete L/C components.)
+
+**Result** (S21 = insertion loss, S11 = return loss, board network vs AN851
+reference):
+
+| Band | Board S21 | Reference S21 | Board S11 | Reference S11 |
+|---|---|---|---|---|
+| FM 87.5–108 MHz | −7.1 to −9.8 dB | −1.2 to −1.5 dB | −0.5 to −0.9 dB | −5.4 to −6.3 dB |
+| DAB 174–240 MHz | −2.4 to −3.4 dB | −2.0 to −3.0 dB | −2.7 to −3.7 dB | −3.1 to −4.4 dB |
+
+**FM**: the board network carries a real 6–9 dB insertion-loss penalty over
+the reference network — worth correcting, but not by itself the kind of loss
+that silences a strong local FM station on a working receiver (10 dB of
+front-end loss is routinely tolerated).
+
+**DAB**: the board network is within ~0.3–1.4 dB of the reference network —
+essentially the same insertion loss. The mismatch is not a meaningful factor
+at DAB frequencies at all.
+
+**Conclusion**: since DAB shows the identical total-blackout signature as FM
+(RSSI/SNR/VALID all zero, unmoved by ~100 ANTCAP sweep values) despite the
+front-end mismatch being nearly irrelevant in that band, the network mismatch
+cannot be the primary cause of the observed failure on its own. This is a
+quantitative point in favor of the existing QFN exposed-pad hypothesis (§
+"Leading hypothesis" above), not a competing explanation — it narrows, rather
+than replaces, the open items in that section.
+
+## 2026-08-16 update: hot-air reflow attempted — no change to RF symptom
+
+The manual hot-air rework of U6 (re-melt only, no added solder/paste) flagged
+as "action pending" in the Leading hypothesis section was carried out: 100°C
+for 1 minute, then 220°C for 1.5 minutes, low airflow.
+
+Post-rework, on a fresh build/flash of the current firmware, FM tuning was
+retested at three frequencies (100.9, 95.0, 87.9 MHz) via `POST
+/api/tuner/tune`. Result: **byte-for-byte identical to every pre-rework
+capture in this report.**
+
+```
+Si4684: STC timeout: last poll spi_err=0 status=12 c0 00 00 c0 INTB=1
+Si4684: FM tune STC timeout at 95000 kHz — settling 150 ms
+Si4684: FM RSQ raw: 00 80 00 00 c0 00 00 00 00 00 00 00
+Si4684: FM tuned 95000 kHz antcap=0 rssi=0 dBuV snr=0 dB valid=0 readfreq=0
+```
+
+Same at 100.9 and 87.9 MHz. RSSI/SNR/VALID all zero, `locked=false`, no
+variation from the reflow.
+
+**Item 2/3 (rework outcome) in "Open items" above is now closed: attempted,
+no effect.** This does not rule out the QFN exposed-pad hypothesis — a
+re-melt without added paste/flux does not reliably resolve a voiding defect
+under an exposed pad (only adds heat to already-present solder, doesn't add
+volume where a void is) — but it does mean the easy, low-risk fix attempt is
+exhausted. Remaining paths are the non-destructive diagnostics proposed this
+session (mechanical flex test with live RSSI monitoring, controlled thermal
+stress test with live RSSI monitoring, NanoVNA S11 sweep at RF1 chip-on vs
+chip-off) or escalating to X-ray/full chip removal, neither attempted yet.
+
+## 2026-08-16 update: root cause found — FM_TUNE_FREQ/DAB_TUNE_FREQ argument-offset bug, not hardware
+
+**This overturns the QFN exposed-pad hypothesis above.** The actual cause of
+the months-long "total RF blackout" was a software bug in
+`Si4684Driver::tuneFm()`/`tuneDab()`, found by diffing our command
+construction against the official AN649 Command 0x30 (FM_TUNE_FREQ) and
+Command 0xB0 (DAB_TUNE_FREQ) argument tables directly (page-level read of
+`Hardware/DATASHEET/AN649.pdf`, not driver comments), prompted by cross-
+referencing against the independent `hitech95/si468x_dab_receiver` Linux
+driver.
+
+`Si4684Driver::writeCommand()` always prepends a fixed `ARG1 = 0x00` byte
+before whatever payload array is passed to it:
+
+```cpp
+buffer[0] = static_cast<std::uint8_t>(cmd);
+buffer[1] = 0x00U;                 // ARG1, always
+std::memcpy(buffer.data() + 2U, payload, length);   // ARG2 onward
+```
+
+`POWER_UP` and `HOST_LOAD` callers already accounted for this correctly
+(their arrays are written starting at ARG2). **`tuneFm()` and `tuneDab()`
+did not** — both built their argument arrays starting at what the author
+believed was ARG1, so every byte actually landed one slot to the right of
+where it belongs, with an extra unused byte tacked on the end:
+
+- **FM_TUNE_FREQ** (AN649 Command 0x30): real layout is ARG2=FREQ[7:0],
+  ARG3=FREQ[15:8], ARG4=ANTCAP[7:0], ARG5=ANTCAP[15:8], ARG6=PROG_ID. Our
+  code sent FREQ's low byte into ARG3 (should be the high byte), the actual
+  frequency low byte was always sent as a fixed `0x00`, and the ANTCAP value
+  landed in ARG5 (the *high* byte of a 0–128-range field) instead of ARG4.
+  **The chip was never told the requested frequency** — it received a
+  garbage FREQ value derived from shifted bytes, and the ANTCAP sweep
+  documented earlier in this report (~100 values, byte-identical results)
+  was sweeping the wrong byte entirely, which is exactly why it never
+  produced any variation.
+- **DAB_TUNE_FREQ** (AN649 Command 0xB0): same shift. `FREQ_INDEX` (real
+  ARG2) was always sent as `0x00`; the actual requested index landed in
+  ARG3, which the spec requires to be a fixed `0x00`.
+
+Fixed in `components/drivers/si4684/src/Si4684Driver.cpp`, `tuneFm()` and
+`tuneDab()`: removed the extra leading byte and the extra trailing byte so
+the arrays start at the real ARG2.
+
+**Result, live on hardware immediately after the fix** (`POST
+/api/tuner/tune`, no other change — same antenna, same board, no rework
+involved in this result):
+
+```
+Si4684: FM RSQ raw: 00 81 80 00 c0 00 02 2e 22 8d fb fd
+Si4684: FM tuned 87500 kHz antcap=0 rssi=-5 dBuV snr=-3 dB valid=0 readfreq=87500
+```
+
+RSSI/SNR now read real, varying, frequency-dependent values (e.g. −13 to +4
+dBuV across a 10-point FM sweep, peaking near a plausible local station at
+98.5 MHz) instead of the fixed `00 80 00 00 c0 00 00 00 00 00 00 00` /
+all-zero pattern seen in every capture in this report until now. **No STC
+timeout occurred in any tune or seek attempt after the fix** — every prior
+capture in this document logged one on every single attempt.
+
+`locked`/`valid` is still `false` in this test — expected with the
+board's improvised antenna and not yet investigated further; that is now an
+ordinary sensitivity/antenna question, not a "chip never responds to RF"
+question. DAB was retested at freq_index=10 with no station found
+(`fic_quality=0`, `cnr_db=0`) but also with no STC timeout — most likely no
+active multiplex at that index/location, to be swept properly with a real
+antenna as a follow-up, not evidence against the fix (which addresses the
+identical byte-shift bug in both commands).
+
+**What this means for the rest of the investigation**: the QFN exposed-pad
+hypothesis, the front-end network mismatch analysis, the hot-air reflow, and
+the mechanical flex test were all investigating a symptom that had a
+software cause. None of that work was wasted — the empirical rigor (ANTCAP
+sweep producing zero variation, DAB and FM failing identically) is exactly
+what made this bug's fingerprint recognizable once the actual command bytes
+were checked against the primary spec instead of trusted from driver
+comments. The lesson: `writeCommand()`'s implicit ARG1 prepend is an easy
+trap for future commands — any new caller must remember its array starts at
+ARG2, not ARG1.
+
+**Follow-up**: get a proper antenna connected and confirm an actual station
+lock (`valid=1`) on both FM and DAB; audit other `writeCommand()` call sites
+in `Si4684Driver.cpp` for the same off-by-one pattern (POWER_UP and
+HOST_LOAD were checked and are correct; FM_SEEK, property writes, and RSQ/
+DIGRAD status reads have not yet been re-verified against AN649 page text).
+
+**Unrelated finding from the same session, logged for completeness**: BT1035
+began failing boot deterministically (`no spontaneous UART bytes after
+hardware reset`, then `AT init failed`) starting from this session, on both
+the firmware build that predates and the one that includes the boot-sequence
+fix from `fd9d4ae` — ruling out that fix's absence as the cause. Extending
+the diagnostic listen window from 3.5 s to 12 s (temporary, reverted)
+produced zero bytes either way, confirming this is not the previously-fixed
+"banner arrives late" timing issue but a harder, total UART silence. The
+BT1035 module was not physically touched during the U6 rework. Cause not
+yet identified; unrelated to the Si4684 investigation (separate chip), but
+`HardwareBootstrap::boot()` was changed (`main/hardware_bootstrap.cpp`) to
+treat BT1035 boot failure as non-fatal rather than halting the whole device,
+so the rest of the system (Si4684 tuning, web UI, Wi-Fi) remains usable
+while this is investigated separately.

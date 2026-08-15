@@ -127,17 +127,18 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
     }
 
     if (auto btResult = gBt1035.boot(); !btResult) {
-        ESP_LOGE(kTag, "BT1035 boot failed");
-        return std::unexpected(HardwareBootError::Bt1035BootFailed);
-    }
+        ESP_LOGE(kTag, "BT1035 boot failed — continuing without Bluetooth");
+    } else {
+        if (auto nameResult =
+                gBt1035.setDeviceName(gDeviceIdentity.bluetoothName());
+            !nameResult) {
+            ESP_LOGW(kTag, "BT1035 device name set failed");
+        }
 
-    if (auto nameResult =
-            gBt1035.setDeviceName(gDeviceIdentity.bluetoothName()); !nameResult) {
-        ESP_LOGW(kTag, "BT1035 device name set failed");
-    }
-
-    if (auto reconnectResult = gBt1035.setAutoReconnect(3U); !reconnectResult) {
-        ESP_LOGW(kTag, "BT1035 auto-reconnect set failed");
+        if (auto reconnectResult = gBt1035.setAutoReconnect(3U);
+            !reconnectResult) {
+            ESP_LOGW(kTag, "BT1035 auto-reconnect set failed");
+        }
     }
 
     gReady = true;
