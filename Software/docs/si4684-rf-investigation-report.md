@@ -565,6 +565,42 @@ BT1035 → Bluetooth speaker) in this project's history. Remaining noise on
 top of the music is attributed to antenna quality, not yet independently
 confirmed with a proper antenna — flagged as follow-up, not closed.
 
+## 2026-08-16 update: DAB lock confirmed on 3 ensembles + response-offset bug
+
+With the tune fix in place, a full sweep of freq_index 0-35 found three real
+ensemble locks (fic_quality=100 on all three): index 5 (CNR 7 dB), index 22
+(CNR 15 dB), index 23 (CNR 20 dB, strongest). First confirmed DAB lock in
+this project's history.
+
+Chasing why `/api/tuner/services` returned `service_list_empty` even after
+30+ seconds on a solid lock found a second bug class, this time in
+**response parsing, not command construction**: `readFmRds()`,
+`readDabDigRadStatus()`'s `acquired` field, and `readDabEventStatus()` all
+read `raw[4]` expecting AN649's "RESP4" field, but this driver's own
+established convention elsewhere (`getPartInfo()`, and the already-correct
+`ficQuality`/`cnrDb` fields in `readDabDigRadStatus()`) is `raw[5]=RESP4`
+(`raw[0]`=SPI lead-in, `raw[1..4]`=STATUS0-3). Fixed all four call sites to
+the correct offset; `readFmRds()`'s `fifoUsed`/`blockA-D` fields were
+consequently also all off by one and fixed together with it.
+
+After the fix, `serviceListReady` now correctly gates open and
+`/api/tuner/services` returns real data instead of `service_list_empty` —
+but the entries themselves are still garbled (implausible `service_id`
+values, `component_id` fields that decode as ASCII spaces, e.g.
+`538976288 = 0x20202020`, mostly-empty labels). This points to a **third,
+separate bug** in `fetchDabServiceList()`'s service-list *body* parsing
+(the entry structure walked in the loop over `serviceCount`), not yet
+investigated — the DAB service list binary format is documented in AN649
+§7 "Digital Services User's Guide" (starts around page 418), not the
+command tables checked so far. Confirmed live: `POST /api/tuner/play` with
+one of these garbled IDs accepted (`{"status":"playing"}`) but produced no
+audio, consistent with a wrong service/component ID rather than a new
+audio-path regression.
+
+**Follow-up, not done this session**: fix `fetchDabServiceList()` entry
+parsing against AN649 §7; then confirm actual DAB audio playback end to
+end the same way FM was confirmed.
+
 **Unrelated finding from the same session, logged for completeness**: BT1035
 began failing boot deterministically (`no spontaneous UART bytes after
 hardware reset`, then `AT init failed`) starting from this session, on both
