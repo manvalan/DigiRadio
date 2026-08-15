@@ -158,6 +158,21 @@ namespace adau1701
             return replay;
         }
 
+        // SerialInputRegister (0x081F) override: bit3 IBP=1, matching the
+        // BCLK edge the Si4684's I2S output actually changes data on
+        // (compiled DSP program default is 0x00 = IBP=0, which produced
+        // pure static on a strong locked signal). ILP=1 was also tried
+        // (0x18) and made it worse (pure white noise again) — IBP alone
+        // (0x08) is the correct override, confirmed live: real, recognizable
+        // music instead of static/noise on a locked FM station.
+        {
+            const unsigned char deviceAddr =
+                static_cast<unsigned char>(pins_.i2cAddr7 << 1);
+            ADI_REG_TYPE serialInFix = 0x08U;
+            SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, 0x081FU, 1U,
+                                       &serialInFix);
+        }
+
         booted_ = true;
         ESP_LOGI(kTag, "SigmaStudio program loaded");
         return {};
