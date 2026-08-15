@@ -931,13 +931,16 @@ std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
         return std::unexpected(rd.error());
     }
 
+    // raw[0]=lead-in, raw[1..4]=STATUS0-3, raw[5]=RESP4 (established
+    // convention, see getPartInfo()/readDabDigRadStatus() comments) — every
+    // offset below is RESP-number relative to that, not raw[4].
     Si4684FmRdsStatus rds = {};
-    rds.received = (raw[4] & 0x01U) != 0U;
-    rds.fifoUsed = raw[10];
-    rds.blockA = readLe16(raw.data() + 12U);
-    rds.blockB = readLe16(raw.data() + 14U);
-    rds.blockC = readLe16(raw.data() + 16U);
-    rds.blockD = readLe16(raw.data() + 18U);
+    rds.received = (raw[5] & 0x01U) != 0U;
+    rds.fifoUsed = raw[11];
+    rds.blockA = readLe16(raw.data() + 13U);
+    rds.blockB = readLe16(raw.data() + 15U);
+    rds.blockC = readLe16(raw.data() + 17U);
+    rds.blockD = readLe16(raw.data() + 19U);
     return rds;
 }
 
@@ -1063,7 +1066,8 @@ Si4684Driver::readDabDigRadStatus()
     Si4684DabDigRadStatus status = {};
     status.ficQuality = raw[9];
     status.cnrDb = raw[10];
-    status.acquired = (raw[4] & 0x08U) != 0U;
+    // raw[5]=RESP4 (see readFmRds()); ACQINT is RESP4 bit3.
+    status.acquired = (raw[5] & 0x08U) != 0U;
     status.valid = status.ficQuality > 0U;
     return status;
 }
@@ -1085,9 +1089,10 @@ Si4684Driver::readDabEventStatus()
         return std::unexpected(rd.error());
     }
 
+    // raw[5]=RESP4 (see readFmRds()); SVRLISTINT is RESP4 bit0.
     Si4684DabEventStatus events = {};
-    events.serviceListReady = (raw[4] & 0x01U) != 0U;
-    events.reconfig = (raw[4] & 0x02U) != 0U;
+    events.serviceListReady = (raw[5] & 0x01U) != 0U;
+    events.reconfig = (raw[5] & 0x02U) != 0U;
     return events;
 }
 
