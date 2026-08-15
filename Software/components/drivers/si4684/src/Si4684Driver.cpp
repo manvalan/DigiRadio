@@ -247,9 +247,11 @@ std::expected<void, Si4684Error> Si4684Driver::clearFmStc()
     if (auto band = ensureBand(Si4684Band::Fm); !band) {
         return band;
     }
-    // AN649 FM_RSQ_STATUS ARG1 STCACK=1 clears a latched STCINT.
-    const std::uint8_t args[] = {0x01U};
-    if (auto cmd = writeCommand(Command::FmRsqStatus, args, sizeof(args));
+    // AN649 Command 0x32 FM_RSQ_STATUS has a single argument, ARG1, whose
+    // bit 0 is STCACK (clears a latched STCINT). No ARG2+ exists for this
+    // command.
+    constexpr std::uint8_t kStcAck = 0x01U;
+    if (auto cmd = writeCommand(Command::FmRsqStatus, nullptr, 0U, kStcAck);
         !cmd) {
         return cmd;
     }
@@ -295,14 +297,15 @@ std::expected<void, Si4684Error> Si4684Driver::readRaw(
 }
 
 std::expected<void, Si4684Error> Si4684Driver::writeCommand(
-    Command cmd, const std::uint8_t* payload, std::size_t length)
+    Command cmd, const std::uint8_t* payload, std::size_t length,
+    std::uint8_t arg1)
 {
     if (length + 2U > kSpiBufferSize) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
     std::array<std::uint8_t, kSpiBufferSize> buffer = {};
     buffer[0] = static_cast<std::uint8_t>(cmd);
-    buffer[1] = 0x00U;
+    buffer[1] = arg1;
     if (payload != nullptr && length > 0U) {
         std::memcpy(buffer.data() + 2U, payload, length);
     }
@@ -805,12 +808,14 @@ std::expected<core::FrequencyKHz, Si4684Error> Si4684Driver::seekFm(
     }
     const bool seekUp = direction == core::SeekDirection::Up;
     const bool wrapBand = wrap == SeekBandWrap::Wrap;
-    // AN649 FM_SEEK_START: ARG1=tune/injection, ARG2=SEEKUP|WRAP.
+    // AN649 Command 0x31 FM_SEEK_START: ARG1=tune_mode/injection (default
+    // 0x00 here), ARG2=SEEKUP|WRAP, ARG3=0x00 fixed, ARG4=ANTCAP[7:0],
+    // ARG5=ANTCAP[15:8]. writeCommand() supplies ARG1, so this array starts
+    // at ARG2.
     const std::uint8_t seekFlags =
         static_cast<std::uint8_t>(((seekUp ? 1U : 0U) << 1U)
                                   | (wrapBand ? 1U : 0U));
     const std::uint8_t args[] = {
-        0x00U,
         seekFlags,
         0x00U,
         0x00U,
@@ -851,9 +856,9 @@ std::expected<Si4684FmRsq, Si4684Error> Si4684Driver::readFmRsq()
     if (auto band = ensureBand(Si4684Band::Fm); !band) {
         return std::unexpected(band.error());
     }
-    const std::uint8_t args[] = {0x00U};
-    if (auto cmd = writeCommand(Command::FmRsqStatus, args, sizeof(args));
-        !cmd) {
+    // AN649 Command 0x32 FM_RSQ_STATUS has a single argument, ARG1 (all
+    // ack/cancel bits 0 here — a plain status read). No ARG2+ exists.
+    if (auto cmd = writeCommand(Command::FmRsqStatus, nullptr, 0U); !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
     std::array<std::uint8_t, 23> raw = {};
@@ -904,8 +909,10 @@ std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
     if (auto band = ensureBand(Si4684Band::Fm); !band) {
         return std::unexpected(band.error());
     }
-    const std::uint8_t args[] = {0x01U};
-    if (auto cmd = writeCommand(Command::FmRdsStatus, args, sizeof(args));
+    // AN649 Command 0x34 FM_RDS_STATUS has a single argument, ARG1: bit0
+    // INTACK (clear RDSINT). No ARG2+ exists.
+    constexpr std::uint8_t kIntAck = 0x01U;
+    if (auto cmd = writeCommand(Command::FmRdsStatus, nullptr, 0U, kIntAck);
         !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
@@ -931,12 +938,13 @@ Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
         return std::unexpected(band.error());
     }
 
+    // AN649 Command 0x84 GET_DIGITAL_SERVICE_DATA has a single argument,
+    // ARG1: bit4 STATUS_ONLY, bit0 ACK. No ARG2+ exists.
     const std::uint8_t arg1 =
-        static_cast<std::uint8_t>((statusOnly ? 0x08U : 0x00U)
+        static_cast<std::uint8_t>((statusOnly ? 0x10U : 0x00U)
                                   | (ack ? 0x01U : 0x00U));
-    const std::uint8_t args[] = {arg1};
     if (auto cmd =
-            writeCommand(Command::GetDigitalServiceData, args, sizeof(args));
+            writeCommand(Command::GetDigitalServiceData, nullptr, 0U, arg1);
         !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
@@ -1029,9 +1037,11 @@ Si4684Driver::readDabDigRadStatus()
     if (auto band = ensureBand(Si4684Band::Dab); !band) {
         return std::unexpected(band.error());
     }
-    const std::uint8_t args[] = {0x01U};
+    // AN649 Command 0xB2 DAB_DIGRAD_STATUS has a single argument, ARG1:
+    // bit0 STC_ACK (clears the STC interrupt). No ARG2+ exists.
+    constexpr std::uint8_t kStcAck = 0x01U;
     if (auto cmd =
-            writeCommand(Command::DabDigRadStatus, args, sizeof(args));
+            writeCommand(Command::DabDigRadStatus, nullptr, 0U, kStcAck);
         !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
@@ -1054,9 +1064,9 @@ Si4684Driver::readDabEventStatus()
     if (auto band = ensureBand(Si4684Band::Dab); !band) {
         return std::unexpected(band.error());
     }
-    const std::uint8_t args[] = {0x00U};
-    if (auto cmd =
-            writeCommand(Command::DabGetEventStatus, args, sizeof(args));
+    // AN649 Command 0xB3 DAB_GET_EVENT_STATUS has a single argument,
+    // ARG1=EVENT_ACK (0 here — plain status read). No ARG2+ exists.
+    if (auto cmd = writeCommand(Command::DabGetEventStatus, nullptr, 0U);
         !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
@@ -1078,9 +1088,9 @@ Si4684Driver::fetchDabServiceList()
         return std::unexpected(band.error());
     }
 
-    const std::uint8_t args[] = {0x00U};
-    if (auto cmd = writeCommand(Command::GetDigitalServiceList, args,
-                                sizeof(args));
+    // AN649 Command 0x80 GET_DIGITAL_SERVICE_LIST has a single argument,
+    // ARG1=SERTYPE (0 = complete DAB/DMB service list). No ARG2+ exists.
+    if (auto cmd = writeCommand(Command::GetDigitalServiceList, nullptr, 0U);
         !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
@@ -1139,8 +1149,10 @@ std::expected<void, Si4684Error> Si4684Driver::startDabService(
     if (auto band = ensureBand(Si4684Band::Dab); !band) {
         return band;
     }
+    // AN649 Command 0x81 START_DIGITAL_SERVICE: ARG1=SERTYPE, ARG2-3=0x00
+    // fixed, ARG4-7=SERVICE_ID (LE32), ARG8-11=COMP_ID (LE32). writeCommand()
+    // supplies ARG1 (=type), so this array starts at ARG2.
     const std::uint8_t args[] = {
-        static_cast<std::uint8_t>(type),
         0x00U,
         0x00U,
         static_cast<std::uint8_t>(serviceId & 0xFFU),
@@ -1152,8 +1164,8 @@ std::expected<void, Si4684Error> Si4684Driver::startDabService(
         static_cast<std::uint8_t>((componentId >> 16) & 0xFFU),
         static_cast<std::uint8_t>(componentId >> 24),
     };
-    if (auto cmd =
-            writeCommand(Command::StartDigitalService, args, sizeof(args));
+    if (auto cmd = writeCommand(Command::StartDigitalService, args,
+                                sizeof(args), static_cast<std::uint8_t>(type));
         !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
@@ -1168,8 +1180,10 @@ std::expected<void, Si4684Error> Si4684Driver::stopDabService(
     if (auto band = ensureBand(Si4684Band::Dab); !band) {
         return band;
     }
+    // AN649 Command 0x82 STOP_DIGITAL_SERVICE: same layout as
+    // START_DIGITAL_SERVICE (ARG1=SERTYPE, ARG2-3=0x00 fixed, ARG4-7=
+    // SERVICE_ID LE32, ARG8-11=COMP_ID LE32).
     const std::uint8_t args[] = {
-        static_cast<std::uint8_t>(type),
         0x00U,
         0x00U,
         static_cast<std::uint8_t>(serviceId & 0xFFU),
@@ -1181,8 +1195,8 @@ std::expected<void, Si4684Error> Si4684Driver::stopDabService(
         static_cast<std::uint8_t>((componentId >> 16) & 0xFFU),
         static_cast<std::uint8_t>(componentId >> 24),
     };
-    if (auto cmd =
-            writeCommand(Command::StopDigitalService, args, sizeof(args));
+    if (auto cmd = writeCommand(Command::StopDigitalService, args,
+                                sizeof(args), static_cast<std::uint8_t>(type));
         !cmd) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
