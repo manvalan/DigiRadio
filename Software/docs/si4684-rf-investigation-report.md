@@ -421,11 +421,75 @@ comments. The lesson: `writeCommand()`'s implicit ARG1 prepend is an easy
 trap for future commands — any new caller must remember its array starts at
 ARG2, not ARG1.
 
-**Follow-up**: get a proper antenna connected and confirm an actual station
-lock (`valid=1`) on both FM and DAB; audit other `writeCommand()` call sites
-in `Si4684Driver.cpp` for the same off-by-one pattern (POWER_UP and
-HOST_LOAD were checked and are correct; FM_SEEK, property writes, and RSQ/
-DIGRAD status reads have not yet been re-verified against AN649 page text).
+**Follow-up, completed same session**: audited every remaining
+`writeCommand()` call site in `Si4684Driver.cpp` against the AN649 page text
+(not driver comments) and found the identical bug pattern repeated in
+several more places — `writeCommand()`'s implicit `ARG1=0x00` prepend was
+either swallowing a real ARG1 value the caller needed, or shifting a whole
+multi-byte struct one slot right:
+
+- **`seekFm()` (FM_SEEK_START, 0x31)**: `SEEKUP`/`WRAP` (real ARG2) were
+  never sent — the chip always saw `ARG2=0x00`, so hardware seek always
+  searched down with no wrap regardless of what was requested. This is why
+  every seek in this report's earlier captures fell through to the
+  `hitech95`-inspired 100 kHz software-step fallback in `Si4684Tuner`
+  instead of using the chip's real seek.
+- **`startDabService()`/`stopDabService()` (0x81/0x82)**: `SERVICE_ID` and
+  `COMPONENT_ID` (8 bytes, real ARG4-11) were shifted one byte right into
+  ARG5-12, with `SERTYPE` landing in ARG2 (spec: fixed `0x00`) instead of
+  ARG1. Playing a specific DAB service would have started the wrong
+  service/component or failed outright — not yet observed in practice only
+  because tuning itself never worked before this session.
+- **`readDabServiceData()` (GET_DIGITAL_SERVICE_DATA, 0x84)**: same
+  ARG1-only shift as below, plus the `STATUS_ONLY` bit was coded as `0x08`
+  (bit 3) instead of the correct `0x10` (bit 4) per the AN649 bit table.
+- **`clearFmStc()`, `readFmRsq()`, `readFmRds()`, `fetchDabServiceList()`,
+  `readDabDigRadStatus()`, `readDabEventStatus()`**: all six commands
+  (FM_RSQ_STATUS 0x32, FM_RDS_STATUS 0x34, GET_DIGITAL_SERVICE_LIST 0x80,
+  DAB_DIGRAD_STATUS 0xB2, DAB_GET_EVENT_STATUS 0xB3) have **only ARG1** in
+  the AN649 spec — no ARG2 exists at all. Passing anything through the old
+  `writeCommand(cmd, payload, length)` two-argument form for these could
+  only ever send a spurious extra byte while the intended ARG1 flag (STCACK,
+  INTACK, SERTYPE, DIGRAD ack, EVENT_ACK) silently landed nowhere, since
+  `writeCommand()` had no way to set ARG1 to anything but a hardcoded
+  `0x00`. `clearFmStc()`'s STCACK never fired in this driver's entire
+  history — masked because `FM_TUNE_FREQ`/`FM_SEEK_START` already
+  auto-clear STC per their own AN649 documentation.
+
+Fixed by giving `writeCommand()` a fourth parameter, `std::uint8_t arg1 =
+0x00U` (default preserves every already-correct call site), and updating
+each caller above to either pass its flag byte through `arg1` with no
+payload (for the ARG1-only commands) or drop the erroneous leading array
+element (for the multi-arg commands whose ARG1 is legitimately always
+`0x00`, e.g. `seekFm`'s default tune mode).
+
+**Confirmed live after this round of fixes** — first `locked: true` and
+first hardware (non-software-fallback) seek in this entire investigation:
+
+```
+POST /api/tuner/tune  {"band":"fm","frequency_khz":87500}
+POST /api/tuner/seek  {"direction":"up"}
+-> {"frequency_khz":98300}
+GET /api/tuner/status
+-> {"locked":true,"fm":{"frequency_khz":98300,"rssi_dbuv":12,"snr_db":14,"stereo":false}}
+```
+
+The seek jumped directly from 87.5 to 98.3 MHz in one hardware search (not
+100 kHz software steps), landing on a real, locked station at a plausible
+RSSI/SNR. `bt1035` also came back to `true` in `/api/health` during this
+same session (cause not yet diagnosed — see the BT1035 section below;
+unrelated to this fix, separate chip).
+
+DAB was swept across 7 frequency-table indices (5, 10, 15, 20, 25, 30, 35)
+after the fix — `fic_quality`/`cnr_db` stayed at 0 on all of them, no lock
+yet. The DAB_TUNE_FREQ/DAB service-list/service-start fixes are verified
+correct against the AN649 spec text the same way the FM fix was, but do not
+yet have an empirical lock to point to, unlike FM. Not treated as a red
+flag — no DAB antenna tuning has been attempted yet, and the default
+European frequency table may not match active local multiplexes at these
+particular indices. **Next step**: sweep the full DAB frequency table (not
+just 7 samples) with a real antenna and confirm a lock the same way FM was
+confirmed.
 
 **Unrelated finding from the same session, logged for completeness**: BT1035
 began failing boot deterministically (`no spontaneous UART bytes after

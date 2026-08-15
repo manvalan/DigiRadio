@@ -408,7 +408,8 @@ private:
     [[nodiscard]] std::expected<void, Si4684Error> readRaw(
         std::span<std::uint8_t> buffer);
     [[nodiscard]] std::expected<void, Si4684Error> writeCommand(
-        Command cmd, const std::uint8_t* payload, std::size_t length);
+        Command cmd, const std::uint8_t* payload, std::size_t length,
+        std::uint8_t arg1 = 0x00U);
     [[nodiscard]] std::expected<void, Si4684Error> hostLoadBlob(
         const core::IFirmwareBlobReader& blob, std::size_t chunkPayload);
     [[nodiscard]] std::expected<void, Si4684Error> configureAfterBoot(
