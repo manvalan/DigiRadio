@@ -56,8 +56,11 @@ constexpr std::uint16_t kPropPinConfigEnable = 0x0800U;
 constexpr std::uint16_t kPropAudioVolume = 0x0300U;
 constexpr std::uint16_t kPropAudioMute = 0x0301U;
 constexpr std::uint16_t kPropAudioOutputConfig = 0x0302U;
-/** AN649 AUDIO_OUTPUT_CONFIG bit1 I2SOUTEN — required for I2S to ADAU1701. */
-constexpr std::uint16_t kSi4684I2sOutEnable = 0x0002U;
+/** AN649 PIN_CONFIG_ENABLE bit1 I2SOUTEN + bit15 INTBOUTEN — matches the
+ *  value used by hitech95/si468x_dab_receiver's working ALSA codec driver
+ *  (SI468X_PROP_I2S_ENABLED = 0x8002); INTBOUTEN alone (0x0002) was not
+ *  sufficient to produce audio on real hardware in this project. */
+constexpr std::uint16_t kSi4684I2sOutEnable = 0x8002U;
 /** Si4684 volume: 0=mute, 63=max (AN649 AUDIO_ANALOG_VOLUME). */
 constexpr std::uint8_t kSi4684VolumeMax = 63U;
 constexpr std::uint16_t kPropFmRdsConfig = 0x3C02U;
@@ -560,14 +563,21 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
         !rate) {
         return rate;
     }
-    if (auto pins = setProperty(kPropPinConfigEnable, 0x0003U); !pins) {
+    // AN649 Property 0x0800 PIN_CONFIG_ENABLE bit1=I2SOUTEN, bit0=DACOUTEN:
+    // "only I2SOUTEN or DACOUTEN can be enabled at a time. If both enabled,
+    // only analog audio output is enabled." We only wire I2S to the
+    // ADAU1701 (no DAC pins connected), so DACOUTEN must stay 0 or the chip
+    // silently falls back to analog-only and the I2S bus carries silence.
+    if (auto pins = setProperty(kPropPinConfigEnable, kSi4684I2sOutEnable);
+        !pins) {
         return pins;
     }
     if (auto mute = setProperty(kPropAudioMute, 0x0000U); !mute) {
         return mute;
     }
-    if (auto outCfg = setProperty(kPropAudioOutputConfig, kSi4684I2sOutEnable);
-        !outCfg) {
+    // AN649 Property 0x0302 AUDIO_OUTPUT_CONFIG bit0=MONO (all other bits
+    // reserved, must be 0). Not an I2S enable — that lives at 0x0800 above.
+    if (auto outCfg = setProperty(kPropAudioOutputConfig, 0x0000U); !outCfg) {
         return outCfg;
     }
     if (auto vol = setProperty(kPropAudioVolume, kSi4684VolumeMax); !vol) {

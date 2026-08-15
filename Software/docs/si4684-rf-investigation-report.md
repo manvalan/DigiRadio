@@ -491,6 +491,80 @@ particular indices. **Next step**: sweep the full DAB frequency table (not
 just 7 samples) with a real antenna and confirm a lock the same way FM was
 confirmed.
 
+## 2026-08-16 update: first real audio from Si4684 — ADAU1701 SerialInputRegister IBP polarity
+
+After the FM_TUNE_FREQ/DAB_TUNE_FREQ fix above produced a real lock
+(`locked:true`, RSSI +12 dBuV, SNR +13 dB on 98.3 MHz), the speaker was still
+silent. This section covers debugging that separate problem — not a Si4684
+RF issue, but the digital audio link from Si4684 into the ADAU1701.
+
+**Audit trail, each step verified against a primary source, not assumed:**
+
+1. Re-verified every Si4684 audio property against the AN649 page text:
+   `DIGITAL_IO_OUTPUT_SELECT`, `_SAMPLE_RATE`, `_FORMAT` (24-bit sample in
+   32-bit I2S slots), `AUDIO_MUTE` (unmuted), `AUDIO_OUTPUT_CONFIG` (was
+   incorrectly written with a stray bit — 0x0302's only real field is bit0
+   MONO, not an I2S enable; fixed to 0x0000). All correct.
+2. `PIN_CONFIG_ENABLE` (0x0800): bit1 I2SOUTEN, bit0 DACOUTEN — AN649 states
+   "only I2SOUTEN or DACOUTEN can be enabled at a time; if both enabled, only
+   analog output is enabled." The driver was writing `0x0003` (both bits) —
+   the chip was falling back to its unused analog DAC output on every boot.
+   Fixed to I2SOUTEN-only. Cross-checked against
+   `hitech95/si468x_dab_receiver`'s ALSA codec driver
+   (`sound/soc/codecs/si468x.c`): their working value is
+   `SI468X_PROP_I2S_ENABLED = 0x8002` (I2SOUTEN + INTBOUTEN, bit15) — not
+   just `0x0002`. Adopted `0x8002`.
+3. Traced the full ADAU1701 SigmaStudio netlist
+   (`Firmware/ADAU1701-Firmware/DigiRadio_NetList.xml`, generated export, not
+   guessed): Si4674 gain cell → St Mixer1 → PEQ1 → Master gain → Limiter →
+   Output, confirmed reachable and correctly addressed (`ADDR_SI4674`/
+   `ADDR_SI4674_1` come from the generated `DigiRadio_IC_1_PARAM.h`, not
+   hand-typed). Confirmed this whole downstream chain works independently —
+   both the Beep1 test tone and the web radio (ESP32) path were audible
+   through it before any Si4684 fix.
+4. Checked `MpCfg0`/`MpCfg1` (ADAU1701 pin-mux registers, `DigiRadio_IC_1_REG.h`)
+   against the ADAU1701 datasheet (`Hardware/DATASHEET/adau1701.pdf`): MP0,
+   MP1, MP4, MP5 (SDATA_IN0/1, INPUT_LRCLK, INPUT_BCLK) are correctly
+   configured as "Serial data port" function, not left as GPIO.
+5. Found a PCB net-name vs. silicon pin-name mismatch while tracing the
+   Si4684→ADAU1701 connection in `DigiRadio.kicad_pcb`: Si4684 (U6 pin 33)
+   lands on ADAU1701 (U9) physical pin 11, which the datasheet identifies as
+   MP0 (silicon channel SDATA_IN1) — the PCB net is *labeled* "SDATA_IN0",
+   which does not match the silicon function at that pin. Tested by
+   unmuting both the "Si4684" and "ESP32" mixer gain legs simultaneously
+   (`Si4674`/`ESP32` cells in the netlist) — this did not by itself fix
+   the silence, so the SigmaStudio channel assignment for `Input1` was not
+   actually the blocking issue (kept both legs unmuted as a harmless no-op
+   change of practice, not reverted).
+6. **Root cause**: `SerialInputRegister` (ADAU1701 register 0x081F,
+   `Table 49` in the datasheet), which controls the serial input port's
+   clock polarities — `ILP` (bit4, LRCLK polarity) and `IBP` (bit3, BCLK
+   edge the input data changes/is clocked on). This register is baked into
+   the compiled SigmaStudio DSP program export and is not something the
+   ESP32 firmware wrote at runtime before now; its compiled value is the
+   default `0x00` (ILP=0, IBP=0). Added a diagnostic runtime override in
+   `Adau1701Driver::boot()` (via `SIGMA_WRITE_REGISTER_BLOCK`, the same
+   primitive the DSP program loader itself uses) to test alternate
+   polarities live, without touching the SigmaStudio project:
+   - `IBP=1` alone (`0x08`): **real, recognizable music** instead of pure
+     static on a locked, strong FM signal — first time ever.
+   - `ILP=1` added on top (`0x18`): made it worse (pure white noise again).
+   - Back to `IBP=1` alone (`0x08`): music confirmed again, though
+     inconsistently — RSSI/SNR fluctuated significantly between otherwise
+     identical retunes (SNR seen anywhere from 2 to 14 dB on the same
+     station), consistent with a marginal/improvised antenna connection
+     rather than a firmware regression. Kept `IBP=1` as the fix.
+
+Fixed in `components/drivers/adau1701/src/Adau1701Driver.cpp`
+(`SerialInputRegister` override after DSP program load) and
+`components/drivers/si4684/src/Si4684Driver.cpp` (`PIN_CONFIG_ENABLE` =
+`0x8002`, `AUDIO_OUTPUT_CONFIG` = `0x0000`).
+
+**Status**: first confirmed end-to-end audio path (Si4684 → ADAU1701 →
+BT1035 → Bluetooth speaker) in this project's history. Remaining noise on
+top of the music is attributed to antenna quality, not yet independently
+confirmed with a proper antenna — flagged as follow-up, not closed.
+
 **Unrelated finding from the same session, logged for completeness**: BT1035
 began failing boot deterministically (`no spontaneous UART bytes after
 hardware reset`, then `AT init failed`) starting from this session, on both
