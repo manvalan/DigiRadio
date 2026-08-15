@@ -151,9 +151,9 @@ device from reaching the point in the boot sequence where FM is exercised. Not
 expected to change this verdict; DAB alone already answers the blob-integrity
 question this check was for.)
 
-This closes the last plausible firmware-side explanation for the no-lock symptom.
-Combined with everything else in this report, the QFN exposed-pad hardware
-hypothesis is now the leading and best-supported explanation.
+This closes the last plausible firmware-side explanation for the no-lock symptom
+**as far as DAB is concerned only** — see the 2026-08-14 update below for a
+correction to how far this actually generalizes to FM.
 
 ## Open items
 
@@ -162,13 +162,102 @@ hypothesis is now the leading and best-supported explanation.
    partition fragmentation — do **not** perform a full NVS erase without explicit
    confirmation, it would wipe Wi-Fi credentials, stations, and the saved BT
    speaker pairing).
-2. Record the hot-air rework outcome (RSSI response test) once attempted.
-3. If rework doesn't change the symptom: escalate to full chip removal +
-   re-paste, or treat the PCBWay claim as the primary path forward.
-4. **New, separate issue**: BT1035 `AT init failed` at boot, now reproducing on
-   every reset (was a one-off earlier in this session, now persistent/deterministic
-   — same ~7.7 s timeout every time). Not yet investigated; may be related to
-   physical handling of the board during the antenna soldering/rework work
-   today. Blocks the full boot sequence (`hardware::HardwareBootstrap::boot()`
-   halts `app_main()` on any companion-chip failure), so also blocks reaching
-   Wi-Fi/HTTP and the FM boot path.
+2. **PCBWay dispute closed (2026-08-14) without resolution.** PCBWay's response:
+   AOI passed, no X-ray performed (not requested by their process), and they
+   consider the assembly sound unless given photographic evidence — which, per
+   the QFN voiding research below, cannot exist for this failure mode by
+   construction. The user closed the dispute rather than continue arguing a
+   claim neither side can prove without an X-ray neither side is willing/able
+   to obtain (single unique board, international shipping not worth the cost
+   or risk). **PCBWay is no longer an active avenue.** Remaining options if
+   revisited: local X-ray access (university SMT lab, phone-repair/BGA rework
+   shop), or the hot-air reflow (still requires the user's explicit go-ahead —
+   not to be proposed proactively).
+3. Record the hot-air rework outcome (RSSI response test) if/when the user
+   decides to attempt it. Not proposed proactively — the user has explicitly
+   declined to touch/rework the board without a materially stronger reason
+   than what non-invasive diagnostics have produced so far.
+4. Visual tilt/float check (2026-08-13/14, two rounds, 8 photos: top-down and
+   genuine side-profile/raking-light): **negative** — U6 sits flush, solder
+   fillets look even on every edge photographed, no visible gap or lifted
+   corner. Rules out the "gross float from paste over-print" QFN failure mode
+   specifically (a real, documented failure mode found via web research this
+   session). Does **not** rule out sub-visible exposed-pad voiding, which is
+   undetectable by any optical method — confirmed via research into QFN
+   thermal-pad voiding literature (needs X-ray, see item 2).
+5. VA/VCORE analog+core supply rail measured directly at U3 (1.8 V regulator)
+   pin 5: **1.791 V**, within the Si4684 datasheet spec (1.71–2.0 V, typ.
+   1.8 V). Rail confirmed healthy; this was expected going in, since VA and
+   VCORE share the same physical net and VCORE was already known-good (the
+   chip boots and answers SPI). Rules out a gross power-rail fault as the
+   cause.
+6. LO-leakage test (second FM radio near the board while attempting a tune, to
+   detect whether the Si4684's local oscillator radiates near the tuned
+   frequency + IF) — proposed, **not yet performed/reported** by the user.
+   Still the only remaining test that can distinguish "RF synthesizer alive,
+   fails downstream" from "RF block itself never starts."
+
+## 2026-08-14 update: FM blob verified, BT1035 root-caused (software, not hardware)
+
+**FM blob integrity — closed.** Live capture, `POST /api/tuner/tune`
+`{"band":"fm","frequency_khz":95000}`:
+
+```
+Si4684: blob streamed: 531300/531300 bytes   (byte-perfect vs local file)
+Si4684: FM firmware booted
+Si4684: GET_SYS_STATE: image=1
+Si4684: GET_PART_INFO/GET_FUNC_INFO: part=4684 rev=5.1.3 svnid=0x000023b3
+```
+
+Genuine, byte-perfect, sane values — same verdict as DAB. Tuning at 101.5 MHz
+and 95.0 MHz both reproduce the identical no-lock signature already seen on
+DAB (STC timeout, `FM RSQ raw: 00 80 00 00 c0 00 00 00 00 00 00 00`, all
+metrics zero).
+
+**New finding**: DAB (rev 4.0.5) and FM (rev 5.1.3) are from two different
+Skyworks release generations roughly two years apart (DAB blob sourced from
+the PE5PVB community project, FM from a Skyworks eval CD) — confirmed via the
+official AN649 Table 1 revision history. Both are individually within
+ROM0.016's documented compatibility window, and each band load is an
+independent, exclusive HOST_LOAD (never concurrent), so this mismatch is very
+unlikely to be functionally relevant. Recorded because it was a real,
+previously-unverified gap, not because it changes the verdict.
+
+**This strengthens the hardware hypothesis**: two independently-sourced
+firmware images, different vintage, different origin, fail identically. A
+shared firmware bug across both is far less plausible than a shared hardware
+cause (front-end/EP) that doesn't care which application image is loaded.
+
+**BT1035 `AT init failed` — root-caused and fixed, was software, not hardware.**
+Contrary to the working hypothesis from earlier tonight (intermittent physical
+contact, correlated with the antenna soldering session), the actual cause was
+two regressions introduced by this session's own earlier commit
+(`6f7b6dd`), confirmed by diffing against the last commit explicitly logged as
+"all companion chips ready" (`6ca40f1`, 2026-08-05):
+
+1. A redundant software `AT+RESET` sent over UART immediately after the
+   hardware RESET# pulse — absent from the known-good baseline, which goes
+   straight from the hardware pulse into the init handshake. Landing this
+   command while the module is still processing the hardware reset risks
+   restarting its bring-up mid-sequence.
+2. A UART boot-banner diagnostic probe (added earlier this session to
+   distinguish "module silent" from "module garbled") with too short a listen
+   window (1500 ms) — live capture showed the module's real unsolicited boot
+   banner (`+VER=FSC-BT1035,V6.1.1,20240521`) arriving closer to 5 s, well
+   outside that window.
+
+Both fixed in `components/drivers/bt1035/src/Bt1035Driver.cpp`: removed the
+redundant `AT+RESET`, widened the listen window to 3500 ms. Result: 5/5 clean
+boots after the fix, versus roughly 1/13 before. No physical intervention,
+cleaning, or component was involved — a visual inspection of the BT1035
+module's castellated pads (zero risk, no rework) found nothing abnormal
+beyond minor flux residue, consistent with this being a pure software
+regression, not a solder defect.
+
+**Net effect on the Si4684 hypothesis**: none directly — BT1035 and Si4684 are
+separate chips/subsystems — but it's a useful calibration: a fault that
+*looked* exactly like a classic "physical handling damage" symptom (persistent
+after a soldering session, deterministic-then-intermittent) turned out to be
+100% software. Worth remembering as a caution against over-attributing
+intermittent symptoms to hardware without exhausting the code-path diff
+against a known-good commit first.
