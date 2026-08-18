@@ -43,6 +43,7 @@ enum class NetError {
     StoreSaveFailed,
     CredentialsNotFound,
     WifiScanFailed,
+    BleProvisioningFailed,
 };
 
 } // namespace net
