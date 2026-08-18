@@ -12,6 +12,7 @@ idf_component_register(
         "src/WifiScanJson.cpp"
         "src/EmbeddedBlobReader.cpp"
         "src/TunerJson.cpp"
+        "src/DspParamJson.cpp"
         "src/FrequencyKHz.cpp"
         "src/GainDb.cpp"
         "src/FrequencyHz.cpp"

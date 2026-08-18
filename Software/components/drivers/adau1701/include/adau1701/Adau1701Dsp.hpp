@@ -64,6 +64,9 @@ public:
     [[nodiscard]] std::expected<void, core::DspError> setBeepEnabled(
         bool enabled) override;
 
+    [[nodiscard]] std::expected<void, core::DspError> writeRawParam(
+        unsigned address, float value) override;
+
 private:
     [[nodiscard]] static core::DspError mapError(Adau1701Error error) noexcept;
 

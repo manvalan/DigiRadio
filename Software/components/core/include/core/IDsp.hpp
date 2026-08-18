@@ -145,6 +145,24 @@ public:
      */
     [[nodiscard]] virtual std::expected<void, DspError> setBeepEnabled(
         bool enabled) = 0;
+
+    /**
+     * @brief    writeRawParam — safeload any named Parameter RAM cell.
+     *
+     * @dname    writeRawParam
+     * @param    address  Parameter RAM address.
+     * @param    value    Coefficient in the SigmaStudio floating
+     *                    convention; converted to ADAU 8.23 fixpoint.
+     * @return   Ok on success, or DspError.
+     * @pubstate writes ADAU1701 parameter RAM via safeload. Not part of
+     *           AudioProfile — live-only, never persisted. No domain
+     *           validation; see Adau1701Driver::writeRawParam().
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-18
+     */
+    [[nodiscard]] virtual std::expected<void, DspError> writeRawParam(
+        unsigned address, float value) = 0;
 };
 
 } // namespace core
