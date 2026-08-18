@@ -97,6 +97,23 @@ HTTP status: \textbf{200 OK} on save success; \textbf{400 Bad Request} for
 parse/validation failures; \textbf{500 Internal Server Error} when NVS
 persistence fails.
 
+\apiendpoint{POST}{/api/wifi/scan}
+\label{sec:api-wifi-scan}
+
+Lists nearby access points via \texttt{net::WifiScanner::scanNearby()} (a
+blocking \texttt{esp\_wifi} scan). Empty request body.
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"networks":[{"ssid":"MyNetwork","rssi_dbm":-52,"auth":"wpa2","channel":6}]}
+\end{drcode}
+Deduplicated and sorted by signal strength; \texttt{ssid} may be empty for
+hidden networks.
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{500} with
+\texttt{\{"status":"error","reason":"scan\_failed"\}} on driver failure.
+
 \apiendpoint{GET}{/api/tuner/status}
 \label{sec:api-tuner-status}
 
@@ -193,6 +210,62 @@ seek failure.
 Use \texttt{"down"} for downward seek. Omit the body or send an empty JSON
 object (\texttt{\{\}}) for upward seek (backward compatible).
 \end{drnote}
+
+\apiendpoint{POST}{/api/tuner/scan}
+\label{sec:api-tuner-scan}
+
+Automatic search for a single station: repeats hardware seeks (FM) or
+walks ensemble indices (DAB) via \texttt{TunerService::scanForStation()},
+stopping early on the first usable hit, optionally filtered by name. This
+blocks the HTTP connection for the whole search (up to tens of seconds).
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"band":"fm","max_steps":45,"name":"BBC"}
+\end{drcode}
+\texttt{band} is required (\texttt{"fm"} or \texttt{"dab"}).
+\texttt{max\_steps} is optional, 1--255 (default 45 for FM, 38 for DAB).
+\texttt{name} is an optional case-insensitive substring match against the
+RDS PS name (FM) or DAB service label.
+\end{drnote}
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"status":"found","band":"fm","steps":12,"frequency_khz":97500,
+ "station_name":"BBC R1"}
+\end{drcode}
+\texttt{status} is \texttt{"found"} or \texttt{"not\_found"}. On a DAB hit,
+\texttt{freq\_index}, \texttt{service\_id}, and \texttt{component\_id}
+appear instead of \texttt{frequency\_khz}.
+\end{drnote}
+
+HTTP status: \textbf{200 OK} (including \texttt{"not\_found"} outcomes);
+\textbf{400} for invalid JSON; \textbf{409} on a hardware/driver failure
+mid-scan.
+
+\apiendpoint{POST}{/api/tuner/scan/full}
+\label{sec:api-tuner-scan-full}
+
+Sweeps the entire FM band with repeated hardware seeks
+(\texttt{TunerService::scanFullFmBand()}) and returns every usable station
+found, in ascending frequency order. Does \emph{not} save results as
+presets --- this only returns the list; use
+\texttt{POST /api/stations} (Section~\ref{sec:api-stations-post}) to save
+individual hits. Empty request body; blocks for the whole sweep (tens of
+seconds).
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"stations":[{"frequency_khz":97500,"rssi_dbuv":58,"snr_db":21,
+              "station_name":"BBC R1"},
+             {"frequency_khz":101500,"rssi_dbuv":44,"snr_db":15}]}
+\end{drcode}
+\texttt{station\_name} (RDS PS) is present only when decoded before the
+per-station poll budget ran out.
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{409} on a hardware/driver failure
+mid-sweep; \textbf{503} when the tuner service is unavailable.
 
 \apiendpoint{GET}{/api/audio/profile}
 \label{sec:api-audio-profile-get}
@@ -313,6 +386,120 @@ Adjusts bass emphasis via a PEQ overlay on bands 1--2 (100\,Hz /
 400\,Hz). Request and response schema match
 \texttt{POST /api/audio/stereo-enhance} (Section~\ref{sec:api-audio-stereo-enhance}).
 
+\apiendpoint{POST}{/api/audio/beep}
+\label{sec:api-audio-beep}
+
+Toggles the ADAU1701's own Beep1 tone generator cell directly (live
+safeload only --- not part of \texttt{AudioProfile}, never persisted to
+NVS). Used for signal-path bring-up/diagnostics without an ESP32-side
+tone source.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"enabled":true}
+\end{drcode}
+\end{drnote}
+
+Success response: \texttt{\{"status":"saved"\}}. HTTP status:
+\textbf{200 OK}; \textbf{400} for invalid/missing \texttt{enabled};
+\textbf{500} on safeload failure; \textbf{503} when the audio service is
+unavailable.
+
+\apiendpoint{GET}{/api/dsp/params}
+\label{sec:api-dsp-params}
+
+Lists every named Parameter RAM cell in the compiled SigmaStudio program
+(\texttt{adau1701::kAdau1701ParamTable}, generated from
+\texttt{DigiRadio\_IC\_1\_PARAM.h}). Read-only, no I/O with the chip.
+
+\begin{drnote}[Response schema (excerpt)]
+\begin{drcode}[JSON]
+{"params":[{"name":"DspGain1algorithm0dB1","address":0},
+           {"name":"Beep1osc1algorithm0freq","address":16}]}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}.
+
+\apiendpoint{PUT}{/api/dsp/param}
+\label{sec:api-dsp-param}
+
+Writes one Parameter RAM cell by name, looked up against the same table as
+\texttt{GET /api/dsp/params} and safeloaded via
+\texttt{audio::AudioService::writeRawParam()}. This is a live-only escape
+hatch onto \emph{any} SigmaStudio-exported cell --- the same trust level as
+SigmaStudio's own Remote Connection panel: no domain validation on the
+value, and it is never persisted or folded into \texttt{AudioProfile}. A
+reboot or \texttt{POST /api/audio/reset} discards the change.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"name":"DspGain1algorithm0dB1","value":-6.0}
+\end{drcode}
+\texttt{value} is the SigmaStudio floating coefficient, converted to
+8.23 fixed-point by \texttt{core::floatToFixpoint823()} before the
+safeload write.
+\end{drnote}
+
+Success response: \texttt{\{"status":"saved"\}}. HTTP status:
+\textbf{200 OK}; \textbf{400} for invalid JSON; \textbf{404} when
+\texttt{name} is not in the compiled program's cell table; \textbf{500}
+on safeload failure; \textbf{503} when the audio service is unavailable.
+
+\apiendpoint{PUT}{/api/stream/phone}
+\label{sec:api-stream-phone}
+
+Accepts a live audio push from a phone app and writes it straight to the
+shared I2S sink for as long as the connection stays open --- the same
+physical wire \texttt{POST /api/streaming}'s web radio player uses, guarded
+so only one producer holds it at a time. The body is raw interleaved
+16-bit little-endian PCM, stereo, 48\,kHz, with \emph{no} header or
+framing --- just samples. Send with chunked transfer encoding (no
+\texttt{Content-Length} required) and close the connection to stop
+streaming; the format is deliberately unencoded so the firmware side stays
+minimal and the encoding choice lives entirely in the app.
+
+HTTP status: \textbf{503} if the sink is unavailable; \textbf{409 Conflict}
+if the web radio stream (or another phone stream) currently owns the I2S
+sink; otherwise the connection is held open and a \textbf{200 OK} (empty
+body) is sent once the client closes it, or \textbf{500} if a write to the
+sink fails mid-stream.
+
+\apiendpoint{GET}{/api/streaming}
+\label{sec:api-streaming-get}
+
+Returns the current internet radio streaming configuration
+(\texttt{webradio::WebRadioService::config()}).
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"enabled":true,"url":"http://stream.example.com/radio.mp3"}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{503} when the web radio service is
+unavailable.
+
+\apiendpoint{POST}{/api/streaming}
+\label{sec:api-streaming-post}
+
+Sets the internet radio stream URL and enables/disables playback. Applied
+immediately to the live streaming task and persisted to NVS --- no reboot
+required. The stream is MP3 over HTTP, decoded on-device via libhelix and
+written to the same shared I2S sink as \texttt{PUT /api/stream/phone}.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"enabled":true,"url":"http://stream.example.com/radio.mp3"}
+\end{drcode}
+\texttt{url} must be \texttt{http://}, non-empty, and at most 200 bytes.
+\end{drnote}
+
+On success, returns the same shape as \texttt{GET /api/streaming}. HTTP
+status: \textbf{200 OK}; \textbf{400} for invalid JSON or URL;
+\textbf{500} when NVS persistence fails; \textbf{503} when the web radio
+service is unavailable.
+
 % ------------------------------------------------------------------
 % Bluetooth (Slice 7)
 % ------------------------------------------------------------------
@@ -359,6 +546,100 @@ Returns paired remotes from \texttt{AT+PLIST}, serialised by
 {"devices":[{"index":1,"mac":"001122334455","name":"Phone"}]}
 \end{drcode}
 \end{drnote}
+
+\apiendpoint{POST}{/api/bluetooth/scan}
+\label{sec:api-bluetooth-scan}
+
+Scans for nearby Bluetooth devices via \texttt{AT+DISC} on the BT1035
+(\texttt{bluetooth::BluetoothService::scanNearby()}). Blocks for the scan
+window.
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"seconds":45}
+\end{drcode}
+\texttt{seconds} is optional, 1--255 (default 45); malformed or
+out-of-range values fall back to the default rather than failing.
+\end{drnote}
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"devices":[{"index":1,"mac":"001122334455","name":"Bose SoundLink",
+             "rssi_dbm":-58}]}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{500} on a BT1035 driver error;
+\textbf{503} when the Bluetooth service is unavailable.
+
+\apiendpoint{POST}{/api/bluetooth/connect}
+\label{sec:api-bluetooth-connect}
+
+Connects A2DP to a specific remote MAC, optionally saving it as the
+default speaker for auto-reconnect on boot
+(\texttt{BluetoothService::connectTo()}).
+
+\begin{drnote}[Request schema]
+\begin{drcode}[JSON]
+{"mac":"001122334455","name":"Bose SoundLink","save":true}
+\end{drcode}
+\texttt{mac} is required (12 hex characters, no separators). \texttt{name}
+and \texttt{save} are optional; when \texttt{save} is true, \texttt{mac}
+and \texttt{name} are persisted the same way as
+\texttt{POST /api/bluetooth/speaker}.
+\end{drnote}
+
+Success response: \texttt{\{"status":"connected"\}}. HTTP status:
+\textbf{200 OK}; \textbf{400} when \texttt{mac} is missing/invalid;
+\textbf{500} on a BT1035 driver error; \textbf{503} when the Bluetooth
+service is unavailable.
+
+\apiendpoint{GET}{/api/bluetooth/speaker}
+\label{sec:api-bluetooth-speaker-get}
+
+Returns the saved default-speaker target used for boot-time auto-reconnect,
+if any.
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"configured":true,"mac":"001122334455","name":"Bose SoundLink"}
+\end{drcode}
+\texttt{\{"configured":false\}} when nothing is saved.
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{500} on an NVS read failure;
+\textbf{503} when the Bluetooth service is unavailable.
+
+\apiendpoint{POST}{/api/bluetooth/speaker}
+\label{sec:api-bluetooth-speaker-post}
+
+Saves (or replaces) the default-speaker target, without connecting
+immediately. Request schema matches
+\texttt{POST /api/bluetooth/connect} minus \texttt{save} (\texttt{mac}
+required, \texttt{name} optional).
+
+Success response: \texttt{\{"status":"saved"\}}. HTTP status:
+\textbf{200 OK}; \textbf{400} for invalid JSON; \textbf{500} on an NVS
+write failure; \textbf{503} when the Bluetooth service is unavailable.
+
+\apiendpoint{DELETE}{/api/bluetooth/speaker}
+\label{sec:api-bluetooth-speaker-delete}
+
+Clears the saved default-speaker target; boot-time auto-reconnect is
+skipped until a new one is saved. Success response:
+\texttt{\{"status":"cleared"\}}. HTTP status: \textbf{200 OK};
+\textbf{503} when the Bluetooth service is unavailable.
+
+\apiendpoint{POST}{/api/bluetooth/reconnect}
+\label{sec:api-bluetooth-reconnect}
+
+Manually retries A2DP connect to the saved default speaker
+(\texttt{BluetoothService::reconnectSavedSpeaker()}) --- the same call the
+firmware makes once at boot. Empty request body.
+
+Success response: \texttt{\{"status":"connected"\}}. HTTP status:
+\textbf{200 OK}; \textbf{500} on a BT1035 driver error or when no speaker
+is saved; \textbf{503} when the Bluetooth service is unavailable.
 
 \apiendpoint{POST}{/api/bluetooth/auto-reconnect}
 \label{sec:api-bluetooth-auto-reconnect}
@@ -423,6 +704,26 @@ integration)} consults \texttt{ISecureStore::hasWifiCredentials()}:
 
 This explicit \texttt{enum class NetState} replaces ad-hoc flags; see
 \texttt{net/NetState.hpp} in the source tree.
+
+\subsection{BLE provisioning (additive)}
+\label{sec:api-boot-ble-provisioning}
+
+Alongside the SoftAP, setup mode also starts ESP-IDF's own
+\texttt{wifi\_provisioning} manager over BLE
+(\texttt{net::ble\_provisioning::start()}), using the ESP32-S3's onboard
+BLE radio --- independent of the BT1035, which stays a separate UART-attached
+classic-Bluetooth A2DP module. This is the standard Espressif provisioning
+protocol (protocomm, Security1), so any generic ``ESP BLE Provisioning''
+app (iOS/Android) can join the device to Wi-Fi without first connecting to
+\texttt{DigiRadio-setup}; the proof-of-possession string is the device's
+own serial number (same source as the SoftAP SSID and
+\texttt{GET /api/health}'s \texttt{serialNumber}). It is not an HTTP
+endpoint --- there is no REST call here --- and it is strictly additive:
+if it fails to start, SoftAP setup keeps working exactly as before. On a
+successful join the received credentials are converted to the same
+\texttt{core::WifiCredentials} type and saved through the same
+\texttt{ISecureStore} that \texttt{POST /api/wifi} uses, then the device
+reboots into STA mode.
 
 \section{Credential storage (Slice~2)}
 \label{sec:api-storage}
