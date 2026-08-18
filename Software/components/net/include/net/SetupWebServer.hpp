@@ -24,6 +24,8 @@
 #include "net/NetState.hpp"
 
 #include "esp_http_server.h"
+#include <cstddef>
+#include <cstdint>
 #include <expected>
 
 namespace audio {
@@ -59,6 +61,31 @@ struct httpd_handle;
 namespace net {
 
 /**
+ * @brief    PhoneStreamSink — plain function pointers over the shared I2S
+ *           TX channel, so net/ (protocol-only) never includes I2S driver
+ *           headers directly; main/esp32_i2s_sink.cpp supplies them.
+ *
+ * @dname    PhoneStreamSink
+ * @return   n/a (type)
+ * @pubstate All members are free functions with process lifetime; no
+ *           per-instance state.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-18
+ */
+struct PhoneStreamSink {
+    /** Claim exclusive use of the sink; false if already held (e.g. by
+     *  the web radio stream). */
+    bool (*tryAcquire)();
+    /** Release a previously acquired claim. */
+    void (*release)();
+    /** Write one chunk of interleaved 16-bit stereo PCM @ 48 kHz.
+     *  @return false on an I2S write error. */
+    bool (*writePcm16Stereo)(const std::int16_t* interleaved,
+                             std::size_t frameCount);
+};
+
+/**
  * @brief    HttpRouteContext — dependencies injected into HTTP handlers.
  *
  * @dname    HttpRouteContext
@@ -78,6 +105,7 @@ struct HttpRouteContext {
     integration::IntegrationService* integration; ///< Preset recall orchestration.
     ota::OtaService* ota;                         ///< Firmware OTA streaming.
     webradio::WebRadioService* webRadio; ///< Streaming config REST routes.
+    PhoneStreamSink* phoneStream; ///< PUT /api/stream/phone I2S write-through.
     core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
     core::DeviceIdentity deviceIdentity;       ///< EEPROM-derived unit identity.
 };
@@ -158,6 +186,7 @@ public:
      * @param    integration     Application orchestration for preset recall.
      * @param    ota             Firmware OTA service for POST /api/system/ota.
      * @param    webRadio        Streaming config for GET/POST /api/streaming.
+     * @param    phoneStream     I2S write-through for PUT /api/stream/phone.
      * @param    companionChips  Boot flags for GET /api/health.
      * @param    deviceIdentity  Unit identity for /api/health serialNumber.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
@@ -174,6 +203,7 @@ public:
         integration::IntegrationService& integration,
         ota::OtaService& ota,
         webradio::WebRadioService& webRadio,
+        PhoneStreamSink& phoneStream,
         core::CompanionChipStatus companionChips,
         const core::DeviceIdentity& deviceIdentity);
 

@@ -86,6 +86,7 @@ public:
      * @param    integration     Application orchestration for preset recall.
      * @param    ota             Firmware OTA service for POST /api/system/ota.
      * @param    webRadio        Streaming config for GET/POST /api/streaming.
+     * @param    phoneStream     I2S write-through for PUT /api/stream/phone.
      * @param    companionChips  Boot flags exposed on GET /api/health.
      * @param    deviceIdentity  EEPROM-derived SSID, hostname, and serial.
      * @return   NetBootstrap on success, or a NetError.
@@ -101,6 +102,7 @@ public:
           integration::IntegrationService& integration,
           ota::OtaService& ota,
           webradio::WebRadioService& webRadio,
+          PhoneStreamSink& phoneStream,
           core::CompanionChipStatus companionChips,
           const core::DeviceIdentity& deviceIdentity);
 
