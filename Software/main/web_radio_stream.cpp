@@ -46,6 +46,12 @@ struct InputBuffer {
 {
     i2s_chan_config_t chanCfg =
         I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_SLAVE);
+    // Default (6 desc x 240 frames = 1440 frames = ~30 ms @ 48 kHz) leaves
+    // almost no headroom against network jitter in this single-task
+    // fetch+decode+play pipeline; widen it to ~120 ms so a brief HTTP
+    // stall doesn't immediately starve the I2S DMA and audibly crackle.
+    chanCfg.dma_desc_num = 12;
+    chanCfg.dma_frame_num = 480;
     i2s_chan_handle_t txHandle = nullptr;
     if (i2s_new_channel(&chanCfg, &txHandle, nullptr) != ESP_OK) {
         ESP_LOGE(kTag, "i2s_new_channel failed");
@@ -135,20 +141,31 @@ void refill(esp_http_client_handle_t client, InputBuffer& in)
     in.readPtr = in.data;
 }
 
-/** Convert one decoded PCM frame to the ADAU's 32-bit-slot I2S format. */
+/** Convert one decoded PCM frame to the ADAU's 32-bit-slot I2S format and
+ *  hand the whole frame to the driver in a single write. One
+ *  i2s_channel_write() call per sample (the previous approach) meant up to
+ *  1152 separate driver calls per MP3 frame, each with its own locking/DMA
+ *  bookkeeping overhead — a likely source of the reported stutter/crackle,
+ *  independent of network jitter. */
 void writeFrame(i2s_chan_handle_t tx, const std::int16_t* pcm,
                 int frameCount, int channels)
 {
-    std::int32_t out[2];
-    for (int i = 0; i < frameCount; ++i) {
+    // MAX_NGRAN(2) * MAX_NSAMP(576) = 1152 samples/channel, stereo => 2304.
+    static std::int32_t out[MAX_NGRAN * MAX_NSAMP * 2];
+    const int sampleCount = frameCount > MAX_NGRAN * MAX_NSAMP
+                                 ? MAX_NGRAN * MAX_NSAMP
+                                 : frameCount;
+    for (int i = 0; i < sampleCount; ++i) {
         const std::int16_t left = pcm[i * channels];
         const std::int16_t right = channels > 1 ? pcm[i * channels + 1] : left;
-        out[0] = static_cast<std::int32_t>(left) << 16;
-        out[1] = static_cast<std::int32_t>(right) << 16;
-        std::size_t written = 0U;
-        (void)i2s_channel_write(tx, out, sizeof(out), &written,
-                                portMAX_DELAY);
+        out[i * 2] = static_cast<std::int32_t>(left) << 16;
+        out[i * 2 + 1] = static_cast<std::int32_t>(right) << 16;
     }
+    std::size_t written = 0U;
+    (void)i2s_channel_write(tx, out,
+                            static_cast<std::size_t>(sampleCount) * 2U
+                                * sizeof(std::int32_t),
+                            &written, portMAX_DELAY);
 }
 
 /**
