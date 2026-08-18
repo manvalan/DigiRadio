@@ -10,96 +10,30 @@ struct FMRadioView: View {
 
     var body: some View {
         let fm = environment.state.tuner.fm
-        Form {
-            Section {
-                VStack(spacing: IGITheme.spacingM) {
-                    Text(String(format: "%.2f", frequencyMHz))
-                        .font(.system(size: 56, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .accessibilityLabel("Frequenza \(frequencyMHz) megahertz")
-                    Slider(value: $frequencyMHz, in: 64 ... 108, step: 0.05)
-                    HStack {
-                        Button("−") { frequencyMHz = max(64, frequencyMHz - 0.1) }
-                        Spacer()
-                        Button("Sintonizza") { Task { await tune() } }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(isTuning)
-                        Spacer()
-                        Button("+") { frequencyMHz = min(108, frequencyMHz + 0.1) }
-                    }
-                }
-                .padding(.vertical, IGITheme.spacingS)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: IGITheme.spacingL) {
+                IGIFrequencyHero(
+                    frequencyMHz: $frequencyMHz,
+                    stationName: fm?.stationName,
+                    isTuning: isTuning,
+                    onTune: { Task { await tune() } }
+                )
 
-            if let fm {
-                Section("Stato") {
-                    LabeledContent("Frequenza", value: String(format: "%.2f MHz", Double(fm.frequencyKhz) / 1000))
-                    if let rssi = fm.rssiDbuv { LabeledContent("RSSI", value: "\(rssi) dBµV") }
-                    if let snr = fm.snrDb { LabeledContent("SNR", value: "\(snr) dB") }
-                    if let stereo = fm.stereo {
-                        LabeledContent("Stereo", value: stereo ? "Sì" : "Mono")
+                if let fm {
+                    signalCard(fm)
+                    if let ps = fm.stationName, !ps.isEmpty {
+                        rdsCard(fm, ps: ps)
                     }
                 }
-                if let ps = fm.stationName, !ps.isEmpty {
-                    Section("RDS") {
-                        LabeledContent("PS", value: ps)
-                        if let rt = fm.radiotext, !rt.isEmpty {
-                            Text(rt).font(.body)
-                        }
-                    }
-                }
-            }
 
-            Section("Seek") {
-                Button("Seek su") { Task { try? await environment.digiRadio.seekFM(direction: "up") } }
-                Button("Seek giù") { Task { try? await environment.digiRadio.seekFM(direction: "down") } }
+                seekSection
+                scanSection
             }
-
-            Section("Scan") {
-                if isScanning {
-                    HStack {
-                        IGIScanningIndicator().frame(width: 24, height: 24)
-                        Text("Scansione in corso…")
-                    }
-                }
-                if let scanError {
-                    Text(scanError).foregroundStyle(.red)
-                }
-                Button("Cerca prossima stazione") {
-                    Task { await scanNext() }
-                }
-                .disabled(isScanning)
-                Button("Scansione completa banda FM") {
-                    Task { await scanFull() }
-                }
-                .disabled(isScanning)
-
-                if !scanResults.isEmpty {
-                    ForEach(scanResults) { hit in
-                        Button {
-                            Task { try? await environment.digiRadio.tuneFM(frequencyKhz: hit.frequencyKhz) }
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(hit.stationName ?? "Stazione FM")
-                                        .font(.headline)
-                                    Text(String(format: "%.2f MHz", Double(hit.frequencyKhz) / 1000))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if let rssi = hit.rssiDbuv {
-                                    Text("\(rssi) dBµV")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            .padding(IGITheme.spacingM)
         }
+        .background(IGIHeroBackground())
         .navigationTitle("FM")
+        .navigationBarTitleDisplayMode(.large)
         .onAppear {
             if let khz = environment.state.tuner.fm?.frequencyKhz {
                 frequencyMHz = Double(khz) / 1000.0
@@ -107,8 +41,126 @@ struct FMRadioView: View {
             Task { try? await environment.digiRadio.refreshTunerStatus() }
         }
         .onChange(of: environment.state.tuner.fm?.frequencyKhz) { _, newValue in
-            if let khz = newValue { frequencyMHz = Double(khz) / 1000.0 }
+            if let khz = newValue {
+                withAnimation(.snappy) {
+                    frequencyMHz = Double(khz) / 1000.0
+                }
+            }
         }
+    }
+
+    @ViewBuilder
+    private func signalCard(_ fm: FMTunerState) -> some View {
+        VStack(alignment: .leading, spacing: IGITheme.spacingM) {
+            Text("Segnale")
+                .font(.headline)
+            if let rssi = fm.rssiDbuv {
+                IGIMetricBar(label: "RSSI", value: "\(rssi) dBµV", level: Double(rssi) / 80.0)
+            }
+            if let snr = fm.snrDb {
+                IGIMetricBar(label: "SNR", value: "\(snr) dB", level: Double(snr) / 40.0)
+            }
+            if let stereo = fm.stereo {
+                HStack {
+                    Text("Stereo")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(stereo ? "Sì" : "Mono")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(stereo ? .green : .secondary)
+                }
+            }
+        }
+        .igiPremiumCard()
+    }
+
+    @ViewBuilder
+    private func rdsCard(_ fm: FMTunerState, ps: String) -> some View {
+        VStack(alignment: .leading, spacing: IGITheme.spacingS) {
+            HStack {
+                Image(systemName: "text.bubble.fill")
+                    .foregroundStyle(IGITheme.accent)
+                Text("RDS")
+                    .font(.headline)
+            }
+            Text(ps)
+                .font(.title3.weight(.semibold))
+            if let rt = fm.radiotext, !rt.isEmpty {
+                Text(rt)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .igiPremiumCard()
+    }
+
+    private var seekSection: some View {
+        HStack(spacing: IGITheme.spacingM) {
+            Button {
+                Task { try? await environment.digiRadio.seekFM(direction: "down") }
+            } label: {
+                Label("Giù", systemImage: "chevron.down")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                Task { try? await environment.digiRadio.seekFM(direction: "up") }
+            } label: {
+                Label("Su", systemImage: "chevron.up")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    @ViewBuilder
+    private var scanSection: some View {
+        VStack(alignment: .leading, spacing: IGITheme.spacingM) {
+            Text("Scan")
+                .font(.headline)
+
+            if isScanning {
+                HStack(spacing: IGITheme.spacingS) {
+                    IGIScanningIndicator().frame(width: 28, height: 28)
+                    Text("Scansione in corso…")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let scanError {
+                Text(scanError).font(.caption).foregroundStyle(.red)
+            }
+
+            HStack(spacing: IGITheme.spacingS) {
+                Button("Prossima stazione") { Task { await scanNext() } }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isScanning)
+                Button("Banda completa") { Task { await scanFull() } }
+                    .buttonStyle(.bordered)
+                    .disabled(isScanning)
+            }
+
+            if !scanResults.isEmpty {
+                VStack(spacing: IGITheme.spacingS) {
+                    ForEach(scanResults) { hit in
+                        IGIScanResultRow(
+                            title: hit.stationName ?? "Stazione FM",
+                            frequencyMHz: Double(hit.frequencyKhz) / 1000,
+                            rssi: hit.rssiDbuv
+                        ) {
+                            Task { try? await environment.digiRadio.tuneFM(frequencyKhz: hit.frequencyKhz) }
+                        }
+                    }
+                }
+            }
+        }
+        .igiPremiumCard()
     }
 
     private func tune() async {

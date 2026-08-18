@@ -15,7 +15,11 @@ struct SettingsRootView: View {
                 NavigationLink("Preset") { PresetsView() }
             }
             Section("Audio") {
-                NavigationLink("Profilo audio") { AudioView() }
+                NavigationLink {
+                    AudioView()
+                } label: {
+                    Label("Mixer & Equalizzatore", systemImage: "slider.vertical.3")
+                }
                 NavigationLink("Bluetooth speaker") { BluetoothView() }
             }
         }

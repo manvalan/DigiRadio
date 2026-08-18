@@ -11,31 +11,23 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: IGITheme.spacingL) {
                 header(state: state)
                 nowPlayingCard(state: state)
-                transportControls
+                quickLinks
+                IGITransportCluster(
+                    onPrevious: { Task { await viewModel?.seekFM("down") } },
+                    onPlay: { Task { await viewModel?.refreshAll() } },
+                    onNext: { Task { await viewModel?.seekFM("up") } }
+                )
                 volumeSection
                 presetsSection(state: state)
             }
             .padding(IGITheme.spacingM)
         }
-        .background(IGITheme.screenBackground)
+        .background(IGIHeroBackground())
         .navigationTitle("igiRadio")
+        .navigationBarTitleDisplayMode(.large)
         .safeAreaInset(edge: .top) {
             if !state.connection.isConnected {
-                NavigationLink {
-                    ConnectionView()
-                } label: {
-                    HStack {
-                        Image(systemName: "wifi.exclamationmark")
-                        Text("DigiRadio non connesso — tocca per collegare")
-                            .font(.subheadline.weight(.medium))
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                    .padding(.horizontal, IGITheme.spacingM)
-                    .padding(.vertical, 10)
-                    .background(.orange.opacity(0.15))
-                }
-                .buttonStyle(.plain)
+                connectionBanner
             }
         }
         .toolbar {
@@ -60,26 +52,46 @@ struct HomeView: View {
         }
     }
 
+    private var connectionBanner: some View {
+        NavigationLink {
+            ConnectionView()
+        } label: {
+            HStack {
+                Image(systemName: "wifi.exclamationmark")
+                Text("DigiRadio non connesso — tocca per collegare")
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                Image(systemName: "chevron.right")
+            }
+            .padding(.horizontal, IGITheme.spacingM)
+            .padding(.vertical, 10)
+            .background(.orange.opacity(0.15))
+        }
+        .buttonStyle(.plain)
+    }
+
     @ViewBuilder
     private func header(state: DigiRadioState) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("DigiRadio")
-                    .font(.largeTitle.bold())
+                    .font(.title.weight(.bold))
                 HStack(spacing: 8) {
                     IGIStatusDot(isConnected: state.connection.isConnected)
                     Text(state.connection.isConnected ? "Connesso" : "Non connesso")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+                IGIBandBadge(band: state.tuner.band, locked: state.tuner.locked)
             }
             Spacer()
             if let rssi = state.tuner.fm?.rssiDbuv {
-                VStack(alignment: .trailing) {
+                VStack(alignment: .trailing, spacing: 6) {
                     Text("Segnale")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     IGISignalBar(level: Double(rssi) / 80.0)
-                        .frame(width: 120)
+                        .frame(width: 100)
                 }
             }
         }
@@ -87,75 +99,96 @@ struct HomeView: View {
 
     @ViewBuilder
     private func nowPlayingCard(state: DigiRadioState) -> some View {
-        IGICard {
-            VStack(spacing: IGITheme.spacingM) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [.accentColor.opacity(0.35), .purple.opacity(0.25)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+        VStack(spacing: IGITheme.spacingM) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                IGITheme.accent.opacity(0.45),
+                                .purple.opacity(0.35),
+                                IGITheme.accent.opacity(0.25)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                        .frame(height: 220)
-                    Image(systemName: state.tuner.band == .fm ? "radio.fill" : "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 64))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
+                    )
+                    .frame(height: 200)
+                    .overlay {
+                        Circle()
+                            .fill(.white.opacity(0.08))
+                            .frame(width: 160, height: 160)
+                            .blur(radius: 2)
+                    }
 
-                VStack(spacing: 6) {
-                    Text(primaryTitle(state: state))
-                        .font(.title2.weight(.semibold))
-                        .multilineTextAlignment(.center)
-                    Text(secondaryLine(state: state))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
+                Image(systemName: state.tuner.band == .fm ? "radio.fill" : "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 56))
+                    .foregroundStyle(.white.opacity(0.95))
+                    .symbolEffect(.pulse, options: .repeating, value: state.tuner.locked)
+            }
+
+            VStack(spacing: 6) {
+                Text(primaryTitle(state: state))
+                    .font(.title2.weight(.bold))
+                    .multilineTextAlignment(.center)
+                    .contentTransition(.interpolate)
+                Text(secondaryLine(state: state))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+        }
+        .igiPremiumCard()
+        .animation(.snappy, value: state.tuner.fm?.frequencyKhz)
+        .animation(.snappy, value: state.tuner.fm?.stationName)
+    }
+
+    private var quickLinks: some View {
+        HStack(spacing: IGITheme.spacingS) {
+            NavigationLink {
+                FMRadioView()
+            } label: {
+                quickLinkLabel("FM", icon: "dot.radiowaves.left.and.right")
+            }
+            NavigationLink {
+                DABRadioView()
+            } label: {
+                quickLinkLabel("DAB", icon: "antenna.radiowaves.left.and.right")
+            }
+            NavigationLink {
+                AudioView()
+            } label: {
+                quickLinkLabel("Audio", icon: "slider.vertical.3")
             }
         }
     }
 
-    private var transportControls: some View {
-        HStack(spacing: IGITheme.spacingL) {
-            Button {
-                Task { await viewModel?.seekFM("down") }
-            } label: {
-                Image(systemName: "backward.fill")
-                    .font(.title2)
-                    .frame(width: 56, height: 56)
-            }
-            .buttonStyle(.bordered)
-
-            Button {
-                Task { await viewModel?.refreshAll() }
-            } label: {
-                Image(systemName: "play.fill")
-                    .font(.largeTitle)
-                    .frame(width: 72, height: 72)
-            }
-            .buttonStyle(.borderedProminent)
-            .clipShape(Circle())
-
-            Button {
-                Task { await viewModel?.seekFM("up") }
-            } label: {
-                Image(systemName: "forward.fill")
-                    .font(.title2)
-                    .frame(width: 56, height: 56)
-            }
-            .buttonStyle(.bordered)
-        }
-        .frame(maxWidth: .infinity)
+    @ViewBuilder
+    private func quickLinkLabel(_ title: String, icon: String) -> some View {
+        Label(title, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var volumeSection: some View {
-        IGICard {
+        VStack(alignment: .leading, spacing: IGITheme.spacingS) {
+            HStack {
+                Text("Volume")
+                    .font(.headline)
+                Spacer()
+                Text("\(Int(volume))")
+                    .font(.title3.weight(.bold).monospacedDigit())
+                    .foregroundStyle(IGITheme.accent)
+                    .contentTransition(.numericText())
+            }
             IGIVolumeSlider(value: $volume) { value in
                 Task { await viewModel?.setVolume(value) }
             }
         }
+        .igiPremiumCard()
     }
 
     @ViewBuilder
@@ -171,20 +204,12 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: IGITheme.spacingS) {
                     ForEach(Array(state.stations.enumerated()), id: \.offset) { index, station in
-                        Button {
+                        IGIPresetChip(
+                            name: station.name,
+                            subtitle: station.band.rawValue.uppercased()
+                        ) {
                             Task { await viewModel?.tunePreset(at: index) }
-                        } label: {
-                            VStack(alignment: .leading) {
-                                Text(station.name)
-                                    .font(.headline)
-                                Text(station.band.rawValue.uppercased())
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding()
-                            .background(IGITheme.cardBackground, in: RoundedRectangle(cornerRadius: 14))
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -208,7 +233,9 @@ struct HomeView: View {
         switch state.tuner.band {
         case .fm:
             if let khz = state.tuner.fm?.frequencyKhz {
-                return String(format: "%.2f MHz", Double(khz) / 1000.0)
+                let freq = String(format: "%.2f MHz", Double(khz) / 1000.0)
+                if let rt = state.tuner.fm?.radiotext, !rt.isEmpty { return "\(freq) · \(rt)" }
+                return freq
             }
             return state.tuner.fm?.radiotext ?? "FM Radio"
         case .dab:

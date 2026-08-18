@@ -33,6 +33,9 @@ private struct IPhoneRootView: View {
             NavigationStack { PresetsView() }
                 .tabItem { Label("Preset", systemImage: "star.fill") }
 
+            NavigationStack { AudioView() }
+                .tabItem { Label("Audio", systemImage: "waveform") }
+
             NavigationStack { SettingsRootView() }
                 .tabItem { Label("Impostazioni", systemImage: "gearshape.fill") }
         }

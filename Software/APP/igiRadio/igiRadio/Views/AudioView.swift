@@ -2,85 +2,224 @@ import SwiftUI
 
 struct AudioView: View {
     @Environment(AppEnvironment.self) private var environment
-    @State private var stereoLevel: Double = 0
-    @State private var bassLevel: Double = 0
-    @State private var masterVolume: Double = 0
-    @State private var eqBands: [EQBandState] = []
+    @State private var viewModel: AudioViewModel?
 
     var body: some View {
-        Form {
-            Section("Volume master") {
-                IGIVolumeSlider(value: $masterVolume) { value in
-                    Task { try? await environment.digiRadio.setVolume(Int(value)) }
-                }
-            }
+        let vm = viewModel ?? AudioViewModel(service: environment.digiRadio)
 
-            Section("Enhancements") {
-                VStack(alignment: .leading) {
-                    Text("Stereo enhance")
-                    Slider(value: $stereoLevel, in: 0 ... 100, step: 1) { editing in
-                        if !editing {
-                            Task { try? await environment.digiRadio.setStereoEnhance(level: Int(stereoLevel)) }
-                        }
-                    }
-                }
-                VStack(alignment: .leading) {
-                    Text("Bass enhance")
-                    Slider(value: $bassLevel, in: 0 ... 100, step: 1) { editing in
-                        if !editing {
-                            Task { try? await environment.digiRadio.setBassEnhance(level: Int(bassLevel)) }
-                        }
-                    }
-                }
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: IGITheme.spacingL) {
+                header(vm)
 
-            Section("Equalizzatore (6 bande)") {
-                ForEach($eqBands) { $band in
-                    VStack(alignment: .leading) {
-                        Text("\(Int(band.centerHz)) Hz")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Slider(value: $band.gainDb, in: -12 ... 12, step: 0.5) { editing in
-                            if !editing { Task { await applyEQ() } }
-                        }
-                    }
-                }
-            }
+                if vm.isLoading {
+                    ProgressView("Caricamento profilo audio…")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                } else {
+                    IGIMasterVolumeHero(
+                        leftDb: Binding(
+                            get: { vm.master.leftDb },
+                            set: { vm.master.leftDb = $0; vm.scheduleApply() }
+                        ),
+                        rightDb: Binding(
+                            get: { vm.master.rightDb },
+                            set: { vm.master.rightDb = $0; vm.scheduleApply() }
+                        ),
+                        onCommit: { vm.scheduleApply() }
+                    )
 
-            Section {
-                Button("Reset profilo audio", role: .destructive) {
-                    Task {
-                        try? await environment.digiRadio.resetAudio()
-                        syncFromState()
+                    panelPicker(vm)
+
+                    switch vm.panel {
+                    case .mixer:
+                        mixerPanel(vm)
+                    case .equalizer:
+                        equalizerPanel(vm)
+                    case .enhance:
+                        enhancePanel(vm)
                     }
+
+                    resetButton(vm)
                 }
             }
+            .padding(IGITheme.spacingM)
         }
-        .navigationTitle("Audio")
-        .onAppear {
-            Task {
-                try? await environment.digiRadio.refreshAudioProfile()
-                syncFromState()
-            }
-        }
-        .onChange(of: environment.state.audio.enhancements.stereoLevel) { _, _ in syncFromState() }
-    }
-
-    private func syncFromState() {
-        let audio = environment.state.audio
-        stereoLevel = Double(audio.enhancements.stereoLevel)
-        bassLevel = Double(audio.enhancements.bassLevel)
-        masterVolume = Double(environment.state.tuner.volume)
-        eqBands = audio.eq
-    }
-
-    private func applyEQ() async {
-        let profile = AudioProfileDTO(
-            mixer: environment.state.audio.mixer,
-            master: environment.state.audio.master,
-            eq: eqBands,
-            enhancements: EnhancementsState(stereoLevel: Int(stereoLevel), bassLevel: Int(bassLevel))
+        .background(
+            LinearGradient(
+                colors: [
+                    IGITheme.screenBackground,
+                    IGITheme.accent.opacity(0.06),
+                    IGITheme.screenBackground
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
         )
-        try? await environment.digiRadio.applyAudioProfile(profile)
+        .navigationTitle("Audio")
+        .navigationBarTitleDisplayMode(.large)
+        .onAppear {
+            if viewModel == nil { viewModel = vm }
+            Task { await vm.load() }
+        }
+    }
+
+    @ViewBuilder
+    private func header(_ vm: AudioViewModel) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("ADAU1701")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(IGITheme.accent)
+                Text("Mixer · EQ · DSP")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if vm.isSaving {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Salvataggio")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func panelPicker(_ vm: AudioViewModel) -> some View {
+        HStack(spacing: IGITheme.spacingS) {
+            ForEach(AudioPanel.allCases) { panel in
+                Button {
+                    withAnimation(.snappy) { vm.panel = panel }
+                } label: {
+                    Label(panel.rawValue, systemImage: panel.icon)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            vm.panel == panel
+                                ? AnyShapeStyle(IGITheme.accent.gradient)
+                                : AnyShapeStyle(Color.primary.opacity(0.06)),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
+                        .foregroundStyle(vm.panel == panel ? .white : .primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func mixerPanel(_ vm: AudioViewModel) -> some View {
+        VStack(spacing: IGITheme.spacingM) {
+            IGIMixerChannelGroup(
+                title: "Radio Si4684",
+                subtitle: "FM / DAB — ingresso tuner",
+                systemImage: "antenna.radiowaves.left.and.right",
+                leftDb: Binding(
+                    get: { vm.mixer.si4684LeftDb },
+                    set: { vm.mixer.si4684LeftDb = $0 }
+                ),
+                rightDb: Binding(
+                    get: { vm.mixer.si4684RightDb },
+                    set: { vm.mixer.si4684RightDb = $0 }
+                ),
+                onCommit: { vm.scheduleApply() }
+            )
+
+            IGIMixerChannelGroup(
+                title: "Stream ESP32",
+                subtitle: "Web radio / phone push",
+                systemImage: "waveform",
+                leftDb: Binding(
+                    get: { vm.mixer.esp32LeftDb },
+                    set: { vm.mixer.esp32LeftDb = $0 }
+                ),
+                rightDb: Binding(
+                    get: { vm.mixer.esp32RightDb },
+                    set: { vm.mixer.esp32RightDb = $0 }
+                ),
+                onCommit: { vm.scheduleApply() }
+            )
+
+            IGIMixerChannelGroup(
+                title: "Mix bus",
+                subtitle: "Uscita mixer ADAU",
+                systemImage: "speaker.wave.2.fill",
+                leftDb: Binding(
+                    get: { vm.mixer.mixLeftDb },
+                    set: { vm.mixer.mixLeftDb = $0 }
+                ),
+                rightDb: Binding(
+                    get: { vm.mixer.mixRightDb },
+                    set: { vm.mixer.mixRightDb = $0 }
+                ),
+                onCommit: { vm.scheduleApply() }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func equalizerPanel(_ vm: AudioViewModel) -> some View {
+        VStack(alignment: .leading, spacing: IGITheme.spacingM) {
+            Text("Equalizzatore 6 bande")
+                .font(.headline)
+            Text("Trascina le barre per regolare il guadagno. Rilascia per applicare al DSP.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if vm.eqBands.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+            } else {
+                IGIGraphicEqualizer(
+                    bands: Binding(
+                        get: { vm.eqBands },
+                        set: { vm.eqBands = $0 }
+                    ),
+                    onCommit: { vm.scheduleApply() }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func enhancePanel(_ vm: AudioViewModel) -> some View {
+        HStack(spacing: IGITheme.spacingL) {
+            IGIEnhancementDial(
+                title: "Stereo",
+                systemImage: "circle.lefthalf.filled",
+                level: Binding(
+                    get: { vm.stereoLevel },
+                    set: { vm.stereoLevel = $0 }
+                ),
+                onCommit: { Task { await vm.applyEnhancements() } }
+            )
+            IGIEnhancementDial(
+                title: "Bass",
+                systemImage: "waveform.path",
+                level: Binding(
+                    get: { vm.bassLevel },
+                    set: { vm.bassLevel = $0 }
+                ),
+                onCommit: { Task { await vm.applyEnhancements() } }
+            )
+        }
+        .igiAudioCard()
+    }
+
+    @ViewBuilder
+    private func resetButton(_ vm: AudioViewModel) -> some View {
+        Button(role: .destructive) {
+            Task { await vm.reset() }
+        } label: {
+            Label("Ripristina profilo audio", systemImage: "arrow.counterclockwise")
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+        }
+        .buttonStyle(.bordered)
+        .padding(.top, IGITheme.spacingS)
     }
 }
