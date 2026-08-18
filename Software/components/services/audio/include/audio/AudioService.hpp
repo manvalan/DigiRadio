@@ -208,6 +208,22 @@ public:
     [[nodiscard]] std::expected<void, core::DspError> setBeepEnabled(
         bool enabled);
 
+    /**
+     * @brief    writeRawParam — safeload any named ADAU1701 Parameter RAM cell.
+     *
+     * @dname    writeRawParam
+     * @param    address  Parameter RAM address.
+     * @param    value    Coefficient in the SigmaStudio floating convention.
+     * @return   Ok on success, or DspError.
+     * @pubstate live-only: not part of AudioProfile, never persisted, does
+     *           not touch profile_. No domain validation.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-18
+     */
+    [[nodiscard]] std::expected<void, core::DspError> writeRawParam(
+        unsigned address, float value);
+
 private:
     [[nodiscard]] std::expected<void, core::StoreError> persistProfile() const;
 

@@ -24,6 +24,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/WifiScanJson.cpp"
     "${CORE_SRC_DIR}/EmbeddedBlobReader.cpp"
     "${CORE_SRC_DIR}/TunerJson.cpp"
+    "${CORE_SRC_DIR}/DspParamJson.cpp"
     "${CORE_SRC_DIR}/FrequencyKHz.cpp"
     "${CORE_SRC_DIR}/GainDb.cpp"
     "${CORE_SRC_DIR}/FrequencyHz.cpp"
@@ -88,6 +89,10 @@ add_test(NAME embedded_blob_reader_test COMMAND embedded_blob_reader_test)
 add_executable(tuner_json_test tuner_json_test.cpp)
 target_link_libraries(tuner_json_test PRIVATE digiradio_core)
 add_test(NAME tuner_json_test COMMAND tuner_json_test)
+
+add_executable(dsp_param_json_test dsp_param_json_test.cpp)
+target_link_libraries(dsp_param_json_test PRIVATE digiradio_core)
+add_test(NAME dsp_param_json_test COMMAND dsp_param_json_test)
 
 add_executable(frequency_khz_test frequency_khz_test.cpp)
 target_link_libraries(frequency_khz_test PRIVATE digiradio_core)

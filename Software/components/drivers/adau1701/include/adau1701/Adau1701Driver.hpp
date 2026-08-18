@@ -234,6 +234,28 @@ public:
     [[nodiscard]] std::expected<void, Adau1701Error> setBeepEnabled(
         bool enabled);
 
+    /**
+     * @brief    writeRawParam — safeload any named Parameter RAM cell.
+     *
+     * @dname    writeRawParam
+     * @param    address  Parameter RAM address (see Adau1701ParamTable.hpp).
+     * @param    value    Coefficient in the SigmaStudio floating convention
+     *                    (e.g. -1.0..1.0 for volume/coefficient cells);
+     *                    converted to ADAU 8.23 fixpoint before the write.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload. No domain validation —
+     *           this is deliberately as permissive as SigmaStudio's own
+     *           Remote Connection (see SigmaStudioTcpServer), for callers
+     *           that need cells the curated applyMixer/applyEq/setEqBand
+     *           API doesn't expose (Beep1 frequency, limiter thresholds,
+     *           raw PEQ coefficients, etc.).
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-18
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> writeRawParam(
+        unsigned address, float value);
+
 private:
     [[nodiscard]] std::expected<void, Adau1701Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Adau1701Error> safeloadGain(

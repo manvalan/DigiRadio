@@ -97,4 +97,13 @@ std::expected<void, core::DspError> Adau1701Dsp::setBeepEnabled(bool enabled)
     return {};
 }
 
+std::expected<void, core::DspError> Adau1701Dsp::writeRawParam(
+    unsigned address, float value)
+{
+    if (auto result = driver_.writeRawParam(address, value); !result) {
+        return std::unexpected(mapError(result.error()));
+    }
+    return {};
+}
+
 } // namespace adau1701

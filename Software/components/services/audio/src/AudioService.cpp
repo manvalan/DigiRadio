@@ -193,4 +193,10 @@ std::expected<void, core::DspError> AudioService::setBeepEnabled(bool enabled)
     return dsp_.setBeepEnabled(enabled);
 }
 
+std::expected<void, core::DspError> AudioService::writeRawParam(
+    unsigned address, float value)
+{
+    return dsp_.writeRawParam(address, value);
+}
+
 } // namespace audio

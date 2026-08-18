@@ -345,6 +345,16 @@ namespace adau1701
         return safeloadFixpoint(static_cast<unsigned>(ADDR_BEEP1_KICK), value);
     }
 
+    std::expected<void, Adau1701Error> Adau1701Driver::writeRawParam(
+        unsigned address, float value)
+    {
+        if (auto ready = ensureBooted(); !ready)
+        {
+            return ready;
+        }
+        return safeloadFixpoint(address, core::floatToFixpoint823(value));
+    }
+
     std::expected<void, Adau1701Error> Adau1701Driver::applyEq(
         const core::EqProfile &eq)
     {

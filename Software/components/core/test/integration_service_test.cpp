@@ -75,6 +75,12 @@ public:
     {
         return {};
     }
+
+    [[nodiscard]] std::expected<void, core::DspError> writeRawParam(
+        unsigned, float) override
+    {
+        return {};
+    }
 };
 
 class TrackingTuner final : public core::ITuner {
