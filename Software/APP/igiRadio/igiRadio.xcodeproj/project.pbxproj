@@ -1,0 +1,363 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C050F319BDFADBF7CE6700F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D7ACBDA7D90DDE7BBA02A41B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0938FB30D2E421C09D31973A;
+			remoteInfo = igiRadio;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		366935DDA7048CE6717FCB93 /* igiRadio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = igiRadio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		97BD5E0DAD822A58093D141B /* igiRadioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = igiRadioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7D085337BF0EA6EB04337F45 /* Exceptions for "igiRadio" folder in "igiRadio" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/Info.plist,
+			);
+			target = 0938FB30D2E421C09D31973A /* igiRadio */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		F7E3CB0B027CB68EA63A4AB8 /* igiRadio */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7D085337BF0EA6EB04337F45 /* Exceptions for "igiRadio" folder in "igiRadio" target */,
+			);
+			path = igiRadio;
+			sourceTree = "<group>";
+		};
+		693436FA1780106DA05D06E3 /* igiRadioTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Tests/igiRadioTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		71F357EA3EEC95DAEFCF7345 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A8032441559F0A3B8F103F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2761999F42D5E1910DD2B679 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				366935DDA7048CE6717FCB93 /* igiRadio.app */,
+				97BD5E0DAD822A58093D141B /* igiRadioTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C5D6659C8B3150288BA78279 = {
+			isa = PBXGroup;
+			children = (
+				F7E3CB0B027CB68EA63A4AB8 /* igiRadio */,
+				693436FA1780106DA05D06E3 /* igiRadioTests */,
+				2761999F42D5E1910DD2B679 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0938FB30D2E421C09D31973A /* igiRadio */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ECA92BA517002122145704D1 /* Build configuration list for PBXNativeTarget "igiRadio" */;
+			buildPhases = (
+				DF1C5CA20CABFD7B8DA40E94 /* Sources */,
+				71F357EA3EEC95DAEFCF7345 /* Frameworks */,
+				3C8EE57839841131D4276B21 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F7E3CB0B027CB68EA63A4AB8 /* igiRadio */,
+			);
+			name = igiRadio;
+			productName = igiRadio;
+			productReference = 366935DDA7048CE6717FCB93 /* igiRadio.app */;
+			productType = "com.apple.product-type.application";
+		};
+		48A9EB97D44FF615ADCA031A /* igiRadioTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 61D281E9594B71DA372FEE34 /* Build configuration list for PBXNativeTarget "igiRadioTests" */;
+			buildPhases = (
+				F994E2BFA3D135FCD316A95C /* Sources */,
+				0A8032441559F0A3B8F103F8 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0E0716BAD2A3DFD42CA27715 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				693436FA1780106DA05D06E3 /* igiRadioTests */,
+			);
+			name = igiRadioTests;
+			productName = igiRadioTests;
+			productReference = 97BD5E0DAD822A58093D141B /* igiRadioTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D7ACBDA7D90DDE7BBA02A41B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					0938FB30D2E421C09D31973A = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					48A9EB97D44FF615ADCA031A = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 0938FB30D2E421C09D31973A;
+					};
+				};
+			};
+			buildConfigurationList = C8A2C2BD01CBC6B9DFC6F199 /* Build configuration list for PBXProject "igiRadio" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C5D6659C8B3150288BA78279;
+			productRefGroup = 2761999F42D5E1910DD2B679 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0938FB30D2E421C09D31973A /* igiRadio */,
+				48A9EB97D44FF615ADCA031A /* igiRadioTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3C8EE57839841131D4276B21 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DF1C5CA20CABFD7B8DA40E94 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F994E2BFA3D135FCD316A95C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0E0716BAD2A3DFD42CA27715 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0938FB30D2E421C09D31973A /* igiRadio */;
+			targetProxy = C050F319BDFADBF7CE6700F8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		FDBD275B398C4976FD6BC80D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		54274B7C1572A50D5BE0DEA8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		73C8BF7223EFFA7108969F77 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = igiRadio/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digiradio.igiRadio;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FA1BD134133059F9163AC34F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = igiRadio/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digiradio.igiRadio;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		90735310944459417946066C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digiradio.igiRadioTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/igiRadio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/igiRadio";
+			};
+			name = Debug;
+		};
+		E6AD029DFF2D9078F77BDCBA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.digiradio.igiRadioTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/igiRadio.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/igiRadio";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C8A2C2BD01CBC6B9DFC6F199 /* Build configuration list for PBXProject "igiRadio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FDBD275B398C4976FD6BC80D /* Debug */,
+				54274B7C1572A50D5BE0DEA8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ECA92BA517002122145704D1 /* Build configuration list for PBXNativeTarget "igiRadio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				73C8BF7223EFFA7108969F77 /* Debug */,
+				FA1BD134133059F9163AC34F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		61D281E9594B71DA372FEE34 /* Build configuration list for PBXNativeTarget "igiRadioTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				90735310944459417946066C /* Debug */,
+				E6AD029DFF2D9078F77BDCBA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D7ACBDA7D90DDE7BBA02A41B /* Project object */;
+}
