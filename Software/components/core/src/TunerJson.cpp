@@ -316,4 +316,24 @@ std::string serializeTunerScanJson(const TunerScanResult& result)
     return out.str();
 }
 
+std::string serializeTunerFmBandScanJson(
+    const std::vector<TunerFmScannedStation>& stations)
+{
+    std::ostringstream out;
+    out << "{\"stations\":[";
+    for (std::size_t i = 0; i < stations.size(); ++i) {
+        if (i > 0U) {
+            out << ',';
+        }
+        const auto& s = stations[i];
+        out << "{\"frequency_khz\":" << s.frequency.value()
+            << ",\"rssi_dbuv\":" << static_cast<int>(s.rssiDbuV)
+            << ",\"snr_db\":" << static_cast<int>(s.snrDb);
+        appendOptionalLabel(out, "station_name", s.stationName);
+        out << "}";
+    }
+    out << "]}";
+    return out.str();
+}
+
 } // namespace core
