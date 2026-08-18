@@ -1895,7 +1895,11 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 12288;
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 40;
+    config.max_uri_handlers = 56; // 41 routes registered below as of 2026-08-19;
+                                   // keep headroom so a silent
+                                   // httpd_register_uri_handler failure
+                                   // ("no slots left") doesn't quietly drop
+                                   // the last-registered route again.
     config.server_port = 80;
     config.lru_purge_enable = true;
     config.recv_wait_timeout = 60;
