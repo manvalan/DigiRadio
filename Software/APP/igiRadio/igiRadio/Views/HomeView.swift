@@ -196,9 +196,9 @@ struct HomeView: View {
                 quickLinkLabel("DAB", icon: "antenna.radiowaves.left.and.right")
             }
             NavigationLink {
-                AudioView()
+                AudioProfilesView()
             } label: {
-                quickLinkLabel("Audio", icon: "slider.vertical.3")
+                quickLinkLabel("Profilo", icon: "waveform.path.ecg")
             }
             NavigationLink {
                 StreamingView()

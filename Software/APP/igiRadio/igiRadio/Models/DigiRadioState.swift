@@ -116,7 +116,7 @@ struct MasterVolumeState: Equatable, Sendable, Codable {
     }
 }
 
-struct EQBandState: Equatable, Sendable, Codable, Identifiable {
+struct EQBandState: Equatable, Hashable, Sendable, Codable, Identifiable {
     var id: Int { index }
     var index: Int
     var gainDb: Double
@@ -152,7 +152,7 @@ struct EQBandState: Equatable, Sendable, Codable, Identifiable {
     }
 }
 
-struct EnhancementsState: Equatable, Sendable, Codable {
+struct EnhancementsState: Equatable, Hashable, Sendable, Codable {
     var stereoLevel: Int = 0
     var bassLevel: Int = 0
 

@@ -36,8 +36,8 @@ private struct IPhoneRootView: View {
             NavigationStack { PresetsView() }
                 .tabItem { Label("Preset", systemImage: "star.fill") }
 
-            NavigationStack { AudioView() }
-                .tabItem { Label("Audio", systemImage: "waveform") }
+            NavigationStack { AudioProfilesView() }
+                .tabItem { Label("Profilo", systemImage: "waveform.path.ecg") }
 
             NavigationStack { SettingsRootView() }
                 .tabItem { Label("Impostazioni", systemImage: "gearshape.fill") }
@@ -63,7 +63,7 @@ private struct IPadRootView: View {
             case .dab: DABRadioView()
             case .stream: StreamingView()
             case .bluetooth: BluetoothView()
-            case .audio: AudioView()
+            case .audioProfiles: AudioProfilesView()
             case .presets: PresetsView()
             case .settings: SettingsRootView()
             }
@@ -72,7 +72,7 @@ private struct IPadRootView: View {
 }
 
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case home, fm, dab, stream, bluetooth, audio, presets, settings
+    case home, fm, dab, stream, bluetooth, audioProfiles, presets, settings
 
     var id: String { rawValue }
 
@@ -83,7 +83,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .dab: "DAB"
         case .stream: "Stream"
         case .bluetooth: "Bluetooth"
-        case .audio: "Audio"
+        case .audioProfiles: "Profilo audio"
         case .presets: "Preset"
         case .settings: "Impostazioni"
         }
@@ -96,7 +96,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .dab: "antenna.radiowaves.left.and.right"
         case .stream: "dot.radiowaves.forward"
         case .bluetooth: "dot.radiowaves.left.and.right"
-        case .audio: "waveform"
+        case .audioProfiles: "waveform.path.ecg"
         case .presets: "star.fill"
         case .settings: "gearshape.fill"
         }

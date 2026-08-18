@@ -33,8 +33,6 @@ struct AudioView: View {
                     switch vm.panel {
                     case .mixer:
                         mixerPanel(vm)
-                    case .equalizer:
-                        equalizerPanel(vm)
                     case .enhance:
                         enhancePanel(vm)
                     }
@@ -158,30 +156,6 @@ struct AudioView: View {
                 ),
                 onCommit: { vm.scheduleApply() }
             )
-        }
-    }
-
-    @ViewBuilder
-    private func equalizerPanel(_ vm: AudioViewModel) -> some View {
-        VStack(alignment: .leading, spacing: IGITheme.spacingM) {
-            Text("Equalizzatore 6 bande")
-                .font(.headline)
-            Text("Trascina le barre per regolare il guadagno. Rilascia per applicare al DSP.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if vm.eqBands.isEmpty {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-            } else {
-                IGIGraphicEqualizer(
-                    bands: Binding(
-                        get: { vm.eqBands },
-                        set: { vm.eqBands = $0 }
-                    ),
-                    onCommit: { vm.scheduleApply() }
-                )
-            }
         }
     }
 

@@ -17,9 +17,14 @@ struct SettingsRootView: View {
             }
             Section("Audio") {
                 NavigationLink {
+                    AudioProfilesView()
+                } label: {
+                    Label("Profili audio", systemImage: "waveform.path.ecg")
+                }
+                NavigationLink {
                     AudioView()
                 } label: {
-                    Label("Mixer & Equalizzatore", systemImage: "slider.vertical.3")
+                    Label("Mixer & volume", systemImage: "slider.vertical.3")
                 }
                 NavigationLink("Bluetooth speaker") { BluetoothView() }
             }

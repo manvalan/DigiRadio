@@ -420,7 +420,6 @@ extension View {
 
 enum AudioPanel: String, CaseIterable, Identifiable {
     case mixer = "Mixer"
-    case equalizer = "EQ"
     case enhance = "FX"
 
     var id: String { rawValue }
@@ -428,7 +427,6 @@ enum AudioPanel: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .mixer: "slider.vertical.3"
-        case .equalizer: "waveform.path.ecg"
         case .enhance: "sparkles"
         }
     }
