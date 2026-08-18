@@ -615,3 +615,20 @@ yet identified; unrelated to the Si4684 investigation (separate chip), but
 treat BT1035 boot failure as non-fatal rather than halting the whole device,
 so the rest of the system (Si4684 tuning, web UI, Wi-Fi) remains usable
 while this is investigated separately.
+
+## TODO (next session)
+
+- **Antenna/front-end calibration, now meaningful.** Before this session's
+  fixes, any ANTCAP sweep or front-end network experiment was untrustworthy
+  — a bad result could have been the software bug, not the antenna. Now
+  that the receiver chain is verified correct end to end (real FM lock,
+  real DAB lock, real audio), redo the ANTCAP sweep and compare the actual
+  front-end network (§ "Front-end network component mismatch" above)
+  against AN851 properly, with results that can actually be trusted.
+- Fix `fetchDabServiceList()` entry parsing (garbled service_id/component_id/
+  label) against AN649 §7 "Digital Services User's Guide" (~page 418).
+- Confirm actual DAB audio playback end to end (blocked on the item above).
+- Try a proper FM antenna to see if the residual noise under the music
+  clears up (suspected antenna quality, not yet confirmed).
+- BT1035 boot-failure root cause still open (see section above) — non-fatal
+  now, so it's no longer blocking, but still unexplained.
