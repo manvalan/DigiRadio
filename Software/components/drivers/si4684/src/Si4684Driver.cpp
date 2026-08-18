@@ -1121,26 +1121,37 @@ Si4684Driver::fetchDabServiceList()
     }
 
     // raw[5]=RESP4=SIZE[7:0], raw[6]=RESP5=SIZE[15:8] (see readFmRds()).
+    // AN649 only documents SIZE/DATA_0/DATA_N generically for this command
+    // and defers the DAB payload layout to a supplemental "Digital
+    // Services User's Guide" we don't have; the exact field layout below
+    // is cross-checked against hitech95/si468x_dab_receiver's
+    // si468x_core_cmd_dab_get_service_list() (drivers/mfd/si468x-cmd.c),
+    // a real working Linux driver for the same command. That driver also
+    // establishes that the payload actually carried after SIZE is
+    // SIZE-2 bytes, not SIZE bytes.
     const std::uint16_t payloadSize = readLe16(header.data() + 5);
-    if (payloadSize == 0U || payloadSize + 7U > kSpiBufferSize) {
+    if (payloadSize <= 2U || payloadSize + 5U > kSpiBufferSize) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
 
-    // DATA_0 (first byte of the AN649 Table 14 "DAB/DMB Digital Service
-    // List" structure) is RESP6 = body[7]: lead-in(1) + STATUS0-3(4) +
-    // SIZE(2) = 7 header bytes before it.
-    std::vector<std::uint8_t> body(payloadSize + 7U, 0U);
+    // DATA_0 (first byte of the payload) is RESP6 = body[7]: lead-in(1) +
+    // STATUS0-3(4) + SIZE(2) = 7 header bytes before it. Total frame is
+    // lead-in(1) + STATUS0-3(4) + SIZE(2) + payload(SIZE-2) = SIZE+5.
+    std::vector<std::uint8_t> body(payloadSize + 5U, 0U);
     if (auto rd = readRaw(body); !rd) {
         return std::unexpected(rd.error());
     }
 
-    // Table 14: List Size(2) + Version(2) + NumServices(1) + AlignPad(3) =
-    // 8 bytes, then Service 1 begins.
-    const std::uint8_t serviceCount = body[11];
+    // From DATA_0 (body[7]): Version(2) + NumServices/flags(1) +
+    // AlignPad(3) = 6 bytes, then Service 1 begins at body[13]. (The
+    // previous version of this code double-counted the already-consumed
+    // SIZE field here, offsetting every read by 2 bytes — that is why the
+    // service list always came back empty.)
+    const std::uint8_t serviceCount = body[9] & 0x1FU; // max 32 services
     std::vector<Si4684DabService> services;
     services.reserve(serviceCount);
 
-    std::size_t offset = 15U;
+    std::size_t offset = 13U;
     for (std::uint8_t i = 0; i < serviceCount; ++i) {
         // Fixed per-service part: ServiceID(4) + ServiceInfo1-3(3) +
         // AlignPad(1) + Label(16) = 24 bytes.
@@ -1155,11 +1166,13 @@ Si4684Driver::fetchDabServiceList()
         entry.label[16] = '\0';
         offset += 24U;
 
-        // Component ID is 2 bytes (AN649 Table 14); only the first
+        // Component ID is 2 bytes (hitech95's si468x-cmd.c packs tm_id/
+        // sub_ch_id/fidc_id/sc_id into this same field; only the raw
+        // 16-bit value is exposed on this DTO). Only the first
         // component's ID is exposed on this DTO. Every component (M =
         // componentCount) must still be skipped to keep the next service
-        // entry aligned, each one ComponentID(2) + ComponentInfo(1) +
-        // ValidFlags(1) = 4 bytes.
+        // entry aligned, each one 2 bytes packed field + ServiceType/
+        // flags(1) + ValidFlags(1) = 4 bytes.
         if (componentCount > 0U && offset + 2U <= body.size()) {
             entry.componentId = readLe16(body.data() + offset);
         }
