@@ -340,6 +340,73 @@ TunerService::scanForStation(const core::TunerScanRequest& request)
     return makeScanResult(request, request.maxSteps, false);
 }
 
+std::expected<std::vector<core::TunerFmScannedStation>, core::TunerError>
+TunerService::scanFullFmBand()
+{
+    const auto bandBottom = *core::FrequencyKHz::tryFromKhz(kFmScanMinKhz);
+    if (auto tuned = tuneFm(bandBottom); !tuned) {
+        return std::unexpected(tuned.error());
+    }
+
+    std::vector<core::TunerFmScannedStation> stations;
+    std::uint32_t previousKhz = kFmScanMinKhz;
+    ESP_LOGI(kTag, "FM full band scan start from %u kHz",
+             static_cast<unsigned>(kFmScanMinKhz));
+
+    // One hardware seek per candidate; the FM band cannot hold more
+    // stations than this at any legal channel spacing, so it is a safe
+    // upper bound against seek ever failing to detect the wrap-around.
+    constexpr int kMaxCandidates = 60;
+    for (int i = 0; i < kMaxCandidates; ++i) {
+        auto seeked = seekFm(core::SeekDirection::Up);
+        if (!seeked) {
+            return std::unexpected(seeked.error());
+        }
+        const std::uint32_t freqKhz = seeked->value();
+        if (freqKhz <= previousKhz) {
+            ESP_LOGI(kTag, "FM full band scan wrapped at %u kHz",
+                     static_cast<unsigned>(freqKhz));
+            break;
+        }
+        previousKhz = freqKhz;
+
+        vTaskDelay(pdMS_TO_TICKS(kFmTuneSettleMs));
+        auto status = refreshStatus();
+        if (!status) {
+            return std::unexpected(status.error());
+        }
+        if (!fmStatusUsableForScan(*status, freqKhz, /*requireLocked=*/true)) {
+            continue;
+        }
+
+        std::optional<core::BroadcastLabel> stationName;
+        for (int attempt = 0; attempt < kFmNamePollAttempts; ++attempt) {
+            auto polled = refreshStatus();
+            if (!polled) {
+                break;
+            }
+            if (polled->fmStationName) {
+                stationName = polled->fmStationName;
+                break;
+            }
+            vTaskDelay(pdMS_TO_TICKS(kFmNamePollMs));
+        }
+
+        const core::TunerFmScannedStation entry{
+            *status->fmFrequency,
+            status->fmRssiDbuV.value_or(0),
+            status->fmSnrDb.value_or(0),
+            stationName,
+        };
+        ESP_LOGI(kTag, "FM full band scan hit: %u kHz rssi=%d snr=%d",
+                 static_cast<unsigned>(freqKhz),
+                 static_cast<int>(entry.rssiDbuV),
+                 static_cast<int>(entry.snrDb));
+        stations.push_back(entry);
+    }
+    return stations;
+}
+
 std::expected<std::vector<core::TunerServiceEntry>, core::TunerError>
 TunerService::listDabServices()
 {

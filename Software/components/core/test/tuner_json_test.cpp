@@ -139,6 +139,29 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+[[nodiscard]] int runTunerFmBandScanSerialiseTest()
+{
+    core::TunerFmScannedStation withName{
+        *core::FrequencyKHz::tryFromKhz(98300U), 12, 13,
+        core::BroadcastLabel::tryFromChipBytes("RADIO 1")};
+    core::TunerFmScannedStation withoutName{
+        *core::FrequencyKHz::tryFromKhz(105500U), -4, -2, std::nullopt};
+
+    const std::string json =
+        core::serializeTunerFmBandScanJson({withName, withoutName});
+    if (!expectEqual(
+            json,
+            R"({"stations":[{"frequency_khz":98300,"rssi_dbuv":12,"snr_db":13,"station_name":"RADIO 1"},{"frequency_khz":105500,"rssi_dbuv":-4,"snr_db":-2}]})")) {
+        return EXIT_FAILURE;
+    }
+
+    const std::string emptyJson = core::serializeTunerFmBandScanJson({});
+    if (!expectEqual(emptyJson, R"({"stations":[]})")) {
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 [[nodiscard]] int runTunerStatusMetadataSerialiseTest()
 {
     core::TunerStatus status = {};
@@ -238,6 +261,9 @@ int main()
         return EXIT_FAILURE;
     }
     if (runTunerSeekParseTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runTunerFmBandScanSerialiseTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

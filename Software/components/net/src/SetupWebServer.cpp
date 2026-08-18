@@ -30,6 +30,7 @@
 #include "core/StationListJson.hpp"
 #include "core/StoreError.hpp"
 #include "core/TunerJson.hpp"
+#include "core/DspParamJson.hpp"
 #include "core/WifiProvisionJson.hpp"
 #include "core/WifiScanJson.hpp"
 #include "net/WifiScanner.hpp"
@@ -39,6 +40,7 @@
 #include "station/StationService.hpp"
 #include "integration/IntegrationService.hpp"
 #include "adau1701/FlashDspProgramSource.hpp"
+#include "adau1701/Adau1701ParamTable.hpp"
 #include "ota/OtaService.hpp"
 #include "ota/OtaError.hpp"
 #include "core/OtaAppDescriptor.hpp"
@@ -596,6 +598,42 @@ esp_err_t tunerScanPostHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    tunerFullScanPostHandler — full FM band sweep for a channel list.
+ *
+ * @dname    tunerFullScanPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate uses route context tuner service; blocks for the whole sweep
+ *           (tens of seconds); does not persist to the station store.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-18
+ */
+esp_err_t tunerFullScanPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->tuner == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    ESP_LOGI(kTag, "tuner full FM band scan HTTP request");
+
+    auto result = ctx->tuner->scanFullFmBand();
+    if (!result) {
+        const std::string json =
+            core::serializeTunerErrorJson(tunerErrorToken(result.error()));
+        httpd_resp_set_status(req, "409 Conflict");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeTunerFmBandScanJson(*result);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
  * @brief    audioProfileGetHandler — serve GET /api/audio/profile JSON.
  *
  * @dname    audioProfileGetHandler
@@ -793,6 +831,89 @@ esp_err_t audioBeepPostHandler(httpd_req_t* req)
 
     if (auto applied = ctx->audio->setBeepEnabled(*parsed); !applied) {
         const std::string json = core::serializeAudioErrorJson("dsp_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeAudioSavedJson();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    dspParamsGetHandler — serve GET /api/dsp/params as JSON.
+ *
+ * @dname    dspParamsGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the compiled DSP program's static cell table; no I/O.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-18
+ */
+esp_err_t dspParamsGetHandler(httpd_req_t* req)
+{
+    std::vector<core::DspParamInfo> params;
+    params.reserve(adau1701::kAdau1701ParamTable.size());
+    for (const auto& entry : adau1701::kAdau1701ParamTable) {
+        params.push_back(core::DspParamInfo{entry.name, entry.address});
+    }
+    const std::string json = core::serializeDspParamListJson(params);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    dspParamPutHandler — accept PUT /api/dsp/param JSON.
+ *
+ * @dname    dspParamPutHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate live-only safeload write; not part of AudioProfile, never
+ *           persisted. No domain validation on the value — same trust
+ *           level as SigmaStudio's own Remote Connection.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-18
+ */
+esp_err_t dspParamPutHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed =
+        core::parseDspParamWriteJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeDspParamErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const auto address = adau1701::findAdau1701ParamAddress(parsed->name);
+    if (!address) {
+        const std::string json =
+            core::serializeDspParamErrorJson("unknown_param");
+        httpd_resp_set_status(req, "404 Not Found");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto applied = ctx->audio->writeRawParam(*address, parsed->value);
+        !applied) {
+        const std::string json =
+            core::serializeDspParamErrorJson("dsp_failed");
         httpd_resp_set_status(req, "500 Internal Server Error");
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
@@ -1796,6 +1917,14 @@ std::expected<void, NetError> SetupWebServer::start(
     };
     httpd_register_uri_handler(server_, &tunerScanUri);
 
+    const httpd_uri_t tunerFullScanUri = {
+        .uri = "/api/tuner/scan/full",
+        .method = HTTP_POST,
+        .handler = tunerFullScanPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &tunerFullScanUri);
+
     const httpd_uri_t audioProfileGetUri = {
         .uri = "/api/audio/profile",
         .method = HTTP_GET,
@@ -1843,6 +1972,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &audioBeepUri);
+
+    const httpd_uri_t dspParamsUri = {
+        .uri = "/api/dsp/params",
+        .method = HTTP_GET,
+        .handler = dspParamsGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &dspParamsUri);
+
+    const httpd_uri_t dspParamUri = {
+        .uri = "/api/dsp/param",
+        .method = HTTP_PUT,
+        .handler = dspParamPutHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &dspParamUri);
 
     const httpd_uri_t streamingGetUri = {
         .uri = "/api/streaming",

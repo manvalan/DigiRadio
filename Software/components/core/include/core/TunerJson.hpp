@@ -96,6 +96,23 @@ struct TunerScanResult {
 };
 
 /**
+ * @brief    TunerFmScannedStation — one hit from a full FM band scan.
+ *
+ * @dname    TunerFmScannedStation
+ * @return   n/a (type)
+ * @pubstate Plain DTO built by TunerService::scanFullFmBand().
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-18
+ */
+struct TunerFmScannedStation {
+    FrequencyKHz frequency;              ///< Centre frequency of the hit.
+    std::int8_t rssiDbuV;                ///< RSSI at the time of the hit.
+    std::int8_t snrDb;                   ///< SNR at the time of the hit.
+    std::optional<BroadcastLabel> stationName; ///< RDS PS name, if decoded in time.
+};
+
+/**
  * @brief    serializeTunerStatusJson — serialise a tuner snapshot for GET status.
  *
  * @dname    serializeTunerStatusJson
@@ -206,5 +223,20 @@ struct TunerScanResult {
  * @date     2026-08-05
  */
 [[nodiscard]] std::string serializeTunerScanJson(const TunerScanResult& result);
+
+/**
+ * @brief    serializeTunerFmBandScanJson — serialise a full FM band scan.
+ *
+ * @dname    serializeTunerFmBandScanJson
+ * @param    stations  Hits from TunerService::scanFullFmBand(), in the
+ *                      order the sweep found them (ascending frequency).
+ * @return   JSON object with a `stations` array for the HTTP response body.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-18
+ */
+[[nodiscard]] std::string serializeTunerFmBandScanJson(
+    const std::vector<TunerFmScannedStation>& stations);
 
 } // namespace core

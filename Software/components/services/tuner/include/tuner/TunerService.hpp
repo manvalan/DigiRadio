@@ -125,6 +125,22 @@ public:
     scanForStation(const core::TunerScanRequest& request);
 
     /**
+     * @brief    scanFullFmBand — sweep the whole FM band via hardware seek.
+     *
+     * @dname    scanFullFmBand
+     * @return   Every station found, ascending frequency, or a TunerError.
+     * @pubstate tunes to the band bottom then seeks up repeatedly until the
+     *           sweep wraps back around; leaves the tuner parked wherever
+     *           the last seek landed. Does not modify saved presets.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-18
+     */
+    [[nodiscard]] std::expected<std::vector<core::TunerFmScannedStation>,
+                                core::TunerError>
+    scanFullFmBand();
+
+    /**
      * @brief    listDabServices — programmes available on the current ensemble.
      *
      * @dname    listDabServices
