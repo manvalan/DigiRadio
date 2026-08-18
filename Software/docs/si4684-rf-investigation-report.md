@@ -616,19 +616,60 @@ treat BT1035 boot failure as non-fatal rather than halting the whole device,
 so the rest of the system (Si4684 tuning, web UI, Wi-Fi) remains usable
 while this is investigated separately.
 
+## 2026-08-19 update: fetchDabServiceList() entry parsing fixed; DAB audio
+confirmed, quality traced to signal strength
+
+Live retest on real hardware found `fetchDabServiceList()`'s *body* parsing
+(the third bug flagged as "not yet investigated" above) double-counted the
+already-consumed SIZE field: it treated the payload as starting 2 bytes
+later than it actually does (`serviceCount` read from `body[11]` instead of
+`body[9]`, service entries starting at `body[15]` instead of `body[13]`).
+AN649 doesn't actually document the DAB service-list entry layout itself —
+it defers to a supplemental "Digital Services User's Guide" this project
+doesn't have a copy of — so the exact field layout was re-derived by
+cross-checking `hitech95/si468x_dab_receiver`'s
+`si468x_core_cmd_dab_get_service_list()` (a working Linux driver for the
+same command over the same command set), which also confirmed the payload
+carried after SIZE is `SIZE-2` bytes, not `SIZE` bytes (fixed the read
+sizing to match).
+
+Confirmed live immediately after reflashing: `GET /api/tuner/services` on a
+locked DAB ensemble (freq_index 5) now returns 22 real, correctly-decoded
+Italian DAB station labels (R.M.T., Radio Cuore, GR News, Radio Sportiva,
+Lifegate, ...) instead of an empty list. `POST /api/tuner/play` against one
+of these real service/component IDs was confirmed audible — crackly/broken
+but present, not silence — on a second try after the first selected
+service (R.M.T., `cnr_db=7`) produced no audible sound at all. Switching to
+GR News (`cnr_db=8`) did produce audible (if degraded) audio. This matches
+DAB's two-tier robustness by design: the FIC channel (`fic_quality` 94-98
+throughout) is far more error-protected than the actual audio sub-channel,
+so a receiver can report ensemble lock and a clean, complete service list
+while individual programme audio is too weak (CNR ~7-8 dB here) to decode
+cleanly or at all — the chip's own soft-mute is the most likely explanation
+for the first service's total silence, not a firmware defect. This is
+consistent with what FM already showed this session ("works, but
+badly") and with the still-open antenna/front-end TODO below.
+
+Also found and fixed, unrelated to the Si4684: `SetupWebServer` was
+registering 41 HTTP routes against `httpd_config_t::max_uri_handlers = 40`
+— `httpd_register_uri_handler()` fails past the limit with only a generic
+"no slots left" warning, no indication of which handler was dropped. The
+41st and therefore last-registered route, `POST /api/stations/tune`, was
+silently unroutable (404) on every boot since whichever commit first pushed
+the route count past 40. Bumped to 56 for headroom.
+
 ## TODO (next session)
 
-- **Antenna/front-end calibration, now meaningful.** Before this session's
-  fixes, any ANTCAP sweep or front-end network experiment was untrustworthy
-  — a bad result could have been the software bug, not the antenna. Now
-  that the receiver chain is verified correct end to end (real FM lock,
-  real DAB lock, real audio), redo the ANTCAP sweep and compare the actual
+- **Antenna/front-end calibration — now the real blocker for DAB/FM audio
+  quality, not firmware.** Both bands are confirmed working end to end
+  (real lock, real service list, real audio) but both are signal-limited:
+  FM "works, but badly" per live listening test, and DAB audio ranges from
+  crackly to fully soft-muted depending on the service's CNR (~7-8 dB
+  observed, on the low side). Redo the ANTCAP sweep and compare the actual
   front-end network (§ "Front-end network component mismatch" above)
-  against AN851 properly, with results that can actually be trusted.
-- Fix `fetchDabServiceList()` entry parsing (garbled service_id/component_id/
-  label) against AN649 §7 "Digital Services User's Guide" (~page 418).
-- Confirm actual DAB audio playback end to end (blocked on the item above).
-- Try a proper FM antenna to see if the residual noise under the music
-  clears up (suspected antenna quality, not yet confirmed).
+  against AN851 now that the receiver chain itself is verified correct —
+  any measurement taken now can actually be trusted.
+- Try a proper FM/DAB antenna to see how much of the crackle/noise clears
+  up versus how much is inherent to the current antenna's gain/placement.
 - BT1035 boot-failure root cause still open (see section above) — non-fatal
   now, so it's no longer blocking, but still unexplained.
