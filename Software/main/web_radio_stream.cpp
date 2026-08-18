@@ -10,10 +10,9 @@
 
 #include "web_radio_stream.hpp"
 
-#include "board_pins.hpp"
+#include "esp32_i2s_sink.hpp"
 #include "webradio/WebRadioService.hpp"
 
-#include "driver/i2s_std.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -34,6 +33,8 @@ constexpr std::size_t kInputBufSize = 4096U; // >= 2x MAINBUF_SIZE (1940)
 constexpr int kHttpTimeoutMs = 10000;
 constexpr TickType_t kIdlePollDelay = pdMS_TO_TICKS(1000);
 constexpr TickType_t kReconnectDelay = pdMS_TO_TICKS(5000);
+/** How often to retry when a phone PCM stream currently owns the I2S sink. */
+constexpr TickType_t kSinkBusyRetryDelay = pdMS_TO_TICKS(2000);
 
 /** Raw MP3 bytes pending decode, refilled from the HTTP socket. */
 struct InputBuffer {
@@ -41,53 +42,6 @@ struct InputBuffer {
     std::size_t filled = 0U;
     std::uint8_t* readPtr = data;
 };
-
-[[nodiscard]] i2s_chan_handle_t openTxChannel()
-{
-    i2s_chan_config_t chanCfg =
-        I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_SLAVE);
-    // Default (6 desc x 240 frames = 1440 frames = ~30 ms @ 48 kHz) leaves
-    // almost no headroom against network jitter in this single-task
-    // fetch+decode+play pipeline; widen it to ~120 ms so a brief HTTP
-    // stall doesn't immediately starve the I2S DMA and audibly crackle.
-    chanCfg.dma_desc_num = 12;
-    chanCfg.dma_frame_num = 480;
-    i2s_chan_handle_t txHandle = nullptr;
-    if (i2s_new_channel(&chanCfg, &txHandle, nullptr) != ESP_OK) {
-        ESP_LOGE(kTag, "i2s_new_channel failed");
-        return nullptr;
-    }
-
-    i2s_std_config_t stdCfg = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(kSampleRateHz),
-        // 32-bit slots match ADAU1701 SerialOutRegister1 (64 BCLKs/frame).
-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(
-            I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
-        .gpio_cfg = {
-            .mclk = I2S_GPIO_UNUSED,
-            .bclk = static_cast<gpio_num_t>(board::pins::I2sBclk),
-            .ws = static_cast<gpio_num_t>(board::pins::I2sLrclk),
-            .dout = static_cast<gpio_num_t>(board::pins::I2sDataOut),
-            .din = I2S_GPIO_UNUSED,
-            .invert_flags = {
-                .mclk_inv = false,
-                .bclk_inv = false,
-                .ws_inv = false,
-            },
-        },
-    };
-
-    if (i2s_channel_init_std_mode(txHandle, &stdCfg) != ESP_OK
-        || i2s_channel_enable(txHandle) != ESP_OK) {
-        ESP_LOGE(kTag, "I2S TX channel init/enable failed");
-        i2s_del_channel(txHandle);
-        return nullptr;
-    }
-    ESP_LOGI(kTag, "I2S slave TX started (BCLK=%d WS=%d DOUT=%d)",
-             board::pins::I2sBclk, board::pins::I2sLrclk,
-             board::pins::I2sDataOut);
-    return txHandle;
-}
 
 [[nodiscard]] esp_http_client_handle_t openStream(const std::string& url)
 {
@@ -142,13 +96,12 @@ void refill(esp_http_client_handle_t client, InputBuffer& in)
 }
 
 /** Convert one decoded PCM frame to the ADAU's 32-bit-slot I2S format and
- *  hand the whole frame to the driver in a single write. One
+ *  hand the whole frame to the shared sink in a single write. One
  *  i2s_channel_write() call per sample (the previous approach) meant up to
  *  1152 separate driver calls per MP3 frame, each with its own locking/DMA
  *  bookkeeping overhead — a likely source of the reported stutter/crackle,
  *  independent of network jitter. */
-void writeFrame(i2s_chan_handle_t tx, const std::int16_t* pcm,
-                int frameCount, int channels)
+void writeFrame(const std::int16_t* pcm, int frameCount, int channels)
 {
     // MAX_NGRAN(2) * MAX_NSAMP(576) = 1152 samples/channel, stereo => 2304.
     static std::int32_t out[MAX_NGRAN * MAX_NSAMP * 2];
@@ -161,11 +114,7 @@ void writeFrame(i2s_chan_handle_t tx, const std::int16_t* pcm,
         out[i * 2] = static_cast<std::int32_t>(left) << 16;
         out[i * 2 + 1] = static_cast<std::int32_t>(right) << 16;
     }
-    std::size_t written = 0U;
-    (void)i2s_channel_write(tx, out,
-                            static_cast<std::size_t>(sampleCount) * 2U
-                                * sizeof(std::int32_t),
-                            &written, portMAX_DELAY);
+    (void)esp32_i2s_sink::writeSamples(out, static_cast<std::size_t>(sampleCount) * 2U);
 }
 
 /**
@@ -173,9 +122,8 @@ void writeFrame(i2s_chan_handle_t tx, const std::int16_t* pcm,
  * @return false when the stream has ended (caller should reconnect).
  */
 [[nodiscard]] bool pumpOneFrame(esp_http_client_handle_t client,
-                                HMP3Decoder decoder, i2s_chan_handle_t tx,
-                                InputBuffer& in, std::int16_t* pcmOut,
-                                bool& loggedFormat)
+                                HMP3Decoder decoder, InputBuffer& in,
+                                std::int16_t* pcmOut, bool& loggedFormat)
 {
     const std::size_t unread =
         in.filled - static_cast<std::size_t>(in.readPtr - in.data);
@@ -220,14 +168,14 @@ void writeFrame(i2s_chan_handle_t tx, const std::int16_t* pcm,
                      : "");
     }
     const int frameCount = info.outputSamps / info.nChans;
-    writeFrame(tx, pcmOut, frameCount, info.nChans);
+    writeFrame(pcmOut, frameCount, info.nChans);
     return true;
 }
 
 /** Stream until the config is disabled or the connection drops. */
 void streamWhileEnabled(webradio::WebRadioService& service,
                         const std::string& url, HMP3Decoder decoder,
-                        i2s_chan_handle_t tx, std::int16_t* pcmOut)
+                        std::int16_t* pcmOut)
 {
     esp_http_client_handle_t client = openStream(url);
     if (client == nullptr) {
@@ -238,7 +186,7 @@ void streamWhileEnabled(webradio::WebRadioService& service,
     InputBuffer in;
     bool loggedFormat = false;
     while (service.config().enabled
-           && pumpOneFrame(client, decoder, tx, in, pcmOut, loggedFormat)) {
+           && pumpOneFrame(client, decoder, in, pcmOut, loggedFormat)) {
         // keep pumping until disabled, the stream ends, or it drops
     }
 
@@ -252,8 +200,7 @@ void run(void* arg)
 {
     auto* service = static_cast<webradio::WebRadioService*>(arg);
 
-    i2s_chan_handle_t tx = openTxChannel();
-    if (tx == nullptr) {
+    if (!esp32_i2s_sink::open()) {
         vTaskDelete(nullptr);
         return;
     }
@@ -273,7 +220,13 @@ void run(void* arg)
             vTaskDelay(kIdlePollDelay);
             continue;
         }
-        streamWhileEnabled(*service, cfg.url, decoder, tx, pcmOut);
+        if (!esp32_i2s_sink::tryAcquire()) {
+            // A phone PCM stream currently owns the shared I2S sink.
+            vTaskDelay(kSinkBusyRetryDelay);
+            continue;
+        }
+        streamWhileEnabled(*service, cfg.url, decoder, pcmOut);
+        esp32_i2s_sink::release();
     }
 }
 

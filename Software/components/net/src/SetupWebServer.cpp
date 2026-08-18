@@ -56,6 +56,7 @@
 #include "freertos/task.h"
 
 #include <array>
+#include <cstring>
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -97,6 +98,7 @@ extern const uint8_t index_html_gz_end[] asm(
         .integration = nullptr,
         .ota = nullptr,
         .webRadio = nullptr,
+        .phoneStream = nullptr,
         .companionChips = {},
         .deviceIdentity = core::DeviceIdentity::unknown(),
     };
@@ -922,6 +924,74 @@ esp_err_t dspParamPutHandler(httpd_req_t* req)
     const std::string json = core::serializeAudioSavedJson();
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    phoneStreamPutHandler — receive raw PCM audio from a phone app.
+ *
+ * @dname    phoneStreamPutHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate blocks for the lifetime of the connection, writing each chunk
+ *           straight to the shared I2S sink; not part of AudioProfile,
+ *           nothing persisted.
+ *
+ * Body: raw interleaved 16-bit little-endian PCM, stereo, 48 kHz, no
+ * header or framing — just samples. Send with chunked transfer encoding
+ * (no Content-Length needed) and close the connection to stop the stream.
+ * Rejected with 409 if the web radio stream (or another phone stream)
+ * currently owns the I2S sink.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-18
+ */
+esp_err_t phoneStreamPutHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->phoneStream == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    if (!ctx->phoneStream->tryAcquire()) {
+        httpd_resp_set_status(req, "409 Conflict");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    constexpr std::size_t kFrameBytes = 4U; // int16 left + int16 right
+    std::array<char, 4096> chunk{};
+    std::array<std::int16_t, chunk.size() / sizeof(std::int16_t)> frames{};
+    std::size_t leftover = 0U; // always < kFrameBytes between reads
+
+    bool ok = true;
+    while (true) {
+        const int n = httpd_req_recv(req, chunk.data() + leftover,
+                                     chunk.size() - leftover);
+        if (n <= 0) {
+            break; // client closed the connection (or a real error) — done
+        }
+        const std::size_t available =
+            leftover + static_cast<std::size_t>(n);
+        const std::size_t usable = available - (available % kFrameBytes);
+        if (usable > 0U) {
+            std::memcpy(frames.data(), chunk.data(), usable);
+            if (!ctx->phoneStream->writePcm16Stereo(frames.data(),
+                                                     usable / kFrameBytes)) {
+                ok = false;
+                break;
+            }
+        }
+        leftover = available - usable;
+        if (leftover > 0U) {
+            std::memmove(chunk.data(), chunk.data() + usable, leftover);
+        }
+    }
+
+    ctx->phoneStream->release();
+    if (!ok) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    return httpd_resp_send(req, nullptr, 0);
 }
 
 /**
@@ -1794,6 +1864,7 @@ std::expected<void, NetError> SetupWebServer::start(
     integration::IntegrationService& integration,
     ota::OtaService& ota,
     webradio::WebRadioService& webRadio,
+    PhoneStreamSink& phoneStream,
     core::CompanionChipStatus companionChips,
     const core::DeviceIdentity& deviceIdentity)
 {
@@ -1817,6 +1888,7 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext.integration = &integration;
     routeContext.ota = &ota;
     routeContext.webRadio = &webRadio;
+    routeContext.phoneStream = &phoneStream;
     routeContext.companionChips = companionChips;
     routeContext.deviceIdentity = deviceIdentity;
 
@@ -1988,6 +2060,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &dspParamUri);
+
+    const httpd_uri_t phoneStreamUri = {
+        .uri = "/api/stream/phone",
+        .method = HTTP_PUT,
+        .handler = phoneStreamPutHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &phoneStreamUri);
 
     const httpd_uri_t streamingGetUri = {
         .uri = "/api/streaming",

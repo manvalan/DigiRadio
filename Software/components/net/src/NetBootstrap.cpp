@@ -104,6 +104,7 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
                integration::IntegrationService& integration,
                ota::OtaService& ota,
                webradio::WebRadioService& webRadio,
+               PhoneStreamSink& phoneStream,
                core::CompanionChipStatus companionChips,
                const core::DeviceIdentity& deviceIdentity)
 {
@@ -119,7 +120,7 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
     if (auto webResult =
             webServer.start(store, NetState::SoftApSetup, tuner, audio,
                             bluetooth, stations, integration, ota, webRadio,
-                            companionChips, deviceIdentity);
+                            phoneStream, companionChips, deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -156,6 +157,7 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
              integration::IntegrationService& integration,
              ota::OtaService& ota,
              webradio::WebRadioService& webRadio,
+             PhoneStreamSink& phoneStream,
              core::CompanionChipStatus companionChips,
              const core::DeviceIdentity& deviceIdentity)
 {
@@ -186,7 +188,7 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
     if (auto webResult =
             webServer.start(store, NetState::StaConnected, tuner, audio,
                             bluetooth, stations, integration, ota, webRadio,
-                            companionChips, deviceIdentity);
+                            phoneStream, companionChips, deviceIdentity);
         !webResult) {
         return std::unexpected(webResult.error());
     }
@@ -214,6 +216,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
                     integration::IntegrationService& integration,
                     ota::OtaService& ota,
                     webradio::WebRadioService& webRadio,
+                    PhoneStreamSink& phoneStream,
                     core::CompanionChipStatus companionChips,
                     const core::DeviceIdentity& deviceIdentity)
 {
@@ -227,7 +230,7 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
 
     if (store.hasWifiCredentials()) {
         auto staResult = startStaMode(store, tuner, audio, bluetooth, stations,
-                                      integration, ota, webRadio,
+                                      integration, ota, webRadio, phoneStream,
                                       companionChips, deviceIdentity);
         if (staResult) {
             return staResult;
@@ -240,7 +243,8 @@ NetBootstrap::start(core::ISecureStore& store, tuner::TunerService& tuner,
     }
 
     return startSetupMode(store, tuner, audio, bluetooth, stations, integration,
-                          ota, webRadio, companionChips, deviceIdentity);
+                          ota, webRadio, phoneStream, companionChips,
+                          deviceIdentity);
 }
 
 NetBootstrap::NetBootstrap(std::optional<SoftApHost> softAp,

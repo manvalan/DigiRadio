@@ -23,6 +23,8 @@
 #include "si4684/Si4684Tuner.hpp"
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
+#include "esp32_i2s_sink.hpp"
+#include "phone_stream.hpp"
 #include "web_radio_stream.hpp"
 #include "webradio/WebRadioService.hpp"
 
@@ -197,6 +199,11 @@ extern "C" void app_main()
 
     static webradio::WebRadioService webRadioService(store);
 
+    if (!esp32_i2s_sink::open()) {
+        ESP_LOGW(kTag, "shared I2S sink open failed — web radio and phone "
+                       "streaming will be unavailable");
+    }
+
     auto netResult = net::NetBootstrap::start(
         store,
         tunerService,
@@ -206,6 +213,7 @@ extern "C" void app_main()
         integration,
         otaService,
         webRadioService,
+        phone_stream::sink(),
         hardware::HardwareBootstrap::companionChipStatus(),
         hardware::HardwareBootstrap::deviceIdentity());
     if (!netResult) {
