@@ -28,3 +28,10 @@ CONFIG_COMPILER_CXX_STD=23
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Onboard BLE for wifi_provisioning (net/BleProvisioning.cpp) — the ESP32-S3's
+# own radio, independent of the BT1035 UART module which stays classic-A2DP-only.
+# NimBLE instead of Bluedroid: smaller flash/RAM footprint, and the only host
+# stack this firmware needs is a single GATT peripheral role for provisioning.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y

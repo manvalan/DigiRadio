@@ -23,6 +23,7 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "audio/AudioService.hpp"
+#include "net/BleProvisioning.hpp"
 #include "bluetooth/BluetoothService.hpp"
 #include "secure_store/NvsPlatformInit.hpp"
 #include "station/StationService.hpp"
@@ -129,6 +130,15 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
     if (auto sigmaResult = sigmaStudio.start(); !sigmaResult) {
         ESP_LOGW(kTag, "SigmaStudio TCP bridge failed to start — continuing "
                        "without it");
+    }
+
+    // Additive: a phone can provision over BLE (no need to first join the
+    // SoftAP) while the HTTP route above keeps working as before. Non-fatal
+    // — setup mode is still fully usable via SoftAP if this fails.
+    if (auto bleResult = ble_provisioning::start(store, deviceIdentity);
+        !bleResult) {
+        ESP_LOGW(kTag, "BLE provisioning failed to start — SoftAP setup "
+                       "still available");
     }
 
     ESP_LOGI(kTag, "setup mode ready — SSID %.*s",
