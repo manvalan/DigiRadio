@@ -962,7 +962,12 @@ Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
         return std::unexpected(Si4684Error::CommandFailed);
     }
 
-    std::array<std::uint8_t, 24> header = {};
+    // raw[5]=RESP4 (see readFmRds()). AN649 Command 0x84 response:
+    // RESP4=flags, RESP5=BUFF_COUNT, RESP6=SRV_STATE, RESP7=DATA_SRC/DSCTy,
+    // RESP8-11=SERVICE_ID, RESP12-15=COMP_ID, RESP16-17=UATYPE,
+    // RESP18-19=BYTE_COUNT, RESP20-21=SEG_NUM, RESP22-23=NUM_SEGS — 25
+    // header bytes total (lead-in + STATUS0-3 + RESP4-23).
+    std::array<std::uint8_t, 25> header = {};
     if (auto rd = readRaw(header); !rd) {
         return std::unexpected(rd.error());
     }
@@ -973,11 +978,11 @@ Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
         }
     }
 
-    const std::uint16_t byteCount = readLe16(header.data() + 18);
+    const std::uint16_t byteCount = readLe16(header.data() + 19);
     if (byteCount == 0U) {
         return std::optional<Si4684DabServiceData>{};
     }
-    if (byteCount + 24U > kSpiBufferSize) {
+    if (byteCount + 25U > kSpiBufferSize) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
 
@@ -989,12 +994,12 @@ Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
     }
 
     Si4684DabServiceData data = {};
-    data.dataSrc = static_cast<std::uint8_t>((header[7] >> 6U) & 0x03U);
-    data.serviceId = readLe32(header.data() + 8);
-    data.componentId = readLe32(header.data() + 12);
+    data.dataSrc = static_cast<std::uint8_t>((header[8] >> 6U) & 0x03U);
+    data.serviceId = readLe32(header.data() + 9);
+    data.componentId = readLe32(header.data() + 13);
     data.byteCount = byteCount;
-    data.segmentIndex = readLe16(header.data() + 20);
-    data.segmentCount = readLe16(header.data() + 22);
+    data.segmentIndex = readLe16(header.data() + 21);
+    data.segmentCount = readLe16(header.data() + 23);
     data.payload = std::move(body);
     return data;
 }
@@ -1115,42 +1120,50 @@ Si4684Driver::fetchDabServiceList()
         return std::unexpected(rd.error());
     }
 
+    // raw[5]=RESP4=SIZE[7:0], raw[6]=RESP5=SIZE[15:8] (see readFmRds()).
     const std::uint16_t payloadSize = readLe16(header.data() + 5);
-    if (payloadSize == 0U || payloadSize + 6U > kSpiBufferSize) {
+    if (payloadSize == 0U || payloadSize + 7U > kSpiBufferSize) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
 
-    std::vector<std::uint8_t> body(payloadSize + 6U, 0U);
+    // DATA_0 (first byte of the AN649 Table 14 "DAB/DMB Digital Service
+    // List" structure) is RESP6 = body[7]: lead-in(1) + STATUS0-3(4) +
+    // SIZE(2) = 7 header bytes before it.
+    std::vector<std::uint8_t> body(payloadSize + 7U, 0U);
     if (auto rd = readRaw(body); !rd) {
         return std::unexpected(rd.error());
     }
 
-    const std::uint8_t serviceCount = body[9];
+    // Table 14: List Size(2) + Version(2) + NumServices(1) + AlignPad(3) =
+    // 8 bytes, then Service 1 begins.
+    const std::uint8_t serviceCount = body[11];
     std::vector<Si4684DabService> services;
     services.reserve(serviceCount);
 
-    std::size_t offset = 13U;
+    std::size_t offset = 15U;
     for (std::uint8_t i = 0; i < serviceCount; ++i) {
+        // Fixed per-service part: ServiceID(4) + ServiceInfo1-3(3) +
+        // AlignPad(1) + Label(16) = 24 bytes.
         if (offset + 24U > body.size()) {
             break;
         }
         Si4684DabService entry = {};
         entry.serviceId = readLe32(body.data() + offset);
-        offset += 4U;
-        entry.serviceType = body[offset] & 0x3FU;
-        const std::uint8_t componentCount = body[offset + 1] & 0x0FU;
-        offset += 4U;
-        std::memcpy(entry.label.data(), body.data() + offset, 16U);
+        entry.serviceType = body[offset + 4U];
+        const std::uint8_t componentCount = body[offset + 5U] & 0x0FU;
+        std::memcpy(entry.label.data(), body.data() + offset + 8U, 16U);
         entry.label[16] = '\0';
-        offset += 16U;
+        offset += 24U;
 
-        if (componentCount > 0U && offset + 4U <= body.size()) {
-            entry.componentId = readLe32(body.data() + offset);
-            offset += 4U;
-            if (offset < body.size()) {
-                ++offset;
-            }
+        // Component ID is 2 bytes (AN649 Table 14); only the first
+        // component's ID is exposed on this DTO. Every component (M =
+        // componentCount) must still be skipped to keep the next service
+        // entry aligned, each one ComponentID(2) + ComponentInfo(1) +
+        // ValidFlags(1) = 4 bytes.
+        if (componentCount > 0U && offset + 2U <= body.size()) {
+            entry.componentId = readLe16(body.data() + offset);
         }
+        offset += static_cast<std::size_t>(componentCount) * 4U;
         services.push_back(entry);
     }
     return services;
