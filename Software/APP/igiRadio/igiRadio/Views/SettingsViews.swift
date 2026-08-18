@@ -12,6 +12,7 @@ struct SettingsRootView: View {
             Section("Radio") {
                 NavigationLink("FM") { FMRadioView() }
                 NavigationLink("DAB") { DABRadioView() }
+                NavigationLink("Web radio stream") { StreamingView() }
                 NavigationLink("Preset") { PresetsView() }
             }
             Section("Audio") {

@@ -45,6 +45,11 @@ final class MockDigiRadioService: DigiRadioService {
         try await delay()
     }
 
+    func setStreaming(enabled: Bool, url: String) async throws {
+        try await delay()
+        state.streaming = StreamingState(enabled: enabled, url: url)
+    }
+
     func tuneFM(frequencyKhz: Int) async throws {
         try await delay()
         state.tuner.band = .fm

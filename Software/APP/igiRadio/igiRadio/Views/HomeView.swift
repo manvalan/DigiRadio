@@ -11,6 +11,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: IGITheme.spacingL) {
                 header(state: state)
                 nowPlayingCard(state: state)
+                streamCard(state: state)
                 quickLinks
                 IGITransportCluster(
                     onPrevious: { Task { await viewModel?.seekFM("down") } },
@@ -45,6 +46,7 @@ struct HomeView: View {
             }
             viewModel?.onAppear()
             volume = Double(state.tuner.volume)
+            Task { try? await environment.digiRadio.refreshStreaming() }
         }
         .onDisappear { viewModel?.onDisappear() }
         .onChange(of: environment.state.tuner.volume) { _, newValue in
@@ -144,6 +146,43 @@ struct HomeView: View {
         .animation(.snappy, value: state.tuner.fm?.stationName)
     }
 
+    @ViewBuilder
+    private func streamCard(state: DigiRadioState) -> some View {
+        NavigationLink {
+            StreamingView()
+        } label: {
+            HStack(spacing: IGITheme.spacingM) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(state.streaming.enabled ? IGITheme.accent.opacity(0.2) : Color.secondary.opacity(0.12))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: state.streaming.enabled ? "dot.radiowaves.forward" : "dot.radiowaves.forward.slash")
+                        .font(.title2)
+                        .foregroundStyle(state.streaming.enabled ? IGITheme.accent : .secondary)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Web radio stream")
+                        .font(.headline)
+                    if state.streaming.enabled, !state.streaming.url.isEmpty {
+                        Text(state.streaming.url)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text("Nessuno stream attivo")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.tertiary)
+            }
+            .igiPremiumCard()
+        }
+        .buttonStyle(.plain)
+    }
+
     private var quickLinks: some View {
         HStack(spacing: IGITheme.spacingS) {
             NavigationLink {
@@ -160,6 +199,11 @@ struct HomeView: View {
                 AudioView()
             } label: {
                 quickLinkLabel("Audio", icon: "slider.vertical.3")
+            }
+            NavigationLink {
+                StreamingView()
+            } label: {
+                quickLinkLabel("Stream", icon: "dot.radiowaves.forward")
             }
         }
     }

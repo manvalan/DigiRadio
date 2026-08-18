@@ -77,6 +77,11 @@ final class RealDigiRadioService: DigiRadioService {
         state.streaming = try await client.fetchStreaming()
     }
 
+    func setStreaming(enabled: Bool, url: String) async throws {
+        let config = StreamingState(enabled: enabled, url: url)
+        state.streaming = try await client.setStreaming(config)
+    }
+
     func tuneFM(frequencyKhz: Int) async throws {
         let tuner = try await client.tune(body: TuneRequest(band: "fm", freqIndex: nil, frequencyKhz: frequencyKhz))
         applyTuner(tuner)

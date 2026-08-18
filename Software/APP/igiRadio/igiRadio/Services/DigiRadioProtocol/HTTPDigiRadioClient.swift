@@ -138,6 +138,10 @@ final class HTTPDigiRadioClient {
         try await get("/api/streaming")
     }
 
+    func setStreaming(_ config: StreamingState) async throws -> StreamingState {
+        try await post("/api/streaming", body: config)
+    }
+
     // MARK: - HTTP helpers
 
     private func url(for path: String) throws -> URL {
