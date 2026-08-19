@@ -87,6 +87,10 @@ public:
      *
      * @dname    tuneFm
      * @param    frequency  Validated FM centre frequency.
+     * @param    antCap     Front-end antenna varactor override for this one
+     *                      tune (e.g. for a calibration sweep). Omit to use
+     *                      defaultFmAntCap_ (the board's saved calibration,
+     *                      or hardware auto-tune if never calibrated).
      * @return   Ok on success, or a TunerError from ITuner.
      * @pubstate writes lastFmFrequency_ on success.
      *
@@ -94,7 +98,22 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, core::TunerError> tuneFm(
-        core::FrequencyKHz frequency);
+        core::FrequencyKHz frequency,
+        std::optional<std::uint8_t> antCap = std::nullopt);
+
+    /**
+     * @brief    setDefaultFmAntCap — set the board's calibrated ANTCAP.
+     *
+     * @dname    setDefaultFmAntCap
+     * @param    antCap  Value applied to every FM tune that doesn't pass an
+     *                   explicit override (0 = chip auto-tune, the factory
+     *                   default before any calibration is saved).
+     * @pubstate writes defaultFmAntCap_. Does not itself re-tune.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-19
+     */
+    void setDefaultFmAntCap(std::uint8_t antCap) noexcept;
 
     /**
      * @brief    seekFm — seek FM in the given direction.
@@ -200,6 +219,7 @@ private:
     std::uint8_t lastDabIndex_;
     core::FrequencyKHz lastFmFrequency_;
     std::uint8_t volume_;
+    std::uint8_t defaultFmAntCap_;
     std::optional<std::uint32_t> lastPlayedServiceId_;
     std::optional<std::uint32_t> lastPlayedComponentId_;
 };

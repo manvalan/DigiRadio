@@ -100,6 +100,14 @@ public:
      *
      * @dname    tuneFm
      * @param    frequency  Validated FM centre frequency.
+     * @param    antCap     Front-end antenna varactor override (0-128).
+     *                      0 = automatic (chip's own FE_VARM/VARB-derived
+     *                      tuning); other values force a specific varactor
+     *                      setting, for antenna calibration sweeps. Chip-
+     *                      specific concept (AN851 Appendix A on the
+     *                      Si4684), exposed here only because ANTCAP has no
+     *                      other reasonable home without duplicating the
+     *                      whole tune path per driver.
      * @return   Ok on success, or WrongBand / TuneFailed / NotBooted.
      * @pubstate writes last tune target in the adapter.
      *
@@ -107,7 +115,7 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] virtual std::expected<void, TunerError> tuneFm(
-        FrequencyKHz frequency) = 0;
+        FrequencyKHz frequency, std::uint8_t antCap = 0U) = 0;
 
     /**
      * @brief    seekFm — seek to the next valid FM station.

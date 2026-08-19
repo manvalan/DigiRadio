@@ -200,6 +200,10 @@ std::expected<TunerTuneRequest, ParseError> parseTunerTuneJson(
             return std::unexpected(freq.error());
         }
         req.fmFrequency = *freq;
+        unsigned long antCap = 0U;
+        if (extractJsonUint(json, "antcap", antCap) && antCap <= 128U) {
+            req.antCap = static_cast<std::uint8_t>(antCap);
+        }
     } else {
         return std::unexpected(ParseError::InvalidJson);
     }
@@ -334,6 +338,19 @@ std::string serializeTunerFmBandScanJson(
     }
     out << "]}";
     return out.str();
+}
+
+std::expected<std::uint8_t, ParseError> parseAntennaCalibrationJson(
+    std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+    unsigned long antCap = 0U;
+    if (!extractJsonUint(json, "antcap", antCap) || antCap > 128U) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    return static_cast<std::uint8_t>(antCap);
 }
 
 } // namespace core

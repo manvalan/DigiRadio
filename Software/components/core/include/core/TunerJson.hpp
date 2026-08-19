@@ -41,6 +41,8 @@ struct TunerTuneRequest {
     TunerBand band;              ///< Target band (Dab or Fm).
     std::uint8_t dabFreqIndex;   ///< Band III ensemble index (0–37) when band is Dab.
     std::optional<FrequencyKHz> fmFrequency; ///< FM centre frequency when band is Fm.
+    std::optional<std::uint8_t> antCap; ///< FM antenna varactor override (0–128),
+                                        ///< for calibration sweeps; ignored for Dab.
 };
 
 /**
@@ -238,5 +240,20 @@ struct TunerFmScannedStation {
  */
 [[nodiscard]] std::string serializeTunerFmBandScanJson(
     const std::vector<TunerFmScannedStation>& stations);
+
+/**
+ * @brief    parseAntennaCalibrationJson — validate POST
+ *           /api/tuner/calibrate-antenna body.
+ *
+ * @dname    parseAntennaCalibrationJson
+ * @param    json  Untrusted request body from the HTTP handler.
+ * @return   ANTCAP value (0-128) on success, or a ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-19
+ */
+[[nodiscard]] std::expected<std::uint8_t, ParseError>
+parseAntennaCalibrationJson(std::string_view json);
 
 } // namespace core
