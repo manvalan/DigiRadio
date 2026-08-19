@@ -343,6 +343,7 @@ public:
 private:
     [[nodiscard]] std::expected<void, Bt1035Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Bt1035Error> runInitSequence();
+    [[nodiscard]] std::expected<void, Bt1035Error> resetAndInitOnce();
     [[nodiscard]] std::expected<std::string, Bt1035Error> transmitAndCollect(
         std::string_view commandLine, int timeoutMs = kResponseTimeoutMs);
     [[nodiscard]] std::expected<std::string, Bt1035Error> transmitAndCollectUntil(

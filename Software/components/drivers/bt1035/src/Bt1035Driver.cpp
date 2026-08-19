@@ -38,6 +38,13 @@ constexpr int kUartTxBuffer = 256;
 constexpr int kResponseTimeoutMs = 2000;
 constexpr int kPostResetMs = 500;
 constexpr int kPostUartMs = 100;
+/** Observed intermittently: the module sometimes needs a second RESET#
+ *  pulse to come up (power-up timing jitter between cold/warm boots) —
+ *  a single attempt with no retry was found to explain sporadic total
+ *  boot failures ("no spontaneous UART bytes" -> "AT init failed") on
+ *  otherwise-identical hardware/wiring. */
+constexpr int kBootAttempts = 3;
+constexpr int kBootRetryDelayMs = 300;
 
 void flushUartRx(int uartPort) noexcept
 {
@@ -904,6 +911,21 @@ std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()
     return {};
 }
 
+std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
+{
+    gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 1);
+    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 0);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 1);
+    vTaskDelay(pdMS_TO_TICKS(kPostResetMs));
+
+    logRawUartBoot(uartPort_);
+    uart_flush_input(static_cast<uart_port_t>(uartPort_));
+    vTaskDelay(pdMS_TO_TICKS(kPostUartMs));
+
+    return runInitSequence();
+}
+
 std::expected<void, Bt1035Error> Bt1035Driver::boot()
 {
     if (booted_) {
@@ -923,12 +945,6 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
     if (gpio_config(&sysCfg) != ESP_OK) {
         return std::unexpected(Bt1035Error::ResetFailed);
     }
-
-    gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 1);
-    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 0);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 1);
-    vTaskDelay(pdMS_TO_TICKS(kPostResetMs));
 
     if (!uartInstalled_) {
         const uart_config_t uartCfg = {
@@ -961,12 +977,19 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         uartInstalled_ = true;
     }
 
-    logRawUartBoot(uartPort_);
-    uart_flush_input(static_cast<uart_port_t>(uartPort_));
-    vTaskDelay(pdMS_TO_TICKS(kPostUartMs));
-
-    if (auto init = runInitSequence(); !init) {
-        ESP_LOGE(kTag, "AT init failed");
+    std::expected<void, Bt1035Error> init = std::unexpected(Bt1035Error::UnexpectedResponse);
+    for (int attempt = 1; attempt <= kBootAttempts; ++attempt) {
+        init = resetAndInitOnce();
+        if (init) {
+            break;
+        }
+        ESP_LOGW(kTag, "boot attempt %d/%d failed", attempt, kBootAttempts);
+        if (attempt < kBootAttempts) {
+            vTaskDelay(pdMS_TO_TICKS(kBootRetryDelayMs));
+        }
+    }
+    if (!init) {
+        ESP_LOGE(kTag, "AT init failed after %d attempts", kBootAttempts);
         return init;
     }
 

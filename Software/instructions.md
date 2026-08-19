@@ -4,8 +4,8 @@ Read this together with `AGENTS.md` and everything under
 `.cursor/rules/`. Those define *how* to write code; this file defines
 *what we are building* and the current state on `main`.
 
-**Firmware on `main`:** **0.8.5** — agent tasks T1–T12 complete; device HIL
-pending PCB arrival.
+**Firmware on `main`:** **0.9.0** — agent tasks T1–T12 complete; device HIL
+now largely done on the first real PCB (see below), not pending anymore.
 
 ## What DigiRadio is
 
@@ -53,8 +53,54 @@ Repository: https://github.com/manvalan/DigiRadio
 | T8 NVS encryption | Done (0.8.3) | `initEncryptedStorage`; HIL when PCB ready |
 | T9–T12 Platform | Done (0.8.4) | Dual OTA, EEPROM identity, DSP + firmware OTA |
 
-Next work: **hardware-in-the-loop** (`docs/TODO.md` § P4), not new features
-unless the user requests them.
+## Post-0.8.5 HIL work (first real PCB, not in the table above)
+
+The board arrived and most of Slice 3–8's HIL assumptions turned out to be
+wrong in ways that needed real fixes, not just testing. Summary (full
+detail in `docs/si4684-rf-investigation-report.md`):
+
+- **Si4684 total RF blackout, root-caused and fixed.** `writeCommand()`'s
+  ARG1 byte was mis-offset across FM/DAB tune, seek, DAB service commands,
+  and several ARG1-only status/ack commands — the chip answered every
+  command correctly but never actually tuned. Real FM lock, real DAB
+  ensemble lock (3+ ensembles), real audio confirmed live.
+- **Si4684→ADAU1701 digital audio silence, fixed.** `PIN_CONFIG_ENABLE`
+  had both I2SOUTEN and DACOUTEN set (chip falls back to unused analog
+  out per AN649); `SerialInputRegister` IBP polarity was wrong (ADAU
+  sampling on the wrong BCLK edge).
+- **DAB service list, two rounds of offset bugs fixed.** Response-parsing
+  offsets were wrong in a way that made `GET_DIGITAL_SERVICE_LIST` return
+  empty/garbled; confirmed live with 22 real, correctly-decoded station
+  labels. Also found `DAB_EVENT_INTERRUPT_SOURCE` (property 0xB300) was
+  never configured, so the service-list-ready event could never fire.
+- **BT1035 boot failure is intermittent, not fixed at the root** — the
+  module sometimes sends zero UART bytes after a hardware reset. Made
+  non-fatal early on; a retry loop (up to 3 reset+init attempts) was added
+  once the timing-jitter theory held up, but the underlying cause is
+  still open.
+- **FM front-end calibration.** The board's actual matching network
+  differs from the AN851 reference the chip's auto-tune constants assume.
+  Swept ANTCAP (AN851 Appendix A) and found a fixed override that beats
+  auto-tune by 6–11 dB RSSI/SNR across the whole band; persisted to the
+  24AA025E48 EEPROM (`POST /api/tuner/calibrate-antenna`) and applied by
+  default to every FM tune.
+- **New features, not in the original Slice plan:** full FM band scan
+  (`POST /api/tuner/scan/full`), generic ADAU1701 parameter access
+  (`GET`/`PUT /api/dsp/param`, an escape hatch onto any SigmaStudio cell
+  beyond the curated mixer/EQ API), phone PCM streaming
+  (`PUT /api/stream/phone`), BLE Wi-Fi provisioning
+  (`net::ble_provisioning`, ESP-IDF's own `wifi_provisioning` over the
+  ESP32-S3's onboard BLE, additive alongside the SoftAP), web radio
+  streaming stutter fix (batched I2S writes).
+- **Still open**: BT1035 root cause; intermittent multi-second HTTP
+  unresponsiveness under load (candidate cause: a blocking Si4684 SPI wait
+  colliding with `max_open_sockets=3`); DAB signal quality still
+  antenna-limited even after calibration; NVS partition (24 KB) may be
+  undersized given the accumulated write traffic (`saveProfile()`
+  `store_failed` seen intermittently, never root-caused).
+
+Next work: keep chasing the open items above as the user prioritises them,
+not new features unless requested.
 
 - **Blockers first** — state risks before solutions.
 - **One vertical slice at a time** — `main` always builds; host tests green.
