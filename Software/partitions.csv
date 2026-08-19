@@ -3,11 +3,17 @@
 # dsp: updatable ADAU1701 program blob (task 3.1).
 # nvs_keys: NVS encryption keys (secure-store slice).
 # First flash after this layout: idf.py erase-flash flash (wired), not OTA.
+# nvs: bumped 24 KiB -> 64 KiB (2026-08-19) — the small original size was a
+# suspected contributor to intermittent NvsAudioProfileStore::saveProfile()
+# store_failed under this project's accumulated write traffic (wifi creds,
+# station_list, audio_profile_json, last_preset). otadata/nvs_keys/phy_init
+# shift forward to make room; they still fit before ota_0's existing 64 KiB
+# alignment boundary (0x20000), so ota_0/ota_1/dsp offsets are unchanged.
 # Name,   Type, SubType,  Offset,   Size, Flags
-nvs,      data, nvs,      0x9000,   0x6000,
-otadata,  data, ota,      0xf000,   0x2000,
-nvs_keys, data, nvs_keys, 0x11000,  0x1000,
-phy_init, data, phy,      0x12000,  0x1000,
+nvs,      data, nvs,      0x9000,   0x10000,
+otadata,  data, ota,      0x19000,  0x2000,
+nvs_keys, data, nvs_keys, 0x1b000,  0x1000,
+phy_init, data, phy,      0x1c000,  0x1000,
 ota_0,    app,  ota_0,    0x20000,  0x400000,
 ota_1,    app,  ota_1,    0x420000, 0x400000,
 dsp,      data, 0x40,     0x820000, 0x40000,
