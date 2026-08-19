@@ -86,6 +86,25 @@ struct PhoneStreamSink {
 };
 
 /**
+ * @brief    AntennaCalibration — plain function pointer over EEPROM-backed
+ *           FM ANTCAP storage, so net/ never includes eeprom24aa headers
+ *           directly; main/ supplies it (HardwareBootstrap owns the I2C
+ *           bus and EEPROM handle).
+ *
+ * @dname    AntennaCalibration
+ * @return   n/a (type)
+ * @pubstate Free function with process lifetime; no per-instance state.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-19
+ */
+struct AntennaCalibration {
+    /** Persist a new FM ANTCAP calibration value to EEPROM.
+     *  @return false on an I2C failure. */
+    bool (*save)(std::uint8_t antCap);
+};
+
+/**
  * @brief    HttpRouteContext — dependencies injected into HTTP handlers.
  *
  * @dname    HttpRouteContext
@@ -106,6 +125,7 @@ struct HttpRouteContext {
     ota::OtaService* ota;                         ///< Firmware OTA streaming.
     webradio::WebRadioService* webRadio; ///< Streaming config REST routes.
     PhoneStreamSink* phoneStream; ///< PUT /api/stream/phone I2S write-through.
+    AntennaCalibration* antennaCalibration; ///< POST /api/tuner/calibrate-antenna.
     core::CompanionChipStatus companionChips; ///< Boot flags for /api/health.
     core::DeviceIdentity deviceIdentity;       ///< EEPROM-derived unit identity.
 };
@@ -187,6 +207,8 @@ public:
      * @param    ota             Firmware OTA service for POST /api/system/ota.
      * @param    webRadio        Streaming config for GET/POST /api/streaming.
      * @param    phoneStream     I2S write-through for PUT /api/stream/phone.
+     * @param    antennaCalibration  EEPROM write-through for
+     *                                POST /api/tuner/calibrate-antenna.
      * @param    companionChips  Boot flags for GET /api/health.
      * @param    deviceIdentity  Unit identity for /api/health serialNumber.
      * @return   Ok on success, or NetError::HttpServerStartFailed.
@@ -204,6 +226,7 @@ public:
         ota::OtaService& ota,
         webradio::WebRadioService& webRadio,
         PhoneStreamSink& phoneStream,
+        AntennaCalibration& antennaCalibration,
         core::CompanionChipStatus companionChips,
         const core::DeviceIdentity& deviceIdentity);
 

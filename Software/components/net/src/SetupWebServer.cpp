@@ -99,6 +99,7 @@ extern const uint8_t index_html_gz_end[] asm(
         .ota = nullptr,
         .webRadio = nullptr,
         .phoneStream = nullptr,
+        .antennaCalibration = nullptr,
         .companionChips = {},
         .deviceIdentity = core::DeviceIdentity::unknown(),
     };
@@ -432,7 +433,10 @@ esp_err_t tunerTunePostHandler(httpd_req_t* req)
     if (parsed->band == core::TunerBand::Dab) {
         result = ctx->tuner->tuneDab(parsed->dabFreqIndex);
     } else if (parsed->fmFrequency) {
-        result = ctx->tuner->tuneFm(*parsed->fmFrequency);
+        // Omitting antcap uses the board's saved calibration (or hardware
+        // auto-tune if never calibrated) — only an explicit value in the
+        // request overrides it, e.g. for a calibration sweep.
+        result = ctx->tuner->tuneFm(*parsed->fmFrequency, parsed->antCap);
     }
 
     if (!result) {
@@ -631,6 +635,58 @@ esp_err_t tunerFullScanPostHandler(httpd_req_t* req)
     }
 
     const std::string json = core::serializeTunerFmBandScanJson(*result);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    tunerCalibrateAntennaPostHandler — save the FM ANTCAP found by
+ *           a calibration sweep as the board's permanent default.
+ *
+ * @dname    tunerCalibrateAntennaPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes the 24AA025E48 via route context antenna calibration
+ *           bridge, then updates the live tuner default immediately.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-19
+ */
+esp_err_t tunerCalibrateAntennaPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->tuner == nullptr
+        || ctx->antennaCalibration == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed =
+        core::parseAntennaCalibrationJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json = core::serializeTunerErrorJson("invalid_json");
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (!ctx->antennaCalibration->save(*parsed)) {
+        const std::string json = core::serializeTunerErrorJson("store_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    ctx->tuner->setDefaultFmAntCap(*parsed);
+
+    const std::string json =
+        std::string("{\"status\":\"saved\",\"antcap\":")
+        + std::to_string(*parsed) + "}";
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -1865,6 +1921,7 @@ std::expected<void, NetError> SetupWebServer::start(
     ota::OtaService& ota,
     webradio::WebRadioService& webRadio,
     PhoneStreamSink& phoneStream,
+    AntennaCalibration& antennaCalibration,
     core::CompanionChipStatus companionChips,
     const core::DeviceIdentity& deviceIdentity)
 {
@@ -1889,6 +1946,7 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext.ota = &ota;
     routeContext.webRadio = &webRadio;
     routeContext.phoneStream = &phoneStream;
+    routeContext.antennaCalibration = &antennaCalibration;
     routeContext.companionChips = companionChips;
     routeContext.deviceIdentity = deviceIdentity;
 
@@ -2000,6 +2058,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &tunerFullScanUri);
+
+    const httpd_uri_t tunerCalibrateAntennaUri = {
+        .uri = "/api/tuner/calibrate-antenna",
+        .method = HTTP_POST,
+        .handler = tunerCalibrateAntennaPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &tunerCalibrateAntennaUri);
 
     const httpd_uri_t audioProfileGetUri = {
         .uri = "/api/audio/profile",

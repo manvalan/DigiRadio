@@ -59,7 +59,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, core::TunerError> tuneFm(
-        core::FrequencyKHz) override
+        core::FrequencyKHz, std::uint8_t) override
     {
         return {};
     }

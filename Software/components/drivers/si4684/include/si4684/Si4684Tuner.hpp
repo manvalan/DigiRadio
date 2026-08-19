@@ -110,6 +110,7 @@ public:
      *
      * @dname    tuneFm
      * @param    frequency  Validated FM centre frequency.
+     * @param    antCap     Forwarded to Si4684Driver::tuneFm (0 = auto).
      * @return   Ok on success, or a mapped TunerError.
      * @pubstate writes fmFrequency_ on success.
      *
@@ -117,7 +118,7 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, core::TunerError> tuneFm(
-        core::FrequencyKHz frequency) override;
+        core::FrequencyKHz frequency, std::uint8_t antCap = 0U) override;
 
     /**
      * @brief    seekFm — seek FM with band wrap.

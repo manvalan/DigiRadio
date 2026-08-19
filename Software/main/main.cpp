@@ -23,6 +23,7 @@
 #include "si4684/Si4684Tuner.hpp"
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
+#include "antenna_calibration.hpp"
 #include "esp32_i2s_sink.hpp"
 #include "phone_stream.hpp"
 #include "web_radio_stream.hpp"
@@ -179,6 +180,10 @@ extern "C" void app_main()
 
     static tuner::TunerService tunerService(
         hardware::HardwareBootstrap::si4684Tuner());
+    if (auto antCap = hardware::HardwareBootstrap::fmAntCapCalibration();
+        antCap) {
+        tunerService.setDefaultFmAntCap(*antCap);
+    }
 
     static station::StationService stationService(store, tunerService);
 
@@ -214,6 +219,7 @@ extern "C" void app_main()
         otaService,
         webRadioService,
         phone_stream::sink(),
+        antenna_calibration::bridge(),
         hardware::HardwareBootstrap::companionChipStatus(),
         hardware::HardwareBootstrap::deviceIdentity());
     if (!netResult) {
