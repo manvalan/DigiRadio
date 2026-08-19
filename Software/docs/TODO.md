@@ -3,9 +3,13 @@
 Agent task list and hardware-in-the-loop backlog. Working directory for all
 commands is `Software/`.
 
-**Current firmware:** `0.8.5` — BT1035 I2S slave boot init, dual OTA + DSP blob updates, EEPROM identity,
-NVS + flash encryption (dev mode), tabbed Web UI with System uploads, CI gate
-(4 jobs).
+**Current firmware:** `0.9.0` — everything in 0.8.5, plus: Si4684 RF
+blackout root-caused and fixed (real FM/DAB lock and audio on real
+hardware), DAB service list fixed (two rounds), FM ANTCAP antenna
+calibration persisted to EEPROM, generic ADAU1701 parameter API, phone PCM
+streaming, BLE Wi-Fi provisioning, full FM band scan, BT1035 boot retry.
+See "Post-0.8.5 hardware-in-the-loop findings" below and
+`docs/si4684-rf-investigation-report.md` for the full story.
 
 **Before writing code, read `AGENTS.md`, `.cursor/rules/`, and
 `instructions.md`.** Definition of Done: Apache header, doc blocks,
@@ -62,10 +66,42 @@ verify ADAU replay after reboot.
 After H1 passes, trial build with `sdkconfig.defaults.production` overlay on
 a sacrificial unit; confirm RELEASE mode policy before shipping.
 
-### H5. Si4684 FM/DAB no-lock — blob integrity checked, verdict: hardware
-**Verdict (2026-08-13): blob OK → suspect U6 RF ground (re-open PCBWay)**, not
-a firmware/blob defect. Full investigation, evidence, and the two byte-offset
-bugs found/fixed while verifying this: [`docs/si4684-rf-investigation-report.md`](si4684-rf-investigation-report.md).
+### H5. Si4684 FM/DAB no-lock — RESOLVED, was firmware after all
+**Superseded verdict (2026-08-13): blob OK → suspected U6 RF ground, PCBWay
+dispute opened.** That verdict was wrong. The actual cause was
+`writeCommand()`'s ARG1 byte being mis-offset across FM/DAB tune, seek, and
+several status/ack commands — the chip always answered correctly, so every
+signal pointed at hardware, but it never actually tuned. Fixed; real FM
+lock, real DAB ensemble lock, real audio confirmed live on the same board.
+No PCB rework was needed. Full investigation, the wrong initial verdict,
+and the eventual root cause: [`docs/si4684-rf-investigation-report.md`](si4684-rf-investigation-report.md).
+
+---
+
+## Post-0.8.5 hardware-in-the-loop findings
+
+The board arrived and testing against it (not just host tests) found real
+bugs the host-testable core couldn't catch, since they live in
+ESP-IDF-only drivers. Full detail and evidence in
+[`docs/si4684-rf-investigation-report.md`](si4684-rf-investigation-report.md).
+Short version:
+
+- Si4684 total RF blackout (H5 above) — firmware bug, fixed.
+- Si4684→ADAU1701 digital audio silence — `PIN_CONFIG_ENABLE` mutual
+  exclusion + `SerialInputRegister` polarity, fixed.
+- DAB service list empty/garbled — response-parsing offset bugs (two
+  rounds) plus `DAB_EVENT_INTERRUPT_SOURCE` (0xB300) never configured,
+  fixed.
+- FM front-end auto-tune measurably suboptimal on this board's actual
+  matching network — ANTCAP calibration swept and persisted to EEPROM,
+  `POST /api/tuner/calibrate-antenna`.
+- BT1035 intermittent boot failure — root cause still unknown, but a
+  reset+init retry loop (up to 3 attempts) was added since the failure
+  looked like power-up timing jitter, not a permanent fault.
+- **Still open**: BT1035 root cause; intermittent multi-second HTTP
+  unresponsiveness under load; DAB signal quality still antenna-limited;
+  24 KB `nvs` partition may be undersized (`saveProfile()` `store_failed`
+  seen intermittently, error code never captured).
 
 ---
 
