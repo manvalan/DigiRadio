@@ -38,6 +38,12 @@ constexpr int kUartTxBuffer = 256;
 constexpr int kResponseTimeoutMs = 2000;
 constexpr int kPostResetMs = 500;
 constexpr int kPostUartMs = 100;
+/** Feasycom BT1035 programming user guide §2.2 (pin 34 SYS_CTRL): "Delay
+ *  100ms, pull high". */
+constexpr int kSysCtlLeadInMs = 100;
+/** Margin beyond the datasheet's own >20ms SYS_CTRL-assertion-to-power-up
+ *  minimum (§4.7), for regulator/crystal settling before RESET releases. */
+constexpr int kSysCtlSettleMs = 50;
 /** Observed intermittently: the module sometimes needs a second RESET#
  *  pulse to come up (power-up timing jitter between cold/warm boots) —
  *  a single attempt with no retry was found to explain sporadic total
@@ -913,9 +919,20 @@ std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()
 
 std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
 {
-    gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 1);
+    // Feasycom BT1035 programming user guide §2.2, pin 34 SYS_CTRL:
+    // "Delay 100ms, pull high" — the datasheet's own OFF-state timing spec
+    // (§4.7) says SYS_CTRL must be asserted >20ms before the internal
+    // regulators start powering up at all, so pulling it high with no
+    // lead-in delay (the previous sequence here) races the chip's own
+    // power-on requirement. Held low with RESET already asserted, then a
+    // 100ms lead-in exactly matching the guide, then SYS_CTRL high, then
+    // extra settle time before releasing RESET into a chip that's had a
+    // chance to actually power up first.
+    gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 0);
     gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 0);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(kSysCtlLeadInMs));
+    gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 1);
+    vTaskDelay(pdMS_TO_TICKS(kSysCtlSettleMs));
     gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 1);
     vTaskDelay(pdMS_TO_TICKS(kPostResetMs));
 
