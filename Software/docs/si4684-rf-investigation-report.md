@@ -658,6 +658,56 @@ registering 41 HTTP routes against `httpd_config_t::max_uri_handlers = 40`
 silently unroutable (404) on every boot since whichever commit first pushed
 the route count past 40. Bumped to 56 for headroom.
 
+## 2026-08-19 update (2): DAB_EVENT_INTERRUPT_SOURCE never configured;
+intermittent multi-second HTTP unresponsiveness noted, still open
+
+Retesting DAB service-list retrieval later the same night found it far less
+reliable than the earlier confirmation: `locked:true, fic_quality:97-100`
+sometimes took anywhere from ~15s to ~60s to appear after a fresh
+`POST /api/tuner/tune` (full Si4684 reboot for the FM->DAB band switch), and
+even once locked with excellent FIC quality, `GET /api/tuner/services` kept
+returning `service_list_empty` for a further 30-65s.
+
+Root cause candidate found by re-reading AN649's DAB_GET_EVENT_STATUS
+section (command 0xB3) carefully: the SVRLISTINT bit this driver polls via
+`readDabEventStatus()` is explicitly documented as gated by **Property
+0xB300 DAB_EVENT_INTERRUPT_SOURCE**, bit 0 = SRVLIST_INTEN, **default 0x0000
+(disabled) at power-on** — and this driver never wrote that property
+anywhere. `configureAfterBoot()`'s DAB branch already wrote a
+similarly-named `DIGITAL_SERVICE_INT_SOURCE` (property 0x8100), but AN649's
+own text for 0x8100 is internally inconsistent between its prose ("configures
+digital service interrupt sources") and its bit table (VHFCAPS/VHFSW, a
+front-end switch config field) — almost certainly a `pdftotext -raw`
+extraction artifact merging two adjacent property tables, the same failure
+mode noted earlier this session for AN649/adau1701.pdf text extraction.
+0x8100 and 0xB300 are two different properties; only 0xB300's own section
+(page ~236) reads internally consistent, so it — not 0x8100 — is the one
+that gates SVRLISTINT. Added `setProperty(kPropDabEventIntSource=0xB300,
+0x0001)` right after the existing 0x8100 write.
+
+Verified live after reflashing: the service list did come back complete and
+correct (all 22 real station labels) on the next test. Not proven
+conclusively faster than before — DAB acquisition/list-assembly timing is
+inherently variable and this was only tested once post-fix — but the
+property write is unambiguously correct per its own AN649 section
+regardless, so it stays.
+
+**Separately, and NOT explained by the above**: the HTTP server went fully
+unresponsive (connection timeouts on `/api/health`, the simplest possible
+route) for 5-10 second stretches, more than once, both before and after
+this fix. The heartbeat log line kept appearing on schedule throughout
+(`digiradio: heartbeat` every 5s, confirmed via serial), proving the whole
+system did not crash or panic — only the HTTP server (or whatever it was
+waiting on, most likely a blocking SPI/CTS wait inside the Si4684 driver
+triggered from a DAB status/event read) stalled and then recovered on its
+own. This was reproducible independent of the 0xB300 change (first
+observed hours earlier, unrelated, during the ANTCAP sweep in the antenna
+calibration work). Not investigated further tonight — candidate causes to
+check next: whether any Si4684Driver SPI wait loop lacks a bound tight
+enough for interactive HTTP use, and whether `httpd_config_t::
+max_open_sockets = 3` (components/net/src/SetupWebServer.cpp) is simply too
+small once anything blocks even briefly.
+
 ## TODO (next session)
 
 - **Antenna/front-end calibration — now the real blocker for DAB/FM audio
@@ -665,11 +715,16 @@ the route count past 40. Bumped to 56 for headroom.
   (real lock, real service list, real audio) but both are signal-limited:
   FM "works, but badly" per live listening test, and DAB audio ranges from
   crackly to fully soft-muted depending on the service's CNR (~7-8 dB
-  observed, on the low side). Redo the ANTCAP sweep and compare the actual
-  front-end network (§ "Front-end network component mismatch" above)
-  against AN851 now that the receiver chain itself is verified correct —
-  any measurement taken now can actually be trusted.
+  observed, on the low side). ~~Redo the ANTCAP sweep~~ — **done this
+  session for FM** (see the ANTCAP antenna calibration feature commit);
+  antcap=102 saved as the board's default, +6 to +11 dB RSSI/SNR across the
+  band. DAB doesn't have an equivalent calibrated-default mechanism yet —
+  worth adding the same idea (DAB_TUNE_FREQ also takes an ANTCAP argument
+  per AN649) if DAB signal quality remains the limiting factor after this.
 - Try a proper FM/DAB antenna to see how much of the crackle/noise clears
   up versus how much is inherent to the current antenna's gain/placement.
+- Investigate the intermittent multi-second HTTP unresponsiveness noted
+  above — reproducible, not yet root-caused, not obviously related to any
+  single change this session.
 - BT1035 boot-failure root cause still open (see section above) — non-fatal
   now, so it's no longer blocking, but still unexplained.
