@@ -85,6 +85,7 @@ constexpr std::uint16_t kPropDabTuneFeCfg = 0x1712U;
 constexpr std::uint16_t kPropFmTuneFeCfg = 0x1712U;
 constexpr std::uint16_t kPropDabXpadEnable = 0xB400U;
 constexpr std::uint16_t kPropDigitalServiceIntSource = 0x8100U;
+constexpr std::uint16_t kPropDabEventIntSource = 0xB300U;
 /** AN649 INT_CTL_ENABLE / INT_CTL_REPEAT — route STC to INTB until STCACK. */
 constexpr std::uint16_t kPropIntCtlEnable = 0x0000U;
 constexpr std::uint16_t kPropIntCtlRepeat = 0x0001U;
@@ -503,6 +504,15 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
             !dsrv) {
             ESP_LOGW(kTag, "DIGITAL_SERVICE_INT_SOURCE (0x8100) failed");
             return dsrv;
+        }
+        // AN649 Property 0xB300 DAB_EVENT_INTERRUPT_SOURCE, bit0=SRVLIST_INTEN
+        // (default 0x0000 = disabled at power-on). Without this, nothing in
+        // this driver ever enables the service-list-ready event, so
+        // fetchDabServiceList() can stay gated behind an eternally-false
+        // serviceListReady even on a clean, well-locked ensemble.
+        if (auto evt = setProperty(kPropDabEventIntSource, 0x0001U); !evt) {
+            ESP_LOGW(kTag, "DAB_EVENT_INTERRUPT_SOURCE (0xB300) failed");
+            return evt;
         }
     } else {
     // FM varactor cal per hitech95/uGreen DTS (not DAB PE5PVB values).
