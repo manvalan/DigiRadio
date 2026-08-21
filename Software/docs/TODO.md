@@ -105,10 +105,40 @@ Short version:
   independently verified correct with a multimeter first — the module and
   PCB were never at fault. Fixed by waiting up to 25s for the banner
   (`kBootBannerWaitMs`); boot now succeeds on the first attempt.
+- **BT1035 — a second, harder failure mode confirmed intermittent, not
+  hardware (2026-08-21).** Distinct from the banner-timing bug above: even
+  with the 25s wait already in place, boot sometimes still gets zero UART
+  bytes at all — no banner, no AT response, silent across all 8 probed
+  baud rates (9600-921600). Root-cause evidence this session: VBAT_IN
+  (3.3V), 1.8V_OUT (1.8V), SYS_CTRL/RESET (~3.27V, matching the firmware's
+  own GPIO readback), and BT1035 TX (idle-HIGH ~3.29V, no short/float) all
+  measured normal with a multimeter. The BT1035's 32 MHz crystal is
+  integrated inside the sealed Feasycom module (confirmed via the module's
+  own datasheet block diagram — no external crystal on our schematic), so
+  it can't be inspected or reworked from our side; a marginal
+  oscillator-startup margin inside the module is the leading suspect.
+  **Decisive evidence it's intermittent, not a dead unit**: the exact same
+  physical module booted cleanly (banner + all AT commands `OK`) on one
+  attempt and went totally silent on the very next attempt, no physical
+  changes in between. A replacement module is therefore not a guaranteed
+  fix — the same defect class could recur on a different unit. Mitigated
+  (not fixed) by an indefinite background retry task
+  (`hardware::bt1035RetryTask` in `main/hardware_bootstrap.cpp`): if the
+  initial `Bt1035Driver::boot()` fails, a background FreeRTOS task keeps
+  calling `boot()` again with no artificial delay between attempts (each
+  attempt already takes ~25-60s on its own) until it succeeds, while the
+  rest of the system (tuner, Wi-Fi, web UI) stays fully usable in the
+  meantime. Turns a permanent-until-manual-power-cycle failure into a
+  bounded, self-recovering delay. See
+  `docs/si4684-rf-investigation-report.md` (2026-08-21 entry) for the full
+  session narrative, including a UART TX/RX loopback test attempt that was
+  inconclusive (bridging the ESP32's own TX/RX pins from cold boot caused
+  an unrelated, reproducible, harmless early-boot hang, not yet explained).
 - **Still open**: intermittent multi-second HTTP unresponsiveness under
   load; DAB signal quality still antenna-limited; 24 KB `nvs` partition
   may be undersized (`saveProfile()` `store_failed` seen intermittently,
-  error code never captured).
+  error code never captured); BT1035 intermittent total-silence boot
+  failures (mitigated via background retry, not root-caused — see above).
 
 ---
 

@@ -792,3 +792,119 @@ identified. `/api/bluetooth/status` and `/api/bluetooth/paired` correctly
 report `{"status":"error","reason":"at_timeout"}` while in this state; the
 rest of the device (tuner, web UI) stays usable per the existing
 non-fatal-BT1035-boot design.
+
+## 2026-08-21 update: BT1035 total silence confirmed intermittent (not
+## hardware); background retry mitigation added
+
+Follow-up session dedicated entirely to the "total UART silence" BT1035
+failure mode above. Summary: **confirmed intermittent on genuinely
+identical hardware, root cause narrowed to the module's internal crystal
+(not our PCB, not fixable by us), and mitigated (not fixed) with an
+indefinite background boot retry.**
+
+**Diagnostic instrumentation (temporary, added then reverted this
+session)**: added `BT1035 AT TX: <line>` / `BT1035 UART RX RAW: <hex or
+<empty>>` / `BT1035 AT RESULT: OK|ERROR|TIMEOUT` logging around
+`Bt1035Driver::transmitAndCollect()`, and temporarily dropped
+`kBootAttempts` to 1 for single-attempt clarity. This confirmed the
+failure signature precisely: `AT` is transmitted, zero bytes ever come
+back (`<empty>`), timeout. Reverted via `git checkout` once the manual
+diagnosis was done — not kept in the codebase.
+
+**Multimeter checks, all normal** (scope-level checks — crystal
+oscillation, power-on transient — remain out of reach without an
+oscilloscope):
+- VBAT_IN: 3.3V (datasheet range 3.0-4.2V) ✓
+- 1.8V_OUT (module's internal regulator): 1.8V ✓ — proves the module's
+  own power management *is* running, it isn't simply unpowered
+- SYS_CTRL / RESET (post-boot): ~3.27V, matching the firmware's own GPIO
+  readback log (`post-reset: SYS_CTRL=1 RESET=1`) ✓
+- BT1035 TX pin (module side) to GND: 3.29V, idle-HIGH, no short/float/
+  reversed polarity ✓ (though idle-HIGH alone doesn't prove the module's
+  firmware is executing — some pads default HIGH from reset state alone)
+- A 10kΩ pull-down the user had added on SYS_CTRL (matching the
+  datasheet's own recommendation for an undriven pin) was checked and is
+  not the cause — the ESP32 GPIO drives push-pull and its own readback
+  confirms it reaches a valid HIGH regardless.
+
+**Crystal location determined**: the BT1035 datasheet's own block diagram
+shows "32MHz Crystal" as an internal block of the QCC3056 die, and the
+DigiRadio schematic netlist (`Netlist_Schematic1_2026-08-07.asc`) has no
+XTAL_IN/XTAL_OUT pins wired to any external crystal for U11 — confirming
+the oscillator is sealed inside the Feasycom module, not on our PCB. This
+is why nothing on our side (layout, load caps, our firmware) can affect
+it; if the failure really is a marginal oscillator-startup margin, it's a
+property of that specific physical module unit (or the part's design
+tolerance in general).
+
+**Decisive evidence of intermittency, not a dead unit**: across repeated
+reboots in the same session (physical power-cycles and serial-port-open
+resets, which also hard-reset this ESP32-S3's native USB-CDC), the
+identical physical module was observed to boot **completely successfully**
+at least once — spontaneous banner `+VER=FSC-BT1035,V6.1.1,20240521` +
+`+DEVSTAT=1`, then `AT` and `AT+AUXCFG=3` both answered `OK` — and to fail
+completely silently on other attempts, with no physical change in between.
+This rules out "defective/dead module" as an explanation; ordering a
+replacement module is therefore *not* a guaranteed fix, since the same
+physical unit demonstrably works when it works.
+
+**UART loopback test attempt — inconclusive, logged for future
+reference.** Tried to isolate ESP32 vs. module by bridging the ESP32-S3's
+own GPIO40 (BT1035 UART TX)/GPIO41 (BT1035 UART RX) pins with a jumper
+held by hand on the ESP32 module's castellated pads (no series
+resistor/test point exists on this net per the schematic netlist — U8.33
+↔ U11.P$14 and U8.34 ↔ U11.P$13 directly, nothing else). Twice
+reproducibly, bridging those pins from cold boot caused the ESP32 itself
+to hang very early in boot (right after the bootloader's "Disabling RNG
+early entropy source" line, before `app_main()` even starts) — harmless
+(board recovers fully once the jumper is removed) but unexplained, and it
+sidesteps the actual test rather than answering it. Not pursued further
+this session given the practical difficulty of hand-holding a wire onto
+castellated pads without a proper SMD test hook. If retried: attach the
+jumper *after* the ESP32 has already booted past that early stage (there's
+a ~25s window before the BT1035 AT command is actually sent) rather than
+from a cold boot.
+
+**Mitigation implemented: indefinite background boot retry.** Since the
+module's own internal fault (if that's what it is) isn't something we can
+fix, and since it demonstrably self-clears on a later attempt rather than
+needing repair, `main/hardware_bootstrap.cpp` now spawns a
+`bt1035RetryTask` FreeRTOS task whenever the initial `HardwareBootstrap::
+boot()`'s call to `Bt1035Driver::boot()` fails. The task loops calling
+`boot()` again with **no artificial delay** between attempts — each
+attempt already blocks for ~25-60s on its own (the banner wait times
+`kBootAttempts`, plus an 8-step baud-rate sweep on final failure), so no
+extra backoff is needed on top — until it succeeds, at which point it runs
+the same post-boot setup (device name, auto-reconnect) the normal success
+path does, then exits. The rest of the system (Wi-Fi, tuner, web UI) never
+blocks on this and stays fully usable throughout. Verified live: after a
+forced failure (2 attempts + baud sweep, ~62s), the retry task started
+immediately, the HTTP server and heartbeat came up normally in parallel,
+and the retry task began a fresh attempt right away without any pause.
+
+**Open going forward**: root cause of the intermittent total-silence mode
+is still not identified — this session's diagnosis exhausted what's
+possible with a multimeter alone. Real progress would need either an
+oscilloscope on SYS_CTRL/RESET/crystal across several boots to correlate
+success/failure with power-on timing jitter, or a large-N automated
+reboot-cycle statistic (attempted this session via a `pyserial` script,
+but the ESP32-S3's native USB-CDC re-enumerating on every hardware reset
+made a fully unattended multi-cycle script unreliable — a naive read loop
+silently produced a false "0/5 success" result once across a reconnect
+window). A future attempt at that statistic needs to detect the USB path
+disappearing/reappearing and reopen the port, or use a separate
+hardware UART-to-USB adapter that doesn't disconnect when the target
+resets.
+
+**Also discussed this session (not implemented, for a future hardware
+revision)**: whether a different/newer SoC could eliminate the need for
+the external BT1035 module entirely. Confirmed via web search that
+Espressif's new **ESP32-S31** (RISC-V, announced April 2026) has
+integrated **Bluetooth 5.4 with both LE and Classic (BR/EDR)** support —
+unlike the ESP32-S3 used today, which is BLE-only at the silicon level
+(confirmed: no Classic BT/A2DP hardware exists on S3, this is not a
+firmware limitation). An `ESP32-S31-WROOM-3` module also exists. This
+would be a significant main-MCU redesign, not a drop-in swap, and its
+ESP-IDF support maturity/availability wasn't independently verified this
+session — worth a dedicated evaluation before committing to it for a
+future hardware revision.
