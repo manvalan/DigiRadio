@@ -94,6 +94,10 @@ add_executable(dsp_param_json_test dsp_param_json_test.cpp)
 target_link_libraries(dsp_param_json_test PRIVATE digiradio_core)
 add_test(NAME dsp_param_json_test COMMAND dsp_param_json_test)
 
+add_executable(bluetooth_json_test bluetooth_json_test.cpp)
+target_link_libraries(bluetooth_json_test PRIVATE digiradio_core)
+add_test(NAME bluetooth_json_test COMMAND bluetooth_json_test)
+
 add_executable(frequency_khz_test frequency_khz_test.cpp)
 target_link_libraries(frequency_khz_test PRIVATE digiradio_core)
 add_test(NAME frequency_khz_test COMMAND frequency_khz_test)

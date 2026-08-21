@@ -616,19 +616,179 @@ treat BT1035 boot failure as non-fatal rather than halting the whole device,
 so the rest of the system (Si4684 tuning, web UI, Wi-Fi) remains usable
 while this is investigated separately.
 
+## 2026-08-19 update: fetchDabServiceList() entry parsing fixed; DAB audio
+confirmed, quality traced to signal strength
+
+Live retest on real hardware found `fetchDabServiceList()`'s *body* parsing
+(the third bug flagged as "not yet investigated" above) double-counted the
+already-consumed SIZE field: it treated the payload as starting 2 bytes
+later than it actually does (`serviceCount` read from `body[11]` instead of
+`body[9]`, service entries starting at `body[15]` instead of `body[13]`).
+AN649 doesn't actually document the DAB service-list entry layout itself —
+it defers to a supplemental "Digital Services User's Guide" this project
+doesn't have a copy of — so the exact field layout was re-derived by
+cross-checking `hitech95/si468x_dab_receiver`'s
+`si468x_core_cmd_dab_get_service_list()` (a working Linux driver for the
+same command over the same command set), which also confirmed the payload
+carried after SIZE is `SIZE-2` bytes, not `SIZE` bytes (fixed the read
+sizing to match).
+
+Confirmed live immediately after reflashing: `GET /api/tuner/services` on a
+locked DAB ensemble (freq_index 5) now returns 22 real, correctly-decoded
+Italian DAB station labels (R.M.T., Radio Cuore, GR News, Radio Sportiva,
+Lifegate, ...) instead of an empty list. `POST /api/tuner/play` against one
+of these real service/component IDs was confirmed audible — crackly/broken
+but present, not silence — on a second try after the first selected
+service (R.M.T., `cnr_db=7`) produced no audible sound at all. Switching to
+GR News (`cnr_db=8`) did produce audible (if degraded) audio. This matches
+DAB's two-tier robustness by design: the FIC channel (`fic_quality` 94-98
+throughout) is far more error-protected than the actual audio sub-channel,
+so a receiver can report ensemble lock and a clean, complete service list
+while individual programme audio is too weak (CNR ~7-8 dB here) to decode
+cleanly or at all — the chip's own soft-mute is the most likely explanation
+for the first service's total silence, not a firmware defect. This is
+consistent with what FM already showed this session ("works, but
+badly") and with the still-open antenna/front-end TODO below.
+
+Also found and fixed, unrelated to the Si4684: `SetupWebServer` was
+registering 41 HTTP routes against `httpd_config_t::max_uri_handlers = 40`
+— `httpd_register_uri_handler()` fails past the limit with only a generic
+"no slots left" warning, no indication of which handler was dropped. The
+41st and therefore last-registered route, `POST /api/stations/tune`, was
+silently unroutable (404) on every boot since whichever commit first pushed
+the route count past 40. Bumped to 56 for headroom.
+
+## 2026-08-19 update (2): DAB_EVENT_INTERRUPT_SOURCE never configured;
+intermittent multi-second HTTP unresponsiveness noted, still open
+
+Retesting DAB service-list retrieval later the same night found it far less
+reliable than the earlier confirmation: `locked:true, fic_quality:97-100`
+sometimes took anywhere from ~15s to ~60s to appear after a fresh
+`POST /api/tuner/tune` (full Si4684 reboot for the FM->DAB band switch), and
+even once locked with excellent FIC quality, `GET /api/tuner/services` kept
+returning `service_list_empty` for a further 30-65s.
+
+Root cause candidate found by re-reading AN649's DAB_GET_EVENT_STATUS
+section (command 0xB3) carefully: the SVRLISTINT bit this driver polls via
+`readDabEventStatus()` is explicitly documented as gated by **Property
+0xB300 DAB_EVENT_INTERRUPT_SOURCE**, bit 0 = SRVLIST_INTEN, **default 0x0000
+(disabled) at power-on** — and this driver never wrote that property
+anywhere. `configureAfterBoot()`'s DAB branch already wrote a
+similarly-named `DIGITAL_SERVICE_INT_SOURCE` (property 0x8100), but AN649's
+own text for 0x8100 is internally inconsistent between its prose ("configures
+digital service interrupt sources") and its bit table (VHFCAPS/VHFSW, a
+front-end switch config field) — almost certainly a `pdftotext -raw`
+extraction artifact merging two adjacent property tables, the same failure
+mode noted earlier this session for AN649/adau1701.pdf text extraction.
+0x8100 and 0xB300 are two different properties; only 0xB300's own section
+(page ~236) reads internally consistent, so it — not 0x8100 — is the one
+that gates SVRLISTINT. Added `setProperty(kPropDabEventIntSource=0xB300,
+0x0001)` right after the existing 0x8100 write.
+
+Verified live after reflashing: the service list did come back complete and
+correct (all 22 real station labels) on the next test. Not proven
+conclusively faster than before — DAB acquisition/list-assembly timing is
+inherently variable and this was only tested once post-fix — but the
+property write is unambiguously correct per its own AN649 section
+regardless, so it stays.
+
+**Separately, and NOT explained by the above**: the HTTP server went fully
+unresponsive (connection timeouts on `/api/health`, the simplest possible
+route) for 5-10 second stretches, more than once, both before and after
+this fix. The heartbeat log line kept appearing on schedule throughout
+(`digiradio: heartbeat` every 5s, confirmed via serial), proving the whole
+system did not crash or panic — only the HTTP server (or whatever it was
+waiting on, most likely a blocking SPI/CTS wait inside the Si4684 driver
+triggered from a DAB status/event read) stalled and then recovered on its
+own. This was reproducible independent of the 0xB300 change (first
+observed hours earlier, unrelated, during the ANTCAP sweep in the antenna
+calibration work). Not investigated further tonight — candidate causes to
+check next: whether any Si4684Driver SPI wait loop lacks a bound tight
+enough for interactive HTTP use, and whether `httpd_config_t::
+max_open_sockets = 3` (components/net/src/SetupWebServer.cpp) is simply too
+small once anything blocks even briefly.
+
 ## TODO (next session)
 
-- **Antenna/front-end calibration, now meaningful.** Before this session's
-  fixes, any ANTCAP sweep or front-end network experiment was untrustworthy
-  — a bad result could have been the software bug, not the antenna. Now
-  that the receiver chain is verified correct end to end (real FM lock,
-  real DAB lock, real audio), redo the ANTCAP sweep and compare the actual
-  front-end network (§ "Front-end network component mismatch" above)
-  against AN851 properly, with results that can actually be trusted.
-- Fix `fetchDabServiceList()` entry parsing (garbled service_id/component_id/
-  label) against AN649 §7 "Digital Services User's Guide" (~page 418).
-- Confirm actual DAB audio playback end to end (blocked on the item above).
-- Try a proper FM antenna to see if the residual noise under the music
-  clears up (suspected antenna quality, not yet confirmed).
+- **Antenna/front-end calibration — now the real blocker for DAB/FM audio
+  quality, not firmware.** Both bands are confirmed working end to end
+  (real lock, real service list, real audio) but both are signal-limited:
+  FM "works, but badly" per live listening test, and DAB audio ranges from
+  crackly to fully soft-muted depending on the service's CNR (~7-8 dB
+  observed, on the low side). ~~Redo the ANTCAP sweep~~ — **done this
+  session for FM** (see the ANTCAP antenna calibration feature commit);
+  antcap=102 saved as the board's default, +6 to +11 dB RSSI/SNR across the
+  band. ~~DAB doesn't have an equivalent calibrated-default mechanism yet~~
+  — **added and swept 2026-08-20, see below; no default saved (auto-tune
+  already best on the ensembles tested).**
+- Try a proper FM/DAB antenna to see how much of the crackle/noise clears
+  up versus how much is inherent to the current antenna's gain/placement.
+- Investigate the intermittent multi-second HTTP unresponsiveness noted
+  above — reproducible, not yet root-caused, not obviously related to any
+  single change this session.
 - BT1035 boot-failure root cause still open (see section above) — non-fatal
-  now, so it's no longer blocking, but still unexplained.
+  now, so it's no longer blocking, but still unexplained. **Recurred
+  2026-08-20, see below — still open, confirmed not caused by physical
+  handling.**
+
+## 2026-08-20 update: DAB ANTCAP override added and swept live; BT1035 "total UART silence" recurred
+
+**DAB ANTCAP — implemented, built, flashed, swept live via the HTTP API.**
+Extended the ANTCAP override (AN649 Command 0x30 ARG4/5 for FM, Command
+0xB0 ARG4/5 for DAB) from FM-only to DAB, mirroring the existing FM
+mechanism end to end: `ITuner::tuneDab`/`Si4684Driver::tuneDab` gained an
+`antCap` parameter (was hardcoded `0x00`/auto); `TunerService` gained
+`defaultDabAntCap_`/`setDefaultDabAntCap()`; `Eeprom24aa` gained
+`readDabAntCap()`/`writeDabAntCap()` at word address 0x01 (FM stays at
+0x00); `HardwareBootstrap` gained `dabAntCapCalibration()`/
+`saveDabAntCapCalibration()`, loaded at boot alongside the FM one; the
+`net::AntennaCalibration` bridge gained `saveDab`; both `POST
+/api/tuner/tune` (one-shot override, `{"band":"dab","freq_index":N,
+"antcap":V}`) and `POST /api/tuner/calibrate-antenna` (persists to EEPROM,
+`{"band":"dab","antcap":V}`, `band` defaults to `"fm"` so old clients are
+unaffected) now accept DAB. Host build + 20/20 ctest + doxygen +
+check-manual-sync all green before flashing.
+
+Swept live via the API (`freq_index` 0-128 step 8) against three real
+ensembles:
+- **freq_index 5** (weakest known ensemble, 7 dB CNR baseline from the
+  2026-08-16 sweep): did not lock at all this session, at any ANTCAP
+  including auto — signal currently below threshold, not a code issue
+  (indices 22/23 locked normally in the same session).
+- **freq_index 23** (strongest, 21-26 dB): CNR jittered ±3 dB across the
+  whole ANTCAP range with no discernible trend — already saturated, sweep
+  can't discriminate on a signal this strong.
+- **freq_index 22** (medium, 16-20 dB): auto (0) and antcap=32 tied for
+  best (20 dB CNR); antcap=72 and 80 caused total loss of lock (a dead
+  zone to avoid); the rest of the range gave no systematic gain over auto,
+  unlike FM's clean +6 to +11 dB improvement.
+
+**Decision: left DAB on auto-tune, nothing saved to EEPROM.** Unlike FM,
+no ANTCAP value tested beat the chip's own auto-tune by a margin worth
+trusting. If DAB audio quality is still the limiting factor later, retest
+specifically on a weak ensemble (index 5 or similar) once it's receivable
+again — ANTCAP calibration matters most on weak signals, which is exactly
+the case that wasn't testable this session.
+
+**BT1035 "total UART silence" recurred — same still-open issue as before,
+confirmed (again) not physical.** During the DAB sweep, the board was
+reset several times via opening a `pyserial` connection for log capture —
+each open triggers a hardware EN/reset pulse on this ESP32-S3 (confirmed:
+happens even with `dsrdtr=False, rtscts=False` and explicit
+`setDTR(False)`/`setRTS(False)` — this is the USB-native auto-reset
+circuit firing on port open, not a pyserial default that can be disabled
+from the Mac side). One of these resets left BT1035 silent: `no
+spontaneous UART bytes after hardware reset` on both boot attempts (2/2),
+then silent across all 8 probed baud rates (9600-921600). This is *not*
+the "banner arrives late" issue fixed 2026-08-20 earlier this same session
+(`kBootBannerWaitMs = 25000` was already in effect and made no
+difference) — it's the harder, total-silence failure mode already logged
+above (the "Unrelated finding from the same session" note before the
+2026-08-19 entry), recurring. Confirmed again this time that it is not
+caused by physical handling: a full physical power-off for 60 s did not
+recover it (Si4684/ADAU1701 both came back up fine on the same power
+cycle, ruling out a board-wide power issue). Root cause still not
+identified. `/api/bluetooth/status` and `/api/bluetooth/paired` correctly
+report `{"status":"error","reason":"at_timeout"}` while in this state; the
+rest of the device (tuner, web UI) stays usable per the existing
+non-fatal-BT1035-boot design.

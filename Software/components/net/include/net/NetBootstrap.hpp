@@ -87,6 +87,8 @@ public:
      * @param    ota             Firmware OTA service for POST /api/system/ota.
      * @param    webRadio        Streaming config for GET/POST /api/streaming.
      * @param    phoneStream     I2S write-through for PUT /api/stream/phone.
+     * @param    antennaCalibration  EEPROM write-through for
+     *                                POST /api/tuner/calibrate-antenna.
      * @param    companionChips  Boot flags exposed on GET /api/health.
      * @param    deviceIdentity  EEPROM-derived SSID, hostname, and serial.
      * @return   NetBootstrap on success, or a NetError.
@@ -103,6 +105,7 @@ public:
           ota::OtaService& ota,
           webradio::WebRadioService& webRadio,
           PhoneStreamSink& phoneStream,
+          AntennaCalibration& antennaCalibration,
           core::CompanionChipStatus companionChips,
           const core::DeviceIdentity& deviceIdentity);
 

@@ -288,13 +288,18 @@ public:
      *
      * @dname    tuneDab
      * @param    freqIndex  Ensemble index 0–37.
+     * @param    antCap     ANTCAP[7:0] override (0-128, AN649 Command 0xB0
+     *                      ARG4). 0 = automatic front-end tuning; other
+     *                      values force a specific varactor setting, for
+     *                      antenna calibration sweeps (mirrors tuneFm).
      * @return   Ok on success, or Si4684Error.
      * @pubstate sends DAB_TUNE_FREQ and waits for STC.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
      */
-    [[nodiscard]] std::expected<void, Si4684Error> tuneDab(std::uint8_t freqIndex);
+    [[nodiscard]] std::expected<void, Si4684Error> tuneDab(
+        std::uint8_t freqIndex, std::uint8_t antCap = 0U);
 
     /**
      * @brief    readDabDigRadStatus — read ensemble lock metrics.

@@ -125,10 +125,9 @@ start(core::ISecureStore& store, const core::DeviceIdentity& deviceIdentity)
     gStore = &store;
     gPendingCreds.reset();
 
-    // Copies kept for the lifetime of provisioning: wifi_prov_mgr_start_
-    // provisioning only borrows these pointers, it does not take ownership.
+    // Copy kept for the lifetime of provisioning: wifi_prov_mgr_start_
+    // provisioning only borrows this pointer, it does not take ownership.
     static const std::string serviceName(deviceIdentity.softApSsid());
-    static const std::string pop(deviceIdentity.serialNumber());
 
     const wifi_prov_mgr_config_t config{
         .scheme = wifi_prov_scheme_ble,
@@ -141,7 +140,7 @@ start(core::ISecureStore& store, const core::DeviceIdentity& deviceIdentity)
         return std::unexpected(NetError::BleProvisioningFailed);
     }
 
-    if (wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1, pop.c_str(),
+    if (wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_0, nullptr,
                                          serviceName.c_str(),
                                          nullptr) != ESP_OK) {
         ESP_LOGE(kTag, "wifi_prov_mgr_start_provisioning failed");
@@ -149,9 +148,8 @@ start(core::ISecureStore& store, const core::DeviceIdentity& deviceIdentity)
         return std::unexpected(NetError::BleProvisioningFailed);
     }
 
-    ESP_LOGI(kTag,
-             "BLE provisioning advertising as %s (proof-of-possession: "
-             "device serial number)",
+    ESP_LOGI(kTag, "BLE provisioning advertising as %s (no PoP, same trust "
+                   "level as the open SoftAP)",
              serviceName.c_str());
     return {};
 }

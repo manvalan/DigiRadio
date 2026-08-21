@@ -138,7 +138,19 @@ TunerService::TunerService(core::ITuner& tuner)
     , lastDabIndex_(0U)
     , lastFmFrequency_(defaultFmFrequency())
     , volume_(40U)
+    , defaultFmAntCap_(0U)
+    , defaultDabAntCap_(0U)
 {
+}
+
+void TunerService::setDefaultFmAntCap(std::uint8_t antCap) noexcept
+{
+    defaultFmAntCap_ = antCap;
+}
+
+void TunerService::setDefaultDabAntCap(std::uint8_t antCap) noexcept
+{
+    defaultDabAntCap_ = antCap;
 }
 
 std::expected<core::TunerStatus, core::TunerError> TunerService::refreshStatus()
@@ -155,9 +167,11 @@ std::expected<core::TunerStatus, core::TunerError> TunerService::refreshStatus()
 }
 
 std::expected<void, core::TunerError> TunerService::tuneDab(
-    std::uint8_t freqIndex)
+    std::uint8_t freqIndex, std::optional<std::uint8_t> antCap)
 {
-    if (auto result = tuner_.tuneDab(freqIndex); !result) {
+    if (auto result =
+            tuner_.tuneDab(freqIndex, antCap.value_or(defaultDabAntCap_));
+        !result) {
         return result;
     }
     lastDabIndex_ = freqIndex;
@@ -167,9 +181,10 @@ std::expected<void, core::TunerError> TunerService::tuneDab(
 }
 
 std::expected<void, core::TunerError> TunerService::tuneFm(
-    core::FrequencyKHz frequency)
+    core::FrequencyKHz frequency, std::optional<std::uint8_t> antCap)
 {
-    if (auto result = tuner_.tuneFm(frequency); !result) {
+    if (auto result = tuner_.tuneFm(frequency, antCap.value_or(defaultFmAntCap_));
+        !result) {
         return result;
     }
     lastFmFrequency_ = frequency;

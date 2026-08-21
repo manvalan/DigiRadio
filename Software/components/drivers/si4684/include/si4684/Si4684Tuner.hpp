@@ -96,6 +96,7 @@ public:
      *
      * @dname    tuneDab
      * @param    freqIndex  Ensemble index 0–37.
+     * @param    antCap     Forwarded to Si4684Driver::tuneDab (0 = auto).
      * @return   Ok on success, or a mapped TunerError.
      * @pubstate writes dabIndex_ on success.
      *
@@ -103,13 +104,14 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, core::TunerError> tuneDab(
-        std::uint8_t freqIndex) override;
+        std::uint8_t freqIndex, std::uint8_t antCap = 0U) override;
 
     /**
      * @brief    tuneFm — tune to an FM centre frequency in kHz.
      *
      * @dname    tuneFm
      * @param    frequency  Validated FM centre frequency.
+     * @param    antCap     Forwarded to Si4684Driver::tuneFm (0 = auto).
      * @return   Ok on success, or a mapped TunerError.
      * @pubstate writes fmFrequency_ on success.
      *
@@ -117,7 +119,7 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] std::expected<void, core::TunerError> tuneFm(
-        core::FrequencyKHz frequency) override;
+        core::FrequencyKHz frequency, std::uint8_t antCap = 0U) override;
 
     /**
      * @brief    seekFm — seek FM with band wrap.

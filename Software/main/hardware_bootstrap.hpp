@@ -17,7 +17,9 @@
 
 #include "bt1035/Bt1035Driver.hpp"
 
+#include <cstdint>
 #include <expected>
+#include <optional>
 
 namespace audio {
 class AudioService;
@@ -137,6 +139,64 @@ public:
      * @date     2026-07-07
      */
     [[nodiscard]] static const core::DeviceIdentity& deviceIdentity() noexcept;
+
+    /**
+     * @brief    fmAntCapCalibration — saved FM antenna calibration, if any.
+     *
+     * @dname    fmAntCapCalibration
+     * @return   Calibrated ANTCAP (0-128) read from the 24AA025E48 during
+     *           boot(), or nullopt if never calibrated / the read failed.
+     * @pubstate reads gFmAntCapCalibration; set once during boot().
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-19
+     */
+    [[nodiscard]] static std::optional<std::uint8_t>
+    fmAntCapCalibration() noexcept;
+
+    /**
+     * @brief    saveFmAntCapCalibration — persist a new FM ANTCAP to EEPROM.
+     *
+     * @dname    saveFmAntCapCalibration
+     * @param    antCap  Value found via a calibration sweep (0-128).
+     * @return   true on success, false on an I2C failure.
+     * @pubstate writes the 24AA025E48 user region and gFmAntCapCalibration.
+     *           Does not itself change any live tuner state — callers must
+     *           also call TunerService::setDefaultFmAntCap() to apply it.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-19
+     */
+    [[nodiscard]] static bool saveFmAntCapCalibration(std::uint8_t antCap);
+
+    /**
+     * @brief    dabAntCapCalibration — saved DAB antenna calibration, if any.
+     *
+     * @dname    dabAntCapCalibration
+     * @return   Calibrated ANTCAP (0-128) read from the 24AA025E48 during
+     *           boot(), or nullopt if never calibrated / the read failed.
+     * @pubstate reads gDabAntCapCalibration; set once during boot().
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-20
+     */
+    [[nodiscard]] static std::optional<std::uint8_t>
+    dabAntCapCalibration() noexcept;
+
+    /**
+     * @brief    saveDabAntCapCalibration — persist a new DAB ANTCAP to EEPROM.
+     *
+     * @dname    saveDabAntCapCalibration
+     * @param    antCap  Value found via a calibration sweep (0-128).
+     * @return   true on success, false on an I2C failure.
+     * @pubstate writes the 24AA025E48 user region and gDabAntCapCalibration.
+     *           Does not itself change any live tuner state — callers must
+     *           also call TunerService::setDefaultDabAntCap() to apply it.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-20
+     */
+    [[nodiscard]] static bool saveDabAntCapCalibration(std::uint8_t antCap);
 };
 
 } // namespace hardware
