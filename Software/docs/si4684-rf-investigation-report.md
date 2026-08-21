@@ -908,3 +908,93 @@ would be a significant main-MCU redesign, not a drop-in swap, and its
 ESP-IDF support maturity/availability wasn't independently verified this
 session — worth a dedicated evaluation before committing to it for a
 future hardware revision.
+
+## 2026-08-21 follow-up: git archaeology on the boot-retry structure;
+## minimal patch to restore the validated single-attempt design
+
+Separate follow-up session, requested specifically to re-derive the
+BT1035 boot regression analysis directly from git history rather than
+from further live hardware probing, per the project's own house rule
+(2026-08-14 postmortem): exhaust the code-path diff against a known-good
+commit before floating new hardware theories.
+
+**Full commit archaeology** (`git log --follow` on
+`Bt1035Driver.cpp`):
+```
+6ca40f1 "all companion chips ready" — baseline, 0 known bugs
+6f7b6dd added a redundant AT+RESET right after the hardware reset pulse
+fd9d4ae (2026-08-15) fixed 6f7b6dd in one commit: removed the redundant
+        AT+RESET AND introduced logRawUartBoot() for the first time,
+        already at its final 3500ms window (the "1500ms too short"
+        text in the report/commit message describes an intermediate
+        value tried live during that debugging session, never itself
+        committed) — 5/5 clean boots documented after this fix.
+3a58d33 (2026-08-20, this project's own earlier commit today) widened
+        the banner wait 3500ms → 25000ms (real banner measured arriving
+        up to ~18.5-42s post-reset) AND, in the same commit, introduced
+        a NEW intra-boot() retry loop (kBootAttempts=2, only
+        kBootRetryDelayMs=300ms between the two hardware reset pulses)
+        that did not exist in fd9d4ae's validated design.
+```
+
+**Finding**: comparing `fd9d4ae` (the last commit with a documented,
+validated 5/5 clean-boot run) against the working tree confirmed exactly
+three differences, only one of them structural:
+1. Banner wait 3500ms → 25000ms — justified by this session's own real
+   measurements, kept.
+2. `GPIO_MODE_OUTPUT` → `GPIO_MODE_INPUT_OUTPUT` on RESET/SYS_CTRL —
+   purely additive (enables `gpio_get_level()` readback for the
+   pre-power/post-syscl/post-reset diagnostic logs), electrically
+   neutral, kept.
+3. **A new intra-`boot()` retry loop with only 300ms between the two
+   hardware reset pulses — this did not exist in the validated baseline.**
+   The BT1035 datasheet's own "Reset Protection timeout (typically
+   >1.8s)" (already gathered earlier this session) means a second
+   SYS_CTRL/RESET pulse fired only 300ms after a failed attempt would not
+   reliably reach a clean power-off state — risking re-interrupting the
+   module mid bring-up, the same class of bug 6f7b6dd/fd9d4ae already
+   dealt with once (redundant AT+RESET). This is the only difference
+   flagged as a plausible contributor, not asserted as certain.
+
+Also confirmed via repo-wide search: `AT+RESET` (`Bt1035AtCommand::Reset`)
+is referenced only in the unit test, never in production code; no other
+task/thread touches the BT1035 UART during its boot window
+(`savedSpeakerReconnectTask` only starts after `HardwareBootstrap::boot()`
+returns; the new `bt1035RetryTask` calls `boot()` sequentially, never
+concurrently). `logRawUartBoot()`'s single `uart_read_bytes()` call and
+the following `uart_flush_input()` were confirmed, both by code reading
+and by this session's own successful-boot log capture (banner appeared,
+then `AT`→`OK` immediately after, no stall), to not swallow or discard
+data that `runInitSequence()` would otherwise need — `runInitSequence()`
+does its own fresh TX/RX cycle regardless of what the banner-capture step
+saw.
+
+**Minimal patch applied** (user-directed, exact scope agreed before
+touching code): removed the intra-`boot()` retry loop entirely —
+`boot()` now makes exactly one `resetAndInitOnce()` call per invocation,
+structurally identical to `fd9d4ae`. Removed `kBootAttempts` and
+`kBootRetryDelayMs` (dead after the loop's removal); `probeBaudRates()`'s
+log line adjusted accordingly (no longer references the removed
+attempt count). `kBootBannerWaitMs=25000` and the `GPIO_MODE_INPUT_OUTPUT`
+readback were explicitly left untouched. Retries now live exclusively one
+layer up, in `hardware::bt1035RetryTask` (`main/hardware_bootstrap.cpp`,
+added earlier this session), which only re-invokes a full, clean `boot()`
+call — never re-pulses the pins faster than one whole boot cycle apart.
+Host tests (20/20) and firmware build both green before flashing.
+
+**Live result after flashing**: structurally the retry cadence is now
+clean — confirmed via serial log, each `bt1035RetryTask` iteration is
+spaced ~31.8s apart (25s banner wait + ~2s AT timeout + ~4s baud sweep,
+no extra gap), matching the intended single-attempt-per-call design
+exactly, versus the old back-to-back double-pulse. **However, a 20-minute
+monitoring window immediately after flashing captured 31 consecutive
+retry attempts, all silent — zero successes**, a worse hit rate in this
+specific sample than earlier in the day (which had at least one clean
+success among fewer attempts). This neither confirms nor refutes the
+Reset-Protection-timing hypothesis on its own — the patch is kept because
+it's structurally correct (matches the one historically validated design,
+removes the only unexplained difference from it), not because this
+sample proves it improved the success rate. The underlying intermittent
+root cause (most likely the module's internal, sealed 32MHz crystal
+startup margin — see the 2026-08-21 entry above) remains unresolved and
+would need an oscilloscope to pin down further.

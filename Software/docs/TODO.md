@@ -134,6 +134,30 @@ Short version:
   session narrative, including a UART TX/RX loopback test attempt that was
   inconclusive (bridging the ESP32's own TX/RX pins from cold boot caused
   an unrelated, reproducible, harmless early-boot hang, not yet explained).
+- **BT1035 — git archaeology + minimal patch, follow-up (2026-08-21).**
+  Traced the full commit history of `Bt1035Driver.cpp` from the last
+  documented-good boot (`6ca40f1`) through the regression (`6f7b6dd`, a
+  redundant `AT+RESET`) and its fix (`fd9d4ae`, 5/5 clean boots — removed
+  the `AT+RESET` and introduced the boot-banner listen at 3500ms in the
+  same commit). Comparing `fd9d4ae` to this session's working tree found
+  one real structural difference beyond the justified 25s banner window:
+  today's earlier commit (`3a58d33`) had added an intra-`boot()` retry
+  loop (2 attempts, only 300ms between hardware reset pulses) that never
+  existed in the validated baseline — shorter than the BT1035 datasheet's
+  own "Reset Protection timeout (typically >1.8s)", so the second pulse
+  may not have reached a clean power-off state. **Fixed**: removed the
+  intra-`boot()` retry loop entirely (`kBootAttempts`/`kBootRetryDelayMs`
+  deleted); `boot()` now makes exactly one attempt per call, matching
+  `fd9d4ae`. Retries remain exclusively at the `bt1035RetryTask` level
+  (whole clean `boot()` calls, never re-pulsing pins faster than one full
+  cycle apart — confirmed live, ~31.8s between attempts). Host tests
+  (20/20) and firmware build green; flashed and observed live. **Result
+  inconclusive on hit rate**: a 20-minute post-flash window captured 31
+  consecutive silent retry attempts, zero successes — worse than earlier
+  the same day. The patch is kept because it's structurally correct (only
+  known deviation from the historically validated design removed), not
+  because this sample proved a better success rate. Root cause of the
+  underlying intermittent silence is still open (see entry above).
 - **Still open**: intermittent multi-second HTTP unresponsiveness under
   load; DAB signal quality still antenna-limited; 24 KB `nvs` partition
   may be undersized (`saveProfile()` `store_failed` seen intermittently,

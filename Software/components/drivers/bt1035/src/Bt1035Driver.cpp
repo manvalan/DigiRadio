@@ -51,10 +51,20 @@ constexpr int kSysCtlSettleMs = 50;
  *  RESET# releases — full BT stack init, not just the internal regulator.
  *  The previous 3500ms wait here was never enough for the module to say
  *  anything, so every prior boot attempt cut power and restarted before
- *  the module could finish booting even once. See kBootAttempts below. */
+ *  the module could finish booting even once.
+ *
+ *  boot() makes exactly one resetAndInitOnce() attempt per call (matching
+ *  fd9d4ae's validated 5/5-clean-boot design): the BT1035 datasheet's own
+ *  "Reset Protection timeout (typically >1.8s)" means a second
+ *  SYS_CTRL/RESET pulse fired shortly after a failed attempt would not
+ *  reliably reach a clean power-off state before repowering — an internal
+ *  retry loop here risks re-interrupting the module mid bring-up, the
+ *  same class of bug fixed in fd9d4ae (redundant AT+RESET). Retries now
+ *  live one layer up, in hardware::bt1035RetryTask
+ *  (main/hardware_bootstrap.cpp), which only re-invokes a full, clean
+ *  boot() call — never re-pulses the pins faster than a whole boot cycle
+ *  apart. */
 constexpr int kBootBannerWaitMs = 25000;
-constexpr int kBootAttempts = 2;
-constexpr int kBootRetryDelayMs = 300;
 
 void flushUartRx(int uartPort) noexcept
 {
@@ -66,7 +76,7 @@ void flushUartRx(int uartPort) noexcept
     }
 }
 
-// Diagnostic only, run once if all kBootAttempts fail at 115200 (the
+// Diagnostic only, run if the single boot attempt fails at 115200 (the
 // datasheet's own default). AT+BAUD persists across RESET#/SYS_CTRL power
 // cycles (programming guide §5.1.3), so a stray manual AT+BAUD or
 // AT+RESTORE sent during earlier interactive testing could have left the
@@ -77,8 +87,7 @@ constexpr std::array<int, 8> kBaudProbeCandidates = {
 
 void probeBaudRates(int uartPort) noexcept
 {
-    ESP_LOGW(kTag, "115200 unresponsive after %d attempts — sweeping baud rates",
-             kBootAttempts);
+    ESP_LOGW(kTag, "115200 unresponsive — sweeping baud rates");
     for (const int baud : kBaudProbeCandidates) {
         if (uart_set_baudrate(static_cast<uart_port_t>(uartPort), baud)
             != ESP_OK) {
@@ -1052,19 +1061,8 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         uartInstalled_ = true;
     }
 
-    std::expected<void, Bt1035Error> init = std::unexpected(Bt1035Error::UnexpectedResponse);
-    for (int attempt = 1; attempt <= kBootAttempts; ++attempt) {
-        init = resetAndInitOnce();
-        if (init) {
-            break;
-        }
-        ESP_LOGW(kTag, "boot attempt %d/%d failed", attempt, kBootAttempts);
-        if (attempt < kBootAttempts) {
-            vTaskDelay(pdMS_TO_TICKS(kBootRetryDelayMs));
-        }
-    }
-    if (!init) {
-        ESP_LOGE(kTag, "AT init failed after %d attempts", kBootAttempts);
+    if (auto init = resetAndInitOnce(); !init) {
+        ESP_LOGE(kTag, "AT init failed");
         probeBaudRates(uartPort_);
         return init;
     }
