@@ -32,6 +32,8 @@
 
 #include "driver/spi_master.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 namespace hardware {
 
@@ -95,6 +97,58 @@ bool gReady = false;
     return eeprom24aa::Eeprom24aa(
         busHandle,
         static_cast<std::uint8_t>(board::pins::Eeprom24aaAddr));
+}
+
+/**
+ * @brief    applyBt1035PostBootSetup — device name + auto-reconnect, run
+ *           once after any successful BT1035 boot (first attempt or a
+ *           later background retry).
+ */
+void applyBt1035PostBootSetup()
+{
+    if (auto nameResult = gBt1035.setDeviceName(gDeviceIdentity.bluetoothName());
+        !nameResult) {
+        ESP_LOGW(kTag, "BT1035 device name set failed");
+    }
+    if (auto reconnectResult = gBt1035.setAutoReconnect(3U); !reconnectResult) {
+        ESP_LOGW(kTag, "BT1035 auto-reconnect set failed");
+    }
+}
+
+/**
+ * @brief    bt1035RetryTask — keep retrying Bt1035Driver::boot() in the
+ *           background after the initial boot() attempt fails.
+ *
+ * @dname    bt1035RetryTask
+ * @pubstate loops gBt1035.boot() with no artificial delay between
+ *           attempts — each call already blocks for tens of seconds
+ *           (kBootBannerWaitMs's banner wait, times kBootAttempts), so no
+ *           extra backoff is added on top. Exits once boot() succeeds.
+ *
+ * Why: BT1035 boot failure has been observed to be intermittent on
+ * identical, correctly-wired, correctly-powered hardware — the same
+ * physical module has booted successfully and failed silently across
+ * different attempts in the same session, with the crystal oscillator
+ * inside the (sealed, non-serviceable) module the leading suspect. Since
+ * the fault clears on a later attempt rather than needing repair, retrying
+ * indefinitely in the background turns a permanent-until-manual-reboot
+ * failure into a bounded, self-recovering delay.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-21
+ */
+void bt1035RetryTask(void* /*arg*/)
+{
+    ESP_LOGW(kTag, "BT1035 background retry started");
+    while (true) {
+        if (auto result = gBt1035.boot(); result) {
+            applyBt1035PostBootSetup();
+            ESP_LOGI(kTag, "BT1035 background retry succeeded");
+            break;
+        }
+        ESP_LOGW(kTag, "BT1035 background retry attempt failed, trying again");
+    }
+    vTaskDelete(nullptr);
 }
 } // namespace
 
@@ -164,18 +218,15 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
     }
 
     if (auto btResult = gBt1035.boot(); !btResult) {
-        ESP_LOGE(kTag, "BT1035 boot failed — continuing without Bluetooth");
+        ESP_LOGE(kTag, "BT1035 boot failed — continuing without Bluetooth, "
+                       "retrying in background");
+        if (xTaskCreate(bt1035RetryTask, "bt1035_retry", 4096, nullptr, 3,
+                        nullptr)
+            != pdPASS) {
+            ESP_LOGW(kTag, "BT1035 background retry task create failed");
+        }
     } else {
-        if (auto nameResult =
-                gBt1035.setDeviceName(gDeviceIdentity.bluetoothName());
-            !nameResult) {
-            ESP_LOGW(kTag, "BT1035 device name set failed");
-        }
-
-        if (auto reconnectResult = gBt1035.setAutoReconnect(3U);
-            !reconnectResult) {
-            ESP_LOGW(kTag, "BT1035 auto-reconnect set failed");
-        }
+        applyBt1035PostBootSetup();
     }
 
     gReady = true;
