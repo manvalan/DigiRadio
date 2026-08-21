@@ -41,6 +41,9 @@ struct TunerTuneRequest {
     TunerBand band;              ///< Target band (Dab or Fm).
     std::uint8_t dabFreqIndex;   ///< Band III ensemble index (0–37) when band is Dab.
     std::optional<FrequencyKHz> fmFrequency; ///< FM centre frequency when band is Fm.
+    std::optional<std::uint8_t> antCap; ///< Antenna varactor override (0–128),
+                                        ///< for calibration sweeps; applies to
+                                        ///< whichever band is being tuned.
 };
 
 /**
@@ -238,5 +241,39 @@ struct TunerFmScannedStation {
  */
 [[nodiscard]] std::string serializeTunerFmBandScanJson(
     const std::vector<TunerFmScannedStation>& stations);
+
+/**
+ * @brief    AntennaCalibrationRequest — parsed POST
+ *           /api/tuner/calibrate-antenna body.
+ *
+ * @dname    AntennaCalibrationRequest
+ * @return   n/a (type)
+ * @pubstate Plain DTO filled by parseAntennaCalibrationJson at the HTTP
+ *           boundary.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-20
+ */
+struct AntennaCalibrationRequest {
+    TunerBand band;        ///< Which band's ANTCAP default this saves.
+    std::uint8_t antCap;   ///< Value to persist (0-128).
+};
+
+/**
+ * @brief    parseAntennaCalibrationJson — validate POST
+ *           /api/tuner/calibrate-antenna body.
+ *
+ * @dname    parseAntennaCalibrationJson
+ * @param    json  Untrusted request body from the HTTP handler.
+ * @return   Band + ANTCAP value (0-128) on success, or a ParseError.
+ *           `band` defaults to Fm when the field is omitted, preserving
+ *           the original FM-only request shape.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-19
+ */
+[[nodiscard]] std::expected<AntennaCalibrationRequest, ParseError>
+parseAntennaCalibrationJson(std::string_view json);
 
 } // namespace core

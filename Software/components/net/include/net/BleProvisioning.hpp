@@ -31,15 +31,19 @@ namespace net::ble_provisioning {
  * @dname    start
  * @param    store           Secure store the received credentials are saved
  *                            to (same store POST /api/wifi writes to).
- * @param    deviceIdentity  Supplies the BLE advertising name (softApSsid)
- *                            and the proof-of-possession string (serialNumber).
+ * @param    deviceIdentity  Supplies the BLE advertising name (softApSsid).
  * @return   Ok once provisioning is advertising, or NetError::BleProvisioningFailed.
  * @pubstate Starts the onboard ESP32-S3 BLE radio (independent of the BT1035
  *           UART module) and a process-lifetime wifi_provisioning manager
  *           singleton. On a successful join, saves credentials to store and
  *           reboots, mirroring wifiPostHandler's POST /api/wifi behaviour.
  *           Runs alongside the existing SoftAP + HTTP provisioning route,
- *           not instead of it — either path can complete setup.
+ *           not instead of it — either path can complete setup. Uses
+ *           protocomm Security0 (no proof-of-possession, no encryption):
+ *           a PoP derived from the BLE advertising name would be visible to
+ *           anyone scanning anyway, so it added app/firmware coupling
+ *           without adding real secrecy — same trust level as the open
+ *           SoftAP setup path this runs alongside.
  *
  * @author   Michele Bigi
  * @date     2026-08-18

@@ -209,12 +209,12 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
 }
 
 std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
-    std::uint8_t freqIndex)
+    std::uint8_t freqIndex, std::uint8_t antCap)
 {
     if (auto ready = ensureBandLoaded(core::TunerBand::Dab); !ready) {
         return ready;
     }
-    if (auto result = driver_.tuneDab(freqIndex); !result) {
+    if (auto result = driver_.tuneDab(freqIndex, antCap); !result) {
         return std::unexpected(mapError(result.error()));
     }
     dabIndex_ = freqIndex;
@@ -225,12 +225,12 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
 }
 
 std::expected<void, core::TunerError> Si4684Tuner::tuneFm(
-    core::FrequencyKHz frequency)
+    core::FrequencyKHz frequency, std::uint8_t antCap)
 {
     if (auto ready = ensureBandLoaded(core::TunerBand::Fm); !ready) {
         return ready;
     }
-    if (auto result = driver_.tuneFm(frequency); !result) {
+    if (auto result = driver_.tuneFm(frequency, antCap); !result) {
         return std::unexpected(mapError(result.error()));
     }
     fmFrequency_ = frequency;

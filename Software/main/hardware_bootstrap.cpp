@@ -80,7 +80,22 @@ bt1035::Bt1035Driver gBt1035(
     });
 
 core::DeviceIdentity gDeviceIdentity = core::DeviceIdentity::unknown();
+std::optional<std::uint8_t> gFmAntCapCalibration;
+std::optional<std::uint8_t> gDabAntCapCalibration;
 bool gReady = false;
+
+/**
+ * @brief    makeEeprom — construct a transient EEPROM handle onto the
+ *           shared I2C bus, matching the one built inline in boot().
+ */
+[[nodiscard]] eeprom24aa::Eeprom24aa makeEeprom()
+{
+    auto* busHandle =
+        static_cast<i2c_master_bus_handle_t>(gAdau1701.i2cBusHandle());
+    return eeprom24aa::Eeprom24aa(
+        busHandle,
+        static_cast<std::uint8_t>(board::pins::Eeprom24aaAddr));
+}
 } // namespace
 
 std::expected<void, HardwareBootError> HardwareBootstrap::boot()
@@ -102,11 +117,7 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         }
     }
 
-    auto* busHandle =
-        static_cast<i2c_master_bus_handle_t>(gAdau1701.i2cBusHandle());
-    eeprom24aa::Eeprom24aa eeprom(busHandle,
-                                  static_cast<std::uint8_t>(
-                                      board::pins::Eeprom24aaAddr));
+    eeprom24aa::Eeprom24aa eeprom = makeEeprom();
     if (auto identity = eeprom.readDeviceIdentity(); identity) {
         gDeviceIdentity = std::move(*identity);
         ESP_LOGI(kTag, "unit serial %.*s",
@@ -115,6 +126,32 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
     } else {
         gDeviceIdentity = core::DeviceIdentity::unknown();
         ESP_LOGW(kTag, "EUI-48 read failed — using fallback identity");
+    }
+
+    if (auto antCap = eeprom.readFmAntCap(); antCap) {
+        gFmAntCapCalibration = *antCap;
+        if (gFmAntCapCalibration) {
+            ESP_LOGI(kTag, "FM ANTCAP calibration loaded: %u",
+                     static_cast<unsigned>(*gFmAntCapCalibration));
+        } else {
+            ESP_LOGI(kTag, "FM ANTCAP not calibrated — using chip auto-tune");
+        }
+    } else {
+        ESP_LOGW(kTag, "FM ANTCAP calibration read failed — using chip "
+                       "auto-tune");
+    }
+
+    if (auto antCap = eeprom.readDabAntCap(); antCap) {
+        gDabAntCapCalibration = *antCap;
+        if (gDabAntCapCalibration) {
+            ESP_LOGI(kTag, "DAB ANTCAP calibration loaded: %u",
+                     static_cast<unsigned>(*gDabAntCapCalibration));
+        } else {
+            ESP_LOGI(kTag, "DAB ANTCAP not calibrated — using chip auto-tune");
+        }
+    } else {
+        ESP_LOGW(kTag, "DAB ANTCAP calibration read failed — using chip "
+                       "auto-tune");
     }
 
     if (auto audioResult = gAudioService.loadAndApply(); !audioResult) {
@@ -173,6 +210,42 @@ bt1035::Bt1035Driver& HardwareBootstrap::bt1035Driver()
 const core::DeviceIdentity& HardwareBootstrap::deviceIdentity() noexcept
 {
     return gDeviceIdentity;
+}
+
+std::optional<std::uint8_t> HardwareBootstrap::fmAntCapCalibration() noexcept
+{
+    return gFmAntCapCalibration;
+}
+
+bool HardwareBootstrap::saveFmAntCapCalibration(std::uint8_t antCap)
+{
+    eeprom24aa::Eeprom24aa eeprom = makeEeprom();
+    if (auto written = eeprom.writeFmAntCap(antCap); !written) {
+        ESP_LOGW(kTag, "FM ANTCAP calibration write failed");
+        return false;
+    }
+    gFmAntCapCalibration = antCap;
+    ESP_LOGI(kTag, "FM ANTCAP calibration saved: %u",
+             static_cast<unsigned>(antCap));
+    return true;
+}
+
+std::optional<std::uint8_t> HardwareBootstrap::dabAntCapCalibration() noexcept
+{
+    return gDabAntCapCalibration;
+}
+
+bool HardwareBootstrap::saveDabAntCapCalibration(std::uint8_t antCap)
+{
+    eeprom24aa::Eeprom24aa eeprom = makeEeprom();
+    if (auto written = eeprom.writeDabAntCap(antCap); !written) {
+        ESP_LOGW(kTag, "DAB ANTCAP calibration write failed");
+        return false;
+    }
+    gDabAntCapCalibration = antCap;
+    ESP_LOGI(kTag, "DAB ANTCAP calibration saved: %u",
+             static_cast<unsigned>(antCap));
+    return true;
 }
 
 } // namespace hardware

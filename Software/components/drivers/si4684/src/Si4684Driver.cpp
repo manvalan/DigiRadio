@@ -85,6 +85,7 @@ constexpr std::uint16_t kPropDabTuneFeCfg = 0x1712U;
 constexpr std::uint16_t kPropFmTuneFeCfg = 0x1712U;
 constexpr std::uint16_t kPropDabXpadEnable = 0xB400U;
 constexpr std::uint16_t kPropDigitalServiceIntSource = 0x8100U;
+constexpr std::uint16_t kPropDabEventIntSource = 0xB300U;
 /** AN649 INT_CTL_ENABLE / INT_CTL_REPEAT — route STC to INTB until STCACK. */
 constexpr std::uint16_t kPropIntCtlEnable = 0x0000U;
 constexpr std::uint16_t kPropIntCtlRepeat = 0x0001U;
@@ -503,6 +504,15 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
             !dsrv) {
             ESP_LOGW(kTag, "DIGITAL_SERVICE_INT_SOURCE (0x8100) failed");
             return dsrv;
+        }
+        // AN649 Property 0xB300 DAB_EVENT_INTERRUPT_SOURCE, bit0=SRVLIST_INTEN
+        // (default 0x0000 = disabled at power-on). Without this, nothing in
+        // this driver ever enables the service-list-ready event, so
+        // fetchDabServiceList() can stay gated behind an eternally-false
+        // serviceListReady even on a clean, well-locked ensemble.
+        if (auto evt = setProperty(kPropDabEventIntSource, 0x0001U); !evt) {
+            ESP_LOGW(kTag, "DAB_EVENT_INTERRUPT_SOURCE (0xB300) failed");
+            return evt;
         }
     } else {
     // FM varactor cal per hitech95/uGreen DTS (not DAB PE5PVB values).
@@ -1027,7 +1037,8 @@ std::expected<void, Si4684Error> Si4684Driver::installDefaultDabFrequencyPlan()
     return sendCommand(cmd);
 }
 
-std::expected<void, Si4684Error> Si4684Driver::tuneDab(std::uint8_t freqIndex)
+std::expected<void, Si4684Error> Si4684Driver::tuneDab(
+    std::uint8_t freqIndex, std::uint8_t antCap)
 {
     if (auto band = ensureBand(Si4684Band::Dab); !band) {
         return band;
@@ -1037,8 +1048,9 @@ std::expected<void, Si4684Error> Si4684Driver::tuneDab(std::uint8_t freqIndex)
     }
     // writeCommand() always prepends a fixed ARG1=0x00 (INJECTION=0), so
     // this array starts at ARG2 (AN649 Command 0xB0 table: ARG2=FREQ_INDEX,
-    // ARG3=0x00 fixed, ARG4=ANTCAP[7:0], ARG5=ANTCAP[15:8]).
-    const std::uint8_t args[] = {freqIndex, 0x00U, 0x00U, 0x00U};
+    // ARG3=0x00 fixed, ARG4=ANTCAP[7:0], ARG5=ANTCAP[15:8] -- high byte
+    // always 0, range is 0-128, same as tuneFm's ANTCAP).
+    const std::uint8_t args[] = {freqIndex, 0x00U, antCap, 0x00U};
     if (auto cmd = writeCommand(Command::DabTuneFreq, args, sizeof(args));
         !cmd) {
         return std::unexpected(Si4684Error::TuneFailed);
@@ -1121,26 +1133,37 @@ Si4684Driver::fetchDabServiceList()
     }
 
     // raw[5]=RESP4=SIZE[7:0], raw[6]=RESP5=SIZE[15:8] (see readFmRds()).
+    // AN649 only documents SIZE/DATA_0/DATA_N generically for this command
+    // and defers the DAB payload layout to a supplemental "Digital
+    // Services User's Guide" we don't have; the exact field layout below
+    // is cross-checked against hitech95/si468x_dab_receiver's
+    // si468x_core_cmd_dab_get_service_list() (drivers/mfd/si468x-cmd.c),
+    // a real working Linux driver for the same command. That driver also
+    // establishes that the payload actually carried after SIZE is
+    // SIZE-2 bytes, not SIZE bytes.
     const std::uint16_t payloadSize = readLe16(header.data() + 5);
-    if (payloadSize == 0U || payloadSize + 7U > kSpiBufferSize) {
+    if (payloadSize <= 2U || payloadSize + 5U > kSpiBufferSize) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
 
-    // DATA_0 (first byte of the AN649 Table 14 "DAB/DMB Digital Service
-    // List" structure) is RESP6 = body[7]: lead-in(1) + STATUS0-3(4) +
-    // SIZE(2) = 7 header bytes before it.
-    std::vector<std::uint8_t> body(payloadSize + 7U, 0U);
+    // DATA_0 (first byte of the payload) is RESP6 = body[7]: lead-in(1) +
+    // STATUS0-3(4) + SIZE(2) = 7 header bytes before it. Total frame is
+    // lead-in(1) + STATUS0-3(4) + SIZE(2) + payload(SIZE-2) = SIZE+5.
+    std::vector<std::uint8_t> body(payloadSize + 5U, 0U);
     if (auto rd = readRaw(body); !rd) {
         return std::unexpected(rd.error());
     }
 
-    // Table 14: List Size(2) + Version(2) + NumServices(1) + AlignPad(3) =
-    // 8 bytes, then Service 1 begins.
-    const std::uint8_t serviceCount = body[11];
+    // From DATA_0 (body[7]): Version(2) + NumServices/flags(1) +
+    // AlignPad(3) = 6 bytes, then Service 1 begins at body[13]. (The
+    // previous version of this code double-counted the already-consumed
+    // SIZE field here, offsetting every read by 2 bytes — that is why the
+    // service list always came back empty.)
+    const std::uint8_t serviceCount = body[9] & 0x1FU; // max 32 services
     std::vector<Si4684DabService> services;
     services.reserve(serviceCount);
 
-    std::size_t offset = 15U;
+    std::size_t offset = 13U;
     for (std::uint8_t i = 0; i < serviceCount; ++i) {
         // Fixed per-service part: ServiceID(4) + ServiceInfo1-3(3) +
         // AlignPad(1) + Label(16) = 24 bytes.
@@ -1155,11 +1178,13 @@ Si4684Driver::fetchDabServiceList()
         entry.label[16] = '\0';
         offset += 24U;
 
-        // Component ID is 2 bytes (AN649 Table 14); only the first
+        // Component ID is 2 bytes (hitech95's si468x-cmd.c packs tm_id/
+        // sub_ch_id/fidc_id/sc_id into this same field; only the raw
+        // 16-bit value is exposed on this DTO). Only the first
         // component's ID is exposed on this DTO. Every component (M =
         // componentCount) must still be skipped to keep the next service
-        // entry aligned, each one ComponentID(2) + ComponentInfo(1) +
-        // ValidFlags(1) = 4 bytes.
+        // entry aligned, each one 2 bytes packed field + ServiceType/
+        // flags(1) + ValidFlags(1) = 4 bytes.
         if (componentCount > 0U && offset + 2U <= body.size()) {
             entry.componentId = readLe16(body.data() + offset);
         }

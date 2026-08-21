@@ -5,6 +5,7 @@ idf_component_register(
         "web_radio_stream.cpp"
         "esp32_i2s_sink.cpp"
         "phone_stream.cpp"
+        "antenna_calibration.cpp"
         "$<$<BOOL:${CONFIG_TEST_FIRMWARE}>:test_firmware.cpp>"
         "$<$<BOOL:${CONFIG_I2S_SDATA_PROBE}>:i2s_sdata_probe.cpp>"
     INCLUDE_DIRS "."
