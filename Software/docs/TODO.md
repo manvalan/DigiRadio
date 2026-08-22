@@ -158,6 +158,31 @@ Short version:
   known deviation from the historically validated design removed), not
   because this sample proved a better success rate. Root cause of the
   underlying intermittent silence is still open (see entry above).
+- **BT1035 — RESET#/SYS_CTRL redesign, CTS/RTS diagnostics, Feasycom
+  escalation (2026-08-22).** A sibling project's PinScope netlist report
+  (RESET# pulled to GND, SYS_CTRL pulled HIGH by stray resistors) was
+  checked against our own schematic and does **not** apply to us — our
+  RESET#/SYS_CTRL wiring is correct, verified via netlist. Its RF_OUT/pin
+  51 floating finding **does** also apply to us, but is a separate,
+  RF-range-only concern (datasheet documents both internal- and
+  external-antenna variants; can't tell which we have), not the cause of
+  the digital/UART boot silence. As a diagnostic test, RESET# is now
+  never driven at all (floating input, relying on the module's own
+  internal pull-up per §4.8) and SYS_CTRL now does a genuine LOW(2.5s)→
+  HIGH power-cycle on every retry attempt (previously asserted once ever
+  and left alone, meaning retries never actually power-cycled the
+  module). Also added read-only diagnostics on the previously-unused
+  CTS/RTS pins (physically wired, named in `board_pins.hpp`, never
+  configured by any driver code, host flow control disabled) — live
+  readings were perfectly stable (CTS=HIGH, RTS=LOW) across ~12 samples
+  over 30+ minutes, arguing against pure floating-noise. **Across all of
+  today's changes combined, zero successful boots were observed in
+  cumulative 45+ minutes of live testing** — inconclusive-to-negative,
+  not proof any change helped or hurt. Escalated to Feasycom support with
+  a detailed email (drafted, kept outside the repo) covering the
+  symptom, everything ruled out, the CTS/RTS open question, and the
+  antenna-variant question; paused further live experimentation pending
+  their reply rather than keep permuting timing parameters blind.
 - **Still open**: intermittent multi-second HTTP unresponsiveness under
   load; DAB signal quality still antenna-limited; 24 KB `nvs` partition
   may be undersized (`saveProfile()` `store_failed` seen intermittently,
