@@ -998,3 +998,116 @@ sample proves it improved the success rate. The underlying intermittent
 root cause (most likely the module's internal, sealed 32MHz crystal
 startup margin — see the 2026-08-21 entry above) remains unresolved and
 would need an oscilloscope to pin down further.
+
+## 2026-08-22 update: RESET#/SYS_CTRL redesign, CTS/RTS diagnostics,
+## PinScope report from a sibling project, Feasycom support escalation
+
+**PinScope findings from a sibling "DigiRadio evolution" project with the
+same BT1035 wiring pattern** were reviewed for transferability. Checked
+each finding against our own schematic netlist (exact BT1035 pin numbers
+cross-referenced against the datasheet's own pin table) rather than
+assuming they apply:
+- **U16-001 (RESET# pulled to GND by a stray R67) and U16-002 (SYS_CTRL
+  pulled HIGH by a stray R69): do NOT apply to our board.** Verified via
+  netlist: our RESET# net (`GPIO17`) has only the ESP32 and the BT1035,
+  no resistor; our SYS_CTRL pull-down (R12) genuinely goes to GND (pins
+  1/22, confirmed GND in the datasheet), not a stray pull-up.
+- **U16-003 (VCHG/VCHG_SENSE unconnected): same on our board, presumably
+  intentional** (no USB charging via the BT1035).
+- **U16-004 (RF_OUT/pin 51 floating): also true on our board** — but this
+  is a genuinely open question, not a confirmed defect: the BT1035
+  datasheet documents both an "Internal Antenna" (§9.2, on-board antenna,
+  no RF_OUT routing needed, PCB keep-out area required instead) and
+  "External Antenna" (§9.3, RF_OUT routed out) layout option, and we
+  cannot tell from the datasheet alone which variant this specific module
+  part/order uses. This affects actual Bluetooth RF range once the module
+  boots — separate from, and does not explain, the intermittent
+  total-silence boot symptom (RF_OUT is downstream of the digital
+  baseband processor that generates the boot banner and answers AT
+  commands).
+- The sibling report's "RESET#/SYS_CTRL/VCHG compound badly" warning
+  does not transfer to us, since our RESET#/SYS_CTRL wiring is correct.
+
+**RESET#/SYS_CTRL hardware-management redesign (diagnostic test,
+requested explicitly to see if external RESET# control was itself
+contributing to the intermittent failures):**
+- RESET# (pin 8) is no longer driven by this driver at all: reconfigured
+  as a floating input (`GPIO_MODE_INPUT`, pull-up/pull-down both
+  explicitly disabled), relying entirely on the BT1035's own datasheet-
+  documented "fixed strong pull-up to VDD_IO" (§4.8). GPIO17 confirmed
+  reading HIGH via this internal pull-up, live.
+- SYS_CTRL (pin 34) redesigned to perform a genuine LOW→HIGH power-cycle
+  on *every* `resetAndInitOnce()` call (held LOW 2.5s — comfortably
+  longer than the datasheet's "~1.8s typical" Reset Protection timeout —
+  then HIGH for >=20ms per §4.7), rather than being asserted once ever at
+  first boot and left alone: previously, every later retry from
+  `bt1035RetryTask` was silently reusing an already-HIGH SYS_CTRL line
+  and never actually power-cycling the module at all.
+- Both changes build/test clean and were confirmed live to behave exactly
+  as designed (RESET# reads HIGH via internal pull-up; SYS_CTRL cadence
+  matches the 2.5s+20ms design on every retry).
+
+**Result: inconclusive-to-negative on hit rate.** Across a cumulative
+~45+ minutes of live monitoring after these changes (two separate
+sessions, dozens of retry attempts), **zero successful boots were
+observed** — no banner, ever, in this window. This is not better than,
+and arguably worse than, the small sample seen the same week under the
+*previous* (RESET#-driven) design, which did show at least one clean
+success among fewer attempts. This should not be read as proof the new
+design is wrong — the previous design also produced a 31-attempt/0-success
+streak in one session this same week — but it is also not evidence the
+redesign helped. Kept anyway because it is independently correct per the
+datasheet (RESET# genuinely can be left unconnected; SYS_CTRL retries
+should be genuine power-cycles), not because it demonstrably fixed
+anything.
+
+**New CTS/RTS diagnostic instrumentation.** Discovered, previously
+unexamined this entire investigation: the board physically wires
+`board::pins::Bt1035Cts` (GPIO21 -> BT1035 pin 15, UART_CTS) and
+`board::pins::Bt1035Rts` (BT1035 pin 16, UART_RTS -> GPIO14) — both
+**named in `board_pins.hpp` since the pin's original definition, but
+never configured or used by any driver code**, and the UART is
+initialized with `UART_HW_FLOWCTRL_DISABLE`. Added both as read-only
+floating-input diagnostics (`Bt1035Pins::ctsGpio`/`rtsGpio`, logged
+before and after the banner-wait window in `resetAndInitOnce()`), purely
+to observe — never driven.
+
+Datasheet research (not just speculation) on what this could mean:
+- §4.1 Table 4-1 lists flow control as one of several **configurable**
+  UART settings ("Supports Automatic Flow Control (CTS and RTS lines)"),
+  not stated as active by default.
+- No AT command to explicitly enable/disable flow control was found in
+  the programming guide.
+- Pin 16 (UART_RTS/PIO2)'s documented **factory-default alternate
+  function is "PA mute pin"** (`AT+MUTEPIO`'s own default parameter is
+  PIO2) — i.e., out of the box this pin most likely isn't acting as RTS
+  at all.
+- Live readings, across ~12 samples over 30+ minutes and multiple
+  power-cycles: **CTS=HIGH, RTS=LOW, perfectly stable, zero variation.**
+  This argues against a genuinely floating/noisy input (which would be
+  expected to show at least some jitter across dozens of samples) —
+  something is holding both at a fixed level, whether that's incidental
+  ESP32 GPIO leakage, an internal pull inside the module, or the module
+  actively driving its own RTS/PA_MUTE output. We do not yet have a
+  reading from a *successful* boot to compare against, since none
+  occurred in this session's remaining test window.
+
+**Escalated to Feasycom support** (email drafted, not yet sent by the
+user) with: the full symptom description, everything ruled out this
+session (power rails, RESET#/SYS_CTRL sequencing variants), the CTS/RTS
+finding reframed as an open question rather than a confirmed cause (per
+the datasheet nuance above), and the RF_OUT/antenna-variant question.
+Decided to pause further live hardware experimentation until a reply is
+received, rather than keep varying RESET#/SYS_CTRL/timing parameters
+without new information — see the email draft (kept outside the repo, in
+the session's scratch directory) for the exact wording sent.
+
+**How to apply, for a future session**: don't re-propose "try removing
+RESET# drive" or "try a genuine SYS_CTRL power-cycle on retry" as fresh
+ideas — both were tried this session, both are justified independently,
+neither showed a measurable improvement in a non-trivial sample. Don't
+assume CTS/RTS floating is confirmed as the cause either — the CTS=1/
+RTS=0 stability argues against pure floating-noise, and flow control may
+not even be engaged by default per the datasheet. The single most
+valuable next input is Feasycom's own answer, not another round of
+timing-parameter permutation.

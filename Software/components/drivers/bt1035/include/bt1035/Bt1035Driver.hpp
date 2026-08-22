@@ -37,8 +37,19 @@ namespace bt1035 {
 struct Bt1035Pins {
     int uartTx;     ///< ESP32 TX -> module RX.
     int uartRx;     ///< ESP32 RX <- module TX.
-    int resetGpio;  ///< Module RESET (active level per schematic).
-    int sysCtlGpio; ///< SYS_CTL (optional module enable).
+    int resetGpio;  ///< Module RESET# (pin 8). Read-only: configured as a
+                    ///< floating input (2026-08-22), never driven — relies
+                    ///< entirely on the module's own internal pull-up.
+    int sysCtlGpio; ///< SYS_CTL (pin 34). Driven HIGH once at boot, then
+                    ///< never touched again for the process lifetime.
+    int ctsGpio;    ///< Host->module UART_CTS (module pin 15). Diagnostic
+                    ///< only (2026-08-22): read-only floating input, never
+                    ///< driven — this driver does not implement hardware
+                    ///< flow control. See boot()'s comment.
+    int rtsGpio;    ///< Module UART_RTS/PIO2 (module pin 16), factory
+                    ///< default function is PA_MUTE, not flow control
+                    ///< (Feasycom programming guide). Diagnostic only
+                    ///< (2026-08-22): read-only floating input.
 };
 
 /**

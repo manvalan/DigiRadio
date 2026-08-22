@@ -79,6 +79,8 @@ bt1035::Bt1035Driver gBt1035(
         .uartRx = board::pins::Bt1035UartRx,
         .resetGpio = board::pins::Bt1035Reset,
         .sysCtlGpio = board::pins::Bt1035SysCtl,
+        .ctsGpio = board::pins::Bt1035Cts,
+        .rtsGpio = board::pins::Bt1035Rts,
     });
 
 core::DeviceIdentity gDeviceIdentity = core::DeviceIdentity::unknown();
