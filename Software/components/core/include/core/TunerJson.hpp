@@ -276,4 +276,41 @@ struct AntennaCalibrationRequest {
 [[nodiscard]] std::expected<AntennaCalibrationRequest, ParseError>
 parseAntennaCalibrationJson(std::string_view json);
 
+/**
+ * @brief    XtalCalibrationRequest — parsed POST
+ *           /api/tuner/xtal-calibrate body.
+ *
+ * @dname    XtalCalibrationRequest
+ * @return   n/a (type)
+ * @pubstate Plain DTO filled by parseXtalCalibrationJson at the HTTP
+ *           boundary. Diagnostic-only: live Si4684 crystal parameter
+ *           recalibration, no ESP32 restart required.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-23
+ */
+struct XtalCalibrationRequest {
+    std::uint8_t ibias;        ///< POWER_UP ARG3 IBIAS (0-127).
+    std::uint8_t ctun;         ///< POWER_UP ARG8 CTUN (0-63).
+    std::uint32_t xtalFreqHz;  ///< POWER_UP ARG4-7 XTAL_FREQ in Hz.
+};
+
+/**
+ * @brief    parseXtalCalibrationJson — validate POST
+ *           /api/tuner/xtal-calibrate body.
+ *
+ * @dname    parseXtalCalibrationJson
+ * @param    json  Untrusted request body from the HTTP handler.
+ * @return   Crystal parameters on success, or a ParseError. `ibias` and
+ *           `ctun` default to the values already loaded at boot when
+ *           omitted (unusual to omit, but harmless); `xtal_freq_hz`
+ *           defaults to the nominal 19,200,000 Hz.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-23
+ */
+[[nodiscard]] std::expected<XtalCalibrationRequest, ParseError>
+parseXtalCalibrationJson(std::string_view json);
+
 } // namespace core

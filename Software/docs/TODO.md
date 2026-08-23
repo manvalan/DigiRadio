@@ -204,6 +204,37 @@ Done in fw 0.8.5 unless noted:
 
 ---
 
+## TODO — calibration functions need to become permanent, in-firmware, on-demand tools (2026-08-23)
+
+Both ANTCAP calibration (`tools/si4684_antenna_calibration.py`) and Si4684
+crystal calibration (`tools/si4684_xtal_calibration.py`,
+`POST /api/tuner/xtal-calibrate`) currently exist as **host-side Python
+scripts driving live-but-unpersisted HTTP endpoints** — they compute a
+result but the operator has to hand-edit firmware source (constants in
+`Si4684Driver.cpp` / the `gSi4684.boot(...)` call in
+`hardware_bootstrap.cpp`) and reflash to make a result permanent.
+
+**Wanted instead**: both calibration procedures should be triggerable
+on-demand *from the device itself* (an HTTP endpoint is enough — no UI
+required yet) and, once a result converges, **write the result to the
+24AA025E48 EEPROM** (same chip/pattern already used for ANTCAP
+persistence, see `Eeprom24aa::writeFmAntCap`/`writeDabAntCap`) so it
+survives a reboot without a firmware reflash. `recalibrateXtal()`
+(`Si4684Driver.cpp`) already does the live re-boot-with-new-params part;
+what's missing is EEPROM persistence for CTUN/XTAL_FREQ (ANTCAP already
+persists this way — the xtal calibration should follow the same shape,
+likely a new EEPROM word address alongside the existing FM/DAB ANTCAP
+ones) and doing the FREQOFF-averaging/damping/convergence-loop logic
+in firmware (or keeping it host-side and just adding the EEPROM-persist
+step at the end — decide when picked up).
+
+Not started — explicitly deferred to a future session, noted here only so
+it isn't lost. See `docs/si4684-rf-investigation-report.md`'s 2026-08-23
+entry for full context on why this calibration was needed and how it
+currently works.
+
+---
+
 ## Quality gates (run from `Software/` before merge)
 
 ```bash

@@ -129,6 +129,10 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         if (status.fmSnrDb) {
             out << ",\"snr_db\":" << static_cast<int>(*status.fmSnrDb);
         }
+        if (status.fmFreqOffBppm) {
+            out << ",\"freqoff_ppm\":"
+                << (static_cast<int>(*status.fmFreqOffBppm) * 2);
+        }
         if (status.fmStereo) {
             out << ",\"stereo\":" << (*status.fmStereo ? "true" : "false");
         }
@@ -361,6 +365,43 @@ parseAntennaCalibrationJson(std::string_view json)
     } else {
         return std::unexpected(ParseError::InvalidJson);
     }
+    return req;
+}
+
+std::expected<XtalCalibrationRequest, ParseError>
+parseXtalCalibrationJson(std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+    // Defaults match Si4684Driver::boot()'s own defaults -- a request that
+    // only wants to change one parameter can omit the others.
+    XtalCalibrationRequest req = {};
+    req.ibias = 72U;
+    req.ctun = 31U;
+    req.xtalFreqHz = 19200000U;
+
+    unsigned long ibias = 0U;
+    if (extractJsonUint(json, "ibias", ibias)) {
+        if (ibias > 127U) {
+            return std::unexpected(ParseError::InvalidJson);
+        }
+        req.ibias = static_cast<std::uint8_t>(ibias);
+    }
+
+    unsigned long ctun = 0U;
+    if (extractJsonUint(json, "ctun", ctun)) {
+        if (ctun > 63U) {
+            return std::unexpected(ParseError::InvalidJson);
+        }
+        req.ctun = static_cast<std::uint8_t>(ctun);
+    }
+
+    unsigned long xtalFreqHz = 0U;
+    if (extractJsonUint(json, "xtal_freq_hz", xtalFreqHz)) {
+        req.xtalFreqHz = static_cast<std::uint32_t>(xtalFreqHz);
+    }
+
     return req;
 }
 

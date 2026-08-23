@@ -63,6 +63,11 @@ struct TunerStatus {
     std::optional<FrequencyKHz> fmChipReadFrequency; ///< FM_RSQ READFREQ (may lag commanded).
     std::optional<std::int8_t> fmRssiDbuV;  ///< FM RSSI in dBµV.
     std::optional<std::int8_t> fmSnrDb;     ///< FM SNR in dB.
+    /** AN649 FM_RSQ_STATUS FREQOFF, units of 2 PPM. Crystal calibration
+     *  signal: real broadcast carriers are GPS/rubidium-locked, so a
+     *  nonzero reading here reflects the local XTAL_FREQ/CTUN reference
+     *  error, not the station. */
+    std::optional<std::int8_t> fmFreqOffBppm;
     std::optional<bool> fmStereo;           ///< FM stereo pilot detected.
     std::optional<BroadcastLabel> fmStationName; ///< FM RDS program service name.
     std::optional<BroadcastLabel> fmRadiotext;   ///< FM RDS radiotext (RT).

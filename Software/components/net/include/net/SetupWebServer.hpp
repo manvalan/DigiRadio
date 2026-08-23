@@ -105,6 +105,13 @@ struct AntennaCalibration {
     /** Persist a new DAB ANTCAP calibration value to EEPROM.
      *  @return false on an I2C failure. */
     bool (*saveDab)(std::uint8_t antCap);
+    /** Diagnostic-only, 2026-08-23: re-run Si4684Driver::boot() with new
+     *  crystal parameters (no ESP32 restart, no persistence). Bridged here
+     *  rather than through a new context field to avoid a second plumbing
+     *  chain for what is a temporary calibration tool.
+     *  @return false if the chip was never booted or the reboot failed. */
+    bool (*recalibrateXtal)(std::uint8_t ibias, std::uint8_t ctun,
+                            std::uint32_t xtalFreqHz);
 };
 
 /**

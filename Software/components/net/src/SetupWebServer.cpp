@@ -700,6 +700,57 @@ esp_err_t tunerCalibrateAntennaPostHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    tunerXtalCalibratePostHandler — POST /api/tuner/xtal-calibrate.
+ *
+ * Diagnostic-only, 2026-08-23: reboots the Si4684 with new IBIAS/CTUN/
+ * XTAL_FREQ (AN649 §Command 0x01 POWER_UP) without an ESP32 restart or
+ * NVS persistence, so a calibration script can iterate crystal parameters
+ * live. Caller must re-tune afterwards -- this only reboots the chip.
+ * See FM_RSQ_STATUS FREQOFF (GET /api/tuner/status, "freqoff_ppm") for the
+ * measurement this is meant to null out.
+ */
+esp_err_t tunerXtalCalibratePostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->antennaCalibration == nullptr
+        || ctx->antennaCalibration->recalibrateXtal == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed =
+        core::parseXtalCalibrationJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json = core::serializeTunerErrorJson("invalid_json");
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (!ctx->antennaCalibration->recalibrateXtal(
+            parsed->ibias, parsed->ctun, parsed->xtalFreqHz)) {
+        const std::string json = core::serializeTunerErrorJson("boot_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json =
+        std::string("{\"status\":\"recalibrated\",\"ibias\":")
+        + std::to_string(parsed->ibias) + ",\"ctun\":"
+        + std::to_string(parsed->ctun) + ",\"xtal_freq_hz\":"
+        + std::to_string(parsed->xtalFreqHz) + "}";
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
  * @brief    audioProfileGetHandler — serve GET /api/audio/profile JSON.
  *
  * @dname    audioProfileGetHandler
@@ -2074,6 +2125,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &tunerCalibrateAntennaUri);
+
+    const httpd_uri_t tunerXtalCalibrateUri = {
+        .uri = "/api/tuner/xtal-calibrate",
+        .method = HTTP_POST,
+        .handler = tunerXtalCalibratePostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &tunerXtalCalibrateUri);
 
     const httpd_uri_t audioProfileGetUri = {
         .uri = "/api/audio/profile",

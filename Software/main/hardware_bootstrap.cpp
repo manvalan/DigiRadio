@@ -160,7 +160,21 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         return {};
     }
 
-    if (auto tunerResult = gSi4684.boot(si4684::Si4684Band::Dab); !tunerResult) {
+    // xtalCtun=0, xtalFreqHz=19199750 (2026-08-23): the compiled-in
+    // defaults (ctun=31, xtal=19200000 nominal) were never measured
+    // against this board's actual crystal (Abracon ABM8-19.200MHZ-10-1-U-T,
+    // CL=10pF per part number, plus two external 15pF load caps per the
+    // schematic). CTUN=0 was found audibly best via A/B listening (0/5/31),
+    // then xtalFreqHz was trimmed properly using the chip's own FM_RSQ
+    // FREQOFF measurement (tools/si4684_xtal_calibration.py) against two
+    // real, GPS-locked broadcast carriers 87.6/105.1 MHz -- converged to
+    // -3 to -4 ppm residual on both (cross-check confirms it's the
+    // crystal, not something frequency-dependent), down from +70 ppm
+    // uncorrected. See POST /api/tuner/xtal-calibrate to re-trim live if
+    // this ever needs revisiting (e.g. after a board/crystal change).
+    if (auto tunerResult =
+            gSi4684.boot(si4684::Si4684Band::Dab, 72U, 0U, 19199750U);
+        !tunerResult) {
         ESP_LOGE(kTag, "Si4684 boot failed: error %d", static_cast<int>(tunerResult.error()));
         return std::unexpected(HardwareBootError::Si4684BootFailed);
     }
