@@ -40,6 +40,8 @@ constexpr std::size_t kSpiReplyLeadIn = 1U;
 /** FM_RSQ_STATUS field indices with kSpiReplyLeadIn (AN649 RESP5–10). */
 constexpr std::size_t kFmRsqOffValid = 6U;
 constexpr std::size_t kFmRsqOffReadFreq = 7U;
+/** AN649 FM_RSQ_STATUS RESP8 FREQOFF: signed offset in 2 PPM units. */
+constexpr std::size_t kFmRsqOffFreqOff = 9U;
 constexpr std::size_t kFmRsqOffRssi = 10U;
 constexpr std::size_t kFmRsqOffSnr = 11U;
 
@@ -64,6 +66,12 @@ constexpr std::uint16_t kSi4684I2sOutEnable = 0x8002U;
 /** Si4684 volume: 0=mute, 63=max (AN649 AUDIO_ANALOG_VOLUME). */
 constexpr std::uint8_t kSi4684VolumeMax = 63U;
 constexpr std::uint16_t kPropFmRdsConfig = 0x3C02U;
+/** AN649 FM_AUDIO_DE_EMPHASIS (0x3900): 0=75us/US (chip default), 1=50us/
+ *  Europe, 2=disabled. FM seek band/spacing above is already the European
+ *  87.5-107.9 MHz/100 kHz plan, so the chip must not stay on its 75us/US
+ *  default -- that under-de-emphasizes treble on every station. */
+constexpr std::uint16_t kPropFmAudioDeEmphasis = 0x3900U;
+constexpr std::uint16_t kFmAudioDeEmphasisEurope = 0x0001U;
 /** AN649 FM valid tune properties (defaults RSSI 17 dBµV, SNR 10 dB). */
 constexpr std::uint16_t kPropFmValidRssiThreshold = 0x3202U;
 constexpr std::uint16_t kPropFmValidSnrThreshold = 0x3204U;
@@ -486,6 +494,16 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
             {0xB302U, 0x0000U},
             {0xB303U, 0x0000U},
             {0xB401U, 0x0002U},
+            // AN649 Property 0xB500 DAB_ACF_ENABLE: bit0 SOFTMUTE_ENABLE,
+            // bit1 COMF_NOISE_ENABLE, datasheet default 0x0003 (both on).
+            // Tried 0x0003 on 2026-08-23 hoping it would mask the periodic
+            // hiss/unintelligible-voice symptom on real DAB reception --
+            // live A/B test made it worse (COMF_NOISE injects synthetic
+            // noise on every brief signal-quality dip, and frequent
+            // softmute engagement chopped up speech). PE5PVB's independent
+            // SI4684-DAB-Receiver project also explicitly disables this
+            // (Set_Property(0xB500, 0x0000)), matching what real testing
+            // shows here -- disabled deliberately, not an oversight.
             {0xB500U, 0x0000U},
         };
         for (const auto& prop : kDabProps) {
@@ -542,6 +560,11 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
         if (auto rds = setProperty(kPropFmRdsConfig, 0x0001U); !rds) {
             return rds;
         }
+        if (auto deEmph = setProperty(kPropFmAudioDeEmphasis,
+                                      kFmAudioDeEmphasisEurope);
+            !deEmph) {
+            return deEmph;
+        }
         // AN649 §0x3202/0x3204: lower seek/tune validity for weak lab antennas.
         if (auto rssi = setProperty(kPropFmValidRssiThreshold,
                                     kFmValidRssiThresholdDbuV);
@@ -597,7 +620,8 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
 }
 
 std::expected<void, Si4684Error> Si4684Driver::boot(
-    Si4684Band band, std::uint8_t xtalIbias, std::uint8_t xtalCtun)
+    Si4684Band band, std::uint8_t xtalIbias, std::uint8_t xtalCtun,
+    std::uint32_t xtalFreqHz)
 {
     if (booted_ && loadedBand_ == band) {
         return {};
@@ -672,10 +696,19 @@ std::expected<void, Si4684Error> Si4684Driver::boot(
     }
 
     // ARG2=0x17(CLK_MODE=crystal,TR_SIZE), ARG3=IBIAS, ARG4-7=XTAL_FREQ
-    // 19.2 MHz (0x0124F800), ARG8=CTUN, ARG9=0x10 (fixed bit4=1 per AN649
+    // (little-endian, nominal 19.2 MHz = 0x0124F800; may be intentionally
+    // offset from nominal as a software crystal calibration -- see the
+    // xtalFreqHz doc comment), ARG8=CTUN, ARG9=0x10 (fixed bit4=1 per AN649
     // §Command 0x01), ARG10-15=0 (AN649 POWER_UP argument table).
     std::uint8_t powerUp[] = {
-        0x17, xtalIbias, 0x00, 0xf8, 0x24, 0x01, xtalCtun, 0x10,
+        0x17,
+        xtalIbias,
+        static_cast<std::uint8_t>(xtalFreqHz & 0xFFU),
+        static_cast<std::uint8_t>((xtalFreqHz >> 8) & 0xFFU),
+        static_cast<std::uint8_t>((xtalFreqHz >> 16) & 0xFFU),
+        static_cast<std::uint8_t>((xtalFreqHz >> 24) & 0xFFU),
+        xtalCtun,
+        0x10,
         0x00, 0x00, 0x00, 0x18, 0x00, 0x00,
     };
     if (auto pu = writeCommand(Command::PowerUp, powerUp, sizeof(powerUp));
@@ -743,6 +776,17 @@ std::expected<void, Si4684Error> Si4684Driver::boot(
                  static_cast<int>(info.error()));
     }
     return {};
+}
+
+std::expected<void, Si4684Error> Si4684Driver::recalibrateXtal(
+    std::uint8_t xtalIbias, std::uint8_t xtalCtun, std::uint32_t xtalFreqHz)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    const Si4684Band band = loadedBand_;
+    booted_ = false;
+    return boot(band, xtalIbias, xtalCtun, xtalFreqHz);
 }
 
 bool Si4684Driver::isBooted() const noexcept
@@ -920,6 +964,7 @@ std::expected<Si4684FmRsq, Si4684Error> Si4684Driver::readFmRsq()
         static_cast<std::int8_t>(raw[kFmRsqOffSnr]),
         freqInBand && chipValid,
         false,
+        static_cast<std::int8_t>(raw[kFmRsqOffFreqOff]),
     };
     return rsq;
 }

@@ -112,6 +112,16 @@ public:
      *                      verified live (72 = 720 uA startup bias).
      * @param    xtalCtun   POWER_UP ARG8 CTUN, 0-63 (AN649 §Command 0x01);
      *                      default matches the values already verified live.
+     * @param    xtalFreqHz POWER_UP ARG4-7 XTAL_FREQ in Hz (AN649 §Command
+     *                      0x01); default 19,200,000 (nominal crystal
+     *                      frequency). Deliberately overriding this away
+     *                      from the crystal's true nominal value is a valid
+     *                      software calibration trick: it tells the chip's
+     *                      internal PLL math "the crystal actually runs at
+     *                      this rate," compensating any real physical
+     *                      offset (from load-cap mismatch etc) without
+     *                      touching CTUN. See FM_RSQ_STATUS FREQOFF for the
+     *                      measurement this is meant to null out.
      * @return   Ok on success, or Si4684Error.
      * @pubstate writes booted_ and loadedBand_ on success.
      *
@@ -120,7 +130,28 @@ public:
      */
     [[nodiscard]] std::expected<void, Si4684Error> boot(
         Si4684Band band, std::uint8_t xtalIbias = 72U,
-        std::uint8_t xtalCtun = 31U);
+        std::uint8_t xtalCtun = 31U, std::uint32_t xtalFreqHz = 19200000U);
+
+    /**
+     * @brief    recalibrateXtal — re-run boot() with new crystal parameters.
+     *
+     * @dname    recalibrateXtal
+     * @param    xtalIbias   New POWER_UP ARG3 IBIAS.
+     * @param    xtalCtun    New POWER_UP ARG8 CTUN.
+     * @param    xtalFreqHz  New POWER_UP ARG4-7 XTAL_FREQ in Hz.
+     * @return   Ok on success, or Si4684Error::NotBooted if never booted.
+     * @pubstate forces booted_=false then re-runs boot() for the currently
+     *           loaded band -- full RSTB# pulse + patch/image reload, same
+     *           as a cold boot, just without an ESP32 restart. Diagnostic:
+     *           lets a calibration script iterate crystal parameters live
+     *           over HTTP instead of a firmware rebuild+reflash per value.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-23
+     */
+    [[nodiscard]] std::expected<void, Si4684Error> recalibrateXtal(
+        std::uint8_t xtalIbias, std::uint8_t xtalCtun,
+        std::uint32_t xtalFreqHz);
 
     /**
      * @brief    isBooted — query whether boot completed successfully.

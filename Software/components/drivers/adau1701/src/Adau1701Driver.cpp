@@ -68,6 +68,7 @@ namespace adau1701
     {
         const unsigned char deviceAddr =
             static_cast<unsigned char>(pins_.i2cAddr7 << 1);
+        std::size_t index = 0U;
         for (const core::RegisterWrite &write : program.writes())
         {
             const auto data = write.data();
@@ -75,12 +76,35 @@ namespace adau1701
             {
                 return std::unexpected(Adau1701Error::DownloadFailed);
             }
-            SIGMA_WRITE_REGISTER_BLOCK(
-                deviceAddr,
-                write.address(),
-                static_cast<unsigned int>(data.size()),
-                const_cast<ADI_REG_TYPE *>(
-                    reinterpret_cast<const ADI_REG_TYPE *>(data.data())));
+            auto *bytes = const_cast<ADI_REG_TYPE *>(
+                reinterpret_cast<const ADI_REG_TYPE *>(data.data()));
+            const auto length = static_cast<unsigned int>(data.size());
+            if (SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, write.address(), length,
+                                           bytes) != 0)
+            {
+                ESP_LOGE(kTag,
+                         "program write #%u failed (addr=0x%04X len=%u) "
+                         "after retries",
+                         static_cast<unsigned>(index),
+                         static_cast<unsigned>(write.address()),
+                         static_cast<unsigned>(length));
+                return std::unexpected(Adau1701Error::DownloadFailed);
+            }
+            // Diagnostic only: an ACKed write that still reads back wrong
+            // would otherwise be invisible (see the SIGMA_WRITE_REGISTER_BLOCK
+            // comment in SigmaStudioFW.c). Logged, not fatal -- some
+            // addresses in this range may be self-clearing/status bits
+            // that legitimately don't read back what was written.
+            if (sigma_verify_block(write.address(), bytes, length) != 0)
+            {
+                ESP_LOGW(kTag,
+                         "program write #%u read-back mismatch (addr=0x%04X "
+                         "len=%u) -- ACKed but did not land as written",
+                         static_cast<unsigned>(index),
+                         static_cast<unsigned>(write.address()),
+                         static_cast<unsigned>(length));
+            }
+            ++index;
         }
         return {};
     }
@@ -158,19 +182,69 @@ namespace adau1701
             return replay;
         }
 
+        // Diagnostic: log EQ band 0's live Param RAM contents. This band is
+        // the fixed high-pass (SigmaStudio band 1) and applyEq() always
+        // skips it -- no runtime code path ever safeloads it, so whatever
+        // landed here at program-load time is what plays, permanently,
+        // regardless of the audio-profile API (which reports a fictional
+        // value for it). Read straight from the chip rather than trusting
+        // the compiled source, in case the two have ever diverged.
+        {
+            const unsigned baseAddr = paramAddrEqBandBase(0U);
+            for (unsigned i = 0U; i < 5U; ++i)
+            {
+                unsigned char raw[4U] = {0U, 0U, 0U, 0U};
+                if (sigma_i2c_read(baseAddr + i, raw, sizeof(raw)) == 0)
+                {
+                    const std::int32_t fixpoint =
+                        static_cast<std::int32_t>(
+                            (static_cast<std::uint32_t>(raw[0]) << 24) |
+                            (static_cast<std::uint32_t>(raw[1]) << 16) |
+                            (static_cast<std::uint32_t>(raw[2]) << 8) |
+                            static_cast<std::uint32_t>(raw[3]));
+                    ESP_LOGI(kTag,
+                             "EQ band0 param[%u] addr=0x%04X raw=0x%08X "
+                             "value=%f",
+                             i, baseAddr + i,
+                             static_cast<unsigned>(fixpoint),
+                             static_cast<double>(fixpoint) /
+                                 static_cast<double>(1U << 23));
+                }
+                else
+                {
+                    ESP_LOGW(kTag, "EQ band0 param[%u] read-back failed", i);
+                }
+            }
+        }
+
         // SerialInputRegister (0x081F) override: bit3 IBP=1, matching the
         // BCLK edge the Si4684's I2S output actually changes data on
         // (compiled DSP program default is 0x00 = IBP=0, which produced
         // pure static on a strong locked signal). ILP=1 was also tried
         // (0x18) and made it worse (pure white noise again) — IBP alone
         // (0x08) is the correct override, confirmed live: real, recognizable
-        // music instead of static/noise on a locked FM station.
+        // music instead of static/noise on a locked FM station. Redundant
+        // with the R3_HWCONFIGURATION program write above (SigmaStudio's
+        // own export already places 0x08 at this address) — kept as a
+        // belt-and-braces re-assert in case that specific chunk silently
+        // failed; now checked/verified like everything else instead of
+        // fire-and-forget.
         {
             const unsigned char deviceAddr =
                 static_cast<unsigned char>(pins_.i2cAddr7 << 1);
             ADI_REG_TYPE serialInFix = 0x08U;
-            SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, 0x081FU, 1U,
-                                       &serialInFix);
+            if (SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, 0x081FU, 1U,
+                                           &serialInFix) != 0)
+            {
+                ESP_LOGE(kTag, "SerialInputRegister override failed after retries");
+                return std::unexpected(Adau1701Error::DownloadFailed);
+            }
+            if (sigma_verify_block(0x081FU, &serialInFix, 1U) != 0)
+            {
+                ESP_LOGW(kTag,
+                         "SerialInputRegister read-back mismatch -- ACKed "
+                         "but did not land as 0x08");
+            }
         }
 
         booted_ = true;

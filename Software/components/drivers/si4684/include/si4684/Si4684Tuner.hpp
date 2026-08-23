@@ -178,6 +178,24 @@ public:
     [[nodiscard]] std::expected<void, core::TunerError> setVolume(
         std::uint8_t level) override;
 
+    /**
+     * @brief    recalibrateXtal — re-run driver boot() with new crystal
+     *           parameters, without an ESP32 restart.
+     *
+     * @dname    recalibrateXtal
+     * @param    ibias      New POWER_UP ARG3 IBIAS.
+     * @param    ctun       New POWER_UP ARG8 CTUN.
+     * @param    xtalFreqHz New POWER_UP ARG4-7 XTAL_FREQ in Hz.
+     * @return   Ok on success, or a mapped TunerError.
+     * @pubstate delegates to driver_.recalibrateXtal(); caller must re-tune
+     *           afterwards, this only reboots the chip.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-23
+     */
+    [[nodiscard]] std::expected<void, core::TunerError> recalibrateXtal(
+        std::uint8_t ibias, std::uint8_t ctun, std::uint32_t xtalFreqHz);
+
 private:
     /**
      * @brief    mapError — translate Si4684Error to core::TunerError.
