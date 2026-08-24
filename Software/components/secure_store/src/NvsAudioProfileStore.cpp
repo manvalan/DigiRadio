@@ -26,7 +26,12 @@ namespace secure_store {
 namespace {
 constexpr char kTag[] = "NvsAudioProfileStore";
 constexpr char kNamespace[] = "digiradio";
-constexpr char kProfileKey[] = "audio_profile_json";
+// NVS key names are capped at 15 chars (NVS_KEY_NAME_MAX_SIZE=16 incl. NUL);
+// the previous "audio_profile_json" (18 chars) made every nvs_set_str call
+// fail with ESP_ERR_NVS_KEY_TOO_LONG (0x1109), silently -- applyProfile()
+// always updated live audio correctly but persistProfile() never actually
+// wrote anything, so nothing survived a reboot.
+constexpr char kProfileKey[] = "audio_profile";
 } // namespace
 
 bool NvsAudioProfileStore::hasProfile() const

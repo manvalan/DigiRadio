@@ -150,12 +150,21 @@ parseBluetoothConnectJson(std::string_view json)
     if (json.find('{') == std::string_view::npos) {
         return std::unexpected(ParseError::InvalidJson);
     }
-    const std::string needle = "\"mac\":\"";
-    const std::size_t start = json.find(needle);
-    if (start == std::string_view::npos) {
+    const std::string needle = "\"mac\":";
+    const std::size_t needlePos = json.find(needle);
+    if (needlePos == std::string_view::npos) {
         return std::unexpected(ParseError::MissingField);
     }
-    const std::size_t valueStart = start + needle.size();
+    std::size_t start = needlePos + needle.size();
+    while (start < json.size()
+           && (json[start] == ' ' || json[start] == '\t'
+               || json[start] == '\r' || json[start] == '\n')) {
+        ++start;
+    }
+    if (start >= json.size() || json[start] != '"') {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+    const std::size_t valueStart = start + 1U;
     const std::size_t valueEnd = json.find('"', valueStart);
     if (valueEnd == std::string_view::npos) {
         return std::unexpected(ParseError::InvalidJson);
@@ -183,17 +192,35 @@ BluetoothConnectRequest parseBluetoothConnectRequest(std::string_view json)
     if (auto mac = parseBluetoothConnectJson(json); mac) {
         request.mac = std::move(*mac);
     }
-    const std::string nameNeedle = "\"name\":\"";
-    const std::size_t nameStart = json.find(nameNeedle);
-    if (nameStart != std::string_view::npos) {
-        const std::size_t valueStart = nameStart + nameNeedle.size();
-        const std::size_t valueEnd = json.find('"', valueStart);
-        if (valueEnd != std::string_view::npos) {
-            request.name.assign(json.substr(valueStart, valueEnd - valueStart));
+    const std::string nameNeedle = "\"name\":";
+    const std::size_t nameNeedlePos = json.find(nameNeedle);
+    if (nameNeedlePos != std::string_view::npos) {
+        std::size_t nameStart = nameNeedlePos + nameNeedle.size();
+        while (nameStart < json.size()
+               && (json[nameStart] == ' ' || json[nameStart] == '\t'
+                   || json[nameStart] == '\r' || json[nameStart] == '\n')) {
+            ++nameStart;
+        }
+        if (nameStart < json.size() && json[nameStart] == '"') {
+            const std::size_t valueStart = nameStart + 1U;
+            const std::size_t valueEnd = json.find('"', valueStart);
+            if (valueEnd != std::string_view::npos) {
+                request.name.assign(
+                    json.substr(valueStart, valueEnd - valueStart));
+            }
         }
     }
-    request.save = json.find("\"save\":true") != std::string_view::npos
-                   || json.find("\"save\": true") != std::string_view::npos;
+    const std::string saveNeedle = "\"save\":";
+    const std::size_t saveNeedlePos = json.find(saveNeedle);
+    if (saveNeedlePos != std::string_view::npos) {
+        std::size_t saveStart = saveNeedlePos + saveNeedle.size();
+        while (saveStart < json.size()
+               && (json[saveStart] == ' ' || json[saveStart] == '\t'
+                   || json[saveStart] == '\r' || json[saveStart] == '\n')) {
+            ++saveStart;
+        }
+        request.save = json.substr(saveStart).starts_with("true");
+    }
     return request;
 }
 
@@ -219,13 +246,22 @@ parseBluetoothSpeakerJson(std::string_view json)
         return std::unexpected(mac.error());
     }
     BtSpeakerTarget target{.mac = *mac, .name = {}};
-    const std::string nameNeedle = "\"name\":\"";
-    const std::size_t nameStart = json.find(nameNeedle);
-    if (nameStart != std::string_view::npos) {
-        const std::size_t valueStart = nameStart + nameNeedle.size();
-        const std::size_t valueEnd = json.find('"', valueStart);
-        if (valueEnd != std::string_view::npos) {
-            target.name.assign(json.substr(valueStart, valueEnd - valueStart));
+    const std::string nameNeedle = "\"name\":";
+    const std::size_t nameNeedlePos = json.find(nameNeedle);
+    if (nameNeedlePos != std::string_view::npos) {
+        std::size_t nameStart = nameNeedlePos + nameNeedle.size();
+        while (nameStart < json.size()
+               && (json[nameStart] == ' ' || json[nameStart] == '\t'
+                   || json[nameStart] == '\r' || json[nameStart] == '\n')) {
+            ++nameStart;
+        }
+        if (nameStart < json.size() && json[nameStart] == '"') {
+            const std::size_t valueStart = nameStart + 1U;
+            const std::size_t valueEnd = json.find('"', valueStart);
+            if (valueEnd != std::string_view::npos) {
+                target.name.assign(
+                    json.substr(valueStart, valueEnd - valueStart));
+            }
         }
     }
     return target;
