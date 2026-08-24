@@ -33,7 +33,7 @@ namespace {
         std::cerr << "I2S mode must be in init sequence\n";
         return EXIT_FAILURE;
     }
-    if (sequence[2U] != core::Bt1035AtCommand::I2sSlave48k24) {
+    if (sequence[2U] != core::Bt1035AtCommand::I2sSlave48k32) {
         std::cerr << "I2SCFG must be in init sequence\n";
         return EXIT_FAILURE;
     }
@@ -44,9 +44,19 @@ namespace {
         return EXIT_FAILURE;
     }
     const std::string i2sCfg =
-        core::buildBt1035AtLine(core::Bt1035AtCommand::I2sSlave48k24);
-    if (i2sCfg != "AT+I2SCFG=35\r\n") {
-        std::cerr << "I2SCFG=35 command line mismatch\n";
+        core::buildBt1035AtLine(core::Bt1035AtCommand::I2sSlave48k32);
+    if (i2sCfg != "AT+I2SCFG=67\r\n") {
+        std::cerr << "I2SCFG=67 command line mismatch\n";
+        return EXIT_FAILURE;
+    }
+    if (sequence[3U] != core::Bt1035AtCommand::A2dpCodecConfig) {
+        std::cerr << "A2DPCFG must be in init sequence\n";
+        return EXIT_FAILURE;
+    }
+    const std::string a2dpCfg =
+        core::buildBt1035AtLine(core::Bt1035AtCommand::A2dpCodecConfig);
+    if (a2dpCfg != "AT+A2DPCFG=1\r\n") {
+        std::cerr << "A2DPCFG=1 command line mismatch\n";
         return EXIT_FAILURE;
     }
     const std::string reset =

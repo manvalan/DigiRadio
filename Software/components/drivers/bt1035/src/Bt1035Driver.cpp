@@ -42,11 +42,11 @@ constexpr int kPostUartMs = 100;
 constexpr int kSysCtlAssertMs = 20;
 /** Datasheet §4.8: "Reset Protection timeout (typically greater than
  *  ~1.8 s) causes the device to power down if VCHG is not present and
- *  SYS_CTRL is low." Held comfortably longer than that before each
- *  power-up assert, to guarantee a genuine full power-down rather than a
- *  pulse too short for the module's own protection timer to act on — see
- *  resetAndInitOnce()'s comment for why this now runs on every attempt,
- *  not just the first. */
+ *  SYS_CTRL is low." RESET# and SYS_CTRL are held asserted/low together for
+ *  comfortably longer than that before each power-up, to guarantee a
+ *  genuine full power-down rather than a pulse too short for the module's
+ *  own protection timer to act on — see resetAndInitOnce()'s comment for
+ *  why this now runs on every attempt, not just the first. */
 constexpr int kSysCtlDeassertMs = 2500;
 /** Measured live (2026-08-20, power/wiring confirmed sound with a
  *  multimeter — VBAT_IN/SYS_CTRL/1.8V_OUT/VDD_IO all correct, TX/RX pins
@@ -798,6 +798,15 @@ std::expected<void, Bt1035Error> Bt1035Driver::setAutoReconnect(
     return transmitAndExpectOk(core::buildBt1035SetAutoConnLine(times));
 }
 
+std::expected<void, Bt1035Error> Bt1035Driver::setA2dpCodecConfig(
+    std::uint8_t bitmask)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    return transmitAndExpectOk(core::buildBt1035A2dpCodecConfigLine(bitmask));
+}
+
 std::expected<std::uint8_t, Bt1035Error> Bt1035Driver::queryAutoReconnect()
 {
     if (auto ready = ensureBooted(); !ready) {
@@ -924,6 +933,32 @@ bool Bt1035Driver::waitForA2dpStreaming(int timeoutMs)
             ESP_LOGI(kTag, "stream wait: A2DPSTAT=%u",
                      static_cast<unsigned>(static_cast<std::uint8_t>(*state)));
             if (*state == core::Bt1035A2dpState::Streaming) {
+                // Diagnostic, 2026-08-24: confirm which codec actually got
+                // negotiated now that AT+A2DPCFG=1 (AAC) is sent at boot --
+                // previously this was never queried, so every link was
+                // silently SBC-only with no way to tell from the logs.
+                if (auto codec = queryA2dpEncoder(); codec) {
+                    // Feasycom guide §5.3.5's AT+A2DPENC response table for
+                    // BT1035 only lists SBC/aptX/aptX-HD/aptX-LL/aptX-
+                    // Adaptive -- no AAC code, even though §5.3.4's
+                    // AT+A2DPCFG can enable it. Not inventing a mapping for
+                    // that gap: an AAC link (or anything else undocumented)
+                    // logs as "unknown" rather than a guessed label.
+                    const char* name = "unknown";
+                    switch (*codec) {
+                    case core::Bt1035A2dpCodec::Sbc: name = "SBC"; break;
+                    case core::Bt1035A2dpCodec::Aptx: name = "aptX"; break;
+                    case core::Bt1035A2dpCodec::AptxHd: name = "aptX-HD"; break;
+                    case core::Bt1035A2dpCodec::AptxLl: name = "aptX-LL"; break;
+                    case core::Bt1035A2dpCodec::AptxAdaptive:
+                        name = "aptX-Adaptive";
+                        break;
+                    }
+                    ESP_LOGI(kTag, "A2DP streaming with codec: %s", name);
+                } else {
+                    ESP_LOGW(kTag, "A2DPENC query failed (%d)",
+                             static_cast<int>(codec.error()));
+                }
                 return true;
             }
             const TickType_t now = xTaskGetTickCount();
@@ -974,38 +1009,35 @@ std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()
 
 std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
 {
-    // RESET# (pin 8) is deliberately never driven by this driver (see
-    // boot()'s GPIO config below): it's left a floating input, relying
-    // entirely on the BT1035's own "fixed strong pull-up to VDD_IO"
-    // (datasheet §4.8), which the datasheet explicitly says means the pin
-    // "can therefore be left unconnected". Diagnostic test (2026-08-22) to
-    // check whether the previous external RESET# drive was contributing to
-    // the intermittent boot failures.
-    //
-    // SYS_CTRL (pin 34) alternative usage (2026-08-22 experiment): drive a
-    // genuine LOW-then-HIGH cycle every time this function runs, not just
-    // once ever. With RESET# now Hi-Z, SYS_CTRL is the only pin this
-    // driver can still use to force a real power-cycle — previously it
-    // was asserted HIGH exactly once at first boot and never touched
-    // again, which meant every later retry (hardware::bt1035RetryTask
-    // calls boot() again on failure) just re-listened on an
-    // already-asserted line without ever actually power-cycling the
-    // module. Held LOW for kSysCtlDeassertMs first so the module's own
-    // Reset Protection timeout actually elapses (a shorter pulse risks
-    // the module staying "protected" on, per datasheet §4.8, so the
-    // retry wouldn't be a real fresh power-on at all), then HIGH for the
-    // datasheet's own >=20ms minimum.
+    // 2026-08-23 fix: force a genuine power-down/restart on every retry by
+    // driving RESET# together with SYS_CTRL, per datasheet §4.8: "Assertion
+    // of RESET# beyond the Reset Protection timeout (typically >~1.8 s)
+    // causes the device to power down if VCHG is not present and SYS_CTRL
+    // is low. FSC-BT1035 then requires a SYS_CTRL assertion ... to
+    // restart." The prior design (2026-08-22) only pulsed SYS_CTRL and left
+    // RESET# floating; per §4.7, "when booted, software takes control of
+    // the internal regulators and the state of SYS_CTRL is ignored" — so
+    // once the module had booted once, that pulse alone could never force
+    // a real power-cycle. Asserting RESET# is the documented way to do it.
     const auto sysCtlPin = static_cast<gpio_num_t>(pins_.sysCtlGpio);
     const auto resetPin = static_cast<gpio_num_t>(pins_.resetGpio);
     const auto ctsPin = static_cast<gpio_num_t>(pins_.ctsGpio);
     const auto rtsPin = static_cast<gpio_num_t>(pins_.rtsGpio);
 
+    // Assert RESET# (active-low) and deassert SYS_CTRL together, held past
+    // the ~1.8s Reset Protection timeout so the module actually powers
+    // down rather than staying "protected" on (§4.8).
+    gpio_set_level(resetPin, 0);
     gpio_set_level(sysCtlPin, 0);
     vTaskDelay(pdMS_TO_TICKS(kSysCtlDeassertMs));
+
+    // Release RESET# before requesting power-up, then assert SYS_CTRL for
+    // the datasheet's own >=20ms minimum to start the boot (§4.7).
+    gpio_set_level(resetPin, 1);
     gpio_set_level(sysCtlPin, 1);
     vTaskDelay(pdMS_TO_TICKS(kSysCtlAssertMs));
     ESP_LOGI(kTag, "power-up: SYS_CTRL=%d (want 1, driven) RESET#=%d "
-                   "(want 1, Hi-Z + internal pull-up, not driven by us)",
+                   "(want 1, driven)",
              gpio_get_level(sysCtlPin), gpio_get_level(resetPin));
     ESP_LOGI(kTag, "before banner wait: CTS=%d (module's flow-control "
                    "input, host side floating) RTS/PIO2=%d (module's "
@@ -1027,21 +1059,25 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         return {};
     }
 
-    // RESET# (pin 8) is never driven by this driver (2026-08-22 diagnostic
-    // change): configured as a pure floating input, pull-up/pull-down both
-    // explicitly disabled, so nothing on the ESP32 side influences this
-    // net electrically — the BT1035's own internal RESET# pull-up (§4.8)
-    // is the only thing holding it high. GPIO_MODE_INPUT (not OUTPUT) still
-    // lets gpio_get_level() read it back for the diagnostic log below,
-    // without ever driving it.
+    // RESET# (pin 8) is actively driven (2026-08-23 fix): datasheet §4.8
+    // states the Reset Protection timeout that forces a genuine power-down
+    // is triggered by *asserting RESET#* (while SYS_CTRL is low), not by
+    // toggling SYS_CTRL alone. Leaving RESET# floating (the 2026-08-22
+    // diagnostic change) meant that mechanism was never actually invoked —
+    // every retry only pulsed SYS_CTRL, which the module ignores once
+    // already booted (§4.7: "when booted, software takes control of the
+    // internal regulators and the state of SYS_CTRL is ignored"). Driven
+    // HIGH immediately below (deasserted) before anything else runs, so
+    // configuring the pin never glitches it low.
     gpio_config_t resetCfg = {};
     resetCfg.pin_bit_mask = 1ULL << pins_.resetGpio;
-    resetCfg.mode = GPIO_MODE_INPUT;
+    resetCfg.mode = GPIO_MODE_INPUT_OUTPUT;
     resetCfg.pull_up_en = GPIO_PULLUP_DISABLE;
     resetCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
     if (gpio_config(&resetCfg) != ESP_OK) {
         return std::unexpected(Bt1035Error::ResetFailed);
     }
+    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 1);
 
     // SYS_CTRL (pin 34) stays actively driven (GPIO_MODE_INPUT_OUTPUT:
     // the INPUT bit is what makes gpio_get_level() read the real driven
@@ -1123,7 +1159,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
     ESP_LOGI(kTag, "auto-link disabled (AT+LINKCFG=0,0)");
 
     booted_ = true;
-    ESP_LOGI(kTag, "I2S slave mode enabled (AT+AUXCFG=3, AT+I2SCFG=35)");
+    ESP_LOGI(kTag, "I2S slave mode enabled (AT+AUXCFG=3, AT+I2SCFG=67)");
     return {};
 }
 

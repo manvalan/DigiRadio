@@ -37,11 +37,15 @@ namespace bt1035 {
 struct Bt1035Pins {
     int uartTx;     ///< ESP32 TX -> module RX.
     int uartRx;     ///< ESP32 RX <- module TX.
-    int resetGpio;  ///< Module RESET# (pin 8). Read-only: configured as a
-                    ///< floating input (2026-08-22), never driven — relies
-                    ///< entirely on the module's own internal pull-up.
-    int sysCtlGpio; ///< SYS_CTL (pin 34). Driven HIGH once at boot, then
-                    ///< never touched again for the process lifetime.
+    int resetGpio;  ///< Module RESET# (pin 8), active-low. Driven (not
+                    ///< floating, since 2026-08-23): held LOW together with
+                    ///< SYS_CTRL past the datasheet §4.8 Reset Protection
+                    ///< timeout (~1.8 s) to force a genuine power-down on
+                    ///< every resetAndInitOnce() attempt, then released HIGH
+                    ///< before SYS_CTRL's power-up pulse (§4.7).
+    int sysCtlGpio; ///< SYS_CTL (pin 34), active-high. Driven LOW/HIGH on
+                    ///< every resetAndInitOnce() call, together with
+                    ///< resetGpio, to force a real power-cycle each retry.
     int ctsGpio;    ///< Host->module UART_CTS (module pin 15). Diagnostic
                     ///< only (2026-08-22): read-only floating input, never
                     ///< driven — this driver does not implement hardware
@@ -248,6 +252,24 @@ public:
      * @date     2026-07-07
      */
     [[nodiscard]] std::expected<std::uint8_t, Bt1035Error> queryAutoReconnect();
+
+    /**
+     * @brief    setA2dpCodecConfig — enable optional A2DP codecs (AT+A2DPCFG).
+     *
+     * @dname    setA2dpCodecConfig
+     * @param    bitmask  BIT0=AAC, BIT1=aptX, BIT2=aptX-LL, BIT3=aptX-HD,
+     *                    BIT4=aptX-Adaptive, BIT5=LDAC (§5.3.4); 0 forces
+     *                    the mandatory SBC-only baseline.
+     * @return   Ok on success, or Bt1035Error. Only affects the *next* A2DP
+     *          negotiation — an already-connected peer keeps its current
+     *          codec until it reconnects (see disconnectA2dp()).
+     * @pubstate writes UART.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-24
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> setA2dpCodecConfig(
+        std::uint8_t bitmask);
 
     /**
      * @brief    queryPairedList — enumerate paired remotes (AT+PLIST).

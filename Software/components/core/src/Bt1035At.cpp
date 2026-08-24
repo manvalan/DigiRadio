@@ -106,8 +106,10 @@ std::string buildBt1035AtLine(Bt1035AtCommand command)
         return "AT\r\n";
     case Bt1035AtCommand::I2sMode:
         return "AT+AUXCFG=3\r\n";
-    case Bt1035AtCommand::I2sSlave48k24:
-        return "AT+I2SCFG=35\r\n";
+    case Bt1035AtCommand::I2sSlave48k32:
+        return "AT+I2SCFG=67\r\n";
+    case Bt1035AtCommand::A2dpCodecConfig:
+        return buildBt1035A2dpCodecConfigLine(kBt1035A2dpCodecConfigParam);
     case Bt1035AtCommand::PairDiscoverable:
         return "AT+PAIR=1\r\n";
     case Bt1035AtCommand::PairHidden:
@@ -126,6 +128,14 @@ std::string buildBt1035AtLine(Bt1035AtCommand command)
         return "AT+PLIST\r\n";
     }
     return "AT\r\n";
+}
+
+std::string buildBt1035A2dpCodecConfigLine(std::uint8_t bitmask)
+{
+    if (bitmask > 63U) {
+        bitmask = 63U;
+    }
+    return "AT+A2DPCFG=" + std::to_string(bitmask) + "\r\n";
 }
 
 std::string buildBt1035SetAutoConnLine(std::uint8_t times)
@@ -150,7 +160,8 @@ std::array<Bt1035AtCommand, kBt1035BootInitCommandCount> bootInitSequence() noex
     return std::array<Bt1035AtCommand, kBt1035BootInitCommandCount>{
         Bt1035AtCommand::Ping,
         Bt1035AtCommand::I2sMode,
-        Bt1035AtCommand::I2sSlave48k24,
+        Bt1035AtCommand::I2sSlave48k32,
+        Bt1035AtCommand::A2dpCodecConfig,
     };
 }
 

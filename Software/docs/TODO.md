@@ -221,12 +221,20 @@ required yet) and, once a result converges, **write the result to the
 persistence, see `Eeprom24aa::writeFmAntCap`/`writeDabAntCap`) so it
 survives a reboot without a firmware reflash. `recalibrateXtal()`
 (`Si4684Driver.cpp`) already does the live re-boot-with-new-params part;
-what's missing is EEPROM persistence for CTUN/XTAL_FREQ (ANTCAP already
-persists this way — the xtal calibration should follow the same shape,
-likely a new EEPROM word address alongside the existing FM/DAB ANTCAP
-ones) and doing the FREQOFF-averaging/damping/convergence-loop logic
-in firmware (or keeping it host-side and just adding the EEPROM-persist
-step at the end — decide when picked up).
+what's missing is EEPROM persistence for **all three** crystal
+calibration parameters -- `ibias`, `ctun`, AND `xtalFreqHz` (not just
+XTAL_FREQ; confirmed explicitly 2026-08-24 that all three need to
+persist, not only the one this session happened to tune) -- plus loading
+them at boot the same way `main.cpp` already loads the saved FM/DAB
+ANTCAP into `TunerService` before the first tune. ANTCAP already
+persists this way (2 bytes/band, word addresses 0x00/0x01) — the xtal
+calibration needs its own new EEPROM word address(es) alongside those
+(ibias fits in 1 byte, ctun in 1 byte, xtalFreqHz needs 4 bytes -- 6
+bytes total, or pack more compactly if EEPROM space is tight). Also
+still needed: deciding whether the FREQOFF-averaging/damping/
+convergence-loop logic (currently in `tools/si4684_xtal_calibration.py`)
+moves into firmware, or stays host-side with just an EEPROM-persist step
+added at the end of the existing HTTP flow.
 
 Not started — explicitly deferred to a future session, noted here only so
 it isn't lost. See `docs/si4684-rf-investigation-report.md`'s 2026-08-23
