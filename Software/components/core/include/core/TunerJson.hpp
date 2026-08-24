@@ -41,8 +41,9 @@ struct TunerTuneRequest {
     TunerBand band;              ///< Target band (Dab or Fm).
     std::uint8_t dabFreqIndex;   ///< Band III ensemble index (0–37) when band is Dab.
     std::optional<FrequencyKHz> fmFrequency; ///< FM centre frequency when band is Fm.
-    std::optional<std::uint8_t> antCap; ///< FM antenna varactor override (0–128),
-                                        ///< for calibration sweeps; ignored for Dab.
+    std::optional<std::uint8_t> antCap; ///< Antenna varactor override (0–128),
+                                        ///< for calibration sweeps; applies to
+                                        ///< whichever band is being tuned.
 };
 
 /**
@@ -242,18 +243,74 @@ struct TunerFmScannedStation {
     const std::vector<TunerFmScannedStation>& stations);
 
 /**
+ * @brief    AntennaCalibrationRequest — parsed POST
+ *           /api/tuner/calibrate-antenna body.
+ *
+ * @dname    AntennaCalibrationRequest
+ * @return   n/a (type)
+ * @pubstate Plain DTO filled by parseAntennaCalibrationJson at the HTTP
+ *           boundary.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-20
+ */
+struct AntennaCalibrationRequest {
+    TunerBand band;        ///< Which band's ANTCAP default this saves.
+    std::uint8_t antCap;   ///< Value to persist (0-128).
+};
+
+/**
  * @brief    parseAntennaCalibrationJson — validate POST
  *           /api/tuner/calibrate-antenna body.
  *
  * @dname    parseAntennaCalibrationJson
  * @param    json  Untrusted request body from the HTTP handler.
- * @return   ANTCAP value (0-128) on success, or a ParseError.
+ * @return   Band + ANTCAP value (0-128) on success, or a ParseError.
+ *           `band` defaults to Fm when the field is omitted, preserving
+ *           the original FM-only request shape.
  * @pubstate none
  *
  * @author   Michele Bigi
  * @date     2026-08-19
  */
-[[nodiscard]] std::expected<std::uint8_t, ParseError>
+[[nodiscard]] std::expected<AntennaCalibrationRequest, ParseError>
 parseAntennaCalibrationJson(std::string_view json);
+
+/**
+ * @brief    XtalCalibrationRequest — parsed POST
+ *           /api/tuner/xtal-calibrate body.
+ *
+ * @dname    XtalCalibrationRequest
+ * @return   n/a (type)
+ * @pubstate Plain DTO filled by parseXtalCalibrationJson at the HTTP
+ *           boundary. Diagnostic-only: live Si4684 crystal parameter
+ *           recalibration, no ESP32 restart required.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-23
+ */
+struct XtalCalibrationRequest {
+    std::uint8_t ibias;        ///< POWER_UP ARG3 IBIAS (0-127).
+    std::uint8_t ctun;         ///< POWER_UP ARG8 CTUN (0-63).
+    std::uint32_t xtalFreqHz;  ///< POWER_UP ARG4-7 XTAL_FREQ in Hz.
+};
+
+/**
+ * @brief    parseXtalCalibrationJson — validate POST
+ *           /api/tuner/xtal-calibrate body.
+ *
+ * @dname    parseXtalCalibrationJson
+ * @param    json  Untrusted request body from the HTTP handler.
+ * @return   Crystal parameters on success, or a ParseError. `ibias` and
+ *           `ctun` default to the values already loaded at boot when
+ *           omitted (unusual to omit, but harmless); `xtal_freq_hz`
+ *           defaults to the nominal 19,200,000 Hz.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-23
+ */
+[[nodiscard]] std::expected<XtalCalibrationRequest, ParseError>
+parseXtalCalibrationJson(std::string_view json);
 
 } // namespace core

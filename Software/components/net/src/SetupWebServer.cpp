@@ -430,12 +430,12 @@ esp_err_t tunerTunePostHandler(httpd_req_t* req)
 
     std::expected<void, core::TunerError> result = std::unexpected(
         core::TunerError::InvalidInput);
+    // Omitting antcap uses the board's saved calibration for that band (or
+    // hardware auto-tune if never calibrated) — only an explicit value in
+    // the request overrides it, e.g. for a calibration sweep.
     if (parsed->band == core::TunerBand::Dab) {
-        result = ctx->tuner->tuneDab(parsed->dabFreqIndex);
+        result = ctx->tuner->tuneDab(parsed->dabFreqIndex, parsed->antCap);
     } else if (parsed->fmFrequency) {
-        // Omitting antcap uses the board's saved calibration (or hardware
-        // auto-tune if never calibrated) — only an explicit value in the
-        // request overrides it, e.g. for a calibration sweep.
         result = ctx->tuner->tuneFm(*parsed->fmFrequency, parsed->antCap);
     }
 
@@ -676,17 +676,76 @@ esp_err_t tunerCalibrateAntennaPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, json.c_str(), json.size());
     }
 
-    if (!ctx->antennaCalibration->save(*parsed)) {
+    const bool isDab = parsed->band == core::TunerBand::Dab;
+    const bool saved = isDab ? ctx->antennaCalibration->saveDab(parsed->antCap)
+                              : ctx->antennaCalibration->save(parsed->antCap);
+    if (!saved) {
         const std::string json = core::serializeTunerErrorJson("store_failed");
         httpd_resp_set_status(req, "500 Internal Server Error");
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
     }
-    ctx->tuner->setDefaultFmAntCap(*parsed);
+    if (isDab) {
+        ctx->tuner->setDefaultDabAntCap(parsed->antCap);
+    } else {
+        ctx->tuner->setDefaultFmAntCap(parsed->antCap);
+    }
 
     const std::string json =
-        std::string("{\"status\":\"saved\",\"antcap\":")
-        + std::to_string(*parsed) + "}";
+        std::string("{\"status\":\"saved\",\"band\":\"")
+        + (isDab ? "dab" : "fm") + "\",\"antcap\":"
+        + std::to_string(parsed->antCap) + "}";
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    tunerXtalCalibratePostHandler — POST /api/tuner/xtal-calibrate.
+ *
+ * Diagnostic-only, 2026-08-23: reboots the Si4684 with new IBIAS/CTUN/
+ * XTAL_FREQ (AN649 §Command 0x01 POWER_UP) without an ESP32 restart or
+ * NVS persistence, so a calibration script can iterate crystal parameters
+ * live. Caller must re-tune afterwards -- this only reboots the chip.
+ * See FM_RSQ_STATUS FREQOFF (GET /api/tuner/status, "freqoff_ppm") for the
+ * measurement this is meant to null out.
+ */
+esp_err_t tunerXtalCalibratePostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->antennaCalibration == nullptr
+        || ctx->antennaCalibration->recalibrateXtal == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed =
+        core::parseXtalCalibrationJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json = core::serializeTunerErrorJson("invalid_json");
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (!ctx->antennaCalibration->recalibrateXtal(
+            parsed->ibias, parsed->ctun, parsed->xtalFreqHz)) {
+        const std::string json = core::serializeTunerErrorJson("boot_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json =
+        std::string("{\"status\":\"recalibrated\",\"ibias\":")
+        + std::to_string(parsed->ibias) + ",\"ctun\":"
+        + std::to_string(parsed->ctun) + ",\"xtal_freq_hz\":"
+        + std::to_string(parsed->xtalFreqHz) + "}";
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -1700,6 +1759,63 @@ esp_err_t bluetoothAutoReconnectPostHandler(httpd_req_t* req)
     return httpd_resp_send(req, "{\"status\":\"saved\"}", 18);
 }
 
+esp_err_t bluetoothA2dpCodecConfigPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    (void)readRequestBody(req, body);
+    const auto mask = core::parseBluetoothA2dpCodecConfigJson(
+        std::string_view(body.data()));
+    if (!mask) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(parseErrorToken(mask.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto result = ctx->bluetooth->setA2dpCodecConfig(*mask); !result) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(result.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    ESP_LOGI(kTag, "A2DP codec config set to bitmask %u — reconnect the "
+                   "peer for it to take effect",
+             static_cast<unsigned>(*mask));
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"saved\"}", 18);
+}
+
+esp_err_t bluetoothA2dpCodecGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto codec = ctx->bluetooth->queryA2dpCodec();
+    if (!codec) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(codec.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeBluetoothA2dpCodecJson(*codec);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
 esp_err_t stationsGetHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -2067,6 +2183,14 @@ std::expected<void, NetError> SetupWebServer::start(
     };
     httpd_register_uri_handler(server_, &tunerCalibrateAntennaUri);
 
+    const httpd_uri_t tunerXtalCalibrateUri = {
+        .uri = "/api/tuner/xtal-calibrate",
+        .method = HTTP_POST,
+        .handler = tunerXtalCalibratePostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &tunerXtalCalibrateUri);
+
     const httpd_uri_t audioProfileGetUri = {
         .uri = "/api/audio/profile",
         .method = HTTP_GET,
@@ -2266,6 +2390,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &bluetoothAutoReconnectUri);
+
+    const httpd_uri_t bluetoothA2dpCodecConfigUri = {
+        .uri = "/api/bluetooth/a2dp-codec",
+        .method = HTTP_POST,
+        .handler = bluetoothA2dpCodecConfigPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothA2dpCodecConfigUri);
+
+    const httpd_uri_t bluetoothA2dpCodecGetUri = {
+        .uri = "/api/bluetooth/a2dp-codec",
+        .method = HTTP_GET,
+        .handler = bluetoothA2dpCodecGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothA2dpCodecGetUri);
 
     const httpd_uri_t stationsGetUri = {
         .uri = "/api/stations",

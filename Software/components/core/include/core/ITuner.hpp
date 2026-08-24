@@ -86,6 +86,10 @@ public:
      *
      * @dname    tuneDab
      * @param    freqIndex  Ensemble index 0–37.
+     * @param    antCap     Front-end antenna varactor override (0-128).
+     *                      0 = automatic; other values force a specific
+     *                      varactor setting, for antenna calibration
+     *                      sweeps. See tuneFm's antCap doc for details.
      * @return   Ok on success, or WrongBand / TuneFailed / NotBooted.
      * @pubstate writes last tune target in the adapter.
      *
@@ -93,7 +97,7 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] virtual std::expected<void, TunerError> tuneDab(
-        std::uint8_t freqIndex) = 0;
+        std::uint8_t freqIndex, std::uint8_t antCap = 0U) = 0;
 
     /**
      * @brief    tuneFm — tune to an FM centre frequency.

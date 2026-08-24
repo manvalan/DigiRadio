@@ -37,12 +37,21 @@ namespace {
 [[nodiscard]] std::string_view extractJsonString(std::string_view json,
                                                  std::string_view key)
 {
-    const std::string needle = std::string("\"") + std::string(key) + "\":\"";
-    const std::size_t start = json.find(needle);
-    if (start == std::string_view::npos) {
+    const std::string needle = std::string("\"") + std::string(key) + "\":";
+    const std::size_t needlePos = json.find(needle);
+    if (needlePos == std::string_view::npos) {
         return {};
     }
-    const std::size_t valueStart = start + needle.size();
+    std::size_t start = needlePos + needle.size();
+    while (start < json.size()
+           && (json[start] == ' ' || json[start] == '\t'
+               || json[start] == '\r' || json[start] == '\n')) {
+        ++start;
+    }
+    if (start >= json.size() || json[start] != '"') {
+        return {};
+    }
+    const std::size_t valueStart = start + 1U;
     const std::size_t valueEnd = json.find('"', valueStart);
     if (valueEnd == std::string_view::npos) {
         return {};

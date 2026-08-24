@@ -718,13 +718,516 @@ small once anything blocks even briefly.
   observed, on the low side). ~~Redo the ANTCAP sweep~~ — **done this
   session for FM** (see the ANTCAP antenna calibration feature commit);
   antcap=102 saved as the board's default, +6 to +11 dB RSSI/SNR across the
-  band. DAB doesn't have an equivalent calibrated-default mechanism yet —
-  worth adding the same idea (DAB_TUNE_FREQ also takes an ANTCAP argument
-  per AN649) if DAB signal quality remains the limiting factor after this.
+  band. ~~DAB doesn't have an equivalent calibrated-default mechanism yet~~
+  — **added and swept 2026-08-20, see below; no default saved (auto-tune
+  already best on the ensembles tested).**
 - Try a proper FM/DAB antenna to see how much of the crackle/noise clears
   up versus how much is inherent to the current antenna's gain/placement.
 - Investigate the intermittent multi-second HTTP unresponsiveness noted
   above — reproducible, not yet root-caused, not obviously related to any
   single change this session.
 - BT1035 boot-failure root cause still open (see section above) — non-fatal
-  now, so it's no longer blocking, but still unexplained.
+  now, so it's no longer blocking, but still unexplained. **Recurred
+  2026-08-20, see below — still open, confirmed not caused by physical
+  handling.**
+
+## 2026-08-20 update: DAB ANTCAP override added and swept live; BT1035 "total UART silence" recurred
+
+**DAB ANTCAP — implemented, built, flashed, swept live via the HTTP API.**
+Extended the ANTCAP override (AN649 Command 0x30 ARG4/5 for FM, Command
+0xB0 ARG4/5 for DAB) from FM-only to DAB, mirroring the existing FM
+mechanism end to end: `ITuner::tuneDab`/`Si4684Driver::tuneDab` gained an
+`antCap` parameter (was hardcoded `0x00`/auto); `TunerService` gained
+`defaultDabAntCap_`/`setDefaultDabAntCap()`; `Eeprom24aa` gained
+`readDabAntCap()`/`writeDabAntCap()` at word address 0x01 (FM stays at
+0x00); `HardwareBootstrap` gained `dabAntCapCalibration()`/
+`saveDabAntCapCalibration()`, loaded at boot alongside the FM one; the
+`net::AntennaCalibration` bridge gained `saveDab`; both `POST
+/api/tuner/tune` (one-shot override, `{"band":"dab","freq_index":N,
+"antcap":V}`) and `POST /api/tuner/calibrate-antenna` (persists to EEPROM,
+`{"band":"dab","antcap":V}`, `band` defaults to `"fm"` so old clients are
+unaffected) now accept DAB. Host build + 20/20 ctest + doxygen +
+check-manual-sync all green before flashing.
+
+Swept live via the API (`freq_index` 0-128 step 8) against three real
+ensembles:
+- **freq_index 5** (weakest known ensemble, 7 dB CNR baseline from the
+  2026-08-16 sweep): did not lock at all this session, at any ANTCAP
+  including auto — signal currently below threshold, not a code issue
+  (indices 22/23 locked normally in the same session).
+- **freq_index 23** (strongest, 21-26 dB): CNR jittered ±3 dB across the
+  whole ANTCAP range with no discernible trend — already saturated, sweep
+  can't discriminate on a signal this strong.
+- **freq_index 22** (medium, 16-20 dB): auto (0) and antcap=32 tied for
+  best (20 dB CNR); antcap=72 and 80 caused total loss of lock (a dead
+  zone to avoid); the rest of the range gave no systematic gain over auto,
+  unlike FM's clean +6 to +11 dB improvement.
+
+**Decision: left DAB on auto-tune, nothing saved to EEPROM.** Unlike FM,
+no ANTCAP value tested beat the chip's own auto-tune by a margin worth
+trusting. If DAB audio quality is still the limiting factor later, retest
+specifically on a weak ensemble (index 5 or similar) once it's receivable
+again — ANTCAP calibration matters most on weak signals, which is exactly
+the case that wasn't testable this session.
+
+**BT1035 "total UART silence" recurred — same still-open issue as before,
+confirmed (again) not physical.** During the DAB sweep, the board was
+reset several times via opening a `pyserial` connection for log capture —
+each open triggers a hardware EN/reset pulse on this ESP32-S3 (confirmed:
+happens even with `dsrdtr=False, rtscts=False` and explicit
+`setDTR(False)`/`setRTS(False)` — this is the USB-native auto-reset
+circuit firing on port open, not a pyserial default that can be disabled
+from the Mac side). One of these resets left BT1035 silent: `no
+spontaneous UART bytes after hardware reset` on both boot attempts (2/2),
+then silent across all 8 probed baud rates (9600-921600). This is *not*
+the "banner arrives late" issue fixed 2026-08-20 earlier this same session
+(`kBootBannerWaitMs = 25000` was already in effect and made no
+difference) — it's the harder, total-silence failure mode already logged
+above (the "Unrelated finding from the same session" note before the
+2026-08-19 entry), recurring. Confirmed again this time that it is not
+caused by physical handling: a full physical power-off for 60 s did not
+recover it (Si4684/ADAU1701 both came back up fine on the same power
+cycle, ruling out a board-wide power issue). Root cause still not
+identified. `/api/bluetooth/status` and `/api/bluetooth/paired` correctly
+report `{"status":"error","reason":"at_timeout"}` while in this state; the
+rest of the device (tuner, web UI) stays usable per the existing
+non-fatal-BT1035-boot design.
+
+## 2026-08-21 update: BT1035 total silence confirmed intermittent (not
+## hardware); background retry mitigation added
+
+Follow-up session dedicated entirely to the "total UART silence" BT1035
+failure mode above. Summary: **confirmed intermittent on genuinely
+identical hardware, root cause narrowed to the module's internal crystal
+(not our PCB, not fixable by us), and mitigated (not fixed) with an
+indefinite background boot retry.**
+
+**Diagnostic instrumentation (temporary, added then reverted this
+session)**: added `BT1035 AT TX: <line>` / `BT1035 UART RX RAW: <hex or
+<empty>>` / `BT1035 AT RESULT: OK|ERROR|TIMEOUT` logging around
+`Bt1035Driver::transmitAndCollect()`, and temporarily dropped
+`kBootAttempts` to 1 for single-attempt clarity. This confirmed the
+failure signature precisely: `AT` is transmitted, zero bytes ever come
+back (`<empty>`), timeout. Reverted via `git checkout` once the manual
+diagnosis was done — not kept in the codebase.
+
+**Multimeter checks, all normal** (scope-level checks — crystal
+oscillation, power-on transient — remain out of reach without an
+oscilloscope):
+- VBAT_IN: 3.3V (datasheet range 3.0-4.2V) ✓
+- 1.8V_OUT (module's internal regulator): 1.8V ✓ — proves the module's
+  own power management *is* running, it isn't simply unpowered
+- SYS_CTRL / RESET (post-boot): ~3.27V, matching the firmware's own GPIO
+  readback log (`post-reset: SYS_CTRL=1 RESET=1`) ✓
+- BT1035 TX pin (module side) to GND: 3.29V, idle-HIGH, no short/float/
+  reversed polarity ✓ (though idle-HIGH alone doesn't prove the module's
+  firmware is executing — some pads default HIGH from reset state alone)
+- A 10kΩ pull-down the user had added on SYS_CTRL (matching the
+  datasheet's own recommendation for an undriven pin) was checked and is
+  not the cause — the ESP32 GPIO drives push-pull and its own readback
+  confirms it reaches a valid HIGH regardless.
+
+**Crystal location determined**: the BT1035 datasheet's own block diagram
+shows "32MHz Crystal" as an internal block of the QCC3056 die, and the
+DigiRadio schematic netlist (`Netlist_Schematic1_2026-08-07.asc`) has no
+XTAL_IN/XTAL_OUT pins wired to any external crystal for U11 — confirming
+the oscillator is sealed inside the Feasycom module, not on our PCB. This
+is why nothing on our side (layout, load caps, our firmware) can affect
+it; if the failure really is a marginal oscillator-startup margin, it's a
+property of that specific physical module unit (or the part's design
+tolerance in general).
+
+**Decisive evidence of intermittency, not a dead unit**: across repeated
+reboots in the same session (physical power-cycles and serial-port-open
+resets, which also hard-reset this ESP32-S3's native USB-CDC), the
+identical physical module was observed to boot **completely successfully**
+at least once — spontaneous banner `+VER=FSC-BT1035,V6.1.1,20240521` +
+`+DEVSTAT=1`, then `AT` and `AT+AUXCFG=3` both answered `OK` — and to fail
+completely silently on other attempts, with no physical change in between.
+This rules out "defective/dead module" as an explanation; ordering a
+replacement module is therefore *not* a guaranteed fix, since the same
+physical unit demonstrably works when it works.
+
+**UART loopback test attempt — inconclusive, logged for future
+reference.** Tried to isolate ESP32 vs. module by bridging the ESP32-S3's
+own GPIO40 (BT1035 UART TX)/GPIO41 (BT1035 UART RX) pins with a jumper
+held by hand on the ESP32 module's castellated pads (no series
+resistor/test point exists on this net per the schematic netlist — U8.33
+↔ U11.P$14 and U8.34 ↔ U11.P$13 directly, nothing else). Twice
+reproducibly, bridging those pins from cold boot caused the ESP32 itself
+to hang very early in boot (right after the bootloader's "Disabling RNG
+early entropy source" line, before `app_main()` even starts) — harmless
+(board recovers fully once the jumper is removed) but unexplained, and it
+sidesteps the actual test rather than answering it. Not pursued further
+this session given the practical difficulty of hand-holding a wire onto
+castellated pads without a proper SMD test hook. If retried: attach the
+jumper *after* the ESP32 has already booted past that early stage (there's
+a ~25s window before the BT1035 AT command is actually sent) rather than
+from a cold boot.
+
+**Mitigation implemented: indefinite background boot retry.** Since the
+module's own internal fault (if that's what it is) isn't something we can
+fix, and since it demonstrably self-clears on a later attempt rather than
+needing repair, `main/hardware_bootstrap.cpp` now spawns a
+`bt1035RetryTask` FreeRTOS task whenever the initial `HardwareBootstrap::
+boot()`'s call to `Bt1035Driver::boot()` fails. The task loops calling
+`boot()` again with **no artificial delay** between attempts — each
+attempt already blocks for ~25-60s on its own (the banner wait times
+`kBootAttempts`, plus an 8-step baud-rate sweep on final failure), so no
+extra backoff is needed on top — until it succeeds, at which point it runs
+the same post-boot setup (device name, auto-reconnect) the normal success
+path does, then exits. The rest of the system (Wi-Fi, tuner, web UI) never
+blocks on this and stays fully usable throughout. Verified live: after a
+forced failure (2 attempts + baud sweep, ~62s), the retry task started
+immediately, the HTTP server and heartbeat came up normally in parallel,
+and the retry task began a fresh attempt right away without any pause.
+
+**Open going forward**: root cause of the intermittent total-silence mode
+is still not identified — this session's diagnosis exhausted what's
+possible with a multimeter alone. Real progress would need either an
+oscilloscope on SYS_CTRL/RESET/crystal across several boots to correlate
+success/failure with power-on timing jitter, or a large-N automated
+reboot-cycle statistic (attempted this session via a `pyserial` script,
+but the ESP32-S3's native USB-CDC re-enumerating on every hardware reset
+made a fully unattended multi-cycle script unreliable — a naive read loop
+silently produced a false "0/5 success" result once across a reconnect
+window). A future attempt at that statistic needs to detect the USB path
+disappearing/reappearing and reopen the port, or use a separate
+hardware UART-to-USB adapter that doesn't disconnect when the target
+resets.
+
+**Also discussed this session (not implemented, for a future hardware
+revision)**: whether a different/newer SoC could eliminate the need for
+the external BT1035 module entirely. Confirmed via web search that
+Espressif's new **ESP32-S31** (RISC-V, announced April 2026) has
+integrated **Bluetooth 5.4 with both LE and Classic (BR/EDR)** support —
+unlike the ESP32-S3 used today, which is BLE-only at the silicon level
+(confirmed: no Classic BT/A2DP hardware exists on S3, this is not a
+firmware limitation). An `ESP32-S31-WROOM-3` module also exists. This
+would be a significant main-MCU redesign, not a drop-in swap, and its
+ESP-IDF support maturity/availability wasn't independently verified this
+session — worth a dedicated evaluation before committing to it for a
+future hardware revision.
+
+## 2026-08-21 follow-up: git archaeology on the boot-retry structure;
+## minimal patch to restore the validated single-attempt design
+
+Separate follow-up session, requested specifically to re-derive the
+BT1035 boot regression analysis directly from git history rather than
+from further live hardware probing, per the project's own house rule
+(2026-08-14 postmortem): exhaust the code-path diff against a known-good
+commit before floating new hardware theories.
+
+**Full commit archaeology** (`git log --follow` on
+`Bt1035Driver.cpp`):
+```
+6ca40f1 "all companion chips ready" — baseline, 0 known bugs
+6f7b6dd added a redundant AT+RESET right after the hardware reset pulse
+fd9d4ae (2026-08-15) fixed 6f7b6dd in one commit: removed the redundant
+        AT+RESET AND introduced logRawUartBoot() for the first time,
+        already at its final 3500ms window (the "1500ms too short"
+        text in the report/commit message describes an intermediate
+        value tried live during that debugging session, never itself
+        committed) — 5/5 clean boots documented after this fix.
+3a58d33 (2026-08-20, this project's own earlier commit today) widened
+        the banner wait 3500ms → 25000ms (real banner measured arriving
+        up to ~18.5-42s post-reset) AND, in the same commit, introduced
+        a NEW intra-boot() retry loop (kBootAttempts=2, only
+        kBootRetryDelayMs=300ms between the two hardware reset pulses)
+        that did not exist in fd9d4ae's validated design.
+```
+
+**Finding**: comparing `fd9d4ae` (the last commit with a documented,
+validated 5/5 clean-boot run) against the working tree confirmed exactly
+three differences, only one of them structural:
+1. Banner wait 3500ms → 25000ms — justified by this session's own real
+   measurements, kept.
+2. `GPIO_MODE_OUTPUT` → `GPIO_MODE_INPUT_OUTPUT` on RESET/SYS_CTRL —
+   purely additive (enables `gpio_get_level()` readback for the
+   pre-power/post-syscl/post-reset diagnostic logs), electrically
+   neutral, kept.
+3. **A new intra-`boot()` retry loop with only 300ms between the two
+   hardware reset pulses — this did not exist in the validated baseline.**
+   The BT1035 datasheet's own "Reset Protection timeout (typically
+   >1.8s)" (already gathered earlier this session) means a second
+   SYS_CTRL/RESET pulse fired only 300ms after a failed attempt would not
+   reliably reach a clean power-off state — risking re-interrupting the
+   module mid bring-up, the same class of bug 6f7b6dd/fd9d4ae already
+   dealt with once (redundant AT+RESET). This is the only difference
+   flagged as a plausible contributor, not asserted as certain.
+
+Also confirmed via repo-wide search: `AT+RESET` (`Bt1035AtCommand::Reset`)
+is referenced only in the unit test, never in production code; no other
+task/thread touches the BT1035 UART during its boot window
+(`savedSpeakerReconnectTask` only starts after `HardwareBootstrap::boot()`
+returns; the new `bt1035RetryTask` calls `boot()` sequentially, never
+concurrently). `logRawUartBoot()`'s single `uart_read_bytes()` call and
+the following `uart_flush_input()` were confirmed, both by code reading
+and by this session's own successful-boot log capture (banner appeared,
+then `AT`→`OK` immediately after, no stall), to not swallow or discard
+data that `runInitSequence()` would otherwise need — `runInitSequence()`
+does its own fresh TX/RX cycle regardless of what the banner-capture step
+saw.
+
+**Minimal patch applied** (user-directed, exact scope agreed before
+touching code): removed the intra-`boot()` retry loop entirely —
+`boot()` now makes exactly one `resetAndInitOnce()` call per invocation,
+structurally identical to `fd9d4ae`. Removed `kBootAttempts` and
+`kBootRetryDelayMs` (dead after the loop's removal); `probeBaudRates()`'s
+log line adjusted accordingly (no longer references the removed
+attempt count). `kBootBannerWaitMs=25000` and the `GPIO_MODE_INPUT_OUTPUT`
+readback were explicitly left untouched. Retries now live exclusively one
+layer up, in `hardware::bt1035RetryTask` (`main/hardware_bootstrap.cpp`,
+added earlier this session), which only re-invokes a full, clean `boot()`
+call — never re-pulses the pins faster than one whole boot cycle apart.
+Host tests (20/20) and firmware build both green before flashing.
+
+**Live result after flashing**: structurally the retry cadence is now
+clean — confirmed via serial log, each `bt1035RetryTask` iteration is
+spaced ~31.8s apart (25s banner wait + ~2s AT timeout + ~4s baud sweep,
+no extra gap), matching the intended single-attempt-per-call design
+exactly, versus the old back-to-back double-pulse. **However, a 20-minute
+monitoring window immediately after flashing captured 31 consecutive
+retry attempts, all silent — zero successes**, a worse hit rate in this
+specific sample than earlier in the day (which had at least one clean
+success among fewer attempts). This neither confirms nor refutes the
+Reset-Protection-timing hypothesis on its own — the patch is kept because
+it's structurally correct (matches the one historically validated design,
+removes the only unexplained difference from it), not because this
+sample proves it improved the success rate. The underlying intermittent
+root cause (most likely the module's internal, sealed 32MHz crystal
+startup margin — see the 2026-08-21 entry above) remains unresolved and
+would need an oscilloscope to pin down further.
+
+## 2026-08-22 update: RESET#/SYS_CTRL redesign, CTS/RTS diagnostics,
+## PinScope report from a sibling project, Feasycom support escalation
+
+**PinScope findings from a sibling "DigiRadio evolution" project with the
+same BT1035 wiring pattern** were reviewed for transferability. Checked
+each finding against our own schematic netlist (exact BT1035 pin numbers
+cross-referenced against the datasheet's own pin table) rather than
+assuming they apply:
+- **U16-001 (RESET# pulled to GND by a stray R67) and U16-002 (SYS_CTRL
+  pulled HIGH by a stray R69): do NOT apply to our board.** Verified via
+  netlist: our RESET# net (`GPIO17`) has only the ESP32 and the BT1035,
+  no resistor; our SYS_CTRL pull-down (R12) genuinely goes to GND (pins
+  1/22, confirmed GND in the datasheet), not a stray pull-up.
+- **U16-003 (VCHG/VCHG_SENSE unconnected): same on our board, presumably
+  intentional** (no USB charging via the BT1035).
+- **U16-004 (RF_OUT/pin 51 floating): also true on our board** — but this
+  is a genuinely open question, not a confirmed defect: the BT1035
+  datasheet documents both an "Internal Antenna" (§9.2, on-board antenna,
+  no RF_OUT routing needed, PCB keep-out area required instead) and
+  "External Antenna" (§9.3, RF_OUT routed out) layout option, and we
+  cannot tell from the datasheet alone which variant this specific module
+  part/order uses. This affects actual Bluetooth RF range once the module
+  boots — separate from, and does not explain, the intermittent
+  total-silence boot symptom (RF_OUT is downstream of the digital
+  baseband processor that generates the boot banner and answers AT
+  commands).
+- The sibling report's "RESET#/SYS_CTRL/VCHG compound badly" warning
+  does not transfer to us, since our RESET#/SYS_CTRL wiring is correct.
+
+**RESET#/SYS_CTRL hardware-management redesign (diagnostic test,
+requested explicitly to see if external RESET# control was itself
+contributing to the intermittent failures):**
+- RESET# (pin 8) is no longer driven by this driver at all: reconfigured
+  as a floating input (`GPIO_MODE_INPUT`, pull-up/pull-down both
+  explicitly disabled), relying entirely on the BT1035's own datasheet-
+  documented "fixed strong pull-up to VDD_IO" (§4.8). GPIO17 confirmed
+  reading HIGH via this internal pull-up, live.
+- SYS_CTRL (pin 34) redesigned to perform a genuine LOW→HIGH power-cycle
+  on *every* `resetAndInitOnce()` call (held LOW 2.5s — comfortably
+  longer than the datasheet's "~1.8s typical" Reset Protection timeout —
+  then HIGH for >=20ms per §4.7), rather than being asserted once ever at
+  first boot and left alone: previously, every later retry from
+  `bt1035RetryTask` was silently reusing an already-HIGH SYS_CTRL line
+  and never actually power-cycling the module at all.
+- Both changes build/test clean and were confirmed live to behave exactly
+  as designed (RESET# reads HIGH via internal pull-up; SYS_CTRL cadence
+  matches the 2.5s+20ms design on every retry).
+
+**Result: inconclusive-to-negative on hit rate.** Across a cumulative
+~45+ minutes of live monitoring after these changes (two separate
+sessions, dozens of retry attempts), **zero successful boots were
+observed** — no banner, ever, in this window. This is not better than,
+and arguably worse than, the small sample seen the same week under the
+*previous* (RESET#-driven) design, which did show at least one clean
+success among fewer attempts. This should not be read as proof the new
+design is wrong — the previous design also produced a 31-attempt/0-success
+streak in one session this same week — but it is also not evidence the
+redesign helped. Kept anyway because it is independently correct per the
+datasheet (RESET# genuinely can be left unconnected; SYS_CTRL retries
+should be genuine power-cycles), not because it demonstrably fixed
+anything.
+
+**New CTS/RTS diagnostic instrumentation.** Discovered, previously
+unexamined this entire investigation: the board physically wires
+`board::pins::Bt1035Cts` (GPIO21 -> BT1035 pin 15, UART_CTS) and
+`board::pins::Bt1035Rts` (BT1035 pin 16, UART_RTS -> GPIO14) — both
+**named in `board_pins.hpp` since the pin's original definition, but
+never configured or used by any driver code**, and the UART is
+initialized with `UART_HW_FLOWCTRL_DISABLE`. Added both as read-only
+floating-input diagnostics (`Bt1035Pins::ctsGpio`/`rtsGpio`, logged
+before and after the banner-wait window in `resetAndInitOnce()`), purely
+to observe — never driven.
+
+Datasheet research (not just speculation) on what this could mean:
+- §4.1 Table 4-1 lists flow control as one of several **configurable**
+  UART settings ("Supports Automatic Flow Control (CTS and RTS lines)"),
+  not stated as active by default.
+- No AT command to explicitly enable/disable flow control was found in
+  the programming guide.
+- Pin 16 (UART_RTS/PIO2)'s documented **factory-default alternate
+  function is "PA mute pin"** (`AT+MUTEPIO`'s own default parameter is
+  PIO2) — i.e., out of the box this pin most likely isn't acting as RTS
+  at all.
+- Live readings, across ~12 samples over 30+ minutes and multiple
+  power-cycles: **CTS=HIGH, RTS=LOW, perfectly stable, zero variation.**
+  This argues against a genuinely floating/noisy input (which would be
+  expected to show at least some jitter across dozens of samples) —
+  something is holding both at a fixed level, whether that's incidental
+  ESP32 GPIO leakage, an internal pull inside the module, or the module
+  actively driving its own RTS/PA_MUTE output. We do not yet have a
+  reading from a *successful* boot to compare against, since none
+  occurred in this session's remaining test window.
+
+**Escalated to Feasycom support** (email drafted, not yet sent by the
+user) with: the full symptom description, everything ruled out this
+session (power rails, RESET#/SYS_CTRL sequencing variants), the CTS/RTS
+finding reframed as an open question rather than a confirmed cause (per
+the datasheet nuance above), and the RF_OUT/antenna-variant question.
+Decided to pause further live hardware experimentation until a reply is
+received, rather than keep varying RESET#/SYS_CTRL/timing parameters
+without new information — see the email draft (kept outside the repo, in
+the session's scratch directory) for the exact wording sent.
+
+**How to apply, for a future session**: don't re-propose "try removing
+RESET# drive" or "try a genuine SYS_CTRL power-cycle on retry" as fresh
+ideas — both were tried this session, both are justified independently,
+neither showed a measurable improvement in a non-trivial sample. Don't
+assume CTS/RTS floating is confirmed as the cause either — the CTS=1/
+RTS=0 stability argues against pure floating-noise, and flow control may
+not even be engaged by default per the datasheet. The single most
+valuable next input is Feasycom's own answer, not another round of
+timing-parameter permutation.
+
+## 2026-08-23 update: FM/DAB pitch-distortion root-caused and fixed (uncalibrated Si4684 crystal reference); a separate downstream audio-quality issue found and left open
+
+**Symptom**: user reported FM+DAB audio hiss/distortion, later sharpened to
+"voce stonata" (mistuned/off-pitch voice), present on both bands.
+
+**Elimination chain, each step verified on real hardware, not theory**:
+RF signal strength (new antenna, RSSI/SNR excellent — see the ANTCAP
+section above) → boot-time ADAU1701 DSP program load (added read-back
+verification to `SIGMA_WRITE_REGISTER_BLOCK`/`sigma_safeload_block`,
+confirmed clean on every boot and every runtime safeload) → ADAU1701 EQ
+band 0 ("fixed high-pass," never touched at runtime) — initially
+miscalculated as an unstable filter from a wrong fixed-point bit-width
+assumption (8.23 vs the chip's actual 5.23/28-bit format), corrected and
+confirmed stable via SigmaStudio's own live register capture connected to
+the device → ADAU1701 mixer (all input knobs centered, confirmed) →
+`DAB_ACF_ENABLE` (0xB500, found disabled with no citation; datasheet
+default is 3; tried enabling it — made things audibly *worse*, likely
+because COMF_NOISE_ENABLE literally injects synthetic noise on signal
+dips; reverted to 0x0000, matching what PE5PVB's independent
+SI4684-DAB-Receiver project also does deliberately — not the cause, but
+no longer an unexplained magic number) → **decisive test**: a 440 Hz tone
+generated by the ESP32 and written directly over the shared I2S bus
+(`main/esp32_i2s_test_tone.{hpp,cpp}`, `CONFIG_ESP32_I2S_TEST_TONE`) came
+through clean and perfectly in-tune, verified with a real tuner — isolated
+the pitch problem to the Si4684 itself, ruling out ADAU1701/mixer/I2S
+receiving/BT1035/speaker → TR_SIZE (0x7) and IBIAS (72 = 720µA) checked
+against AN649 Figure 13 ("Safe Range of Operation for a 19.2 MHz
+Crystal"), both comfortably inside the safe range for this crystal's ESR.
+
+**Root cause**: `Si4684Driver::boot()`'s `xtalCtun=31`/`xtalIbias=72`
+defaults had only a vague "already verified live" justification — no
+actual measurement for *this* board's crystal (Abracon
+ABM8-19.200MHZ-10-1-U-T, CL=10pF decoded from the part number's own
+ordering-code table, two external 15pF load caps per the schematic) ever
+existed.
+
+**Fix, two stages**:
+1. CTUN empirical trim by ear (AN649 §9.3 says trim by measurement; no
+   oscilloscope available, and a multimeter's frequency counter reads the
+   strong I2S LRCLK signal fine but returns 0 on the crystal pins
+   themselves — too weak/high-impedance for a general-purpose meter to
+   trigger on). Swept 31→5→0 (0 = the floor of the 0-63 range),
+   monotonic improvement each step, still "less bad, not fixed" at the
+   floor.
+2. **XTAL_FREQ precision trim using the chip's own measurement, no lab
+   equipment needed**: real FM/DAB transmitters are GPS/rubidium-locked,
+   so FM_RSQ_STATUS's FREQOFF field (AN649 Command 0x32 RESP8, signed,
+   units of 2 PPM) directly reports the *receiver's* crystal error on any
+   locked station. Added `Si4684Driver::recalibrateXtal()` (forces a full
+   re-boot with new IBIAS/CTUN/XTAL_FREQ, no ESP32 restart), a new
+   endpoint `POST /api/tuner/xtal-calibrate`, exposed FREQOFF as
+   `"freqoff_ppm"` in `GET /api/tuner/status`, and
+   `tools/si4684_xtal_calibration.py` to automate the trim loop
+   (tune → average several FREQOFF samples → correct → repeat).
+   **Non-obvious gotcha, found only by watching the first attempt
+   diverge, not documented anywhere**: the correction sign is
+   `xtal_freq *= (1 - ppm/1e6)`, not `(1 + ppm/1e6)` — the "tell it the
+   truth" sign convention makes the error grow, not shrink (confirmed
+   live: ppm went 28→60→122→254/no-lock across 3 iterations before the
+   sign was flipped). Averaging + damping (0.6) were both needed for
+   smooth convergence; a single raw FREQOFF sample has enough
+   reception-noise jitter (~±20-35 ppm swings observed) to make an
+   undamped loop oscillate instead of settling.
+
+**Final calibrated values** (now the firmware default,
+`main/hardware_bootstrap.cpp`): `CTUN=0`, `XTAL_FREQ=19,199,750 Hz`
+(≈-13 ppm off the 19.2 MHz nominal). Converged residual: **-3.8 ppm at
+87.6 MHz, -3.0 ppm at 105.1 MHz** — consistent across two stations at
+opposite ends of the FM band (the cross-check AN649 itself recommends),
+confirming this really is the crystal reference and not something
+frequency-dependent. Down from **+70 ppm** uncorrected at nominal
+XTAL_FREQ. No physical hardware change (different load-cap values) ended
+up being necessary — contrary to what seemed likely after CTUN alone.
+
+**User-confirmed result**: "migliorato moltissimo" (improved a lot) after
+this fix — the systematic pitch/tuning distortion is resolved.
+
+### Still open: a separate downstream hiss/intelligibility issue, NOT the Si4684
+
+After the crystal fix, the user still reported residual hiss and, more
+seriously, words being unintelligible on both FM and DAB. Recordings sent
+for spectral analysis showed no gross technical defects (no clipping, no
+dropouts, no dominant isolated resonance) — inconclusive from the
+recordings alone (phone-mic-through-air recordings are a poor tool for
+this specific symptom; room acoustics and mic response confound the
+signal). The user's direct listening judgement (confirmed repeatedly:
+"si sente ancora fruscio e le parole sono incomprensibili") is the
+ground truth here, not the recordings.
+
+**Decisive test**: enabled `web_radio_stream` (internet radio via ESP32,
+`POST /api/streaming`) with a direct HTTP MP3 stream
+(`http://icecast.radiofrance.fr/franceinter-midfi.mp3`), routed through
+the same shared ADAU1701 mixer/EQ/output/BT1035/Bluetooth-speaker chain
+as FM/DAB but **never touching the Si4684 at all**. User confirmed:
+**same symptom** (hiss + unintelligible). This is different from the
+earlier synthetic-440Hz-tone test, which came through clean — the tone
+test used a trivial, CPU-cheap sine generator with no decode/buffering
+involved, so it never exercised whatever a real MP3-decode-under-WiFi-load
+pipeline does.
+
+**Conclusion**: the pitch/tuning problem (fixed) and this hiss/
+intelligibility problem are two separate, independently-confirmed root
+causes that happened to co-occur and get conflated as "one bug" for most
+of this session. The Si4684/crystal is now cleared for *this* symptom —
+next session should look at: (a) `web_radio_stream`'s MP3 decode/I2S
+buffer-feed path for underrun/overrun under real WiFi jitter, since that
+was the actual reproducer, and (b) whether the same class of issue could
+independently affect the ADAU1701 mixer/EQ path under real dynamic
+program content generally (the passing tone test doesn't rule this out
+for FM/DAB specifically, only for a pure sine wave). Don't re-open the
+Si4684/crystal-calibration question for this symptom without new
+evidence — it's a different, still-unidentified mechanism.
+
+**New permanent diagnostic tools from this session** (kept in the repo,
+not removed): `GET /api/tuner/status` now reports `"freqoff_ppm"` for FM;
+`POST /api/tuner/xtal-calibrate` for live Si4684 crystal re-trim without
+reflashing; `CONFIG_ESP32_I2S_TEST_TONE` Kconfig option (off by default)
+for isolating Si4684-specific vs. shared-downstream audio issues;
+`tools/si4684_xtal_calibration.py` and `tools/si4684_antenna_calibration.py`.

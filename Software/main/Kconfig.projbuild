@@ -17,4 +17,17 @@ config I2S_SDATA_PROBE
         input trace (or an equivalent test point) -- enabling this without the
         rewire just reads whatever GPIO16 happens to be floating/connected to.
 
+config ESP32_I2S_TEST_TONE
+    bool "ESP32-generated sine tone over the shared I2S TX channel"
+    default n
+    help
+        Continuously writes a sine wave to esp32_i2s_sink (the same shared
+        BCLK/LRCLK the Si4684 uses on its own SDATA_IN0 pin, but over
+        SDATA_IN1). Diagnostic: if this sounds clean while FM/DAB is
+        distorted, the ADAU1701's I2S input receiving is fine in general and
+        the problem is specific to the Si4684 side. Remember the ESP32
+        mixer channel is muted (-96 dB) by default in the stored audio
+        profile -- raise it via PUT /api/audio/profile to actually hear
+        this.
+
 endmenu

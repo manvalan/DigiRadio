@@ -95,13 +95,99 @@ Short version:
 - FM front-end auto-tune measurably suboptimal on this board's actual
   matching network — ANTCAP calibration swept and persisted to EEPROM,
   `POST /api/tuner/calibrate-antenna`.
-- BT1035 intermittent boot failure — root cause still unknown, but a
-  reset+init retry loop (up to 3 attempts) was added since the failure
-  looked like power-up timing jitter, not a permanent fault.
-- **Still open**: BT1035 root cause; intermittent multi-second HTTP
-  unresponsiveness under load; DAB signal quality still antenna-limited;
-  24 KB `nvs` partition may be undersized (`saveProfile()` `store_failed`
-  seen intermittently, error code never captured).
+- BT1035 total boot silence — root cause found and fixed (2026-08-20):
+  the module's spontaneous boot banner (`+VER=...`, `+DEVSTAT=1`) doesn't
+  appear until ~18-24s after RESET# releases (full BT stack init, not
+  just the internal regulator), but the boot code only waited 3.5s before
+  cutting power and restarting — so every attempt, in every prior session,
+  cut power before the module could ever finish booting even once. Power
+  rails (VBAT_IN/SYS_CTRL/VDD_IO/1.8V_OUT) and TX/RX wiring were all
+  independently verified correct with a multimeter first — the module and
+  PCB were never at fault. Fixed by waiting up to 25s for the banner
+  (`kBootBannerWaitMs`); boot now succeeds on the first attempt.
+- **BT1035 — a second, harder failure mode confirmed intermittent, not
+  hardware (2026-08-21).** Distinct from the banner-timing bug above: even
+  with the 25s wait already in place, boot sometimes still gets zero UART
+  bytes at all — no banner, no AT response, silent across all 8 probed
+  baud rates (9600-921600). Root-cause evidence this session: VBAT_IN
+  (3.3V), 1.8V_OUT (1.8V), SYS_CTRL/RESET (~3.27V, matching the firmware's
+  own GPIO readback), and BT1035 TX (idle-HIGH ~3.29V, no short/float) all
+  measured normal with a multimeter. The BT1035's 32 MHz crystal is
+  integrated inside the sealed Feasycom module (confirmed via the module's
+  own datasheet block diagram — no external crystal on our schematic), so
+  it can't be inspected or reworked from our side; a marginal
+  oscillator-startup margin inside the module is the leading suspect.
+  **Decisive evidence it's intermittent, not a dead unit**: the exact same
+  physical module booted cleanly (banner + all AT commands `OK`) on one
+  attempt and went totally silent on the very next attempt, no physical
+  changes in between. A replacement module is therefore not a guaranteed
+  fix — the same defect class could recur on a different unit. Mitigated
+  (not fixed) by an indefinite background retry task
+  (`hardware::bt1035RetryTask` in `main/hardware_bootstrap.cpp`): if the
+  initial `Bt1035Driver::boot()` fails, a background FreeRTOS task keeps
+  calling `boot()` again with no artificial delay between attempts (each
+  attempt already takes ~25-60s on its own) until it succeeds, while the
+  rest of the system (tuner, Wi-Fi, web UI) stays fully usable in the
+  meantime. Turns a permanent-until-manual-power-cycle failure into a
+  bounded, self-recovering delay. See
+  `docs/si4684-rf-investigation-report.md` (2026-08-21 entry) for the full
+  session narrative, including a UART TX/RX loopback test attempt that was
+  inconclusive (bridging the ESP32's own TX/RX pins from cold boot caused
+  an unrelated, reproducible, harmless early-boot hang, not yet explained).
+- **BT1035 — git archaeology + minimal patch, follow-up (2026-08-21).**
+  Traced the full commit history of `Bt1035Driver.cpp` from the last
+  documented-good boot (`6ca40f1`) through the regression (`6f7b6dd`, a
+  redundant `AT+RESET`) and its fix (`fd9d4ae`, 5/5 clean boots — removed
+  the `AT+RESET` and introduced the boot-banner listen at 3500ms in the
+  same commit). Comparing `fd9d4ae` to this session's working tree found
+  one real structural difference beyond the justified 25s banner window:
+  today's earlier commit (`3a58d33`) had added an intra-`boot()` retry
+  loop (2 attempts, only 300ms between hardware reset pulses) that never
+  existed in the validated baseline — shorter than the BT1035 datasheet's
+  own "Reset Protection timeout (typically >1.8s)", so the second pulse
+  may not have reached a clean power-off state. **Fixed**: removed the
+  intra-`boot()` retry loop entirely (`kBootAttempts`/`kBootRetryDelayMs`
+  deleted); `boot()` now makes exactly one attempt per call, matching
+  `fd9d4ae`. Retries remain exclusively at the `bt1035RetryTask` level
+  (whole clean `boot()` calls, never re-pulsing pins faster than one full
+  cycle apart — confirmed live, ~31.8s between attempts). Host tests
+  (20/20) and firmware build green; flashed and observed live. **Result
+  inconclusive on hit rate**: a 20-minute post-flash window captured 31
+  consecutive silent retry attempts, zero successes — worse than earlier
+  the same day. The patch is kept because it's structurally correct (only
+  known deviation from the historically validated design removed), not
+  because this sample proved a better success rate. Root cause of the
+  underlying intermittent silence is still open (see entry above).
+- **BT1035 — RESET#/SYS_CTRL redesign, CTS/RTS diagnostics, Feasycom
+  escalation (2026-08-22).** A sibling project's PinScope netlist report
+  (RESET# pulled to GND, SYS_CTRL pulled HIGH by stray resistors) was
+  checked against our own schematic and does **not** apply to us — our
+  RESET#/SYS_CTRL wiring is correct, verified via netlist. Its RF_OUT/pin
+  51 floating finding **does** also apply to us, but is a separate,
+  RF-range-only concern (datasheet documents both internal- and
+  external-antenna variants; can't tell which we have), not the cause of
+  the digital/UART boot silence. As a diagnostic test, RESET# is now
+  never driven at all (floating input, relying on the module's own
+  internal pull-up per §4.8) and SYS_CTRL now does a genuine LOW(2.5s)→
+  HIGH power-cycle on every retry attempt (previously asserted once ever
+  and left alone, meaning retries never actually power-cycled the
+  module). Also added read-only diagnostics on the previously-unused
+  CTS/RTS pins (physically wired, named in `board_pins.hpp`, never
+  configured by any driver code, host flow control disabled) — live
+  readings were perfectly stable (CTS=HIGH, RTS=LOW) across ~12 samples
+  over 30+ minutes, arguing against pure floating-noise. **Across all of
+  today's changes combined, zero successful boots were observed in
+  cumulative 45+ minutes of live testing** — inconclusive-to-negative,
+  not proof any change helped or hurt. Escalated to Feasycom support with
+  a detailed email (drafted, kept outside the repo) covering the
+  symptom, everything ruled out, the CTS/RTS open question, and the
+  antenna-variant question; paused further live experimentation pending
+  their reply rather than keep permuting timing parameters blind.
+- **Still open**: intermittent multi-second HTTP unresponsiveness under
+  load; DAB signal quality still antenna-limited; 24 KB `nvs` partition
+  may be undersized (`saveProfile()` `store_failed` seen intermittently,
+  error code never captured); BT1035 intermittent total-silence boot
+  failures (mitigated via background retry, not root-caused — see above).
 
 ---
 
@@ -115,6 +201,45 @@ Done in fw 0.8.5 unless noted:
   (`AT+AUTOCONN`) per Feasycom BT1035 manual (0.8.4).
 - Si4684 — `STOP_DIGITAL_SERVICE` (0x82) before FM band switch when DAB
   audio is active; ensemble metrics remain via `DAB_DIGRAD_STATUS` in status (0.8.4).
+
+---
+
+## TODO — calibration functions need to become permanent, in-firmware, on-demand tools (2026-08-23)
+
+Both ANTCAP calibration (`tools/si4684_antenna_calibration.py`) and Si4684
+crystal calibration (`tools/si4684_xtal_calibration.py`,
+`POST /api/tuner/xtal-calibrate`) currently exist as **host-side Python
+scripts driving live-but-unpersisted HTTP endpoints** — they compute a
+result but the operator has to hand-edit firmware source (constants in
+`Si4684Driver.cpp` / the `gSi4684.boot(...)` call in
+`hardware_bootstrap.cpp`) and reflash to make a result permanent.
+
+**Wanted instead**: both calibration procedures should be triggerable
+on-demand *from the device itself* (an HTTP endpoint is enough — no UI
+required yet) and, once a result converges, **write the result to the
+24AA025E48 EEPROM** (same chip/pattern already used for ANTCAP
+persistence, see `Eeprom24aa::writeFmAntCap`/`writeDabAntCap`) so it
+survives a reboot without a firmware reflash. `recalibrateXtal()`
+(`Si4684Driver.cpp`) already does the live re-boot-with-new-params part;
+what's missing is EEPROM persistence for **all three** crystal
+calibration parameters -- `ibias`, `ctun`, AND `xtalFreqHz` (not just
+XTAL_FREQ; confirmed explicitly 2026-08-24 that all three need to
+persist, not only the one this session happened to tune) -- plus loading
+them at boot the same way `main.cpp` already loads the saved FM/DAB
+ANTCAP into `TunerService` before the first tune. ANTCAP already
+persists this way (2 bytes/band, word addresses 0x00/0x01) — the xtal
+calibration needs its own new EEPROM word address(es) alongside those
+(ibias fits in 1 byte, ctun in 1 byte, xtalFreqHz needs 4 bytes -- 6
+bytes total, or pack more compactly if EEPROM space is tight). Also
+still needed: deciding whether the FREQOFF-averaging/damping/
+convergence-loop logic (currently in `tools/si4684_xtal_calibration.py`)
+moves into firmware, or stays host-side with just an EEPROM-persist step
+added at the end of the existing HTTP flow.
+
+Not started — explicitly deferred to a future session, noted here only so
+it isn't lost. See `docs/si4684-rf-investigation-report.md`'s 2026-08-23
+entry for full context on why this calibration was needed and how it
+currently works.
 
 ---
 

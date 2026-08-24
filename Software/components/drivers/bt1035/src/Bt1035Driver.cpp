@@ -36,21 +36,39 @@ constexpr int kBaudRate = 115200;
 constexpr int kUartRxBuffer = 4096;
 constexpr int kUartTxBuffer = 256;
 constexpr int kResponseTimeoutMs = 2000;
-constexpr int kPostResetMs = 500;
 constexpr int kPostUartMs = 100;
-/** Feasycom BT1035 programming user guide §2.2 (pin 34 SYS_CTRL): "Delay
- *  100ms, pull high". */
-constexpr int kSysCtlLeadInMs = 100;
-/** Margin beyond the datasheet's own >20ms SYS_CTRL-assertion-to-power-up
- *  minimum (§4.7), for regulator/crystal settling before RESET releases. */
-constexpr int kSysCtlSettleMs = 50;
-/** Observed intermittently: the module sometimes needs a second RESET#
- *  pulse to come up (power-up timing jitter between cold/warm boots) —
- *  a single attempt with no retry was found to explain sporadic total
- *  boot failures ("no spontaneous UART bytes" -> "AT init failed") on
- *  otherwise-identical hardware/wiring. */
-constexpr int kBootAttempts = 3;
-constexpr int kBootRetryDelayMs = 300;
+/** Datasheet §4.7: "From the OFF state, SYS_CTRL must be asserted for
+ *  >20 ms to start power up." */
+constexpr int kSysCtlAssertMs = 20;
+/** Datasheet §4.8: "Reset Protection timeout (typically greater than
+ *  ~1.8 s) causes the device to power down if VCHG is not present and
+ *  SYS_CTRL is low." RESET# and SYS_CTRL are held asserted/low together for
+ *  comfortably longer than that before each power-up, to guarantee a
+ *  genuine full power-down rather than a pulse too short for the module's
+ *  own protection timer to act on — see resetAndInitOnce()'s comment for
+ *  why this now runs on every attempt, not just the first. */
+constexpr int kSysCtlDeassertMs = 2500;
+/** Measured live (2026-08-20, power/wiring confirmed sound with a
+ *  multimeter — VBAT_IN/SYS_CTRL/1.8V_OUT/VDD_IO all correct, TX/RX pins
+ *  verified via continuity): the module's spontaneous boot banner
+ *  (+VER=FSC-BT1035,..., +DEVSTAT=1) doesn't appear until ~18.5s after
+ *  RESET# releases — full BT stack init, not just the internal regulator.
+ *  The previous 3500ms wait here was never enough for the module to say
+ *  anything, so every prior boot attempt cut power and restarted before
+ *  the module could finish booting even once.
+ *
+ *  boot() makes exactly one resetAndInitOnce() attempt per call (matching
+ *  fd9d4ae's validated 5/5-clean-boot design): the BT1035 datasheet's own
+ *  "Reset Protection timeout (typically >1.8s)" means a second
+ *  SYS_CTRL/RESET pulse fired shortly after a failed attempt would not
+ *  reliably reach a clean power-off state before repowering — an internal
+ *  retry loop here risks re-interrupting the module mid bring-up, the
+ *  same class of bug fixed in fd9d4ae (redundant AT+RESET). Retries now
+ *  live one layer up, in hardware::bt1035RetryTask
+ *  (main/hardware_bootstrap.cpp), which only re-invokes a full, clean
+ *  boot() call — never re-pulses the pins faster than a whole boot cycle
+ *  apart. */
+constexpr int kBootBannerWaitMs = 25000;
 
 void flushUartRx(int uartPort) noexcept
 {
@@ -62,15 +80,52 @@ void flushUartRx(int uartPort) noexcept
     }
 }
 
-// Diagnostic only: some BT1035 firmware prints an unsolicited boot banner on
-// UART right after the hardware RESET# pulse. Capturing it (or its absence)
-// tells us whether the UART link is electrically alive independent of the
-// AT command layer.
+// Diagnostic only, run if the single boot attempt fails at 115200 (the
+// datasheet's own default). AT+BAUD persists across RESET#/SYS_CTRL power
+// cycles (programming guide §5.1.3), so a stray manual AT+BAUD or
+// AT+RESTORE sent during earlier interactive testing could have left the
+// module listening at a different rate than our fixed assumption — this
+// sweep tells us if that's what's happening instead of guessing.
+constexpr std::array<int, 8> kBaudProbeCandidates = {
+    9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600};
+
+void probeBaudRates(int uartPort) noexcept
+{
+    ESP_LOGW(kTag, "115200 unresponsive — sweeping baud rates");
+    for (const int baud : kBaudProbeCandidates) {
+        if (uart_set_baudrate(static_cast<uart_port_t>(uartPort), baud)
+            != ESP_OK) {
+            continue;
+        }
+        flushUartRx(uartPort);
+        uart_write_bytes(static_cast<uart_port_t>(uartPort), "AT\r\n", 4);
+
+        std::array<char, 64> buf{};
+        const int n = uart_read_bytes(static_cast<uart_port_t>(uartPort),
+                                      buf.data(), buf.size(),
+                                      pdMS_TO_TICKS(500));
+        if (n > 0) {
+            ESP_LOGW(kTag, "baud probe: module responded at %d baud (%d bytes)",
+                     baud, n);
+            ESP_LOG_BUFFER_HEX(kTag, buf.data(), static_cast<std::size_t>(n));
+        } else {
+            ESP_LOGI(kTag, "baud probe: silent at %d baud", baud);
+        }
+    }
+    uart_set_baudrate(static_cast<uart_port_t>(uartPort), kBaudRate);
+    flushUartRx(uartPort);
+}
+
+// The BT1035 prints an unsolicited boot banner (+VER=..., +DEVSTAT=1, ...)
+// once its full Bluetooth stack finishes initialising — this blocks for up
+// to kBootBannerWaitMs waiting for it, since that's the real boot-complete
+// signal (the module is otherwise silent and won't answer AT commands
+// until this appears).
 void logRawUartBoot(int uartPort) noexcept
 {
     std::array<std::uint8_t, 128> buf{};
     const int n = uart_read_bytes(static_cast<uart_port_t>(uartPort), buf.data(),
-                                   buf.size(), pdMS_TO_TICKS(3500));
+                                   buf.size(), pdMS_TO_TICKS(kBootBannerWaitMs));
     if (n <= 0) {
         ESP_LOGW("Bt1035", "no spontaneous UART bytes after hardware reset");
         return;
@@ -743,6 +798,15 @@ std::expected<void, Bt1035Error> Bt1035Driver::setAutoReconnect(
     return transmitAndExpectOk(core::buildBt1035SetAutoConnLine(times));
 }
 
+std::expected<void, Bt1035Error> Bt1035Driver::setA2dpCodecConfig(
+    std::uint8_t bitmask)
+{
+    if (auto ready = ensureBooted(); !ready) {
+        return ready;
+    }
+    return transmitAndExpectOk(core::buildBt1035A2dpCodecConfigLine(bitmask));
+}
+
 std::expected<std::uint8_t, Bt1035Error> Bt1035Driver::queryAutoReconnect()
 {
     if (auto ready = ensureBooted(); !ready) {
@@ -869,6 +933,32 @@ bool Bt1035Driver::waitForA2dpStreaming(int timeoutMs)
             ESP_LOGI(kTag, "stream wait: A2DPSTAT=%u",
                      static_cast<unsigned>(static_cast<std::uint8_t>(*state)));
             if (*state == core::Bt1035A2dpState::Streaming) {
+                // Diagnostic, 2026-08-24: confirm which codec actually got
+                // negotiated now that AT+A2DPCFG=1 (AAC) is sent at boot --
+                // previously this was never queried, so every link was
+                // silently SBC-only with no way to tell from the logs.
+                if (auto codec = queryA2dpEncoder(); codec) {
+                    // Feasycom guide §5.3.5's AT+A2DPENC response table for
+                    // BT1035 only lists SBC/aptX/aptX-HD/aptX-LL/aptX-
+                    // Adaptive -- no AAC code, even though §5.3.4's
+                    // AT+A2DPCFG can enable it. Not inventing a mapping for
+                    // that gap: an AAC link (or anything else undocumented)
+                    // logs as "unknown" rather than a guessed label.
+                    const char* name = "unknown";
+                    switch (*codec) {
+                    case core::Bt1035A2dpCodec::Sbc: name = "SBC"; break;
+                    case core::Bt1035A2dpCodec::Aptx: name = "aptX"; break;
+                    case core::Bt1035A2dpCodec::AptxHd: name = "aptX-HD"; break;
+                    case core::Bt1035A2dpCodec::AptxLl: name = "aptX-LL"; break;
+                    case core::Bt1035A2dpCodec::AptxAdaptive:
+                        name = "aptX-Adaptive";
+                        break;
+                    }
+                    ESP_LOGI(kTag, "A2DP streaming with codec: %s", name);
+                } else {
+                    ESP_LOGW(kTag, "A2DPENC query failed (%d)",
+                             static_cast<int>(codec.error()));
+                }
                 return true;
             }
             const TickType_t now = xTaskGetTickCount();
@@ -919,24 +1009,44 @@ std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()
 
 std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
 {
-    // Feasycom BT1035 programming user guide §2.2, pin 34 SYS_CTRL:
-    // "Delay 100ms, pull high" — the datasheet's own OFF-state timing spec
-    // (§4.7) says SYS_CTRL must be asserted >20ms before the internal
-    // regulators start powering up at all, so pulling it high with no
-    // lead-in delay (the previous sequence here) races the chip's own
-    // power-on requirement. Held low with RESET already asserted, then a
-    // 100ms lead-in exactly matching the guide, then SYS_CTRL high, then
-    // extra settle time before releasing RESET into a chip that's had a
-    // chance to actually power up first.
-    gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 0);
-    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 0);
-    vTaskDelay(pdMS_TO_TICKS(kSysCtlLeadInMs));
-    gpio_set_level(static_cast<gpio_num_t>(pins_.sysCtlGpio), 1);
-    vTaskDelay(pdMS_TO_TICKS(kSysCtlSettleMs));
-    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 1);
-    vTaskDelay(pdMS_TO_TICKS(kPostResetMs));
+    // 2026-08-23 fix: force a genuine power-down/restart on every retry by
+    // driving RESET# together with SYS_CTRL, per datasheet §4.8: "Assertion
+    // of RESET# beyond the Reset Protection timeout (typically >~1.8 s)
+    // causes the device to power down if VCHG is not present and SYS_CTRL
+    // is low. FSC-BT1035 then requires a SYS_CTRL assertion ... to
+    // restart." The prior design (2026-08-22) only pulsed SYS_CTRL and left
+    // RESET# floating; per §4.7, "when booted, software takes control of
+    // the internal regulators and the state of SYS_CTRL is ignored" — so
+    // once the module had booted once, that pulse alone could never force
+    // a real power-cycle. Asserting RESET# is the documented way to do it.
+    const auto sysCtlPin = static_cast<gpio_num_t>(pins_.sysCtlGpio);
+    const auto resetPin = static_cast<gpio_num_t>(pins_.resetGpio);
+    const auto ctsPin = static_cast<gpio_num_t>(pins_.ctsGpio);
+    const auto rtsPin = static_cast<gpio_num_t>(pins_.rtsGpio);
+
+    // Assert RESET# (active-low) and deassert SYS_CTRL together, held past
+    // the ~1.8s Reset Protection timeout so the module actually powers
+    // down rather than staying "protected" on (§4.8).
+    gpio_set_level(resetPin, 0);
+    gpio_set_level(sysCtlPin, 0);
+    vTaskDelay(pdMS_TO_TICKS(kSysCtlDeassertMs));
+
+    // Release RESET# before requesting power-up, then assert SYS_CTRL for
+    // the datasheet's own >=20ms minimum to start the boot (§4.7).
+    gpio_set_level(resetPin, 1);
+    gpio_set_level(sysCtlPin, 1);
+    vTaskDelay(pdMS_TO_TICKS(kSysCtlAssertMs));
+    ESP_LOGI(kTag, "power-up: SYS_CTRL=%d (want 1, driven) RESET#=%d "
+                   "(want 1, driven)",
+             gpio_get_level(sysCtlPin), gpio_get_level(resetPin));
+    ESP_LOGI(kTag, "before banner wait: CTS=%d (module's flow-control "
+                   "input, host side floating) RTS/PIO2=%d (module's "
+                   "PA_MUTE by factory default)",
+             gpio_get_level(ctsPin), gpio_get_level(rtsPin));
 
     logRawUartBoot(uartPort_);
+    ESP_LOGI(kTag, "after banner wait: CTS=%d RTS/PIO2=%d",
+             gpio_get_level(ctsPin), gpio_get_level(rtsPin));
     uart_flush_input(static_cast<uart_port_t>(uartPort_));
     vTaskDelay(pdMS_TO_TICKS(kPostUartMs));
 
@@ -949,17 +1059,62 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         return {};
     }
 
+    // RESET# (pin 8) is actively driven (2026-08-23 fix): datasheet §4.8
+    // states the Reset Protection timeout that forces a genuine power-down
+    // is triggered by *asserting RESET#* (while SYS_CTRL is low), not by
+    // toggling SYS_CTRL alone. Leaving RESET# floating (the 2026-08-22
+    // diagnostic change) meant that mechanism was never actually invoked —
+    // every retry only pulsed SYS_CTRL, which the module ignores once
+    // already booted (§4.7: "when booted, software takes control of the
+    // internal regulators and the state of SYS_CTRL is ignored"). Driven
+    // HIGH immediately below (deasserted) before anything else runs, so
+    // configuring the pin never glitches it low.
     gpio_config_t resetCfg = {};
     resetCfg.pin_bit_mask = 1ULL << pins_.resetGpio;
-    resetCfg.mode = GPIO_MODE_OUTPUT;
+    resetCfg.mode = GPIO_MODE_INPUT_OUTPUT;
+    resetCfg.pull_up_en = GPIO_PULLUP_DISABLE;
+    resetCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
     if (gpio_config(&resetCfg) != ESP_OK) {
         return std::unexpected(Bt1035Error::ResetFailed);
     }
+    gpio_set_level(static_cast<gpio_num_t>(pins_.resetGpio), 1);
 
+    // SYS_CTRL (pin 34) stays actively driven (GPIO_MODE_INPUT_OUTPUT:
+    // the INPUT bit is what makes gpio_get_level() read the real driven
+    // level instead of a stale register, for the diagnostic log).
     gpio_config_t sysCfg = {};
     sysCfg.pin_bit_mask = 1ULL << pins_.sysCtlGpio;
-    sysCfg.mode = GPIO_MODE_OUTPUT;
+    sysCfg.mode = GPIO_MODE_INPUT_OUTPUT;
     if (gpio_config(&sysCfg) != ESP_OK) {
+        return std::unexpected(Bt1035Error::ResetFailed);
+    }
+
+    // CTS (module pin 15, host->module) and RTS (module pin 16/PIO2,
+    // factory default function PA_MUTE per the Feasycom programming
+    // guide) — diagnostic only (2026-08-22): this driver does not
+    // implement UART hardware flow control (UART_HW_FLOWCTRL_DISABLE
+    // below), so these are wired but otherwise unused. Configured as
+    // floating inputs, pull-up/pull-down both disabled, purely to read
+    // back their level for the diagnostic log — never driven. Exploring
+    // whether the module's CTS input floating could be gating its own
+    // UART TX (a common hardware-flow-control behavior), and whether RTS
+    // toggles at all (would indicate the module's internal firmware is
+    // alive even when UART TX is silent).
+    gpio_config_t ctsCfg = {};
+    ctsCfg.pin_bit_mask = 1ULL << pins_.ctsGpio;
+    ctsCfg.mode = GPIO_MODE_INPUT;
+    ctsCfg.pull_up_en = GPIO_PULLUP_DISABLE;
+    ctsCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    if (gpio_config(&ctsCfg) != ESP_OK) {
+        return std::unexpected(Bt1035Error::ResetFailed);
+    }
+
+    gpio_config_t rtsCfg = {};
+    rtsCfg.pin_bit_mask = 1ULL << pins_.rtsGpio;
+    rtsCfg.mode = GPIO_MODE_INPUT;
+    rtsCfg.pull_up_en = GPIO_PULLUP_DISABLE;
+    rtsCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    if (gpio_config(&rtsCfg) != ESP_OK) {
         return std::unexpected(Bt1035Error::ResetFailed);
     }
 
@@ -994,19 +1149,9 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         uartInstalled_ = true;
     }
 
-    std::expected<void, Bt1035Error> init = std::unexpected(Bt1035Error::UnexpectedResponse);
-    for (int attempt = 1; attempt <= kBootAttempts; ++attempt) {
-        init = resetAndInitOnce();
-        if (init) {
-            break;
-        }
-        ESP_LOGW(kTag, "boot attempt %d/%d failed", attempt, kBootAttempts);
-        if (attempt < kBootAttempts) {
-            vTaskDelay(pdMS_TO_TICKS(kBootRetryDelayMs));
-        }
-    }
-    if (!init) {
-        ESP_LOGE(kTag, "AT init failed after %d attempts", kBootAttempts);
+    if (auto init = resetAndInitOnce(); !init) {
+        ESP_LOGE(kTag, "AT init failed");
+        probeBaudRates(uartPort_);
         return init;
     }
 
@@ -1014,7 +1159,7 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
     ESP_LOGI(kTag, "auto-link disabled (AT+LINKCFG=0,0)");
 
     booted_ = true;
-    ESP_LOGI(kTag, "I2S slave mode enabled (AT+AUXCFG=3, AT+I2SCFG=35)");
+    ESP_LOGI(kTag, "I2S slave mode enabled (AT+AUXCFG=3, AT+I2SCFG=67)");
     return {};
 }
 

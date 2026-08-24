@@ -73,11 +73,19 @@ detail in `docs/si4684-rf-investigation-report.md`):
   empty/garbled; confirmed live with 22 real, correctly-decoded station
   labels. Also found `DAB_EVENT_INTERRUPT_SOURCE` (property 0xB300) was
   never configured, so the service-list-ready event could never fire.
-- **BT1035 boot failure is intermittent, not fixed at the root** — the
-  module sometimes sends zero UART bytes after a hardware reset. Made
-  non-fatal early on; a retry loop (up to 3 reset+init attempts) was added
-  once the timing-jitter theory held up, but the underlying cause is
-  still open.
+- **BT1035 total boot silence, root cause found and fixed (2026-08-20).**
+  Not a hardware fault: VBAT_IN/SYS_CTRL/VDD_IO/1.8V_OUT and TX/RX wiring
+  were all independently confirmed correct with a multimeter (SYS_CTRL
+  and 1.8V_OUT readings pinned down by probing the nearest decoupling cap
+  instead of the tiny 0.5mm-pitch castellated pad directly, which had
+  given a false "regulator dead" reading earlier). The actual bug: the
+  module's spontaneous boot banner (`+VER=...`, `+DEVSTAT=1`) doesn't
+  appear until ~18-24s after RESET# releases — full BT stack init, not
+  just the internal regulator powering up. The old code only waited 3.5s
+  before cutting power and restarting the whole sequence, so across every
+  prior session the module never once got the chance to finish booting.
+  Fixed by waiting up to 25s (`kBootBannerWaitMs`) for the banner before
+  giving up; boot now succeeds on the first attempt, no retries needed.
 - **FM front-end calibration.** The board's actual matching network
   differs from the AN851 reference the chip's auto-tune constants assume.
   Swept ANTCAP (AN851 Appendix A) and found a fixed override that beats
@@ -92,12 +100,12 @@ detail in `docs/si4684-rf-investigation-report.md`):
   (`net::ble_provisioning`, ESP-IDF's own `wifi_provisioning` over the
   ESP32-S3's onboard BLE, additive alongside the SoftAP), web radio
   streaming stutter fix (batched I2S writes).
-- **Still open**: BT1035 root cause; intermittent multi-second HTTP
-  unresponsiveness under load (candidate cause: a blocking Si4684 SPI wait
-  colliding with `max_open_sockets=3`); DAB signal quality still
-  antenna-limited even after calibration; NVS partition (24 KB) may be
-  undersized given the accumulated write traffic (`saveProfile()`
-  `store_failed` seen intermittently, never root-caused).
+- **Still open**: intermittent multi-second HTTP unresponsiveness under
+  load (candidate cause: a blocking Si4684 SPI wait colliding with
+  `max_open_sockets=3`); DAB signal quality still antenna-limited even
+  after calibration; NVS partition (24 KB) may be undersized given the
+  accumulated write traffic (`saveProfile()` `store_failed` seen
+  intermittently, never root-caused).
 
 Next work: keep chasing the open items above as the user prioritises them,
 not new features unless requested.
