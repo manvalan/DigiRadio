@@ -13,6 +13,8 @@
 ![Hardware License](https://img.shields.io/badge/hardware-CERN--OHL--S-lightgrey)
 [![Firmware License: Apache 2.0](https://img.shields.io/badge/Firmware%20License-Apache%202.0-blue.svg)](Software/LICENSE)
 
+![DigiRadio PCB](docs/images/digiradio-pcb.jpg)
+
 </div>
 
 ---
