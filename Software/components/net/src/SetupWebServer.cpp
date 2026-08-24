@@ -1759,6 +1759,63 @@ esp_err_t bluetoothAutoReconnectPostHandler(httpd_req_t* req)
     return httpd_resp_send(req, "{\"status\":\"saved\"}", 18);
 }
 
+esp_err_t bluetoothA2dpCodecConfigPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    (void)readRequestBody(req, body);
+    const auto mask = core::parseBluetoothA2dpCodecConfigJson(
+        std::string_view(body.data()));
+    if (!mask) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(parseErrorToken(mask.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto result = ctx->bluetooth->setA2dpCodecConfig(*mask); !result) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(result.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    ESP_LOGI(kTag, "A2DP codec config set to bitmask %u — reconnect the "
+                   "peer for it to take effect",
+             static_cast<unsigned>(*mask));
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"saved\"}", 18);
+}
+
+esp_err_t bluetoothA2dpCodecGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto codec = ctx->bluetooth->queryA2dpCodec();
+    if (!codec) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(codec.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeBluetoothA2dpCodecJson(*codec);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
 esp_err_t stationsGetHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -2333,6 +2390,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &bluetoothAutoReconnectUri);
+
+    const httpd_uri_t bluetoothA2dpCodecConfigUri = {
+        .uri = "/api/bluetooth/a2dp-codec",
+        .method = HTTP_POST,
+        .handler = bluetoothA2dpCodecConfigPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothA2dpCodecConfigUri);
+
+    const httpd_uri_t bluetoothA2dpCodecGetUri = {
+        .uri = "/api/bluetooth/a2dp-codec",
+        .method = HTTP_GET,
+        .handler = bluetoothA2dpCodecGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothA2dpCodecGetUri);
 
     const httpd_uri_t stationsGetUri = {
         .uri = "/api/stations",

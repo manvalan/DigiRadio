@@ -96,6 +96,33 @@ parseBluetoothAutoReconnectJson(std::string_view json)
     return static_cast<std::uint8_t>(raw);
 }
 
+std::expected<std::uint8_t, ParseError>
+parseBluetoothA2dpCodecConfigJson(std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+    const std::string needle = "\"codec_mask\":";
+    const std::size_t start = json.find(needle);
+    if (start == std::string_view::npos) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    char* end = nullptr;
+    const unsigned long raw =
+        std::strtoul(json.data() + start + needle.size(), &end, 10);
+    if (end == json.data() + start + needle.size() || raw > 63U) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+    return static_cast<std::uint8_t>(raw);
+}
+
+std::string serializeBluetoothA2dpCodecJson(Bt1035A2dpCodec codec)
+{
+    std::ostringstream out;
+    out << "{\"codec\":\"" << a2dpCodecToken(codec) << "\"}";
+    return out.str();
+}
+
 std::string serializeBluetoothScanJson(
     const std::vector<Bt1035ScannedDevice>& devices)
 {
