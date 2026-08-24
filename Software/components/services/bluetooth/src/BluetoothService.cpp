@@ -148,6 +148,18 @@ std::expected<void, bt1035::Bt1035Error> BluetoothService::setAutoReconnect(
     return driver_.setAutoReconnect(times);
 }
 
+std::expected<void, bt1035::Bt1035Error> BluetoothService::setA2dpCodecConfig(
+    std::uint8_t bitmask)
+{
+    return driver_.setA2dpCodecConfig(bitmask);
+}
+
+std::expected<core::Bt1035A2dpCodec, bt1035::Bt1035Error>
+BluetoothService::queryA2dpCodec()
+{
+    return driver_.queryA2dpEncoder();
+}
+
 std::expected<std::vector<core::Bt1035ScannedDevice>, bt1035::Bt1035Error>
 BluetoothService::scanNearby(std::uint8_t scanSeconds)
 {

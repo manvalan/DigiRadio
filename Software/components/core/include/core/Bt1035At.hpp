@@ -40,7 +40,8 @@ enum class Bt1035AtCommand {
     Reset,            ///< AT+RESET — software reset (best-effort, not gated on OK).
     Ping,             ///< AT — link check.
     I2sMode,          ///< AT+AUXCFG=3 — I2S input from ADAU1701 (mandatory).
-    I2sSlave48k24,    ///< AT+I2SCFG=35 — I2S slave 48 kHz 24-bit (§5.1.4).
+    I2sSlave48k32,    ///< AT+I2SCFG=67 — I2S slave 48 kHz 32-bit (§5.1.4).
+    A2dpCodecConfig,  ///< AT+A2DPCFG=1 — enable AAC alongside mandatory SBC (§5.3.4).
     PairDiscoverable, ///< AT+PAIR=1 — enter BR/EDR/BLE discoverable mode.
     PairHidden,       ///< AT+PAIR=0 — leave discoverable mode.
     A2dpStat,         ///< AT+A2DPSTAT — read A2DP link state.
@@ -105,16 +106,40 @@ enum class Bt1035AtResponseKind {
 };
 
 /** Number of commands in bootInitSequence(). */
-inline constexpr std::size_t kBt1035BootInitCommandCount = 3U;
+inline constexpr std::size_t kBt1035BootInitCommandCount = 4U;
 
 /**
- * Feasycom programming guide §5.1.4: I2S slave, 48 kHz, 24-bit — matches the
- * ADAU1701 serial output word length (SigmaStudio Hardware Configuration).
- * Bit field: BIT[0]=enable(1), BIT[1]=slave(1), BIT[2]=FS 48kHz(0),
- * BIT[3]=left justified(0), BIT[4]=data 1-bit delay(0), BIT[5:6]=24-bit(01)
- * -> 1 + 2 + 32 = 35.
+ * Feasycom programming guide §5.3.4: AT+A2DPCFG bit field enables optional
+ * codecs on top of the mandatory baseline SBC (BIT0=AAC, BIT1=aptX,
+ * BIT2=aptX-LL, BIT3=aptX-HD, BIT4=aptX-Adaptive, BIT5=LDAC; BT1035 does
+ * not support BT806's FastStream). Never sent before 2026-08-24, so every
+ * A2DP link negotiated SBC only regardless of what the paired speaker
+ * supports. Value 1 = AAC only, matching the guide's own worked example
+ * -- picked over a wider bitmask because AAC is the most broadly
+ * supported optional codec on consumer speakers (native on iOS) and this
+ * is the datasheet-validated example, not an untested combination.
  */
-inline constexpr std::uint8_t kBt1035I2sSlave48k24Param = 35U;
+inline constexpr std::uint8_t kBt1035A2dpCodecConfigParam = 1U;
+
+/**
+ * Feasycom programming guide §5.1.4: I2S slave, 48 kHz, 32-bit -> value 67.
+ * This is one of only two configurations the guide validates with explicit
+ * bit-clock math (the other being value 3, 16-bit); 24-bit (35, used here
+ * until 2026-08-24) is not a documented example. Matches the ADAU1701's
+ * actual physical output framing: the Serial Output Control Register
+ * (0x081E, R15_BCLK_FREQ/R15_LRCLK_FREQ fields in the compiled SigmaStudio
+ * export) fixes BCLK=3.072 MHz / LRCLK=48 kHz regardless of the OWL
+ * "word length" field -- i.e. a 64-BCLK-cycle (32-bit) frame is what's
+ * physically on the wire no matter what OWL says, so 67 is the value that
+ * matches reality; 35 (24-bit) silently regressed in commit 6f7b6dd
+ * (2026-08-08, an unrelated large feature commit) and was found to
+ * contradict every other citation of this value in the repo
+ * (instructions.md, README.md, CLAUDE.md, AGENTS.md, docs/TODO.md).
+ * Bit field: BIT[0]=enable(1), BIT[1]=slave(1), BIT[2]=FS 48kHz(0),
+ * BIT[3]=left justified(0), BIT[4]=data 1-bit delay(0), BIT[5:6]=32-bit(10)
+ * -> 1 + 2 + 64 = 67.
+ */
+inline constexpr std::uint8_t kBt1035I2sSlave48k32Param = 67U;
 
 /**
  * @brief    buildBt1035AtLine — serialise a command with CRLF terminator.
@@ -133,7 +158,7 @@ inline constexpr std::uint8_t kBt1035I2sSlave48k24Param = 35U;
  * @brief    bootInitSequence — mandatory bring-up commands in order.
  *
  * @dname    bootInitSequence
- * @return   Ping, I2sMode (AUXCFG=3), I2sSlave48k24 (I2SCFG=35).
+ * @return   Ping, I2sMode (AUXCFG=3), I2sSlave48k32 (I2SCFG=67).
  * @pubstate none
  *
  * @author   Michele Bigi
@@ -209,6 +234,23 @@ parseBt1035A2dpEncoderResponse(std::string_view response);
  * @date     2026-08-07
  */
 [[nodiscard]] const char* a2dpCodecToken(Bt1035A2dpCodec codec) noexcept;
+
+/**
+ * @brief    buildBt1035A2dpCodecConfigLine — AT+A2DPCFG with runtime bitmask.
+ *
+ * @dname    buildBt1035A2dpCodecConfigLine
+ * @param    bitmask  BIT0=AAC, BIT1=aptX, BIT2=aptX-LL, BIT3=aptX-HD,
+ *                    BIT4=aptX-Adaptive, BIT5=LDAC (§5.3.4); clamped to 0-63.
+ *                    0 disables every optional codec (SBC-only baseline).
+ * @return   Full AT line including CRLF.
+ * @pubstate Takes effect on the next A2DP negotiation, not an already
+ *          streaming link — the peer must reconnect for the change to
+ *          apply.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-24
+ */
+[[nodiscard]] std::string buildBt1035A2dpCodecConfigLine(std::uint8_t bitmask);
 
 /**
  * @brief    buildBt1035SetAutoConnLine — AT+AUTOCONN with reconnect count.

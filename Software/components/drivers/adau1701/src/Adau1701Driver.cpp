@@ -68,6 +68,7 @@ namespace adau1701
     {
         const unsigned char deviceAddr =
             static_cast<unsigned char>(pins_.i2cAddr7 << 1);
+        std::size_t index = 0U;
         for (const core::RegisterWrite &write : program.writes())
         {
             const auto data = write.data();
@@ -75,12 +76,35 @@ namespace adau1701
             {
                 return std::unexpected(Adau1701Error::DownloadFailed);
             }
-            SIGMA_WRITE_REGISTER_BLOCK(
-                deviceAddr,
-                write.address(),
-                static_cast<unsigned int>(data.size()),
-                const_cast<ADI_REG_TYPE *>(
-                    reinterpret_cast<const ADI_REG_TYPE *>(data.data())));
+            auto *bytes = const_cast<ADI_REG_TYPE *>(
+                reinterpret_cast<const ADI_REG_TYPE *>(data.data()));
+            const auto length = static_cast<unsigned int>(data.size());
+            if (SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, write.address(), length,
+                                           bytes) != 0)
+            {
+                ESP_LOGE(kTag,
+                         "program write #%u failed (addr=0x%04X len=%u) "
+                         "after retries",
+                         static_cast<unsigned>(index),
+                         static_cast<unsigned>(write.address()),
+                         static_cast<unsigned>(length));
+                return std::unexpected(Adau1701Error::DownloadFailed);
+            }
+            // Diagnostic only: an ACKed write that still reads back wrong
+            // would otherwise be invisible (see the SIGMA_WRITE_REGISTER_BLOCK
+            // comment in SigmaStudioFW.c). Logged, not fatal -- some
+            // addresses in this range may be self-clearing/status bits
+            // that legitimately don't read back what was written.
+            if (sigma_verify_block(write.address(), bytes, length) != 0)
+            {
+                ESP_LOGW(kTag,
+                         "program write #%u read-back mismatch (addr=0x%04X "
+                         "len=%u) -- ACKed but did not land as written",
+                         static_cast<unsigned>(index),
+                         static_cast<unsigned>(write.address()),
+                         static_cast<unsigned>(length));
+            }
+            ++index;
         }
         return {};
     }
@@ -158,19 +182,137 @@ namespace adau1701
             return replay;
         }
 
-        // SerialInputRegister (0x081F) override: bit3 IBP=1, matching the
-        // BCLK edge the Si4684's I2S output actually changes data on
-        // (compiled DSP program default is 0x00 = IBP=0, which produced
-        // pure static on a strong locked signal). ILP=1 was also tried
-        // (0x18) and made it worse (pure white noise again) — IBP alone
-        // (0x08) is the correct override, confirmed live: real, recognizable
-        // music instead of static/noise on a locked FM station.
+        // Diagnostic (2026-08-24, extended from band-0-only): log EVERY EQ
+        // band's live Param RAM contents (bands 0-5, 5 coefficients each --
+        // B0,B1,B2,A0,A1 per paramAddrEqBandBase's 5-word stride). Band 0
+        // is the fixed high-pass that applyEq() always skips (whatever
+        // landed at program-load time plays permanently); bands 1-5 are
+        // runtime-safeloaded whenever the audio profile has a nonzero
+        // gain, but with the factory-default flat profile (all gains 0)
+        // they should read back as the identity biquad (B0=0x00800000=1.0,
+        // rest 0) written by designFlatEq(). A single steady test tone at
+        // one frequency cannot reveal a bad coefficient elsewhere in a
+        // band's response curve -- reading the actual RAM contents is the
+        // only way to confirm what's really there, not what the software
+        // believes it wrote. Decode as 5.23 (28-bit, matches the ADAU1701's
+        // real Param RAM format, NOT a naive 32-bit Q8.23 -- see the
+        // 2026-08-23 band-0 false alarm in
+        // docs/si4684-rf-investigation-report.md for why that distinction
+        // matters).
+        for (unsigned band = 0U; band < 6U; ++band)
         {
-            const unsigned char deviceAddr =
-                static_cast<unsigned char>(pins_.i2cAddr7 << 1);
-            ADI_REG_TYPE serialInFix = 0x08U;
-            SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, 0x081FU, 1U,
-                                       &serialInFix);
+            const unsigned baseAddr = paramAddrEqBandBase(
+                static_cast<std::uint8_t>(band));
+            for (unsigned i = 0U; i < 5U; ++i)
+            {
+                unsigned char raw[4U] = {0U, 0U, 0U, 0U};
+                if (sigma_i2c_read(baseAddr + i, raw, sizeof(raw)) == 0)
+                {
+                    std::int32_t fixpoint =
+                        static_cast<std::int32_t>(
+                            (static_cast<std::uint32_t>(raw[0]) << 24) |
+                            (static_cast<std::uint32_t>(raw[1]) << 16) |
+                            (static_cast<std::uint32_t>(raw[2]) << 8) |
+                            static_cast<std::uint32_t>(raw[3]));
+                    // Sign-extend from bit 27 (28-bit/5.23 format).
+                    if ((fixpoint & (1 << 27)) != 0)
+                    {
+                        fixpoint -= (1 << 28);
+                    }
+                    ESP_LOGI(kTag,
+                             "EQ band%u param[%u] addr=0x%04X raw=0x%08X "
+                             "value=%f",
+                             band, i, baseAddr + i,
+                             static_cast<unsigned>(
+                                 (static_cast<std::uint32_t>(raw[0]) << 24)
+                                 | (static_cast<std::uint32_t>(raw[1]) << 16)
+                                 | (static_cast<std::uint32_t>(raw[2]) << 8)
+                                 | static_cast<std::uint32_t>(raw[3])),
+                             static_cast<double>(fixpoint) /
+                                 static_cast<double>(1U << 23));
+                }
+                else
+                {
+                    ESP_LOGW(kTag, "EQ band%u param[%u] read-back failed",
+                             band, i);
+                }
+            }
+        }
+
+        // SerialInputRegister (0x081F) IBP override -- REMOVED 2026-08-24,
+        // CONFIRMED LIVE as the root cause of the multi-day hiss/
+        // unintelligible-speech investigation. History: on 2026-08-16
+        // (commit 6974095) this was set to IBP=1 (0x08) alongside a
+        // SEPARATE, simultaneous fix to Si4684's PIN_CONFIG_ENABLE (which
+        // had been forcing the chip's analog DAC fallback instead of real
+        // I2S output). Both fixes landed in the same commit and were
+        // tested together: "static" became "music", credited to IBP=1.
+        // But SerialInputRegister is a SINGLE register shared by every
+        // SDATA_INx pin on the ADAU1701 (confirmed against the datasheet
+        // 2026-08-24: one INPUT_BCLK/INPUT_LRCLK clock pair serves all
+        // four SDATA_INx pins) -- so the override also applied to the
+        // ESP32 leg, not just Si4684's. The PIN_CONFIG_ENABLE fix alone
+        // was what turned static into music (Si4684 finally sending valid
+        // I2S data at all); IBP=1 had never been validated in isolation
+        // and was in fact marginal/wrong for both legs. With IBP left at
+        // the compiled default (0x00, IBP=0) and PIN_CONFIG_ENABLE
+        // independently correct, live listening confirmed clean audio on
+        // both the Si4684 (DAB) and ESP32 (web radio) paths -- the hiss
+        // is gone. Left commented out below rather than deleted, in case
+        // a future hardware revision needs it revisited.
+        //
+        // {
+        //     const unsigned char deviceAddr =
+        //         static_cast<unsigned char>(pins_.i2cAddr7 << 1);
+        //     ADI_REG_TYPE serialInFix = 0x08U;
+        //     if (SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, 0x081FU, 1U,
+        //                                    &serialInFix) != 0)
+        //     {
+        //         ESP_LOGE(kTag, "SerialInputRegister override failed after retries");
+        //         return std::unexpected(Adau1701Error::DownloadFailed);
+        //     }
+        //     if (sigma_verify_block(0x081FU, &serialInFix, 1U) != 0)
+        //     {
+        //         ESP_LOGW(kTag,
+        //                  "SerialInputRegister read-back mismatch -- ACKed "
+        //                  "but did not land as 0x08");
+        //     }
+        // }
+
+        // Limiter1/Limiter2 threshold override, 2026-08-24: compiled
+        // program ships both at 0x00800000 = 1.0 linear = 0 dBFS (an
+        // RMS-detecting limiter, per Analog Devices' own SigmaStudio
+        // Limiter cell docs), with zero headroom anywhere upstream (every
+        // mixer/EQ/master-volume gain in the compiled program is unity).
+        // A quiet synthetic test tone (well under 0 dBFS RMS) never
+        // engaged it and sounded clean; real loudness-normalized FM/DAB/
+        // streamed program content sits close to 0 dBFS RMS routinely,
+        // triggering continuous gain-reduction ("pumping" per ADI's own
+        // docs) heard as exactly the hiss/unintelligible-speech symptom
+        // under investigation. Pulling both thresholds down to -6 dBFS
+        // gives real margin without being so conservative it can't be
+        // heard whether this was the mechanism.
+        {
+            constexpr float kLimiterThresholdDb = -6.0F;
+            constexpr float kLimiterThresholdLinear = 0.50118723F; // 10^(-6/20)
+            const std::int32_t thresholdFixpoint =
+                core::floatToFixpoint823(kLimiterThresholdLinear);
+            if (auto lim1 = safeloadFixpoint(
+                    static_cast<unsigned>(ADDR_LIMITER1_THRESHOLD),
+                    thresholdFixpoint);
+                !lim1)
+            {
+                ESP_LOGW(kTag, "Limiter1 threshold override failed");
+            }
+            if (auto lim2 = safeloadFixpoint(
+                    static_cast<unsigned>(ADDR_LIMITER2_THRESHOLD),
+                    thresholdFixpoint);
+                !lim2)
+            {
+                ESP_LOGW(kTag, "Limiter2 threshold override failed");
+            }
+            ESP_LOGI(kTag, "Limiter1/2 threshold set to %.1f dBFS",
+                     static_cast<double>(kLimiterThresholdDb));
         }
 
         booted_ = true;

@@ -33,7 +33,8 @@ namespace eeprom24aa {
  * @pubstate Borrows an existing I2C master bus (shared with ADAU1701). The
  *           EUI-48 lives at word address 0xFA..0xFF (read-only, factory
  *           programmed) per the 24AA025E48 datasheet (DS20001191); the FM
- *           ANTCAP calibration byte lives at word address 0x00 in the
+ *           ANTCAP calibration byte lives at word address 0x00, and the
+ *           DAB ANTCAP calibration byte at word address 0x01, both in the
  *           remaining user-writable 250 bytes.
  *
  * @author   Michele Bigi
@@ -41,11 +42,14 @@ namespace eeprom24aa {
  */
 class Eeprom24aa : public core::IDeviceIdentitySource {
 public:
-    /** Valid FM ANTCAP calibration values are 0-128 (AN649/AN851); any
-     *  stored byte above this, including the EEPROM's blank/erased 0xFF,
-     *  reads back as "never calibrated" — no separate sentinel write
+    /** Valid ANTCAP calibration values (FM or DAB) are 0-128 (AN649/AN851);
+     *  any stored byte above this, including the EEPROM's blank/erased
+     *  0xFF, reads back as "never calibrated" — no separate sentinel write
      *  needed for a fresh chip. */
     static constexpr std::uint8_t kFmAntCapMax = 128U;
+    /** Same range as kFmAntCapMax; kept as a separate name for the DAB
+     *  calibration byte's own doc comments below. */
+    static constexpr std::uint8_t kDabAntCapMax = 128U;
 
     /**
      * @brief    Eeprom24aa — bind to a running I2C master bus and 7-bit addr.
@@ -104,6 +108,37 @@ public:
      */
     [[nodiscard]] std::expected<void, core::IdentityError>
     writeFmAntCap(std::uint8_t value);
+
+    /**
+     * @brief    readDabAntCap — read the stored DAB antenna calibration byte.
+     *
+     * @dname    readDabAntCap
+     * @return   Calibrated ANTCAP (0-kDabAntCapMax) if one was ever saved via
+     *           writeDabAntCap(), nullopt if the byte is blank/out of range,
+     *           or IdentityError on an I2C failure.
+     * @pubstate performs one I2C read of one byte at word address 0x01.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-20
+     */
+    [[nodiscard]] std::expected<std::optional<std::uint8_t>, core::IdentityError>
+    readDabAntCap();
+
+    /**
+     * @brief    writeDabAntCap — persist a DAB antenna calibration value.
+     *
+     * @dname    writeDabAntCap
+     * @param    value  ANTCAP to store, 0-kDabAntCapMax (AN649 Command
+     *                  0xB0 ARG4; found via a sweep, not computed).
+     * @return   Ok on success, or IdentityError::I2cFailed.
+     * @pubstate performs one I2C byte write at word address 0x01, then
+     *           blocks for the chip's write-cycle time before returning.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-20
+     */
+    [[nodiscard]] std::expected<void, core::IdentityError>
+    writeDabAntCap(std::uint8_t value);
 
 private:
     i2c_master_bus_handle_t bus_;

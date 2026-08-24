@@ -14,12 +14,14 @@
 #include "SigmaStudioFW.h"
 
 #include "driver/i2c_master.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include <string.h>
 
+static const char* kTag = "SigmaStudioFW";
 static i2c_master_dev_handle_t s_dev = NULL;
 static SemaphoreHandle_t s_lock = NULL;
 
@@ -73,14 +75,45 @@ static unsigned int sigmaWordSize(unsigned int address)
     return 4U;
 }
 
-void SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
-                                unsigned int address,
-                                unsigned int length,
-                                ADI_REG_TYPE* pData)
+/*
+ * The boot-time program/param replay was previously fire-and-forget: the
+ * i2c_master_transmit result was discarded outright, so a single transient
+ * NACK anywhere in the hundreds of chunked writes that make up a DSP
+ * program load silently left that one chunk (a gain, a filter, a mux)
+ * at its power-on-reset RAM contents instead of the SigmaStudio-designed
+ * value -- indistinguishable at the time from a correct load, but capable
+ * of producing exactly a persistent, localized audio artifact rather than
+ * gross silence. Give it the same retry-on-NACK reliability the runtime
+ * safeload path already got in sigma_i2c_write (see its comment) and make
+ * failure observable instead of silent.
+ */
+static int sigmaTransmitChunk(unsigned int addr, const ADI_REG_TYPE* payload,
+                              unsigned int chunkBytes)
+{
+    unsigned char buf[2U + 64U];
+    buf[0] = (unsigned char)((addr >> 8) & 0xFFU);
+    buf[1] = (unsigned char)(addr & 0xFFU);
+    memcpy(buf + 2U, payload, chunkBytes);
+
+    static const int kMaxAttempts = 3;
+    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+        if (i2c_master_transmit(s_dev, buf, (size_t)(2U + chunkBytes), 1000) ==
+            ESP_OK) {
+            return 0;
+        }
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
+    return -1;
+}
+
+int SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
+                               unsigned int address,
+                               unsigned int length,
+                               ADI_REG_TYPE* pData)
 {
     (void)devAddress;
     if (s_dev == NULL || pData == NULL || length == 0U) {
-        return;
+        return -1;
     }
 
     enum { kChunkBytesMax = 64U };
@@ -96,15 +129,48 @@ void SIGMA_WRITE_REGISTER_BLOCK(unsigned char devAddress,
         const unsigned int chunk =
             remaining > chunkBytes ? chunkBytes : remaining;
         const unsigned int words = chunk / wordSize;
-        unsigned char buf[2U + kChunkBytesMax];
-        buf[0] = (unsigned char)((addr >> 8) & 0xFFU);
-        buf[1] = (unsigned char)(addr & 0xFFU);
-        memcpy(buf + 2U, cursor, chunk);
-        i2c_master_transmit(s_dev, buf, (size_t)(2U + chunk), 1000);
+        if (sigmaTransmitChunk(addr, cursor, chunk) != 0) {
+            return -1;
+        }
         addr += words;
         cursor += chunk;
         remaining -= chunk;
     }
+    return 0;
+}
+
+int sigma_verify_block(unsigned int address, const ADI_REG_TYPE* expected,
+                       unsigned int length)
+{
+    if (s_dev == NULL || expected == NULL || length == 0U) {
+        return -1;
+    }
+
+    enum { kChunkBytesMax = 64U };
+    const unsigned int wordSize = sigmaWordSize(address);
+    const unsigned int wordsPerChunk = kChunkBytesMax / wordSize;
+    const unsigned int chunkBytes = wordsPerChunk * wordSize;
+
+    unsigned int addr = address;
+    unsigned int remaining = length;
+    const ADI_REG_TYPE* cursor = expected;
+
+    while (remaining > 0U) {
+        const unsigned int chunk =
+            remaining > chunkBytes ? chunkBytes : remaining;
+        const unsigned int words = chunk / wordSize;
+        unsigned char readBack[kChunkBytesMax];
+        if (sigma_i2c_read(addr, readBack, chunk) != 0) {
+            return -1;
+        }
+        if (memcmp(readBack, cursor, chunk) != 0) {
+            return -1;
+        }
+        addr += words;
+        cursor += chunk;
+        remaining -= chunk;
+    }
+    return 0;
 }
 
 int sigma_i2c_read(unsigned int reg, unsigned char* data, unsigned int length)
@@ -198,6 +264,37 @@ int sigma_safeload_param(unsigned int paramAddr, int fixpoint)
     return sigma_safeload_block(1U, addrs, values);
 }
 
+/*
+ * Diagnostic only, mirrors the boot-replay read-back in
+ * SIGMA_WRITE_REGISTER_BLOCK: a safeload can ACK every transaction and
+ * still not land as intended (address/data written to the wrong Param RAM
+ * slot, a stale value left from a previous session's committed-but-later-
+ * garbled write, etc). This is the runtime path applied on every EQ/gain
+ * change and on the stored-profile replay at boot -- unlike the one-time
+ * program load, it was previously unverified. Log-only: some callers pass
+ * addresses this can't independently confirm are readable Param RAM (vs.
+ * a write-only control register), so a mismatch here is a strong signal,
+ * not a hard boot/apply-time failure.
+ */
+static void sigmaVerifyParam(unsigned int paramAddr, int fixpoint)
+{
+    unsigned char readBack[4U];
+    if (sigma_i2c_read(paramAddr, readBack, sizeof(readBack)) != 0) {
+        ESP_LOGW(kTag, "safeload verify: read-back failed for param 0x%04X",
+                 paramAddr);
+        return;
+    }
+    const int actual = (int)(((unsigned int)readBack[0] << 24) |
+                             ((unsigned int)readBack[1] << 16) |
+                             ((unsigned int)readBack[2] << 8) |
+                             (unsigned int)readBack[3]);
+    if (actual != fixpoint) {
+        ESP_LOGW(kTag,
+                 "safeload verify: param 0x%04X mismatch, wrote %d read %d",
+                 paramAddr, fixpoint, actual);
+    }
+}
+
 int sigma_safeload_block(unsigned char count, const unsigned int* paramAddrs,
                          const int* fixpoints)
 {
@@ -218,7 +315,14 @@ int sigma_safeload_block(unsigned char count, const unsigned int* paramAddrs,
         }
     }
 
-    return sigma_trigger_safeload();
+    if (sigma_trigger_safeload() != 0) {
+        return -1;
+    }
+
+    for (unsigned char i = 0U; i < count; ++i) {
+        sigmaVerifyParam(paramAddrs[i], fixpoints[i]);
+    }
+    return 0;
 }
 
 int sigma_safeload_raw_block(unsigned char count, const unsigned int* paramAddrs,

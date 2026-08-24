@@ -108,6 +108,30 @@ public:
         std::uint8_t times);
 
     /**
+     * @brief    setA2dpCodecConfig — enable optional A2DP codecs at runtime.
+     *
+     * @dname    setA2dpCodecConfig
+     * @param    bitmask  BIT0=AAC, BIT1=aptX, BIT2=aptX-LL, BIT3=aptX-HD,
+     *                    BIT4=aptX-Adaptive, BIT5=LDAC; 0 forces SBC-only.
+     * @return   Ok on success, or a Bt1035Error.
+     * @pubstate Only affects the next negotiation — call disconnectA2dp()
+     *          (or have the peer reconnect) for an already-streaming link
+     *          to pick up the new codec set.
+     */
+    [[nodiscard]] std::expected<void, bt1035::Bt1035Error> setA2dpCodecConfig(
+        std::uint8_t bitmask);
+
+    /**
+     * @brief    queryA2dpCodec — read the currently negotiated A2DP codec.
+     *
+     * @dname    queryA2dpCodec
+     * @return   Negotiated codec, or a Bt1035Error (e.g. no active link).
+     * @pubstate none
+     */
+    [[nodiscard]] std::expected<core::Bt1035A2dpCodec, bt1035::Bt1035Error>
+    queryA2dpCodec();
+
+    /**
      * @brief    scanNearby — classic BT/EDR discovery, cancelling pairing.
      *
      * @dname    scanNearby

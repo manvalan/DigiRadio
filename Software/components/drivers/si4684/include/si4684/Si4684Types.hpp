@@ -98,6 +98,12 @@ struct Si4684FmRsq {
     std::int8_t snrDb;                         ///< SNR in dB.
     bool valid;                                ///< RSQ valid flag from the chip.
     bool stereo;                               ///< Stereo pilot detected.
+    /** AN649 FM_RSQ_STATUS RESP8 FREQOFF: signed offset in units of 2 PPM
+     *  (range -128..127, i.e. -256..+254 PPM). Crystal calibration signal:
+     *  every locked station's carrier reads the same PPM error when the
+     *  XTAL_FREQ/CTUN reference is off, since real broadcast transmitters
+     *  are themselves GPS/rubidium-locked. */
+    std::int8_t freqOffBppm;
 };
 
 /**

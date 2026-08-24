@@ -86,14 +86,14 @@ struct PhoneStreamSink {
 };
 
 /**
- * @brief    AntennaCalibration — plain function pointer over EEPROM-backed
- *           FM ANTCAP storage, so net/ never includes eeprom24aa headers
- *           directly; main/ supplies it (HardwareBootstrap owns the I2C
- *           bus and EEPROM handle).
+ * @brief    AntennaCalibration — plain function pointers over EEPROM-backed
+ *           FM and DAB ANTCAP storage, so net/ never includes eeprom24aa
+ *           headers directly; main/ supplies it (HardwareBootstrap owns the
+ *           I2C bus and EEPROM handle).
  *
  * @dname    AntennaCalibration
  * @return   n/a (type)
- * @pubstate Free function with process lifetime; no per-instance state.
+ * @pubstate Free functions with process lifetime; no per-instance state.
  *
  * @author   Michele Bigi
  * @date     2026-08-19
@@ -102,6 +102,16 @@ struct AntennaCalibration {
     /** Persist a new FM ANTCAP calibration value to EEPROM.
      *  @return false on an I2C failure. */
     bool (*save)(std::uint8_t antCap);
+    /** Persist a new DAB ANTCAP calibration value to EEPROM.
+     *  @return false on an I2C failure. */
+    bool (*saveDab)(std::uint8_t antCap);
+    /** Diagnostic-only, 2026-08-23: re-run Si4684Driver::boot() with new
+     *  crystal parameters (no ESP32 restart, no persistence). Bridged here
+     *  rather than through a new context field to avoid a second plumbing
+     *  chain for what is a temporary calibration tool.
+     *  @return false if the chip was never booted or the reboot failed. */
+    bool (*recalibrateXtal)(std::uint8_t ibias, std::uint8_t ctun,
+                            std::uint32_t xtalFreqHz);
 };
 
 /**

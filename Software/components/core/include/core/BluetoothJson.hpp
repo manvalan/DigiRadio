@@ -113,6 +113,34 @@ struct BluetoothConnectRequest {
 parseBluetoothAutoReconnectJson(std::string_view json);
 
 /**
+ * @brief    parseBluetoothA2dpCodecConfigJson — validate POST codec_mask field.
+ *
+ * @dname    parseBluetoothA2dpCodecConfigJson
+ * @param    json  Request body with \c codec_mask 0–63 (see AT+A2DPCFG bits).
+ * @return   Bitmask on success, or ParseError.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-24
+ */
+[[nodiscard]] std::expected<std::uint8_t, ParseError>
+parseBluetoothA2dpCodecConfigJson(std::string_view json);
+
+/**
+ * @brief    serializeBluetoothA2dpCodecJson — negotiated codec for HTTP.
+ *
+ * @dname    serializeBluetoothA2dpCodecJson
+ * @param    codec  Parsed negotiated codec (AT+A2DPENC reply).
+ * @return   JSON object \c {"codec":"..."}.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-24
+ */
+[[nodiscard]] std::string serializeBluetoothA2dpCodecJson(
+    Bt1035A2dpCodec codec);
+
+/**
  * @brief    serializeBluetoothScanJson — serialise scan result list.
  *
  * @dname    serializeBluetoothScanJson

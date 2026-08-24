@@ -32,6 +32,8 @@
 
 #include "driver/spi_master.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 namespace hardware {
 
@@ -77,10 +79,13 @@ bt1035::Bt1035Driver gBt1035(
         .uartRx = board::pins::Bt1035UartRx,
         .resetGpio = board::pins::Bt1035Reset,
         .sysCtlGpio = board::pins::Bt1035SysCtl,
+        .ctsGpio = board::pins::Bt1035Cts,
+        .rtsGpio = board::pins::Bt1035Rts,
     });
 
 core::DeviceIdentity gDeviceIdentity = core::DeviceIdentity::unknown();
 std::optional<std::uint8_t> gFmAntCapCalibration;
+std::optional<std::uint8_t> gDabAntCapCalibration;
 bool gReady = false;
 
 /**
@@ -95,6 +100,58 @@ bool gReady = false;
         busHandle,
         static_cast<std::uint8_t>(board::pins::Eeprom24aaAddr));
 }
+
+/**
+ * @brief    applyBt1035PostBootSetup — device name + auto-reconnect, run
+ *           once after any successful BT1035 boot (first attempt or a
+ *           later background retry).
+ */
+void applyBt1035PostBootSetup()
+{
+    if (auto nameResult = gBt1035.setDeviceName(gDeviceIdentity.bluetoothName());
+        !nameResult) {
+        ESP_LOGW(kTag, "BT1035 device name set failed");
+    }
+    if (auto reconnectResult = gBt1035.setAutoReconnect(3U); !reconnectResult) {
+        ESP_LOGW(kTag, "BT1035 auto-reconnect set failed");
+    }
+}
+
+/**
+ * @brief    bt1035RetryTask — keep retrying Bt1035Driver::boot() in the
+ *           background after the initial boot() attempt fails.
+ *
+ * @dname    bt1035RetryTask
+ * @pubstate loops gBt1035.boot() with no artificial delay between
+ *           attempts — each call already blocks for tens of seconds
+ *           (kBootBannerWaitMs's banner wait, times kBootAttempts), so no
+ *           extra backoff is added on top. Exits once boot() succeeds.
+ *
+ * Why: BT1035 boot failure has been observed to be intermittent on
+ * identical, correctly-wired, correctly-powered hardware — the same
+ * physical module has booted successfully and failed silently across
+ * different attempts in the same session, with the crystal oscillator
+ * inside the (sealed, non-serviceable) module the leading suspect. Since
+ * the fault clears on a later attempt rather than needing repair, retrying
+ * indefinitely in the background turns a permanent-until-manual-reboot
+ * failure into a bounded, self-recovering delay.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-21
+ */
+void bt1035RetryTask(void* /*arg*/)
+{
+    ESP_LOGW(kTag, "BT1035 background retry started");
+    while (true) {
+        if (auto result = gBt1035.boot(); result) {
+            applyBt1035PostBootSetup();
+            ESP_LOGI(kTag, "BT1035 background retry succeeded");
+            break;
+        }
+        ESP_LOGW(kTag, "BT1035 background retry attempt failed, trying again");
+    }
+    vTaskDelete(nullptr);
+}
 } // namespace
 
 std::expected<void, HardwareBootError> HardwareBootstrap::boot()
@@ -103,7 +160,21 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         return {};
     }
 
-    if (auto tunerResult = gSi4684.boot(si4684::Si4684Band::Dab); !tunerResult) {
+    // xtalCtun=0, xtalFreqHz=19199750 (2026-08-23): the compiled-in
+    // defaults (ctun=31, xtal=19200000 nominal) were never measured
+    // against this board's actual crystal (Abracon ABM8-19.200MHZ-10-1-U-T,
+    // CL=10pF per part number, plus two external 15pF load caps per the
+    // schematic). CTUN=0 was found audibly best via A/B listening (0/5/31),
+    // then xtalFreqHz was trimmed properly using the chip's own FM_RSQ
+    // FREQOFF measurement (tools/si4684_xtal_calibration.py) against two
+    // real, GPS-locked broadcast carriers 87.6/105.1 MHz -- converged to
+    // -3 to -4 ppm residual on both (cross-check confirms it's the
+    // crystal, not something frequency-dependent), down from +70 ppm
+    // uncorrected. See POST /api/tuner/xtal-calibrate to re-trim live if
+    // this ever needs revisiting (e.g. after a board/crystal change).
+    if (auto tunerResult =
+            gSi4684.boot(si4684::Si4684Band::Dab, 72U, 0U, 19199750U);
+        !tunerResult) {
         ESP_LOGE(kTag, "Si4684 boot failed: error %d", static_cast<int>(tunerResult.error()));
         return std::unexpected(HardwareBootError::Si4684BootFailed);
     }
@@ -140,6 +211,19 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
                        "auto-tune");
     }
 
+    if (auto antCap = eeprom.readDabAntCap(); antCap) {
+        gDabAntCapCalibration = *antCap;
+        if (gDabAntCapCalibration) {
+            ESP_LOGI(kTag, "DAB ANTCAP calibration loaded: %u",
+                     static_cast<unsigned>(*gDabAntCapCalibration));
+        } else {
+            ESP_LOGI(kTag, "DAB ANTCAP not calibrated — using chip auto-tune");
+        }
+    } else {
+        ESP_LOGW(kTag, "DAB ANTCAP calibration read failed — using chip "
+                       "auto-tune");
+    }
+
     if (auto audioResult = gAudioService.loadAndApply(); !audioResult) {
         ESP_LOGW(kTag, "ADAU1701 profile apply failed");
     }
@@ -150,18 +234,15 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
     }
 
     if (auto btResult = gBt1035.boot(); !btResult) {
-        ESP_LOGE(kTag, "BT1035 boot failed — continuing without Bluetooth");
+        ESP_LOGE(kTag, "BT1035 boot failed — continuing without Bluetooth, "
+                       "retrying in background");
+        if (xTaskCreate(bt1035RetryTask, "bt1035_retry", 4096, nullptr, 3,
+                        nullptr)
+            != pdPASS) {
+            ESP_LOGW(kTag, "BT1035 background retry task create failed");
+        }
     } else {
-        if (auto nameResult =
-                gBt1035.setDeviceName(gDeviceIdentity.bluetoothName());
-            !nameResult) {
-            ESP_LOGW(kTag, "BT1035 device name set failed");
-        }
-
-        if (auto reconnectResult = gBt1035.setAutoReconnect(3U);
-            !reconnectResult) {
-            ESP_LOGW(kTag, "BT1035 auto-reconnect set failed");
-        }
+        applyBt1035PostBootSetup();
     }
 
     gReady = true;
@@ -212,6 +293,24 @@ bool HardwareBootstrap::saveFmAntCapCalibration(std::uint8_t antCap)
     }
     gFmAntCapCalibration = antCap;
     ESP_LOGI(kTag, "FM ANTCAP calibration saved: %u",
+             static_cast<unsigned>(antCap));
+    return true;
+}
+
+std::optional<std::uint8_t> HardwareBootstrap::dabAntCapCalibration() noexcept
+{
+    return gDabAntCapCalibration;
+}
+
+bool HardwareBootstrap::saveDabAntCapCalibration(std::uint8_t antCap)
+{
+    eeprom24aa::Eeprom24aa eeprom = makeEeprom();
+    if (auto written = eeprom.writeDabAntCap(antCap); !written) {
+        ESP_LOGW(kTag, "DAB ANTCAP calibration write failed");
+        return false;
+    }
+    gDabAntCapCalibration = antCap;
+    ESP_LOGI(kTag, "DAB ANTCAP calibration saved: %u",
              static_cast<unsigned>(antCap));
     return true;
 }

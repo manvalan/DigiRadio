@@ -53,7 +53,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, core::TunerError> tuneDab(
-        std::uint8_t) override
+        std::uint8_t, std::uint8_t) override
     {
         return {};
     }

@@ -169,6 +169,7 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
             status.locked = rsq->valid;
             status.fmRssiDbuV = rsq->rssiDbuV;
             status.fmSnrDb = rsq->snrDb;
+            status.fmFreqOffBppm = rsq->freqOffBppm;
             status.fmStereo = rsq->stereo;
             status.fmChipReadFrequency = rsq->frequency;
             // Keep commanded frequency when chip READFREQ is stale (stuck at band
@@ -209,12 +210,12 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
 }
 
 std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
-    std::uint8_t freqIndex)
+    std::uint8_t freqIndex, std::uint8_t antCap)
 {
     if (auto ready = ensureBandLoaded(core::TunerBand::Dab); !ready) {
         return ready;
     }
-    if (auto result = driver_.tuneDab(freqIndex); !result) {
+    if (auto result = driver_.tuneDab(freqIndex, antCap); !result) {
         return std::unexpected(mapError(result.error()));
     }
     dabIndex_ = freqIndex;
@@ -339,6 +340,16 @@ std::expected<void, core::TunerError> Si4684Tuner::setVolume(std::uint8_t level)
         return std::unexpected(mapError(result.error()));
     }
     volume_ = level & 0x3FU;
+    return {};
+}
+
+std::expected<void, core::TunerError> Si4684Tuner::recalibrateXtal(
+    std::uint8_t ibias, std::uint8_t ctun, std::uint32_t xtalFreqHz)
+{
+    if (auto result = driver_.recalibrateXtal(ibias, ctun, xtalFreqHz);
+        !result) {
+        return std::unexpected(mapError(result.error()));
+    }
     return {};
 }
 

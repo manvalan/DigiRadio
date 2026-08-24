@@ -24,12 +24,21 @@ namespace {
                                                  std::string_view key)
 {
     const std::string needle =
-        std::string("\"") + std::string(key) + "\":\"";
-    const std::size_t start = json.find(needle);
-    if (start == std::string_view::npos) {
+        std::string("\"") + std::string(key) + "\":";
+    const std::size_t needlePos = json.find(needle);
+    if (needlePos == std::string_view::npos) {
         return {};
     }
-    const std::size_t valueStart = start + needle.size();
+    std::size_t start = needlePos + needle.size();
+    while (start < json.size()
+           && (json[start] == ' ' || json[start] == '\t'
+               || json[start] == '\r' || json[start] == '\n')) {
+        ++start;
+    }
+    if (start >= json.size() || json[start] != '"') {
+        return {};
+    }
+    const std::size_t valueStart = start + 1U;
     const std::size_t valueEnd = json.find('"', valueStart);
     if (valueEnd == std::string_view::npos) {
         return {};
@@ -129,6 +138,10 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         if (status.fmSnrDb) {
             out << ",\"snr_db\":" << static_cast<int>(*status.fmSnrDb);
         }
+        if (status.fmFreqOffBppm) {
+            out << ",\"freqoff_ppm\":"
+                << (static_cast<int>(*status.fmFreqOffBppm) * 2);
+        }
         if (status.fmStereo) {
             out << ",\"stereo\":" << (*status.fmStereo ? "true" : "false");
         }
@@ -200,12 +213,12 @@ std::expected<TunerTuneRequest, ParseError> parseTunerTuneJson(
             return std::unexpected(freq.error());
         }
         req.fmFrequency = *freq;
-        unsigned long antCap = 0U;
-        if (extractJsonUint(json, "antcap", antCap) && antCap <= 128U) {
-            req.antCap = static_cast<std::uint8_t>(antCap);
-        }
     } else {
         return std::unexpected(ParseError::InvalidJson);
+    }
+    unsigned long antCap = 0U;
+    if (extractJsonUint(json, "antcap", antCap) && antCap <= 128U) {
+        req.antCap = static_cast<std::uint8_t>(antCap);
     }
     return req;
 }
@@ -340,8 +353,8 @@ std::string serializeTunerFmBandScanJson(
     return out.str();
 }
 
-std::expected<std::uint8_t, ParseError> parseAntennaCalibrationJson(
-    std::string_view json)
+std::expected<AntennaCalibrationRequest, ParseError>
+parseAntennaCalibrationJson(std::string_view json)
 {
     if (json.find('{') == std::string_view::npos) {
         return std::unexpected(ParseError::InvalidJson);
@@ -350,7 +363,55 @@ std::expected<std::uint8_t, ParseError> parseAntennaCalibrationJson(
     if (!extractJsonUint(json, "antcap", antCap) || antCap > 128U) {
         return std::unexpected(ParseError::MissingField);
     }
-    return static_cast<std::uint8_t>(antCap);
+
+    AntennaCalibrationRequest req = {};
+    req.antCap = static_cast<std::uint8_t>(antCap);
+    const std::string_view band = extractJsonString(json, "band");
+    if (band == "dab") {
+        req.band = TunerBand::Dab;
+    } else if (band.empty() || band == "fm") {
+        req.band = TunerBand::Fm;
+    } else {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+    return req;
+}
+
+std::expected<XtalCalibrationRequest, ParseError>
+parseXtalCalibrationJson(std::string_view json)
+{
+    if (json.find('{') == std::string_view::npos) {
+        return std::unexpected(ParseError::InvalidJson);
+    }
+    // Defaults match Si4684Driver::boot()'s own defaults -- a request that
+    // only wants to change one parameter can omit the others.
+    XtalCalibrationRequest req = {};
+    req.ibias = 72U;
+    req.ctun = 31U;
+    req.xtalFreqHz = 19200000U;
+
+    unsigned long ibias = 0U;
+    if (extractJsonUint(json, "ibias", ibias)) {
+        if (ibias > 127U) {
+            return std::unexpected(ParseError::InvalidJson);
+        }
+        req.ibias = static_cast<std::uint8_t>(ibias);
+    }
+
+    unsigned long ctun = 0U;
+    if (extractJsonUint(json, "ctun", ctun)) {
+        if (ctun > 63U) {
+            return std::unexpected(ParseError::InvalidJson);
+        }
+        req.ctun = static_cast<std::uint8_t>(ctun);
+    }
+
+    unsigned long xtalFreqHz = 0U;
+    if (extractJsonUint(json, "xtal_freq_hz", xtalFreqHz)) {
+        req.xtalFreqHz = static_cast<std::uint32_t>(xtalFreqHz);
+    }
+
+    return req;
 }
 
 } // namespace core

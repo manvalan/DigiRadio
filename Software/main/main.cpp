@@ -45,6 +45,10 @@
 #include "i2s_sdata_probe.hpp"
 #endif
 
+#if CONFIG_ESP32_I2S_TEST_TONE
+#include "esp32_i2s_test_tone.hpp"
+#endif
+
 namespace {
 
 constexpr char kTag[] = "digiradio";
@@ -133,6 +137,14 @@ void heartbeatTask(void* arg)
     }
 }
 
+#if CONFIG_ESP32_I2S_TEST_TONE
+[[noreturn]] void i2sTestToneTask(void* arg)
+{
+    (void)arg;
+    esp32_i2s_test_tone::run(440.0F);
+}
+#endif
+
 } // namespace
 
 /**
@@ -184,6 +196,10 @@ extern "C" void app_main()
         antCap) {
         tunerService.setDefaultFmAntCap(*antCap);
     }
+    if (auto antCap = hardware::HardwareBootstrap::dabAntCapCalibration();
+        antCap) {
+        tunerService.setDefaultDabAntCap(*antCap);
+    }
 
     static station::StationService stationService(store, tunerService);
 
@@ -208,6 +224,13 @@ extern "C" void app_main()
         ESP_LOGW(kTag, "shared I2S sink open failed — web radio and phone "
                        "streaming will be unavailable");
     }
+
+#if CONFIG_ESP32_I2S_TEST_TONE
+    if (xTaskCreate(i2sTestToneTask, "i2s_test_tone", 4096, nullptr, 4,
+                    nullptr) != pdPASS) {
+        ESP_LOGW(kTag, "ESP32 I2S test tone task create failed");
+    }
+#endif
 
     auto netResult = net::NetBootstrap::start(
         store,
