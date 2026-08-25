@@ -21,7 +21,7 @@
 namespace net {
 
 namespace {
-constexpr std::string_view kSetupSsid = "DigiRadio-setup";
+constexpr std::string_view kSetupSsid = "igiRadio-setup";
 constexpr std::uint8_t kSetupChannel = 1;
 constexpr std::uint8_t kSetupMaxConnections = 4;
 } // namespace

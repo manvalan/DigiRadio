@@ -52,13 +52,13 @@ namespace {
     if (!expectEqual(identity.serialNumber(), "0004A3123456")) {
         return EXIT_FAILURE;
     }
-    if (!expectEqual(identity.softApSsid(), "DigiRadio-123456")) {
+    if (!expectEqual(identity.softApSsid(), "igiRadio-123456")) {
         return EXIT_FAILURE;
     }
-    if (!expectEqual(identity.bluetoothName(), "DigiRadio-123456")) {
+    if (!expectEqual(identity.bluetoothName(), "igiRadio-123456")) {
         return EXIT_FAILURE;
     }
-    if (!expectEqual(identity.hostname(), "digiradio-123456")) {
+    if (!expectEqual(identity.hostname(), "igiradio-123456")) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
@@ -74,13 +74,13 @@ namespace {
     if (!expectEqual(identity.serialNumber(), "unknown")) {
         return EXIT_FAILURE;
     }
-    if (!expectEqual(identity.softApSsid(), "DigiRadio-setup")) {
+    if (!expectEqual(identity.softApSsid(), "igiRadio-setup")) {
         return EXIT_FAILURE;
     }
-    if (!expectEqual(identity.bluetoothName(), "DigiRadio")) {
+    if (!expectEqual(identity.bluetoothName(), "igiRadio")) {
         return EXIT_FAILURE;
     }
-    if (!expectEqual(identity.hostname(), "digiradio")) {
+    if (!expectEqual(identity.hostname(), "igiradio")) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
