@@ -147,6 +147,35 @@ componente di riga, stesso stile, filtrato per banda.
 
 ---
 
+## 4bis. RDS (nome stazione FM) — ora funziona davvero, da oggi
+
+Fino a oggi il firmware non decodificava **mai** l'RDS (bug a tre livelli,
+risolto). Ora `GET /api/tuner/status` e lo scan FM completo possono
+restituire:
+
+```json
+"fm": {
+  "frequency_khz": 92100,
+  "rssi_dbuv": 57,
+  "snr_db": 40,
+  "station_name": "M DUE O",
+  "radiotext": "...testo libero..."
+}
+```
+
+`station_name` e `radiotext` sono **opzionali** — compaiono solo dopo qualche
+secondo di ricezione stabile (l'RDS impiega tempo ad accumularsi), quindi
+possono mancare subito dopo una sintonizzazione. Mostrali quando presenti
+(es. nella card "Now Playing" e nella riga della lista stazioni FM),
+altrimenti mostra la sola frequenza come già fai.
+
+Se durante l'ascolto normale (non solo durante lo scan) il nome stazione o il
+radiotext cambiano o compaiono per la prima volta, aggiorna la UI di
+conseguenza — l'utente ha chiesto esplicitamente un piccolo banner/notifica
+quando arriva un nuovo nome/messaggio RDS durante la riproduzione.
+
+---
+
 ## 5. Stile UI — Apple, minimalista ma con una sezione grafica curata
 
 - Componenti nativi SwiftUI: `Picker` segmented per la sorgente, `Slider` con
