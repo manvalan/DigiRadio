@@ -741,11 +741,24 @@ esp_err_t tunerXtalCalibratePostHandler(httpd_req_t* req)
         return httpd_resp_send(req, json.c_str(), json.size());
     }
 
+    // Persist every successful live recalibration (2026-08-24): each board
+    // may need its own crystal trim, so the value found by a calibration
+    // sweep must survive a reboot, not just last until the next power
+    // cycle. The live apply above already succeeded regardless of whether
+    // this write does -- report it separately rather than failing the
+    // whole request on an EEPROM hiccup.
+    bool persisted = false;
+    if (ctx->antennaCalibration->saveXtal != nullptr) {
+        persisted = ctx->antennaCalibration->saveXtal(
+            parsed->ibias, parsed->ctun, parsed->xtalFreqHz);
+    }
+
     const std::string json =
         std::string("{\"status\":\"recalibrated\",\"ibias\":")
         + std::to_string(parsed->ibias) + ",\"ctun\":"
         + std::to_string(parsed->ctun) + ",\"xtal_freq_hz\":"
-        + std::to_string(parsed->xtalFreqHz) + "}";
+        + std::to_string(parsed->xtalFreqHz) + ",\"persisted\":"
+        + (persisted ? "true" : "false") + "}";
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
