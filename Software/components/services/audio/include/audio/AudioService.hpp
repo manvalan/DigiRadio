@@ -58,16 +58,25 @@ public:
      * @brief    loadAndApply — restore saved profile or factory default.
      *
      * @dname    loadAndApply
-     * @return   Ok on success, or DspError from IDsp.
+     * @return   true if a saved profile was restored from the store, false
+     *          if none was found and AudioProfile::factoryDefault() was
+     *          applied instead; DspError from IDsp on safeload failure.
      * @pubstate updates profile_ and safeloads the ADAU1701.
      *
-     * Call once after ADAU1701 boot. When no profile is stored, applies
-     * AudioProfile::factoryDefault() without writing NVS.
+     * Call once after NVS init (and ADAU1701 boot). Requires NVS to already
+     * be initialized -- see the 2026-08-24 fix in main.cpp's app_main(),
+     * which moved secure_store::initEncryptedStorage() ahead of
+     * HardwareBootstrap::boot() specifically so this call can see a
+     * previously-saved profile instead of always silently falling back to
+     * default. Callers that want a sensible mixer/master fallback when
+     * nothing was saved (see HardwareBootstrap::boot()'s
+     * applyRadioFirstMix() call) should check the returned bool rather than
+     * unconditionally overwriting whatever this restored.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
      */
-    [[nodiscard]] std::expected<void, core::DspError> loadAndApply();
+    [[nodiscard]] std::expected<bool, core::DspError> loadAndApply();
 
     /**
      * @brief    currentProfile — read the in-memory profile snapshot.

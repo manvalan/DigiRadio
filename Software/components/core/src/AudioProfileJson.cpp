@@ -220,6 +220,24 @@ std::string serializeAudioProfileJson(const AudioProfile& profile)
         << "\"right_db\":" << profile.masterRight.value() << "},"
         << "\"eq\":[";
 
+    // Per-band "locked" flag, added 2026-08-24: band 0 is a fixed high-pass
+    // Adau1701Driver::applyEq() never safeloads (SigmaStudio band 1, ST0 in
+    // the compiled program -- whatever gain_db/center_hz/q is stored/sent
+    // for it has zero audible effect, always). Bands 1-2 are overwritten by
+    // core::applyEnhancementsToEq() with formula-derived values whenever
+    // bass_level > 0; bands 3-5 likewise whenever stereo_level > 0 -- a
+    // manual edit to those bands is silently inaudible while the
+    // corresponding enhancement is active. This was previously
+    // undiscoverable from the API response (GET echoed back the stored,
+    // inert value with no indication it wasn't what was actually playing);
+    // "locked":true now tells a client to grey out that slider instead of
+    // letting the user "fix" a value that can't take effect.
+    const bool bassLocks = profile.enhancements.bass.value() > 0U;
+    const bool stereoLocks = profile.enhancements.stereo.value() > 0U;
+    const bool locked[EqBandIndex::kBandCount] = {
+        true, bassLocks, bassLocks, stereoLocks, stereoLocks, stereoLocks,
+    };
+
     const auto& bands = profile.eq.bands();
     for (std::size_t i = 0; i < bands.size(); ++i) {
         if (i > 0U) {
@@ -228,6 +246,7 @@ std::string serializeAudioProfileJson(const AudioProfile& profile)
         const auto& b = bands[i];
         out << "{\"gain_db\":" << b.gain.value()
             << ",\"center_hz\":" << b.center.value() << ",\"q\":" << b.q
+            << ",\"locked\":" << (locked[i] ? "true" : "false")
             << '}';
     }
     out << "],\"enhancements\":{"

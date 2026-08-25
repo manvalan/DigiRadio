@@ -253,13 +253,22 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
                        "auto-tune");
     }
 
-    if (auto audioResult = gAudioService.loadAndApply(); !audioResult) {
+    // Only fall back to the hardcoded radio-first mix (Si4684 open, ESP32
+    // muted) when NO saved profile was restored (2026-08-24 fix): this used
+    // to run unconditionally, silently discarding the user's saved
+    // mixer/master-volume settings on every single boot regardless of
+    // whether loadAndApply() actually found something in NVS.
+    const auto audioResult = gAudioService.loadAndApply();
+    if (!audioResult) {
         ESP_LOGW(kTag, "ADAU1701 profile apply failed");
-    }
-    if (auto radioMix = gAudioService.applyRadioFirstMix(false); !radioMix) {
-        ESP_LOGW(kTag, "ADAU1701 radio-first mix failed");
-    } else {
-        ESP_LOGI(kTag, "ADAU1701 Si4684 input routed (radio-first mix)");
+    } else if (!*audioResult) {
+        if (auto radioMix = gAudioService.applyRadioFirstMix(false);
+            !radioMix) {
+            ESP_LOGW(kTag, "ADAU1701 radio-first mix failed");
+        } else {
+            ESP_LOGI(kTag, "ADAU1701 Si4684 input routed (radio-first mix, "
+                           "no saved profile)");
+        }
     }
 
     if (auto btResult = gBt1035.boot(); !btResult) {
