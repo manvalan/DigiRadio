@@ -176,26 +176,6 @@ quando arriva un nuovo nome/messaggio RDS durante la riproduzione.
 
 ---
 
-## 5. Stile UI — Apple, minimalista ma con una sezione grafica curata
-
-- Componenti nativi SwiftUI: `Picker` segmented per la sorgente, `Slider` con
-  `.tint()` per volume/bass/stereo, `List`/`Form` in stile Impostazioni per le
-  stazioni e le opzioni tecniche. Niente controlli custom pesanti o griglie di
-  bottoni non standard.
-- Organizza per tab/sezione logica, non tutto in una schermata:
-  - **Ascolto**: sorgente attiva, volume, stazione corrente.
-  - **Suono**: EQ 6 bande, Bass Boost, Stereo Spread.
-  - **Stazioni**: lista unificata FM+DAB (vedi §4), con scan.
-  - **Bluetooth**: pairing, dispositivo connesso.
-  - **Diagnostica**: tono di test, dettagli tecnici/versione firmware — non
-    mescolare con i controlli quotidiani.
-- Una sezione "grafica" curata è benvenuta (es. una card "Now Playing" con
-  sfondo sfumato/blur, animazione leggera sul cambio sorgente). Ora **puoi**
-  agganciarla a dati reali di livello audio — vedi §7, l'endpoint VU-meter è
-  disponibile da oggi.
-
----
-
 ## 7. VU-meter — nuovo, disponibile da oggi
 
 ```
@@ -225,7 +205,44 @@ uscita), non un'animazione finta.
 
 ---
 
-## 8. Checklist di autoverifica prima di considerare il lavoro finito
+## 8. Scan FM completo — NON è bloccato, è solo lento (86s misurati)
+
+```
+POST /api/tuner/scan/full
+```
+
+Fa una scansione dell'intera banda FM (fino a 60 canali candidati, con
+pausa+lettura RDS per ciascuno) e risponde **una sola volta alla fine**,
+misurato: **~86 secondi** per uno scan completo. Non è un bug, è il tempo
+reale che serve per farlo bene (RDS incluso).
+
+**Se l'app usa un timeout HTTP standard (30-60s), questa richiesta scade
+prima che il firmware finisca** — la request fallisce lato client, ma il
+firmware nel frattempo continua e completa comunque (il risultato però va
+perso perché il client non lo aspetta più). Sembra "bloccato", ma non lo è.
+
+**Azione richiesta**: per questa chiamata specifica, imposta un timeout di
+almeno **120 secondi** sulla request HTTP, e mostra un indicatore "scansione
+in corso..." per tutta la durata (non un caricamento breve). `POST
+/api/tuner/scan` (senza `/full`, per una singola stazione con filtro nome)
+è invece rapido, timeout normale va bene.
+
+---
+
+## 8bis. Streaming web radio — bug corretto, ora accetta HTTPS
+
+`POST /api/streaming {"enabled":true,"url":"..."}` **prima rifiutava
+categoricamente qualsiasi URL `https://`** (errore `invalid_json`), accettando
+solo `http://` — dato che quasi tutte le radio via internet reali sono
+HTTPS-only, questo probabilmente era il motivo per cui "qualsiasi cosa si
+faccia" dava errore. Corretto oggi: ora accetta sia `http://` che `https://`,
+e il firmware verifica il certificato TLS con la CA bundle integrata di
+ESP-IDF. Nessun cambio di contratto per l'app — stessa forma JSON di prima,
+semplicemente ora funziona anche con URL HTTPS.
+
+---
+
+## 9. Checklist di autoverifica prima di considerare il lavoro finito
 
 - [ ] Cambiare sorgente da Radio a Bluetooth nell'app cambia davvero l'audio
       sul dispositivo reale (non solo lo stato locale dell'app).
