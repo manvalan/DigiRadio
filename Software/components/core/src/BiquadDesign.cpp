@@ -82,12 +82,20 @@ BiquadCoefficients designPeakingEq(FrequencyHz center, GainDb gain,
     const float a1 = -2.0F * cosOmega;
     const float a2 = 1.0F - alpha / a;
 
+    // RBJ's cookbook form subtracts the feedback terms
+    // (y = ... - (a1/a0) y[n-1] - (a2/a0) y[n-2]); the ADAU1701 Param EQ
+    // cell's A0/A1 registers add them instead (y = ... + A0 y[n-1] +
+    // A1 y[n-2]), so the normalized RBJ a1/a2 must be negated when they
+    // land in A0/A1. Without this, any nonzero gain applies positive
+    // instead of negative feedback at the band's pole, so the biquad's
+    // state diverges and rails to a constant (inaudible DC) value --
+    // root cause of the 2026-08-25 total-silence-on-any-EQ-change bug.
     return BiquadCoefficients{
         .b0 = b0 / a0,
         .b1 = b1 / a0,
         .b2 = b2 / a0,
-        .a0 = a1 / a0,
-        .a1 = a2 / a0,
+        .a0 = -(a1 / a0),
+        .a1 = -(a2 / a0),
     };
 }
 
