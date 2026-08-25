@@ -39,18 +39,26 @@ AudioService::AudioService(core::IDsp& dsp, core::IAudioProfileStore* store)
 {
 }
 
-std::expected<void, core::DspError> AudioService::loadAndApply()
+std::expected<bool, core::DspError> AudioService::loadAndApply()
 {
+    bool restored = false;
     if (store_ != nullptr && store_->hasProfile()) {
         if (auto loaded = store_->loadProfile(); loaded) {
             profile_ = *loaded;
+            restored = true;
+            ESP_LOGI(kTag, "audio profile loaded from NVS");
+        } else {
+            ESP_LOGW(kTag, "audio profile present but failed to load — "
+                          "using factory default");
         }
+    } else {
+        ESP_LOGI(kTag, "no saved audio profile — using factory default");
     }
 
     if (auto applied = applyProfileToDsp(profile_); !applied) {
         return std::unexpected(core::DspError::SafeloadFailed);
     }
-    return {};
+    return restored;
 }
 
 const core::AudioProfile& AudioService::currentProfile() const noexcept

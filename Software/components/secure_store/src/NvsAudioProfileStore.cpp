@@ -37,7 +37,14 @@ constexpr char kProfileKey[] = "audio_profile";
 bool NvsAudioProfileStore::hasProfile() const
 {
     nvs_handle_t handle = 0;
-    if (nvs_open(kNamespace, NVS_READONLY, &handle) != ESP_OK) {
+    const esp_err_t openErr = nvs_open(kNamespace, NVS_READONLY, &handle);
+    if (openErr != ESP_OK) {
+        // ESP_ERR_NVS_NOT_INITIALIZED (0x1101) here means this was called
+        // before secure_store::initEncryptedStorage() -- see 2026-08-24 fix
+        // in main.cpp's app_main() boot order (NVS must init before
+        // AudioService::loadAndApply(), which calls this).
+        ESP_LOGW(kTag, "hasProfile: nvs_open failed (0x%x)",
+                 static_cast<unsigned>(openErr));
         return false;
     }
 

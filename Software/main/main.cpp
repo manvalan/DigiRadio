@@ -160,6 +160,21 @@ extern "C" void app_main()
 {
     ESP_LOGI(kTag, "DigiRadio firmware boot");
 
+    // NVS must be initialized before HardwareBootstrap::boot(), which
+    // internally calls AudioService::loadAndApply() to restore the saved
+    // mixer/EQ/master-volume profile (2026-08-24 root-cause fix): this used
+    // to run in the other order, so every nvs_open() inside
+    // NvsAudioProfileStore::hasProfile()/loadProfile() failed with
+    // ESP_ERR_NVS_NOT_INITIALIZED (0x1101, silently swallowed as "no saved
+    // profile") on every single boot -- the audio profile was never
+    // actually restored, no matter how many times it was saved via
+    // PUT /api/audio/profile. nvs_flash_init() itself has no hardware
+    // dependency (pure flash-partition access), so moving it first is safe.
+    if (auto nvsResult = secure_store::initEncryptedStorage(); !nvsResult) {
+        ESP_LOGE(kTag, "NVS init failed — halting");
+        return;
+    }
+
     auto hwResult = hardware::HardwareBootstrap::boot();
     if (!hwResult) {
         ESP_LOGE(kTag, "companion chip boot failed — halting");
@@ -182,11 +197,6 @@ extern "C" void app_main()
     test_firmware::runTestFirmware();
     return;
 #endif
-
-    if (auto nvsResult = secure_store::initEncryptedStorage(); !nvsResult) {
-        ESP_LOGE(kTag, "NVS init failed — halting");
-        return;
-    }
 
     static secure_store::NvsSecureStore store;
 
