@@ -494,8 +494,19 @@ void SigmaStudioTcpServer::stop() noexcept
         vTaskDelete(task_);
         task_ = nullptr;
     }
-    activeListenFd().store(-1, std::memory_order_release);
     if (listenFd_ >= 0) {
+        // Only clear the singleton if it still points at *our* fd: every
+        // boot path constructs this as a named local, start()s it, then
+        // moves it into NetBootstrap, so the moved-from local's own
+        // destructor runs stop() right after. An unconditional
+        // activeListenFd().store(-1) here used to stomp the atomic the
+        // moved-to (real, running) instance had just inherited, making
+        // acceptLoopTask() spin on accept(-1, ...) == EBADF forever from
+        // the very first boot -- root cause of the 2026-08-25 field
+        // observation, not a Wi-Fi-layer event.
+        int expected = listenFd_;
+        activeListenFd().compare_exchange_strong(expected, -1,
+                                                 std::memory_order_acq_rel);
         close(listenFd_);
         listenFd_ = -1;
     }
@@ -547,6 +558,59 @@ std::expected<void, NetError> SigmaStudioTcpServer::start()
     return {};
 }
 
+namespace {
+
+/**
+ * @brief    recreateListenSocket — rebind a fresh listening socket on kPort.
+ *
+ * @dname    recreateListenSocket
+ * @return   The new fd on success (also stored in activeListenFd()), or -1.
+ * @pubstate closes the previous fd read from activeListenFd() if any, then
+ *          publishes the new one.
+ *
+ * Self-healing counterpart to SigmaStudioTcpServer::start()'s socket setup.
+ * The 2026-08-25 field observation (accept() spinning on errno=EBADF
+ * forever) turned out to be a stop() lifetime bug, now fixed there: this
+ * function is kept as a safety net in case the singleton is ever cleared
+ * from underneath a running accept task by some future code path, not
+ * because it is expected to fire in normal operation.
+ */
+[[nodiscard]] int recreateListenSocket() noexcept
+{
+    const int oldFd = activeListenFd().exchange(-1, std::memory_order_acq_rel);
+    if (oldFd >= 0) {
+        close(oldFd);
+    }
+
+    const int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd < 0) {
+        ESP_LOGE(kTag, "recreateListenSocket: socket() failed");
+        return -1;
+    }
+
+    const int reuse = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(kPort);
+
+    if (bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0
+        || listen(fd, 1) != 0) {
+        ESP_LOGE(kTag, "recreateListenSocket: bind/listen failed, errno=%d",
+                errno);
+        close(fd);
+        return -1;
+    }
+
+    activeListenFd().store(fd, std::memory_order_release);
+    ESP_LOGW(kTag, "SigmaStudio TCP listen socket recreated after failure");
+    return fd;
+}
+
+} // namespace
+
 void SigmaStudioTcpServer::acceptLoopTask(void* /*arg*/)
 {
     while (true) {
@@ -556,8 +620,21 @@ void SigmaStudioTcpServer::acceptLoopTask(void* /*arg*/)
         const int clientFd = accept(
             listenFd, reinterpret_cast<sockaddr*>(&clientAddr), &clientLen);
         if (clientFd < 0) {
-            ESP_LOGW(kTag, "accept() failed: errno=%d", errno);
-            vTaskDelay(pdMS_TO_TICKS(100));
+            // EBADF means the listen socket itself is gone -- retrying
+            // accept() on the same fd forever can never recover from this,
+            // unlike a transient per-call error, so rebuild the socket
+            // instead of just backing off and looping.
+            if (errno == EBADF) {
+                ESP_LOGE(kTag,
+                        "accept() failed: listen socket invalid (errno=%d) "
+                        "-- recreating",
+                        errno);
+                (void)recreateListenSocket();
+                vTaskDelay(pdMS_TO_TICKS(500));
+            } else {
+                ESP_LOGW(kTag, "accept() failed: errno=%d", errno);
+                vTaskDelay(pdMS_TO_TICKS(100));
+            }
             continue;
         }
         ESP_LOGI(kTag, "SigmaStudio client connected");
