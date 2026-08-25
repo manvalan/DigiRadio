@@ -40,9 +40,18 @@ namespace {
         return EXIT_FAILURE;
     }
     const auto badScheme = core::parseWebRadioConfigJson(
-        R"({"enabled":true,"url":"https://example.com/x.mp3"})");
+        R"({"enabled":true,"url":"ftp://example.com/x.mp3"})");
     if (badScheme) {
-        std::cerr << "non-http scheme should fail\n";
+        std::cerr << "non-http(s) scheme should fail\n";
+        return EXIT_FAILURE;
+    }
+    // Most public internet radio streams are HTTPS-only; rejecting the
+    // scheme outright (as this parser used to) made streaming unusable for
+    // essentially any real station.
+    const auto httpsOk = core::parseWebRadioConfigJson(
+        R"({"enabled":true,"url":"https://example.com/x.mp3"})");
+    if (!httpsOk || httpsOk->url != "https://example.com/x.mp3") {
+        std::cerr << "https url should parse\n";
         return EXIT_FAILURE;
     }
     const auto malformed = core::parseWebRadioConfigJson("not json");

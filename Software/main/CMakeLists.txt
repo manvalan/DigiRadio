@@ -11,7 +11,7 @@ idf_component_register(
         "$<$<BOOL:${CONFIG_ESP32_I2S_TEST_TONE}>:esp32_i2s_test_tone.cpp>"
     INCLUDE_DIRS "."
     REQUIRES core net secure_store adau1701 si4684 tuner audio bt1035 bluetooth station integration ota eeprom24aa webradio driver
-    PRIV_REQUIRES esp_timer esp_http_client
+    PRIV_REQUIRES esp_timer esp_http_client mbedtls
 )
 
 if(CONFIG_TEST_FIRMWARE)
