@@ -12,16 +12,15 @@
  */
 #pragma once
 
+#include "core/ActiveSource.hpp"
 #include "core/AudioProfile.hpp"
 #include "core/DspError.hpp"
 #include "core/EnhanceLevel.hpp"
-#include "core/EnhancementsDesign.hpp"
 #include "core/EqBandIndex.hpp"
 #include "core/FrequencyHz.hpp"
 #include "core/GainDb.hpp"
 #include "core/IAudioProfileStore.hpp"
 #include "core/IDsp.hpp"
-#include "core/MixSource.hpp"
 #include "core/StoreError.hpp"
 
 #include <expected>
@@ -106,22 +105,19 @@ public:
         const core::AudioProfile& profile, bool persist);
 
     /**
-     * @brief    setInputVolume — update one input path and apply live.
+     * @brief    selectSource — switch MX1's active input pair and apply live.
      *
-     * @dname    setInputVolume
-     * @param    source  Si4684 or ESP32 path.
-     * @param    left    Left gain.
-     * @param    right   Right gain.
+     * @dname    selectSource
+     * @param    source  Which stereo pair MX1 should pass through.
      * @param    persist When true and store is set, write NVS.
      * @return   Ok on success, or StoreError wrapping DspError/IoFailed.
-     * @pubstate updates profile_.mixer and safeloads.
+     * @pubstate updates profile_.activeSource and safeloads.
      *
      * @author   Michele Bigi
-     * @date     2026-07-06
+     * @date     2026-08-25
      */
-    [[nodiscard]] std::expected<void, core::StoreError> setInputVolume(
-        core::MixSource source, core::GainDb left, core::GainDb right,
-        bool persist);
+    [[nodiscard]] std::expected<void, core::StoreError> selectSource(
+        core::ActiveSource source, bool persist);
 
     /**
      * @brief    setMasterVolume — update master output and apply live.
@@ -238,9 +234,6 @@ private:
 
     [[nodiscard]] std::expected<void, core::StoreError> applyProfileToDsp(
         const core::AudioProfile& profile);
-
-    [[nodiscard]] std::expected<void, core::StoreError> applyEffectiveEq(
-        bool persist);
 
     core::IDsp& dsp_;
     core::IAudioProfileStore* store_;

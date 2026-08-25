@@ -43,10 +43,10 @@ std::expected<void, core::DspError> Adau1701Dsp::applyProfile(
     return {};
 }
 
-std::expected<void, core::DspError> Adau1701Dsp::applyMixer(
-    const core::MixerState& mixer)
+std::expected<void, core::DspError> Adau1701Dsp::selectSource(
+    core::ActiveSource source)
 {
-    if (auto result = driver_.applyMixer(mixer); !result) {
+    if (auto result = driver_.selectSource(source); !result) {
         return std::unexpected(mapError(result.error()));
     }
     return {};
@@ -56,15 +56,6 @@ std::expected<void, core::DspError> Adau1701Dsp::applyEq(
     const core::EqProfile& eq)
 {
     if (auto result = driver_.applyEq(eq); !result) {
-        return std::unexpected(mapError(result.error()));
-    }
-    return {};
-}
-
-std::expected<void, core::DspError> Adau1701Dsp::setInputVolume(
-    core::MixSource source, core::GainDb left, core::GainDb right)
-{
-    if (auto result = driver_.setInputVolume(source, left, right); !result) {
         return std::unexpected(mapError(result.error()));
     }
     return {};
@@ -92,6 +83,24 @@ std::expected<void, core::DspError> Adau1701Dsp::setEqBand(
 std::expected<void, core::DspError> Adau1701Dsp::setBeepEnabled(bool enabled)
 {
     if (auto result = driver_.setBeepEnabled(enabled); !result) {
+        return std::unexpected(mapError(result.error()));
+    }
+    return {};
+}
+
+std::expected<void, core::DspError> Adau1701Dsp::setBassBoostLevel(
+    core::EnhanceLevel level)
+{
+    if (auto result = driver_.setBassBoostLevel(level); !result) {
+        return std::unexpected(mapError(result.error()));
+    }
+    return {};
+}
+
+std::expected<void, core::DspError> Adau1701Dsp::setStereoSpreadLevel(
+    core::EnhanceLevel level)
+{
+    if (auto result = driver_.setStereoSpreadLevel(level); !result) {
         return std::unexpected(mapError(result.error()));
     }
     return {};
