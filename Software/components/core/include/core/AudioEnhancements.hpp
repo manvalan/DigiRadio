@@ -17,19 +17,20 @@
 namespace core {
 
 /**
- * @brief    AudioEnhancements — psychoacoustic EQ overlays (0–100 each).
+ * @brief    AudioEnhancements — dedicated-block enhancement levels (0–100).
  *
  * @dname    AudioEnhancements
  * @return   n/a (type)
- * @pubstate Mapped to PEQ bands at runtime (manual chapter sigmastudio).
- *           No dedicated SigmaStudio blocks; see \c applyEnhancementsToEq.
+ * @pubstate Applied via IDsp::setStereoSpreadLevel/setBassBoostLevel, which
+ *           scale the SPhat1/Bass Boost1 SigmaStudio blocks toward their
+ *           compiled response; does not touch EqProfile.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
  */
 struct AudioEnhancements {
-    EnhanceLevel stereo; ///< Stereo depth / presence (PEQ bands 3–5).
-    EnhanceLevel bass;   ///< Bass emphasis (PEQ bands 1–2).
+    EnhanceLevel stereo; ///< Stereo spread (SPhat1 spatializer).
+    EnhanceLevel bass;   ///< Bass boost intensity (Bass Boost1).
 
     /**
      * @brief    factoryDefault — both enhancements off.

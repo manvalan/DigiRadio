@@ -18,6 +18,8 @@
 #include "core/BiquadDesign.hpp"
 #include "core/DspProgram.hpp"
 
+#include <cmath>
+
 #include "DigiRadio_IC_1_PARAM.h"
 #include "SigmaStudioFW.h"
 
@@ -358,18 +360,22 @@ namespace adau1701
         return safeloadFixpoint(paramAddr, core::gainDbToLinearFixpoint(gain));
     }
 
-    std::expected<void, Adau1701Error> Adau1701Driver::setInputVolume(
-        core::MixSource source, core::GainDb left, core::GainDb right)
+    std::expected<void, Adau1701Error> Adau1701Driver::selectSource(
+        core::ActiveSource source)
     {
         if (auto ready = ensureBooted(); !ready)
         {
             return ready;
         }
-        if (auto result = safeloadGain(paramAddrInputLeft(source), left); !result)
-        {
-            return result;
-        }
-        return safeloadGain(paramAddrInputRight(source), right);
+        // MX1 (DCinputmux_stereo) reads DC1 as a raw 32-bit integer pair
+        // index (0/1/2), NOT the 5.23 fixpoint conversion its compiled
+        // TYPE_DC1/VALUE_DC1 macros would suggest -- confirmed live
+        // 2026-08-25 (a 5.23-encoded write left the source unchanged; the
+        // raw integer switched Radio/Bluetooth/Beep correctly). 0=Radio,
+        // 1=Bluetooth (ESP32), 2=Beep, per paramSourceIndex().
+        const auto index =
+            static_cast<std::int32_t>(paramSourceIndex(source));
+        return safeloadFixpoint(static_cast<unsigned>(ADDR_DC1), index);
     }
 
     std::expected<void, Adau1701Error> Adau1701Driver::setMasterVolume(
@@ -385,45 +391,6 @@ namespace adau1701
             return result;
         }
         return safeloadGain(static_cast<unsigned>(ADDR_MULTIPLE1_1), right);
-    }
-
-    std::expected<void, Adau1701Error> Adau1701Driver::applyMixer(
-        const core::MixerState &mixer)
-    {
-        if (auto ready = ensureBooted(); !ready)
-        {
-            return ready;
-        }
-        if (auto result = setInputVolume(core::MixSource::Si4684, mixer.si4684Left,
-                                         mixer.si4684Right);
-            !result)
-        {
-            ESP_LOGW(kTag, "applyMixer: si4684 input safeload failed");
-            return result;
-        }
-        if (auto result = setInputVolume(core::MixSource::Esp32, mixer.esp32Left,
-                                         mixer.esp32Right);
-            !result)
-        {
-            ESP_LOGW(kTag, "applyMixer: esp32 input safeload failed");
-            return result;
-        }
-        if (auto result =
-                safeloadGain(static_cast<unsigned>(ADDR_STMIXER1_ST0_VOLUME),
-                             mixer.mixLeft);
-            !result)
-        {
-            ESP_LOGW(kTag, "applyMixer: st0 safeload failed");
-            return result;
-        }
-        if (auto result = safeloadGain(
-                static_cast<unsigned>(ADDR_STMIXER1_ST1_VOLUME), mixer.mixRight);
-            !result)
-        {
-            ESP_LOGW(kTag, "applyMixer: st1 safeload failed");
-            return result;
-        }
-        return {};
     }
 
     std::expected<void, Adau1701Error> Adau1701Driver::setEqBand(
@@ -487,6 +454,103 @@ namespace adau1701
         return safeloadFixpoint(static_cast<unsigned>(ADDR_BEEP1_KICK), value);
     }
 
+    namespace
+    {
+        // Compiled SigmaStudio defaults for Bass Boost1's crossover filter
+        // and 33-point compander curve (DigiRadioFinale_IC_1_PARAM.h,
+        // 2026-08-25 export). setBassBoostLevel() interpolates from these
+        // toward an identity/unity bypass as level goes from 100 to 0 --
+        // ADI's Dynamic Bass Boost algorithm internals aren't documented,
+        // so this is a linear blend of the known-good compiled curve, not
+        // a re-derivation of the algorithm's own math.
+        constexpr float kBassBoostB0 = 4.24433093514364e-05F;
+        constexpr float kBassBoostB1 = 8.48866187028728e-05F;
+        constexpr float kBassBoostB2 = 4.24433093514364e-05F;
+        constexpr float kBassBoostA1 = 1.98148576456209F;
+        constexpr float kBassBoostA2 = -0.981655537799498F;
+        constexpr float kBassBoostTable[33] = {
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
+            0.322849412171264F, 0.334195040026114F, 0.345939377826122F,
+            0.358096437102636F, 0.370680721782576F, 0.383707245492279F,
+            0.39719154946944F,  0.411149721104522F, 0.425598413133743F,
+        };
+
+        constexpr float kSpreadSpread1 = 0.0629093159447337F;
+        constexpr float kSpreadSpread2 = 0.0193038143874401F;
+
+        [[nodiscard]] float towardIdentity(float compiled, float identity,
+                                           float level) noexcept
+        {
+            return identity + (compiled - identity) * level;
+        }
+    } // namespace
+
+    std::expected<void, Adau1701Error> Adau1701Driver::setBassBoostLevel(
+        core::EnhanceLevel level)
+    {
+        if (auto ready = ensureBooted(); !ready)
+        {
+            return ready;
+        }
+        const float t = level.fraction();
+        unsigned addrs[5U];
+        int values[5U];
+        addrs[0] = static_cast<unsigned>(ADDR_BASSBOOST1_B0);
+        addrs[1] = static_cast<unsigned>(ADDR_BASSBOOST1_B1);
+        addrs[2] = static_cast<unsigned>(ADDR_BASSBOOST1_B2);
+        addrs[3] = static_cast<unsigned>(ADDR_BASSBOOST1_A1);
+        addrs[4] = static_cast<unsigned>(ADDR_BASSBOOST1_A2);
+        values[0] = core::floatToFixpoint823(towardIdentity(kBassBoostB0, 1.0F, t));
+        values[1] = core::floatToFixpoint823(towardIdentity(kBassBoostB1, 0.0F, t));
+        values[2] = core::floatToFixpoint823(towardIdentity(kBassBoostB2, 0.0F, t));
+        values[3] = core::floatToFixpoint823(towardIdentity(kBassBoostA1, 0.0F, t));
+        values[4] = core::floatToFixpoint823(towardIdentity(kBassBoostA2, 0.0F, t));
+        if (sigma_safeload_block(5U, addrs, values) != 0)
+        {
+            return std::unexpected(Adau1701Error::SafeloadFailed);
+        }
+
+        for (unsigned i = 0U; i < 33U; ++i)
+        {
+            const unsigned addr =
+                static_cast<unsigned>(ADDR_BASSBOOST1_TABLE0) + i;
+            const std::int32_t value = core::floatToFixpoint823(
+                towardIdentity(kBassBoostTable[i], 1.0F, t));
+            if (auto result = safeloadFixpoint(addr, value); !result)
+            {
+                return result;
+            }
+        }
+        return {};
+    }
+
+    std::expected<void, Adau1701Error> Adau1701Driver::setStereoSpreadLevel(
+        core::EnhanceLevel level)
+    {
+        if (auto ready = ensureBooted(); !ready)
+        {
+            return ready;
+        }
+        const float t = level.fraction();
+        if (auto result = safeloadFixpoint(
+                static_cast<unsigned>(ADDR_SPHAT1_SPREAD1),
+                core::floatToFixpoint823(kSpreadSpread1 * t));
+            !result)
+        {
+            return result;
+        }
+        return safeloadFixpoint(
+            static_cast<unsigned>(ADDR_SPHAT1_SPREAD2),
+            core::floatToFixpoint823(kSpreadSpread2 * t));
+    }
+
     std::expected<void, Adau1701Error> Adau1701Driver::writeRawParam(
         unsigned address, float value)
     {
@@ -495,6 +559,121 @@ namespace adau1701
             return ready;
         }
         return safeloadFixpoint(address, core::floatToFixpoint823(value));
+    }
+
+    namespace
+    {
+        // ADAU1701 Data Capture Register, address 2074 (0x081A) -- see
+        // datasheet Rev.0 "2074 TO 2075 (0x081A TO 0x081B)--DATA CAPTURE
+        // REGISTERS" (p.36) and Table 32's register-map bit layout (p.30):
+        // D[11:2]=PC[9:0] (program-step index), D[1:0]=RS[1:0] (register
+        // select). Reading the same address afterward returns a 3-byte,
+        // 24-bit two's-complement 5.19 value (5.23 with the 4 LSBs
+        // truncated, per the datasheet). The per-meter (progCount, regSel)
+        // pairs below are read verbatim from SigmaStudio's own compiler
+        // output (Firmware/ADAU1701-Firmware/IC 1_DigiRadioFinale/
+        // net_list_out2/trap.dat), not invented.
+        constexpr unsigned kDataCaptureAddr = 0x081AU;
+        constexpr unsigned kRegSelMacOut = 2U; // "mult_out" in trap.dat
+
+        struct MeterPoint
+        {
+            unsigned progCount;
+        };
+
+        constexpr MeterPoint kRadioInLeft{221};      // SingleBandLevelDet1
+        constexpr MeterPoint kRadioInRight{254};     // SingleBandLevelDet2
+        constexpr MeterPoint kBluetoothInLeft{155};  // SingleBandLevelDet3
+        constexpr MeterPoint kBluetoothInRight{188}; // SingleBandLevelDet4
+        constexpr MeterPoint kOutputLeft{717};       // SingleBandLevelDet5
+        constexpr MeterPoint kOutputRight{684};      // SingleBandLevelDet6
+    } // namespace
+
+    std::expected<float, Adau1701Error> Adau1701Driver::readCaptureDb(
+        unsigned progCount, unsigned regSel)
+    {
+        const unsigned char deviceAddr =
+            static_cast<unsigned char>(pins_.i2cAddr7 << 1);
+        const std::uint16_t config = static_cast<std::uint16_t>(
+            ((progCount & 0x3FFU) << 2) | (regSel & 0x3U));
+        unsigned char configBytes[2U] = {
+            static_cast<unsigned char>((config >> 8) & 0xFFU),
+            static_cast<unsigned char>(config & 0xFFU),
+        };
+        if (SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, kDataCaptureAddr, 2U,
+                                       configBytes) != 0)
+        {
+            return std::unexpected(Adau1701Error::SafeloadFailed);
+        }
+
+        unsigned char raw[3U] = {0U, 0U, 0U};
+        if (sigma_i2c_read(kDataCaptureAddr, raw, sizeof(raw)) != 0)
+        {
+            return std::unexpected(Adau1701Error::SafeloadFailed);
+        }
+        std::int32_t value = (static_cast<std::int32_t>(raw[0]) << 16)
+                            | (static_cast<std::int32_t>(raw[1]) << 8)
+                            | static_cast<std::int32_t>(raw[2]);
+        if ((value & (1 << 23)) != 0)
+        {
+            value -= (1 << 24);
+        }
+        const float linear =
+            static_cast<float>(value) / static_cast<float>(1 << 19);
+        constexpr float kFloorDb = -96.0F;
+        if (std::fabs(linear) < 1e-5F)
+        {
+            return kFloorDb;
+        }
+        const float db = 20.0F * std::log10(std::fabs(linear));
+        return db < kFloorDb ? kFloorDb : db;
+    }
+
+    std::expected<core::AudioLevels, Adau1701Error> Adau1701Driver::readLevels()
+    {
+        if (auto ready = ensureBooted(); !ready)
+        {
+            return std::unexpected(ready.error());
+        }
+
+        core::AudioLevels levels{};
+        auto read = [this](MeterPoint point,
+                           float &out) -> std::expected<void, Adau1701Error>
+        {
+            const auto db = readCaptureDb(point.progCount, kRegSelMacOut);
+            if (!db)
+            {
+                return std::unexpected(db.error());
+            }
+            out = *db;
+            return {};
+        };
+
+        if (auto r = read(kRadioInLeft, levels.radioInLeftDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kRadioInRight, levels.radioInRightDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kBluetoothInLeft, levels.bluetoothInLeftDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kBluetoothInRight, levels.bluetoothInRightDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kOutputLeft, levels.outputLeftDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kOutputRight, levels.outputRightDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        return levels;
     }
 
     std::expected<void, Adau1701Error> Adau1701Driver::applyEq(
@@ -535,7 +714,7 @@ namespace adau1701
         {
             return ready;
         }
-        if (auto result = applyMixer(profile.mixer); !result)
+        if (auto result = selectSource(profile.activeSource); !result)
         {
             return result;
         }
@@ -543,7 +722,17 @@ namespace adau1701
         {
             return result;
         }
-        return setMasterVolume(profile.masterLeft, profile.masterRight);
+        if (auto result = setMasterVolume(profile.masterLeft, profile.masterRight);
+            !result)
+        {
+            return result;
+        }
+        if (auto result = setBassBoostLevel(profile.enhancements.bass);
+            !result)
+        {
+            return result;
+        }
+        return setStereoSpreadLevel(profile.enhancements.stereo);
     }
 
 } // namespace adau1701

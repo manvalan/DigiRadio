@@ -45,14 +45,11 @@ public:
     [[nodiscard]] std::expected<void, core::DspError> applyProfile(
         const core::AudioProfile& profile) override;
 
-    [[nodiscard]] std::expected<void, core::DspError> applyMixer(
-        const core::MixerState& mixer) override;
+    [[nodiscard]] std::expected<void, core::DspError> selectSource(
+        core::ActiveSource source) override;
 
     [[nodiscard]] std::expected<void, core::DspError> applyEq(
         const core::EqProfile& eq) override;
-
-    [[nodiscard]] std::expected<void, core::DspError> setInputVolume(
-        core::MixSource source, core::GainDb left, core::GainDb right) override;
 
     [[nodiscard]] std::expected<void, core::DspError> setMasterVolume(
         core::GainDb left, core::GainDb right) override;
@@ -64,8 +61,17 @@ public:
     [[nodiscard]] std::expected<void, core::DspError> setBeepEnabled(
         bool enabled) override;
 
+    [[nodiscard]] std::expected<void, core::DspError> setBassBoostLevel(
+        core::EnhanceLevel level) override;
+
+    [[nodiscard]] std::expected<void, core::DspError> setStereoSpreadLevel(
+        core::EnhanceLevel level) override;
+
     [[nodiscard]] std::expected<void, core::DspError> writeRawParam(
         unsigned address, float value) override;
+
+    [[nodiscard]] std::expected<core::AudioLevels, core::DspError>
+    readLevels() override;
 
 private:
     [[nodiscard]] static core::DspError mapError(Adau1701Error error) noexcept;

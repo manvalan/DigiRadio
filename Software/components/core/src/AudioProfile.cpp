@@ -19,7 +19,7 @@ AudioProfile AudioProfile::factoryDefault() noexcept
 {
     const GainDb unity = GainDb::zero();
     return AudioProfile{
-        .mixer = MixerState::factoryDefault(),
+        .activeSource = ActiveSource::Radio,
         .eq = EqProfile::factoryDefault(),
         .masterLeft = unity,
         .masterRight = unity,

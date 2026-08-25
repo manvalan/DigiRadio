@@ -287,3 +287,61 @@ communication channel to a chip --- either the classic USBi/ICP dongle, or
 DigiRadio's own TCP:8086 SigmaStudio bridge (Section~\ref{sec:adau1701-sigmastudio-tcp})
 when connecting live to a running board.
 \end{drnote}
+
+\section{Next revision: DigiRadioFinale}
+\label{sec:ss-digiradiofinale}
+
+\begin{drcaution}[Not yet integrated into firmware]
+This section documents a SigmaStudio export (\texttt{DigiRadioFinale}) captured
+2026-08-25 that is not yet the program the firmware replays at boot. It expands
+the parameter RAM from 74 to 224 words with several new dedicated blocks,
+replacing two of the EQ-overlay workarounds in
+Section~\ref{sec:ss-enhancements} with real ADI algorithm modules. Driver,
+safeload API, and this manual's runtime tables will be updated once the
+program is finalised.
+\end{drcaution}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{sigmastudiofinale.png}
+  \caption{DigiRadioFinale signal chain: per-channel DC blockers and RMS
+    compressor, four input-side level meters, the 6-leg Param EQ, the
+    SuperPhat spatializer, an unconfigured general filter, master volume,
+    the Dynamic Bass Boost algorithm, two output-side level meters, and the
+    L/R limiters.}
+  \label{fig:ss-digiradiofinale}
+\end{figure}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}L{2.6cm}L{2.2cm}L{7.6cm}@{}}
+    \drhead Addresses & Block & Role \\
+    \midrule
+    0--2    & Beep1        & test tone (unchanged) \\
+    3       & DC1          & input trim \\
+    4--7    & DCB1--4      & DC blocker, one per channel \\
+    8       & S Splitter1  & control fan-out (unchanged) \\
+    9--46   & Compressor1  & RMS compander, 34-point curve \\
+    47--58  & 1×RTA3,4,1,2 & 4 input-side level meters (readback) \\
+    59--88  & Param EQ1    & 6 stereo legs (ST0--ST5) $\times$ 5 coefficients \\
+    89--140 & SPhat1       & SuperPhat spatializer (dedicated algorithm,
+                              replaces the stereo-enhance EQ overlay) \\
+    141--145& Gen Filter1  & general 2nd-order filter, currently flat/bypassed
+                              --- reserved, not yet configured (candidate slot
+                              for Voice Clarifier) \\
+    146--147& Multiple1    & master volume L/R (unchanged) \\
+    148--187& Bass Boost1  & Dynamic Bass Boost algorithm (dedicated,
+                              replaces the bass-enhance EQ overlay) \\
+    188--193& 1×RTA2\_2,1\_2 & 2 output-side level meters (readback) \\
+    194--223& Limiter2, Limiter1 & unchanged \\
+    \bottomrule
+  \end{tabular}
+  \caption{DigiRadioFinale parameter RAM map, by address.}
+  \label{tab:ss-digiradiofinale-map}
+\end{table}
+
+No dedicated mute cell exists yet in this export, and Gen Filter1 (the
+Voice Clarifier candidate) is still an identity filter (b0=1, all other
+coefficients zero). Both are pending further SigmaStudio work before this
+program replaces the one described earlier in this chapter.

@@ -21,15 +21,6 @@ namespace {
 
 constexpr char kTag[] = "AudioService";
 
-[[nodiscard]] core::AudioProfile profileForHardware(
-    const core::AudioProfile& profile) noexcept
-{
-    core::AudioProfile hardware = profile;
-    hardware.eq =
-        core::applyEnhancementsToEq(profile.eq, profile.enhancements);
-    return hardware;
-}
-
 } // namespace
 
 AudioService::AudioService(core::IDsp& dsp, core::IAudioProfileStore* store)
@@ -81,24 +72,9 @@ std::expected<void, core::StoreError> AudioService::persistProfile() const
 std::expected<void, core::StoreError> AudioService::applyProfileToDsp(
     const core::AudioProfile& profile)
 {
-    const core::AudioProfile hardware = profileForHardware(profile);
-    if (auto applied = dsp_.applyProfile(hardware); !applied) {
+    if (auto applied = dsp_.applyProfile(profile); !applied) {
         ESP_LOGW(kTag, "applyProfileToDsp: DSP safeload failed");
         return std::unexpected(core::StoreError::IoFailed);
-    }
-    return {};
-}
-
-std::expected<void, core::StoreError> AudioService::applyEffectiveEq(
-    bool persist)
-{
-    const core::EqProfile effective = core::applyEnhancementsToEq(
-        profile_.eq, profile_.enhancements);
-    if (auto applied = dsp_.applyEq(effective); !applied) {
-        return std::unexpected(core::StoreError::IoFailed);
-    }
-    if (persist) {
-        return persistProfile();
     }
     return {};
 }
@@ -116,21 +92,13 @@ std::expected<void, core::StoreError> AudioService::applyProfile(
     return {};
 }
 
-std::expected<void, core::StoreError> AudioService::setInputVolume(
-    core::MixSource source, core::GainDb left, core::GainDb right, bool persist)
+std::expected<void, core::StoreError> AudioService::selectSource(
+    core::ActiveSource source, bool persist)
 {
-    if (auto applied = dsp_.setInputVolume(source, left, right); !applied) {
+    if (auto applied = dsp_.selectSource(source); !applied) {
         return std::unexpected(core::StoreError::IoFailed);
     }
-
-    if (source == core::MixSource::Si4684) {
-        profile_.mixer.si4684Left = left;
-        profile_.mixer.si4684Right = right;
-    } else {
-        profile_.mixer.esp32Left = left;
-        profile_.mixer.esp32Right = right;
-    }
-
+    profile_.activeSource = source;
     if (persist) {
         return persistProfile();
     }
@@ -155,10 +123,10 @@ std::expected<void, core::StoreError> AudioService::applyRadioFirstMix(
     bool persist)
 {
     const core::GainDb unity = core::GainDb::zero();
-    profile_.mixer = core::MixerState::radioFirst();
+    profile_.activeSource = core::ActiveSource::Radio;
     profile_.masterLeft = unity;
     profile_.masterRight = unity;
-    if (auto applied = dsp_.applyMixer(profile_.mixer); !applied) {
+    if (auto applied = dsp_.selectSource(profile_.activeSource); !applied) {
         return std::unexpected(core::StoreError::IoFailed);
     }
     if (auto master = dsp_.setMasterVolume(unity, unity); !master) {
@@ -179,21 +147,39 @@ std::expected<void, core::StoreError> AudioService::setEqBand(
                                  .center = center,
                                  .q = q,
                              });
-    return applyEffectiveEq(persist);
+    if (auto applied = dsp_.applyEq(profile_.eq); !applied) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    if (persist) {
+        return persistProfile();
+    }
+    return {};
 }
 
 std::expected<void, core::StoreError> AudioService::setStereoEnhance(
     core::EnhanceLevel level, bool persist)
 {
+    if (auto applied = dsp_.setStereoSpreadLevel(level); !applied) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
     profile_.enhancements.stereo = level;
-    return applyEffectiveEq(persist);
+    if (persist) {
+        return persistProfile();
+    }
+    return {};
 }
 
 std::expected<void, core::StoreError> AudioService::setBassEnhance(
     core::EnhanceLevel level, bool persist)
 {
+    if (auto applied = dsp_.setBassBoostLevel(level); !applied) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
     profile_.enhancements.bass = level;
-    return applyEffectiveEq(persist);
+    if (persist) {
+        return persistProfile();
+    }
+    return {};
 }
 
 std::expected<void, core::DspError> AudioService::setBeepEnabled(bool enabled)
@@ -205,6 +191,11 @@ std::expected<void, core::DspError> AudioService::writeRawParam(
     unsigned address, float value)
 {
     return dsp_.writeRawParam(address, value);
+}
+
+std::expected<core::AudioLevels, core::DspError> AudioService::readLevels()
+{
+    return dsp_.readLevels();
 }
 
 } // namespace audio
