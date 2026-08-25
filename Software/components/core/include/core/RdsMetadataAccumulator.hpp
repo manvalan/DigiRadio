@@ -47,10 +47,12 @@ public:
      * @brief    applyGroup — ingest one RDS group (blocks A–D).
      *
      * @dname    applyGroup
-     * @param    blockA  RDS block A (PI code).
-     * @param    blockB  RDS block B (group type and address).
-     * @param    blockC  RDS block C (text payload).
-     * @param    blockD  RDS block D (text payload for RT).
+     * @param    blockA  RDS block A (PI code, currently unused).
+     * @param    blockB  RDS block B (group type and segment address).
+     * @param    blockC  RDS block C (RT text for group 2 only; group 0's
+     *                   AF list/repeated PI is not text and is ignored).
+     * @param    blockD  RDS block D (PS text for group 0; RT text for
+     *                   group 2, per ETSI EN 62106 §3.1.5/§3.1.5.3).
      * @pubstate updates PS/RT buffers for group types 0A and 2A.
      *
      * @author   Michele Bigi

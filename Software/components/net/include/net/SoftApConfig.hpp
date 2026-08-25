@@ -41,7 +41,7 @@ public:
      * @brief    setupDefault — factory for the Slice 1 setup SoftAP.
      *
      * @dname    setupDefault
-     * @return   SoftApConfig with SSID DigiRadio-setup.
+     * @return   SoftApConfig with SSID igiRadio-setup.
      * @pubstate none
      *
      * @author   Michele Bigi

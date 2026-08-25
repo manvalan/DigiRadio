@@ -18,9 +18,9 @@ namespace core {
 namespace {
 
 constexpr std::string_view kSerialUnknown = "unknown";
-constexpr std::string_view kSoftApFallback = "DigiRadio-setup";
-constexpr std::string_view kBluetoothFallback = "DigiRadio";
-constexpr std::string_view kHostnameFallback = "digiradio";
+constexpr std::string_view kSoftApFallback = "igiRadio-setup";
+constexpr std::string_view kBluetoothFallback = "igiRadio";
+constexpr std::string_view kHostnameFallback = "igiradio";
 
 [[nodiscard]] std::string prefixed(std::string_view prefix,
                                    std::string_view suffix)
@@ -44,9 +44,9 @@ DeviceIdentity DeviceIdentity::fromEui48(Eui48 eui)
     const std::string suffix = eui.shortSuffix();
     return DeviceIdentity(eui,
                           eui.serialNumber(),
-                          prefixed("DigiRadio-", suffix),
-                          prefixed("DigiRadio-", suffix),
-                          prefixed("digiradio-", suffix));
+                          prefixed("igiRadio-", suffix),
+                          prefixed("igiRadio-", suffix),
+                          prefixed("igiradio-", suffix));
 }
 
 bool DeviceIdentity::isKnown() const noexcept
