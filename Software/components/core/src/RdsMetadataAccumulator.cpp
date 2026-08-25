@@ -35,12 +35,15 @@ void RdsMetadataAccumulator::applyGroup(std::uint16_t blockA,
         static_cast<std::uint8_t>((blockB >> 12U) & 0x0FU);
 
     if (groupType == 0U) {
-        const std::size_t index =
-            static_cast<std::size_t>((blockB >> 1U) & 0x03U);
+        // Group type 0 (both 0A and 0B): the two Program Service name
+        // characters are always in Block D. Block C differs by version --
+        // 0A carries alternate-frequency codes, 0B repeats the PI code --
+        // but never PS text either way (ETSI EN 62106 §3.1.5).
+        const std::size_t index = static_cast<std::size_t>(blockB & 0x03U);
         if (index < kPsSegments) {
             psBuffer_[index * 2U] =
-                static_cast<char>((blockC >> 8U) & 0xFFU);
-            psBuffer_[index * 2U + 1U] = static_cast<char>(blockC & 0xFFU);
+                static_cast<char>((blockD >> 8U) & 0xFFU);
+            psBuffer_[index * 2U + 1U] = static_cast<char>(blockD & 0xFFU);
             psSegmentValid_[index] = true;
         }
         return;

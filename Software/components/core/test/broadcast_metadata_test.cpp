@@ -34,11 +34,13 @@ namespace {
 
 [[nodiscard]] int runRdsProgramNameTest()
 {
+    // Group type 0, segment address in blockB bits[1:0] (no shift); PS
+    // characters are in blockD, never blockC (ETSI EN 62106 §3.1.5).
     core::RdsMetadataAccumulator acc;
-    acc.applyGroup(0U, 0x0000U, 0x5445U, 0U);
-    acc.applyGroup(0U, 0x0002U, 0x5354U, 0U);
-    acc.applyGroup(0U, 0x0004U, 0x2020U, 0U);
-    acc.applyGroup(0U, 0x0006U, 0x2020U, 0U);
+    acc.applyGroup(0U, 0x0000U, 0U, 0x5445U);
+    acc.applyGroup(0U, 0x0001U, 0U, 0x5354U);
+    acc.applyGroup(0U, 0x0002U, 0U, 0x2020U);
+    acc.applyGroup(0U, 0x0003U, 0U, 0x2020U);
 
     const auto name = acc.programName();
     if (!name || name->value() != "TEST") {
