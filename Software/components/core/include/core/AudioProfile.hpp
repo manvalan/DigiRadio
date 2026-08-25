@@ -12,10 +12,10 @@
  */
 #pragma once
 
+#include "core/ActiveSource.hpp"
 #include "core/AudioEnhancements.hpp"
 #include "core/EqProfile.hpp"
 #include "core/GainDb.hpp"
-#include "core/MixerState.hpp"
 
 namespace core {
 
@@ -31,7 +31,7 @@ namespace core {
  * @date     2026-07-06
  */
 struct AudioProfile {
-    MixerState mixer;     ///< Input and stereo-mixer gains.
+    ActiveSource activeSource; ///< Which MX1 pair reaches Param EQ1.
     EqProfile eq;         ///< Six-band parametric EQ.
     GainDb masterLeft;           ///< Multiple 1 master volume, left.
     GainDb masterRight;          ///< Multiple 1 master volume, right.

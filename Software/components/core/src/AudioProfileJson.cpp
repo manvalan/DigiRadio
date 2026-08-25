@@ -92,35 +92,48 @@ namespace {
     return GainDb::tryFromDb(db);
 }
 
-[[nodiscard]] std::expected<MixerState, ParseError> parseMixerJson(
+[[nodiscard]] std::string_view activeSourceName(ActiveSource source) noexcept
+{
+    switch (source) {
+    case ActiveSource::Radio:
+        return "radio";
+    case ActiveSource::Bluetooth:
+        return "bluetooth";
+    case ActiveSource::Beep:
+        return "beep";
+    }
+    return "radio";
+}
+
+[[nodiscard]] std::expected<ActiveSource, ParseError> parseActiveSourceJson(
     std::string_view json)
 {
-    const std::size_t mixerStart = json.find("\"mixer\"");
-    if (mixerStart == std::string_view::npos) {
+    constexpr std::string_view kKey = "\"active_source\"";
+    const std::size_t needlePos = json.find(kKey);
+    if (needlePos == std::string_view::npos) {
         return std::unexpected(ParseError::MissingField);
     }
-    const std::string_view mixer = json.substr(mixerStart);
-
-    const auto si4684Left = parseGainField(mixer, "si4684_left_db");
-    const auto si4684Right = parseGainField(mixer, "si4684_right_db");
-    const auto esp32Left = parseGainField(mixer, "esp32_left_db");
-    const auto esp32Right = parseGainField(mixer, "esp32_right_db");
-    const auto mixLeft = parseGainField(mixer, "mix_left_db");
-    const auto mixRight = parseGainField(mixer, "mix_right_db");
-
-    if (!si4684Left || !si4684Right || !esp32Left || !esp32Right || !mixLeft
-        || !mixRight) {
+    const std::size_t quoteStart = json.find('"', needlePos + kKey.size());
+    if (quoteStart == std::string_view::npos) {
         return std::unexpected(ParseError::MissingField);
     }
+    const std::size_t quoteEnd = json.find('"', quoteStart + 1U);
+    if (quoteEnd == std::string_view::npos) {
+        return std::unexpected(ParseError::MissingField);
+    }
+    const std::string_view value =
+        json.substr(quoteStart + 1U, quoteEnd - quoteStart - 1U);
 
-    return MixerState{
-        .si4684Left = *si4684Left,
-        .si4684Right = *si4684Right,
-        .esp32Left = *esp32Left,
-        .esp32Right = *esp32Right,
-        .mixLeft = *mixLeft,
-        .mixRight = *mixRight,
-    };
+    if (value == "radio") {
+        return ActiveSource::Radio;
+    }
+    if (value == "bluetooth") {
+        return ActiveSource::Bluetooth;
+    }
+    if (value == "beep") {
+        return ActiveSource::Beep;
+    }
+    return std::unexpected(ParseError::MissingField);
 }
 
 [[nodiscard]] std::expected<EqProfile, ParseError> parseEqJson(
@@ -207,14 +220,8 @@ namespace {
 std::string serializeAudioProfileJson(const AudioProfile& profile)
 {
     std::ostringstream out;
-    const auto& m = profile.mixer;
-    out << "{\"mixer\":{"
-        << "\"si4684_left_db\":" << m.si4684Left.value() << ','
-        << "\"si4684_right_db\":" << m.si4684Right.value() << ','
-        << "\"esp32_left_db\":" << m.esp32Left.value() << ','
-        << "\"esp32_right_db\":" << m.esp32Right.value() << ','
-        << "\"mix_left_db\":" << m.mixLeft.value() << ','
-        << "\"mix_right_db\":" << m.mixRight.value() << "},"
+    out << "{\"active_source\":\"" << activeSourceName(profile.activeSource)
+        << "\","
         << "\"master\":{"
         << "\"left_db\":" << profile.masterLeft.value() << ','
         << "\"right_db\":" << profile.masterRight.value() << "},"
@@ -223,19 +230,13 @@ std::string serializeAudioProfileJson(const AudioProfile& profile)
     // Per-band "locked" flag, added 2026-08-24: band 0 is a fixed high-pass
     // Adau1701Driver::applyEq() never safeloads (SigmaStudio band 1, ST0 in
     // the compiled program -- whatever gain_db/center_hz/q is stored/sent
-    // for it has zero audible effect, always). Bands 1-2 are overwritten by
-    // core::applyEnhancementsToEq() with formula-derived values whenever
-    // bass_level > 0; bands 3-5 likewise whenever stereo_level > 0 -- a
-    // manual edit to those bands is silently inaudible while the
-    // corresponding enhancement is active. This was previously
-    // undiscoverable from the API response (GET echoed back the stored,
-    // inert value with no indication it wasn't what was actually playing);
-    // "locked":true now tells a client to grey out that slider instead of
-    // letting the user "fix" a value that can't take effect.
-    const bool bassLocks = profile.enhancements.bass.value() > 0U;
-    const bool stereoLocks = profile.enhancements.stereo.value() > 0U;
+    // for it has zero audible effect, always). Since the 2026-08-25
+    // DigiRadioFinale revision, bass/stereo enhancement drive the dedicated
+    // Bass Boost1/SPhat1 blocks directly instead of overwriting EQ bands,
+    // so bands 1-5 are no longer locked by enhancement levels -- only
+    // band 0 remains permanently inert.
     const bool locked[EqBandIndex::kBandCount] = {
-        true, bassLocks, bassLocks, stereoLocks, stereoLocks, stereoLocks,
+        true, false, false, false, false, false,
     };
 
     const auto& bands = profile.eq.bands();
@@ -263,9 +264,9 @@ std::expected<AudioProfile, ParseError> parseAudioProfileJson(
         return std::unexpected(ParseError::InvalidJson);
     }
 
-    const auto mixer = parseMixerJson(json);
-    if (!mixer) {
-        return std::unexpected(mixer.error());
+    const auto activeSource = parseActiveSourceJson(json);
+    if (!activeSource) {
+        return std::unexpected(activeSource.error());
     }
 
     const auto eq = parseEqJson(json);
@@ -290,7 +291,7 @@ std::expected<AudioProfile, ParseError> parseAudioProfileJson(
     }
 
     return AudioProfile{
-        .mixer = *mixer,
+        .activeSource = *activeSource,
         .eq = *eq,
         .masterLeft = *masterLeft,
         .masterRight = *masterRight,
