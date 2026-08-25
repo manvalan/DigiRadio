@@ -13,6 +13,7 @@
 #include "esp32_i2s_sink.hpp"
 #include "webradio/WebRadioService.hpp"
 
+#include "esp_crt_bundle.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -48,6 +49,12 @@ struct InputBuffer {
     esp_http_client_config_t cfg{};
     cfg.url = url.c_str();
     cfg.timeout_ms = kHttpTimeoutMs;
+    // Most public internet radio streams are HTTPS-only today; esp_http_client
+    // needs an explicit trust anchor for TLS verification or the handshake
+    // fails outright. CONFIG_MBEDTLS_CERTIFICATE_BUNDLE is already enabled
+    // (sdkconfig), so attach ESP-IDF's built-in CA bundle -- this is a no-op
+    // for plain http:// URLs.
+    cfg.crt_bundle_attach = esp_crt_bundle_attach;
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (client == nullptr) {
         ESP_LOGE(kTag, "esp_http_client_init failed");

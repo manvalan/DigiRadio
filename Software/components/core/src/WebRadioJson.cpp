@@ -19,6 +19,7 @@ namespace {
 
 constexpr std::size_t kMaxUrlLength = 200U;
 constexpr std::string_view kHttpPrefix = "http://";
+constexpr std::string_view kHttpsPrefix = "https://";
 
 [[nodiscard]] std::string_view extractJsonString(std::string_view json,
                                                   std::string_view key)
@@ -84,8 +85,9 @@ std::expected<WebRadioConfig, ParseError> parseWebRadioConfigJson(
     }
 
     const std::string_view url = extractJsonString(json, "url");
-    if (url.empty() || url.size() > kMaxUrlLength
-        || url.substr(0, kHttpPrefix.size()) != kHttpPrefix) {
+    const bool isHttp = url.substr(0, kHttpPrefix.size()) == kHttpPrefix;
+    const bool isHttps = url.substr(0, kHttpsPrefix.size()) == kHttpsPrefix;
+    if (url.empty() || url.size() > kMaxUrlLength || !(isHttp || isHttps)) {
         return std::unexpected(ParseError::InvalidJson);
     }
 

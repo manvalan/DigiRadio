@@ -129,6 +129,10 @@ add_executable(bt1035_at_test bt1035_at_test.cpp)
 target_link_libraries(bt1035_at_test PRIVATE digiradio_core)
 add_test(NAME bt1035_at_test COMMAND bt1035_at_test)
 
+add_executable(rds_metadata_accumulator_test rds_metadata_accumulator_test.cpp)
+target_link_libraries(rds_metadata_accumulator_test PRIVATE digiradio_core)
+add_test(NAME rds_metadata_accumulator_test COMMAND rds_metadata_accumulator_test)
+
 add_executable(broadcast_metadata_test broadcast_metadata_test.cpp)
 target_link_libraries(broadcast_metadata_test PRIVATE digiradio_core)
 add_test(NAME broadcast_metadata_test COMMAND broadcast_metadata_test)
