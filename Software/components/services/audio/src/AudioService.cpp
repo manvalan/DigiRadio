@@ -193,4 +193,9 @@ std::expected<void, core::DspError> AudioService::writeRawParam(
     return dsp_.writeRawParam(address, value);
 }
 
+std::expected<core::AudioLevels, core::DspError> AudioService::readLevels()
+{
+    return dsp_.readLevels();
+}
+
 } // namespace audio

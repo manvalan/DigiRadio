@@ -338,4 +338,16 @@ std::expected<bool, ParseError> parseBeepEnabledJson(std::string_view json)
     return enabled;
 }
 
+std::string serializeAudioLevelsJson(const AudioLevels& levels)
+{
+    std::ostringstream out;
+    out << "{\"radio_in_left_db\":" << levels.radioInLeftDb
+        << ",\"radio_in_right_db\":" << levels.radioInRightDb
+        << ",\"bluetooth_in_left_db\":" << levels.bluetoothInLeftDb
+        << ",\"bluetooth_in_right_db\":" << levels.bluetoothInRightDb
+        << ",\"output_left_db\":" << levels.outputLeftDb
+        << ",\"output_right_db\":" << levels.outputRightDb << "}";
+    return out.str();
+}
+
 } // namespace core

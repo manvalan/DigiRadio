@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/ActiveSource.hpp"
+#include "core/AudioLevels.hpp"
 #include "core/AudioProfile.hpp"
 #include "core/DspError.hpp"
 #include "core/EnhanceLevel.hpp"
@@ -228,6 +229,20 @@ public:
      */
     [[nodiscard]] std::expected<void, core::DspError> writeRawParam(
         unsigned address, float value);
+
+    /**
+     * @brief    readLevels — on-demand read of all six level meters.
+     *
+     * @dname    readLevels
+     * @return   AudioLevels snapshot, or DspError.
+     * @pubstate live-only: not part of AudioProfile, never persisted, does
+     *           not touch profile_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-25
+     */
+    [[nodiscard]] std::expected<core::AudioLevels, core::DspError>
+    readLevels();
 
 private:
     [[nodiscard]] std::expected<void, core::StoreError> persistProfile() const;
