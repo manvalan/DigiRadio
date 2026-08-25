@@ -160,25 +160,9 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         return {};
     }
 
-    // xtalCtun=0, xtalFreqHz=19199750 (2026-08-23): the compiled-in
-    // defaults (ctun=31, xtal=19200000 nominal) were never measured
-    // against this board's actual crystal (Abracon ABM8-19.200MHZ-10-1-U-T,
-    // CL=10pF per part number, plus two external 15pF load caps per the
-    // schematic). CTUN=0 was found audibly best via A/B listening (0/5/31),
-    // then xtalFreqHz was trimmed properly using the chip's own FM_RSQ
-    // FREQOFF measurement (tools/si4684_xtal_calibration.py) against two
-    // real, GPS-locked broadcast carriers 87.6/105.1 MHz -- converged to
-    // -3 to -4 ppm residual on both (cross-check confirms it's the
-    // crystal, not something frequency-dependent), down from +70 ppm
-    // uncorrected. See POST /api/tuner/xtal-calibrate to re-trim live if
-    // this ever needs revisiting (e.g. after a board/crystal change).
-    if (auto tunerResult =
-            gSi4684.boot(si4684::Si4684Band::Dab, 72U, 0U, 19199750U);
-        !tunerResult) {
-        ESP_LOGE(kTag, "Si4684 boot failed: error %d", static_cast<int>(tunerResult.error()));
-        return std::unexpected(HardwareBootError::Si4684BootFailed);
-    }
-
+    // ADAU1701 boots first (independent I2C/SPI chips, no cross-dependency)
+    // so its I2C bus is available for the EEPROM read below, needed to load
+    // the Si4684 crystal trim before Si4684 itself boots.
     if (!gAdau1701.isBooted()) {
         auto dspResult = gAdau1701.boot();
         if (!dspResult) {
@@ -188,6 +172,51 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
     }
 
     eeprom24aa::Eeprom24aa eeprom = makeEeprom();
+
+    // Fallback defaults (2026-08-23): ctun=0, xtalFreqHz=19199750 -- the
+    // compiled-in defaults (ctun=31, xtal=19200000 nominal) were never
+    // measured against this board's actual crystal (Abracon
+    // ABM8-19.200MHZ-10-1-U-T, CL=10pF per part number, plus two external
+    // 15pF load caps per the schematic). CTUN=0 was found audibly best via
+    // A/B listening (0/5/31), then xtalFreqHz was trimmed properly using
+    // the chip's own FM_RSQ FREQOFF measurement
+    // (tools/si4684_xtal_calibration.py) against two real, GPS-locked
+    // broadcast carriers 87.6/105.1 MHz -- converged to -3 to -4 ppm
+    // residual on both, down from +70 ppm uncorrected. Used only when the
+    // EEPROM has never been calibrated (or every board would need the same
+    // physical crystal tolerance, which isn't guaranteed). See POST
+    // /api/tuner/xtal-calibrate to re-trim live, and POST it again to
+    // persist -- see saveXtalCalibration() below.
+    std::uint8_t xtalIbias = 72U;
+    std::uint8_t xtalCtun = 0U;
+    std::uint32_t xtalFreqHz = 19199750U;
+    if (auto xtal = eeprom.readXtalCalibration(); xtal) {
+        if (*xtal) {
+            xtalIbias = (*xtal)->ibias;
+            xtalCtun = (*xtal)->ctun;
+            xtalFreqHz = (*xtal)->xtalFreqHz;
+            ESP_LOGI(kTag,
+                     "Xtal calibration loaded: ibias=%u ctun=%u "
+                     "xtal_freq_hz=%lu",
+                     static_cast<unsigned>(xtalIbias),
+                     static_cast<unsigned>(xtalCtun),
+                     static_cast<unsigned long>(xtalFreqHz));
+        } else {
+            ESP_LOGI(kTag,
+                     "Xtal not calibrated — using compiled-in defaults");
+        }
+    } else {
+        ESP_LOGW(kTag, "Xtal calibration read failed — using compiled-in "
+                       "defaults");
+    }
+
+    if (auto tunerResult = gSi4684.boot(si4684::Si4684Band::Dab, xtalIbias,
+                                        xtalCtun, xtalFreqHz);
+        !tunerResult) {
+        ESP_LOGE(kTag, "Si4684 boot failed: error %d", static_cast<int>(tunerResult.error()));
+        return std::unexpected(HardwareBootError::Si4684BootFailed);
+    }
+
     if (auto identity = eeprom.readDeviceIdentity(); identity) {
         gDeviceIdentity = std::move(*identity);
         ESP_LOGI(kTag, "unit serial %.*s",
@@ -312,6 +341,24 @@ bool HardwareBootstrap::saveDabAntCapCalibration(std::uint8_t antCap)
     gDabAntCapCalibration = antCap;
     ESP_LOGI(kTag, "DAB ANTCAP calibration saved: %u",
              static_cast<unsigned>(antCap));
+    return true;
+}
+
+bool HardwareBootstrap::saveXtalCalibration(std::uint8_t ibias,
+                                            std::uint8_t ctun,
+                                            std::uint32_t xtalFreqHz)
+{
+    eeprom24aa::Eeprom24aa eeprom = makeEeprom();
+    const eeprom24aa::XtalCalibration calibration{
+        .ibias = ibias, .ctun = ctun, .xtalFreqHz = xtalFreqHz};
+    if (auto written = eeprom.writeXtalCalibration(calibration); !written) {
+        ESP_LOGW(kTag, "Xtal calibration write failed");
+        return false;
+    }
+    ESP_LOGI(kTag,
+             "Xtal calibration saved: ibias=%u ctun=%u xtal_freq_hz=%lu",
+             static_cast<unsigned>(ibias), static_cast<unsigned>(ctun),
+             static_cast<unsigned long>(xtalFreqHz));
     return true;
 }
 

@@ -24,6 +24,24 @@
 namespace eeprom24aa {
 
 /**
+ * @brief    XtalCalibration — Si4684 crystal reference trim, EEPROM-backed.
+ *
+ * @dname    XtalCalibration
+ * @return   n/a (type)
+ * @pubstate Plain DTO mirroring POWER_UP ARG3/ARG8/ARG4-7 (AN649 Command
+ *           0x01); persisted as a set (all three or none) since a partial
+ *           trim is meaningless.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-24
+ */
+struct XtalCalibration {
+    std::uint8_t ibias;        ///< POWER_UP ARG3 IBIAS (0-127).
+    std::uint8_t ctun;         ///< POWER_UP ARG8 CTUN (0-63).
+    std::uint32_t xtalFreqHz;  ///< POWER_UP ARG4-7 XTAL_FREQ in Hz.
+};
+
+/**
  * @brief    Eeprom24aa — reads the factory EUI-48 from Microchip 24AA025E48;
  *           also stores one board-specific calibration byte in the chip's
  *           user-writable region.
@@ -50,6 +68,12 @@ public:
     /** Same range as kFmAntCapMax; kept as a separate name for the DAB
      *  calibration byte's own doc comments below. */
     static constexpr std::uint8_t kDabAntCapMax = 128U;
+    /** POWER_UP ARG3 IBIAS valid range (AN649 Command 0x01); 0xFF (blank
+     *  EEPROM) reads back as "never calibrated". */
+    static constexpr std::uint8_t kXtalIbiasMax = 127U;
+    /** POWER_UP ARG8 CTUN valid range (AN649 Command 0x01); 0xFF (blank
+     *  EEPROM) reads back as "never calibrated". */
+    static constexpr std::uint8_t kXtalCtunMax = 63U;
 
     /**
      * @brief    Eeprom24aa — bind to a running I2C master bus and 7-bit addr.
@@ -139,6 +163,40 @@ public:
      */
     [[nodiscard]] std::expected<void, core::IdentityError>
     writeDabAntCap(std::uint8_t value);
+
+    /**
+     * @brief    readXtalCalibration — read the stored Si4684 crystal trim.
+     *
+     * @dname    readXtalCalibration
+     * @return   Calibrated ibias/ctun/xtalFreqHz if all three were saved via
+     *           writeXtalCalibration(), nullopt if never calibrated (any of
+     *           the three bytes still blank/out of range), or IdentityError
+     *           on an I2C failure.
+     * @pubstate performs one I2C read of six bytes starting at word address
+     *           0x02.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-24
+     */
+    [[nodiscard]] std::expected<std::optional<XtalCalibration>, core::IdentityError>
+    readXtalCalibration();
+
+    /**
+     * @brief    writeXtalCalibration — persist the Si4684 crystal trim.
+     *
+     * @dname    writeXtalCalibration
+     * @param    calibration  ibias (0-127), ctun (0-63), xtalFreqHz found by
+     *                        POST /api/tuner/xtal-calibrate, not computed.
+     * @return   Ok on success, or IdentityError::I2cFailed.
+     * @pubstate performs one I2C write of six bytes starting at word address
+     *           0x02 (ibias, ctun, xtalFreqHz big-endian), then blocks for
+     *           the chip's write-cycle time before returning.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-24
+     */
+    [[nodiscard]] std::expected<void, core::IdentityError>
+    writeXtalCalibration(const XtalCalibration& calibration);
 
 private:
     i2c_master_bus_handle_t bus_;

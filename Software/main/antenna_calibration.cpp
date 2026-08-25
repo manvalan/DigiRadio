@@ -25,6 +25,13 @@ bool recalibrateXtal(std::uint8_t ibias, std::uint8_t ctun,
                                   .recalibrateXtal(ibias, ctun, xtalFreqHz));
 }
 
+/** Persist to EEPROM, 2026-08-24: see net::AntennaCalibration::saveXtal. */
+bool saveXtal(std::uint8_t ibias, std::uint8_t ctun, std::uint32_t xtalFreqHz)
+{
+    return hardware::HardwareBootstrap::saveXtalCalibration(ibias, ctun,
+                                                            xtalFreqHz);
+}
+
 } // namespace
 
 net::AntennaCalibration& bridge() noexcept
@@ -33,6 +40,7 @@ net::AntennaCalibration& bridge() noexcept
         .save = &hardware::HardwareBootstrap::saveFmAntCapCalibration,
         .saveDab = &hardware::HardwareBootstrap::saveDabAntCapCalibration,
         .recalibrateXtal = &recalibrateXtal,
+        .saveXtal = &saveXtal,
     };
     return instance;
 }
