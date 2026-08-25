@@ -112,6 +112,11 @@ struct AntennaCalibration {
      *  @return false if the chip was never booted or the reboot failed. */
     bool (*recalibrateXtal)(std::uint8_t ibias, std::uint8_t ctun,
                             std::uint32_t xtalFreqHz);
+    /** Persist a new Si4684 crystal trim (ibias/ctun/xtalFreqHz) to EEPROM,
+     *  so it survives a reboot instead of only lasting until the next power
+     *  cycle. @return false on an I2C failure. */
+    bool (*saveXtal)(std::uint8_t ibias, std::uint8_t ctun,
+                     std::uint32_t xtalFreqHz);
 };
 
 /**

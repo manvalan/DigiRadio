@@ -204,7 +204,7 @@ Done in fw 0.8.5 unless noted:
 
 ---
 
-## TODO — calibration functions need to become permanent, in-firmware, on-demand tools (2026-08-23)
+## DONE (2026-08-24) — calibration functions are now permanent, in-firmware, on-demand tools
 
 Both ANTCAP calibration (`tools/si4684_antenna_calibration.py`) and Si4684
 crystal calibration (`tools/si4684_xtal_calibration.py`,
@@ -236,10 +236,24 @@ convergence-loop logic (currently in `tools/si4684_xtal_calibration.py`)
 moves into firmware, or stays host-side with just an EEPROM-persist step
 added at the end of the existing HTTP flow.
 
-Not started — explicitly deferred to a future session, noted here only so
-it isn't lost. See `docs/si4684-rf-investigation-report.md`'s 2026-08-23
-entry for full context on why this calibration was needed and how it
-currently works.
+**Resolved 2026-08-24.** `Eeprom24aa` gained `readXtalCalibration()` /
+`writeXtalCalibration()` (word addresses 0x02 ibias, 0x03 ctun, 0x04-0x07
+xtalFreqHz big-endian, right after the existing FM/DAB ANTCAP bytes at
+0x00/0x01). `HardwareBootstrap::boot()` now reads the ADAU1701 boot
+earlier (moved before Si4684's, since the EEPROM read needs ADAU1701's
+I2C bus) and loads the saved crystal trim before calling
+`gSi4684.boot(...)`, falling back to the compiled-in defaults
+(ibias=72, ctun=0, xtalFreqHz=19199750) when the EEPROM has never been
+calibrated. `POST /api/tuner/xtal-calibrate` now persists every
+successful live recalibration automatically (`"persisted":true/false` in
+the response) via a new `saveXtalCalibration()` /
+`net::AntennaCalibration::saveXtal` bridge, mirroring the existing
+ANTCAP save pattern. The convergence-loop logic
+(`tools/si4684_xtal_calibration.py`) stays host-side, unchanged — only
+the persistence gap was closed.
+
+See `docs/si4684-rf-investigation-report.md`'s 2026-08-23 entry for full
+context on why this calibration was needed and how it currently works.
 
 ---
 

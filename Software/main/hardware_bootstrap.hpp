@@ -197,6 +197,26 @@ public:
      * @date     2026-08-20
      */
     [[nodiscard]] static bool saveDabAntCapCalibration(std::uint8_t antCap);
+
+    /**
+     * @brief    saveXtalCalibration — persist the Si4684 crystal trim.
+     *
+     * @dname    saveXtalCalibration
+     * @param    ibias       Value found via POST /api/tuner/xtal-calibrate.
+     * @param    ctun        Value found via POST /api/tuner/xtal-calibrate.
+     * @param    xtalFreqHz  Value found via POST /api/tuner/xtal-calibrate.
+     * @return   true on success, false on an I2C failure.
+     * @pubstate writes the 24AA025E48 user region. Does not itself reboot
+     *           the Si4684 — callers apply the values live via
+     *           Si4684Tuner::recalibrateXtal() first; boot() reads this back
+     *           on the next power-up so the trim survives a reboot.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-24
+     */
+    [[nodiscard]] static bool saveXtalCalibration(std::uint8_t ibias,
+                                                  std::uint8_t ctun,
+                                                  std::uint32_t xtalFreqHz);
 };
 
 } // namespace hardware
