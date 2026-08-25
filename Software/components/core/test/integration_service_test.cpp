@@ -82,6 +82,12 @@ public:
         return {};
     }
 
+    [[nodiscard]] std::expected<core::AudioLevels, core::DspError>
+    readLevels() override
+    {
+        return core::AudioLevels{};
+    }
+
     [[nodiscard]] std::expected<void, core::DspError> writeRawParam(
         unsigned, float) override
     {

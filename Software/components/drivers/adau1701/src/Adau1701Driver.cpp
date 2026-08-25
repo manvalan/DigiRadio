@@ -18,6 +18,8 @@
 #include "core/BiquadDesign.hpp"
 #include "core/DspProgram.hpp"
 
+#include <cmath>
+
 #include "DigiRadio_IC_1_PARAM.h"
 #include "SigmaStudioFW.h"
 
@@ -557,6 +559,121 @@ namespace adau1701
             return ready;
         }
         return safeloadFixpoint(address, core::floatToFixpoint823(value));
+    }
+
+    namespace
+    {
+        // ADAU1701 Data Capture Register, address 2074 (0x081A) -- see
+        // datasheet Rev.0 "2074 TO 2075 (0x081A TO 0x081B)--DATA CAPTURE
+        // REGISTERS" (p.36) and Table 32's register-map bit layout (p.30):
+        // D[11:2]=PC[9:0] (program-step index), D[1:0]=RS[1:0] (register
+        // select). Reading the same address afterward returns a 3-byte,
+        // 24-bit two's-complement 5.19 value (5.23 with the 4 LSBs
+        // truncated, per the datasheet). The per-meter (progCount, regSel)
+        // pairs below are read verbatim from SigmaStudio's own compiler
+        // output (Firmware/ADAU1701-Firmware/IC 1_DigiRadioFinale/
+        // net_list_out2/trap.dat), not invented.
+        constexpr unsigned kDataCaptureAddr = 0x081AU;
+        constexpr unsigned kRegSelMacOut = 2U; // "mult_out" in trap.dat
+
+        struct MeterPoint
+        {
+            unsigned progCount;
+        };
+
+        constexpr MeterPoint kRadioInLeft{221};      // SingleBandLevelDet1
+        constexpr MeterPoint kRadioInRight{254};     // SingleBandLevelDet2
+        constexpr MeterPoint kBluetoothInLeft{155};  // SingleBandLevelDet3
+        constexpr MeterPoint kBluetoothInRight{188}; // SingleBandLevelDet4
+        constexpr MeterPoint kOutputLeft{717};       // SingleBandLevelDet5
+        constexpr MeterPoint kOutputRight{684};      // SingleBandLevelDet6
+    } // namespace
+
+    std::expected<float, Adau1701Error> Adau1701Driver::readCaptureDb(
+        unsigned progCount, unsigned regSel)
+    {
+        const unsigned char deviceAddr =
+            static_cast<unsigned char>(pins_.i2cAddr7 << 1);
+        const std::uint16_t config = static_cast<std::uint16_t>(
+            ((progCount & 0x3FFU) << 2) | (regSel & 0x3U));
+        unsigned char configBytes[2U] = {
+            static_cast<unsigned char>((config >> 8) & 0xFFU),
+            static_cast<unsigned char>(config & 0xFFU),
+        };
+        if (SIGMA_WRITE_REGISTER_BLOCK(deviceAddr, kDataCaptureAddr, 2U,
+                                       configBytes) != 0)
+        {
+            return std::unexpected(Adau1701Error::SafeloadFailed);
+        }
+
+        unsigned char raw[3U] = {0U, 0U, 0U};
+        if (sigma_i2c_read(kDataCaptureAddr, raw, sizeof(raw)) != 0)
+        {
+            return std::unexpected(Adau1701Error::SafeloadFailed);
+        }
+        std::int32_t value = (static_cast<std::int32_t>(raw[0]) << 16)
+                            | (static_cast<std::int32_t>(raw[1]) << 8)
+                            | static_cast<std::int32_t>(raw[2]);
+        if ((value & (1 << 23)) != 0)
+        {
+            value -= (1 << 24);
+        }
+        const float linear =
+            static_cast<float>(value) / static_cast<float>(1 << 19);
+        constexpr float kFloorDb = -96.0F;
+        if (std::fabs(linear) < 1e-5F)
+        {
+            return kFloorDb;
+        }
+        const float db = 20.0F * std::log10(std::fabs(linear));
+        return db < kFloorDb ? kFloorDb : db;
+    }
+
+    std::expected<core::AudioLevels, Adau1701Error> Adau1701Driver::readLevels()
+    {
+        if (auto ready = ensureBooted(); !ready)
+        {
+            return std::unexpected(ready.error());
+        }
+
+        core::AudioLevels levels{};
+        auto read = [this](MeterPoint point,
+                           float &out) -> std::expected<void, Adau1701Error>
+        {
+            const auto db = readCaptureDb(point.progCount, kRegSelMacOut);
+            if (!db)
+            {
+                return std::unexpected(db.error());
+            }
+            out = *db;
+            return {};
+        };
+
+        if (auto r = read(kRadioInLeft, levels.radioInLeftDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kRadioInRight, levels.radioInRightDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kBluetoothInLeft, levels.bluetoothInLeftDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kBluetoothInRight, levels.bluetoothInRightDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kOutputLeft, levels.outputLeftDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        if (auto r = read(kOutputRight, levels.outputRightDb); !r)
+        {
+            return std::unexpected(r.error());
+        }
+        return levels;
     }
 
     std::expected<void, Adau1701Error> Adau1701Driver::applyEq(

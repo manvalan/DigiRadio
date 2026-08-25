@@ -70,6 +70,9 @@ public:
     [[nodiscard]] std::expected<void, core::DspError> writeRawParam(
         unsigned address, float value) override;
 
+    [[nodiscard]] std::expected<core::AudioLevels, core::DspError>
+    readLevels() override;
+
 private:
     [[nodiscard]] static core::DspError mapError(Adau1701Error error) noexcept;
 

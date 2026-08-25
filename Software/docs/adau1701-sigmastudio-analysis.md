@@ -112,6 +112,7 @@ un intero grezzo a 32 bit (vedi sopra).
 | `/api/audio/stereo-enhance` | POST | `{"level":0-100}` | `SPHAT1_SPREAD1/2` (scala proporzionale) | ✅ | ✅ (effetto soggettivo/sottile) |
 | `/api/audio/bass-enhance` | POST | `{"level":0-100}` | `BASSBOOST1_*` filtro+tabella (scala verso identità) | ✅ | ✅ (confermato su radio, non su tono fisso — l'algoritmo è dinamico, reagisce a contenuto con dinamica reale) |
 | `/api/audio/beep` | POST | `{"enabled":true/false}` | `BEEP1_ENABLE/KICK` | ❌ (live-only, per design) | ✅ |
+| `/api/audio/levels` | GET | — | legge live i 6 VU-meter (Data Capture Register 2074) | — (nessuna cache/polling) | ✅ |
 | `/api/dsp/params` | GET | — | elenco statico nome→indirizzo (230 celle, incluse le 6 speciali readback) | — | ✅ |
 | `/api/dsp/param` | PUT | `{"name":"...","value":<float>}` | qualunque cella per nome — **eccetto `DC1`, che qui va scritto già come intero puro, non tramite `selectSource()`** | ❌ (live-only) | ✅ (sweep completo di 223/224 celle scrivibili, 0 errori) |
 
@@ -126,16 +127,39 @@ Boost1/SPhat1.
 
 ---
 
-## 4. VU-meter (readback) — non ancora implementato
+## 4. VU-meter (readback) — implementato 2026-08-25
 
 Le 6 celle `1×RTA*` sono veri VU-meter (level detector) posizionati in 4 punti
-d'ingresso e 2 punti d'uscita. Il loro valore letto NON sta al normale indirizzo
-Parameter RAM di ciascuna — condividono tutte l'indirizzo speciale **2074**, con
-un codice di selezione diverso per ciascuna (`VALUES_1XRTA1` = 0x0376, ecc., tipo
-`SIGMASTUDIOTYPE_SPECIAL`/`SIGMASTUDIOTYPE_10_14`). Questo è il meccanismo di
-"Data Capture" dell'ADAU1701 (registro indiretto), diverso dal semplice
-read/safeload usato ovunque altrove in questo firmware. **Va ancora reverse-
-engineerato e implementato** — non è stato inventato né testato in questa sessione.
+d'ingresso e 2 punti d'uscita. Il loro valore NON sta al normale indirizzo
+Parameter RAM di ciascuna — usano il **Data Capture Register** dell'ADAU1701
+(indirizzo 2074/0x081A, datasheet Rev.0 pag. 30 e 36, Table 28/29/32/44/45):
+
+1. Si scrive un word di 16 bit a 2074: bit[11:2] = indice del passo di
+   programma (`PC[9:0]`) dove campionare, bit[1:0] = quale registro interno
+   del core trasferire (`RS[1:0]`; `10`=MAC_out).
+2. Si rilegge lo stesso indirizzo 2074: risponde con 3 byte (24 bit,
+   complemento a due, formato 5.19 — il 5.23 interno con i 4 LSB troncati).
+
+Gli indici `PC[9:0]` per ciascuno dei 6 meter **non sono stati inventati**:
+vengono letti testualmente dal file che il compilatore SigmaStudio genera
+apposta per questo (`IC 1_DigiRadioFinale/net_list_out2/trap.dat`):
+
+| Meter | Punto | Program-step (trap.dat) |
+|---|---|---|
+| `1×RTA1` | Radio L, post-compressore | 221 |
+| `1×RTA2` | Radio R, post-compressore | 254 |
+| `1×RTA3` | ESP32 L | 155 |
+| `1×RTA4` | ESP32 R | 188 |
+| `1×RTA1_2` | Uscita L (post Bass Boost1) | 717 |
+| `1×RTA2_2` | Uscita R (post Bass Boost1) | 684 |
+
+Il chip ha **solo 2 registri di cattura hardware** (2074, 2075); il firmware
+ne usa uno solo, riconfigurandolo e rileggendolo in sequenza per i 6 punti —
+**solo quando arriva una richiesta** `GET /api/audio/levels`, nessun polling
+in background. Testato dal vivo: valori plausibili e distinti per ciascun
+punto, e l'uscita scende coerentemente abbassando il master volume.
+
+Vedi `Adau1701Driver::readLevels()`/`readCaptureDb()` per l'implementazione.
 
 ---
 

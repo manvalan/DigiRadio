@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "core/AudioLevels.hpp"
 #include "core/AudioProfile.hpp"
 #include "core/ParseError.hpp"
 
@@ -103,5 +104,18 @@ namespace core {
  */
 [[nodiscard]] std::expected<bool, ParseError> parseBeepEnabledJson(
     std::string_view json);
+
+/**
+ * @brief    serializeAudioLevelsJson — serialise a level-meter snapshot.
+ *
+ * @dname    serializeAudioLevelsJson
+ * @param    levels  On-demand read from IDsp::readLevels().
+ * @return   JSON object string for GET /api/audio/levels.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-25
+ */
+[[nodiscard]] std::string serializeAudioLevelsJson(const AudioLevels& levels);
 
 } // namespace core

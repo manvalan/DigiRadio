@@ -14,6 +14,7 @@
 
 #include "adau1701/Adau1701Error.hpp"
 
+#include "core/AudioLevels.hpp"
 #include "core/AudioProfile.hpp"
 #include "core/EnhanceLevel.hpp"
 #include "core/EqBandIndex.hpp"
@@ -269,6 +270,21 @@ public:
     [[nodiscard]] std::expected<void, Adau1701Error> writeRawParam(
         unsigned address, float value);
 
+    /**
+     * @brief    readLevels — on-demand read of all six 1×RTA level meters.
+     *
+     * @dname    readLevels
+     * @return   AudioLevels snapshot, or Adau1701Error.
+     * @pubstate Reads the ADAU1701 Data Capture Register (address 2074) six
+     *           times in sequence, reconfiguring it for each meter's
+     *           program-step/register-select pair before each read; no
+     *           background polling, only runs when called.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-25
+     */
+    [[nodiscard]] std::expected<core::AudioLevels, Adau1701Error> readLevels();
+
 private:
     [[nodiscard]] std::expected<void, Adau1701Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Adau1701Error> safeloadGain(
@@ -277,6 +293,8 @@ private:
         unsigned paramAddr, std::int32_t fixpoint);
     [[nodiscard]] std::expected<void, Adau1701Error> replayProgram(
         const core::DspProgram& program);
+    [[nodiscard]] std::expected<float, Adau1701Error> readCaptureDb(
+        unsigned progCount, unsigned regSel);
 
     Adau1701Pins pins_;
     core::IDspProgramSource& programSource_;

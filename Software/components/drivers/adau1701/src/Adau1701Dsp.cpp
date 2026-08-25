@@ -115,4 +115,13 @@ std::expected<void, core::DspError> Adau1701Dsp::writeRawParam(
     return {};
 }
 
+std::expected<core::AudioLevels, core::DspError> Adau1701Dsp::readLevels()
+{
+    auto result = driver_.readLevels();
+    if (!result) {
+        return std::unexpected(mapError(result.error()));
+    }
+    return *result;
+}
+
 } // namespace adau1701

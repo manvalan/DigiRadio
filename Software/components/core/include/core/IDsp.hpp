@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/ActiveSource.hpp"
+#include "core/AudioLevels.hpp"
 #include "core/AudioProfile.hpp"
 #include "core/DspError.hpp"
 #include "core/EnhanceLevel.hpp"
@@ -183,6 +184,20 @@ public:
      */
     [[nodiscard]] virtual std::expected<void, DspError> writeRawParam(
         unsigned address, float value) = 0;
+
+    /**
+     * @brief    readLevels — on-demand read of all six 1×RTA level meters.
+     *
+     * @dname    readLevels
+     * @return   AudioLevels snapshot, or DspError.
+     * @pubstate Reads live from the ADAU1701; not part of AudioProfile,
+     *           never persisted. Only runs when called, no background
+     *           polling.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-25
+     */
+    [[nodiscard]] virtual std::expected<AudioLevels, DspError> readLevels() = 0;
 };
 
 } // namespace core
