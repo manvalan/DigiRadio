@@ -66,6 +66,11 @@ constexpr std::uint16_t kSi4684I2sOutEnable = 0x8002U;
 /** Si4684 volume: 0=mute, 63=max (AN649 AUDIO_ANALOG_VOLUME). */
 constexpr std::uint8_t kSi4684VolumeMax = 63U;
 constexpr std::uint16_t kPropFmRdsConfig = 0x3C02U;
+/** AN649 §0x3C01 FM_RDS_INTERRUPT_FIFO_COUNT: DEPTH[7:0], groups needed
+ *  before RDSFIFOINT (FM_RDS_STATUS RESP4 bit0, our readFmRds() "received"
+ *  bit) ever sets. Default 0 disables it permanently regardless of
+ *  FM_RDS_CONFIG -- must be nonzero for any RDS group to ever be seen. */
+constexpr std::uint16_t kPropFmRdsInterruptFifoCount = 0x3C01U;
 /** AN649 FM_AUDIO_DE_EMPHASIS (0x3900): 0=75us/US (chip default), 1=50us/
  *  Europe, 2=disabled. FM seek band/spacing above is already the European
  *  87.5-107.9 MHz/100 kHz plan, so the chip must not stay on its 75us/US
@@ -557,8 +562,21 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
                 return set;
             }
         }
-        if (auto rds = setProperty(kPropFmRdsConfig, 0x0001U); !rds) {
+        // AN649 §0x3C02 FM_RDS_CONFIG: BLETHB[7:6]/BLETHCD[5:4] block-error
+        // thresholds, RDSEN[0]. 0x0001 (thresholds at 0, "no block errors")
+        // rejected almost every real-world group -- any bit error at all
+        // (routine with multipath/noise, even on a strong signal) dropped
+        // the group from the FIFO, so accumulated station names/RadioText
+        // never completed. 0x00A1 keeps both thresholds at the datasheet's
+        // most tolerant recommended setting (2 = "3-5 bit errors detected
+        // and corrected"), still discarding uncorrectable (3) groups.
+        if (auto rds = setProperty(kPropFmRdsConfig, 0x00A1U); !rds) {
             return rds;
+        }
+        if (auto rdsFifo =
+                setProperty(kPropFmRdsInterruptFifoCount, 0x0001U);
+            !rdsFifo) {
+            return rdsFifo;
         }
         if (auto deEmph = setProperty(kPropFmAudioDeEmphasis,
                                       kFmAudioDeEmphasisEurope);
