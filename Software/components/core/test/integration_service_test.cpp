@@ -40,20 +40,14 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, core::DspError> applyMixer(
-        const core::MixerState&) override
+    [[nodiscard]] std::expected<void, core::DspError> selectSource(
+        core::ActiveSource) override
     {
         return {};
     }
 
     [[nodiscard]] std::expected<void, core::DspError> applyEq(
         const core::EqProfile&) override
-    {
-        return {};
-    }
-
-    [[nodiscard]] std::expected<void, core::DspError> setInputVolume(
-        core::MixSource, core::GainDb, core::GainDb) override
     {
         return {};
     }
@@ -74,6 +68,24 @@ public:
         bool) override
     {
         return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> setBassBoostLevel(
+        core::EnhanceLevel) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<void, core::DspError> setStereoSpreadLevel(
+        core::EnhanceLevel) override
+    {
+        return {};
+    }
+
+    [[nodiscard]] std::expected<core::AudioLevels, core::DspError>
+    readLevels() override
+    {
+        return core::AudioLevels{};
     }
 
     [[nodiscard]] std::expected<void, core::DspError> writeRawParam(

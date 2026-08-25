@@ -69,6 +69,23 @@ namespace {
         std::cerr << "enhancements round-trip mismatch\n";
         return EXIT_FAILURE;
     }
+
+    if (parsed->activeSource != core::ActiveSource::Radio) {
+        std::cerr << "default active_source mismatch\n";
+        return EXIT_FAILURE;
+    }
+
+    profile.activeSource = core::ActiveSource::Bluetooth;
+    const std::string json3 = core::serializeAudioProfileJson(profile);
+    if (json3.find(R"("active_source":"bluetooth")") == std::string::npos) {
+        std::cerr << "active_source serialization mismatch: " << json3 << '\n';
+        return EXIT_FAILURE;
+    }
+    const auto parsed3 = core::parseAudioProfileJson(json3);
+    if (!parsed3 || parsed3->activeSource != core::ActiveSource::Bluetooth) {
+        std::cerr << "active_source round-trip mismatch\n";
+        return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 

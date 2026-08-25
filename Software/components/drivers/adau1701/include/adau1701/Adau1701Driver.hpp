@@ -14,14 +14,15 @@
 
 #include "adau1701/Adau1701Error.hpp"
 
+#include "core/AudioLevels.hpp"
 #include "core/AudioProfile.hpp"
+#include "core/EnhanceLevel.hpp"
 #include "core/EqBandIndex.hpp"
 #include "core/EqProfile.hpp"
 #include "core/FrequencyHz.hpp"
 #include "core/GainDb.hpp"
 #include "core/IDspProgramSource.hpp"
-#include "core/MixSource.hpp"
-#include "core/MixerState.hpp"
+#include "core/ActiveSource.hpp"
 
 #include <cstdint>
 #include <expected>
@@ -144,18 +145,18 @@ public:
         const core::AudioProfile& profile);
 
     /**
-     * @brief    applyMixer — safeload input and stereo-mixer gains.
+     * @brief    selectSource — safeload DC1 to pick MX1's active input pair.
      *
-     * @dname    applyMixer
-     * @param    mixer  Per-source and St Mixer1 levels.
+     * @dname    selectSource
+     * @param    source  Which stereo pair MX1 passes through.
      * @return   Ok on success, or Adau1701Error.
      * @pubstate writes parameter RAM via safeload.
      *
      * @author   Michele Bigi
-     * @date     2026-07-06
+     * @date     2026-08-25
      */
-    [[nodiscard]] std::expected<void, Adau1701Error> applyMixer(
-        const core::MixerState& mixer);
+    [[nodiscard]] std::expected<void, Adau1701Error> selectSource(
+        core::ActiveSource source);
 
     /**
      * @brief    applyEq — safeload all six PEQ bands.
@@ -170,22 +171,6 @@ public:
      */
     [[nodiscard]] std::expected<void, Adau1701Error> applyEq(
         const core::EqProfile& eq);
-
-    /**
-     * @brief    setInputVolume — safeload one input path gain.
-     *
-     * @dname    setInputVolume
-     * @param    source  Si4684 or ESP32 I2S path.
-     * @param    left    Left channel gain.
-     * @param    right   Right channel gain.
-     * @return   Ok on success, or Adau1701Error.
-     * @pubstate writes parameter RAM via safeload.
-     *
-     * @author   Michele Bigi
-     * @date     2026-07-06
-     */
-    [[nodiscard]] std::expected<void, Adau1701Error> setInputVolume(
-        core::MixSource source, core::GainDb left, core::GainDb right);
 
     /**
      * @brief    setMasterVolume — safeload Multiple 1 master output gain.
@@ -235,6 +220,35 @@ public:
         bool enabled);
 
     /**
+     * @brief    setBassBoostLevel — scale Bass Boost1 toward its compiled
+     *           curve.
+     *
+     * @dname    setBassBoostLevel
+     * @param    level  0 = flat bypass, 100 = full compiled response.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-25
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> setBassBoostLevel(
+        core::EnhanceLevel level);
+
+    /**
+     * @brief    setStereoSpreadLevel — scale SPhat1's stereo spread amount.
+     *
+     * @dname    setStereoSpreadLevel
+     * @param    level  0 = no spread, 100 = full compiled spread.
+     * @return   Ok on success, or Adau1701Error.
+     * @pubstate writes parameter RAM via safeload.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-25
+     */
+    [[nodiscard]] std::expected<void, Adau1701Error> setStereoSpreadLevel(
+        core::EnhanceLevel level);
+
+    /**
      * @brief    writeRawParam — safeload any named Parameter RAM cell.
      *
      * @dname    writeRawParam
@@ -256,6 +270,21 @@ public:
     [[nodiscard]] std::expected<void, Adau1701Error> writeRawParam(
         unsigned address, float value);
 
+    /**
+     * @brief    readLevels — on-demand read of all six 1×RTA level meters.
+     *
+     * @dname    readLevels
+     * @return   AudioLevels snapshot, or Adau1701Error.
+     * @pubstate Reads the ADAU1701 Data Capture Register (address 2074) six
+     *           times in sequence, reconfiguring it for each meter's
+     *           program-step/register-select pair before each read; no
+     *           background polling, only runs when called.
+     *
+     * @author   Michele Bigi
+     * @date     2026-08-25
+     */
+    [[nodiscard]] std::expected<core::AudioLevels, Adau1701Error> readLevels();
+
 private:
     [[nodiscard]] std::expected<void, Adau1701Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Adau1701Error> safeloadGain(
@@ -264,6 +293,8 @@ private:
         unsigned paramAddr, std::int32_t fixpoint);
     [[nodiscard]] std::expected<void, Adau1701Error> replayProgram(
         const core::DspProgram& program);
+    [[nodiscard]] std::expected<float, Adau1701Error> readCaptureDb(
+        unsigned progCount, unsigned regSel);
 
     Adau1701Pins pins_;
     core::IDspProgramSource& programSource_;

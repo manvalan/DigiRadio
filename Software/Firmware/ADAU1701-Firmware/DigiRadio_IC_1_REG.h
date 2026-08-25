@@ -1,8 +1,8 @@
 /*
- * File:           C:\Users\mikbi\Documents\Allegati\Desktop\DigiRadio\DigiRadioModificato\DigiRadio_IC_1_REG.h
+ * File:           C:\Users\mikbi\Documents\Allegati\Desktop\Sigmastudio\DigiRadioFinale_IC_1_REG.h
  *
- * Created:        Friday, August 7, 2026 3:19:11 AM
- * Description:    DigiRadio:IC 1 control register definitions.
+ * Created:        Tuesday, August 25, 2026 8:11:05 PM
+ * Description:    DigiRadioFinale:IC 1 control register definitions.
  *
  * This software is distributed in the hope that it will be useful,
  * but is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
@@ -16,8 +16,8 @@
  *
  * Copyright ©2026 Analog Devices, Inc. All rights reserved.
  */
-#ifndef __DIGIRADIO_IC_1_REG_H__
-#define __DIGIRADIO_IC_1_REG_H__
+#ifndef __DIGIRADIOFINALE_IC_1_REG_H__
+#define __DIGIRADIOFINALE_IC_1_REG_H__
 
 
 /* InterfaceRegister0  - Registers (IC 1) */

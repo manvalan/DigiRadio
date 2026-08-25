@@ -31,11 +31,9 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/EqBandIndex.cpp"
     "${CORE_SRC_DIR}/BiquadCoefficients.cpp"
     "${CORE_SRC_DIR}/BiquadDesign.cpp"
-    "${CORE_SRC_DIR}/MixerState.cpp"
     "${CORE_SRC_DIR}/EqProfile.cpp"
     "${CORE_SRC_DIR}/EnhanceLevel.cpp"
     "${CORE_SRC_DIR}/AudioEnhancements.cpp"
-    "${CORE_SRC_DIR}/EnhancementsDesign.cpp"
     "${CORE_SRC_DIR}/AudioProfile.cpp"
     "${CORE_SRC_DIR}/AudioProfileJson.cpp"
     "${CORE_SRC_DIR}/Bt1035At.cpp"
@@ -109,10 +107,6 @@ add_test(NAME biquad_design_test COMMAND biquad_design_test)
 add_executable(audio_profile_json_test audio_profile_json_test.cpp)
 target_link_libraries(audio_profile_json_test PRIVATE digiradio_core)
 add_test(NAME audio_profile_json_test COMMAND audio_profile_json_test)
-
-add_executable(enhancements_design_test enhancements_design_test.cpp)
-target_link_libraries(enhancements_design_test PRIVATE digiradio_core)
-add_test(NAME enhancements_design_test COMMAND enhancements_design_test)
 
 add_executable(station_service_test station_service_test.cpp)
 target_include_directories(station_service_test PRIVATE

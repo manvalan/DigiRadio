@@ -972,6 +972,39 @@ esp_err_t audioBeepPostHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    audioLevelsGetHandler — serve GET /api/audio/levels as JSON.
+ *
+ * @dname    audioLevelsGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate Reads all six 1×RTA level meters live on every call -- no
+ *           background polling, no caching.
+ *
+ * @author   Michele Bigi
+ * @date     2026-08-25
+ */
+esp_err_t audioLevelsGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto levels = ctx->audio->readLevels();
+    if (!levels) {
+        const std::string json = core::serializeAudioErrorJson("dsp_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializeAudioLevelsJson(*levels);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
  * @brief    dspParamsGetHandler — serve GET /api/dsp/params as JSON.
  *
  * @dname    dspParamsGetHandler
@@ -2251,6 +2284,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &audioBeepUri);
+
+    const httpd_uri_t audioLevelsUri = {
+        .uri = "/api/audio/levels",
+        .method = HTTP_GET,
+        .handler = audioLevelsGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &audioLevelsUri);
 
     const httpd_uri_t dspParamsUri = {
         .uri = "/api/dsp/params",
