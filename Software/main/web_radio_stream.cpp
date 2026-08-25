@@ -190,6 +190,25 @@ void streamWhileEnabled(webradio::WebRadioService& service,
         return;
     }
 
+    // esp_http_client_open() only establishes the TCP/TLS connection; a 4xx/
+    // 5xx HTTP response (wrong path, station offline, etc.) still returns a
+    // valid client handle here. Without this check, such a response reads
+    // as an empty body -> pumpOneFrame() returns false on its first call ->
+    // the reconnect delay below is skipped entirely, and run()'s outer loop
+    // immediately retries: a full TCP+TLS handshake in a tight loop, bounded
+    // only by network RTT, not kReconnectDelay. Observed live 2026-08-26 at
+    // roughly 2 attempts/second against a misconfigured URL, competing for
+    // CPU/heap with an unrelated concurrent FM scan on the same board.
+    const int status = esp_http_client_get_status_code(client);
+    if (status < 200 || status >= 300) {
+        ESP_LOGW(kTag, "stream %s returned HTTP %d, not audio -- backing off",
+                 url.c_str(), status);
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        vTaskDelay(kReconnectDelay);
+        return;
+    }
+
     InputBuffer in;
     bool loggedFormat = false;
     while (service.config().enabled
