@@ -17,6 +17,8 @@
  */
 #pragma once
 
+#include "core/DeviceIdentity.hpp"
+#include "core/ISecureStore.hpp"
 #include "core/WifiCredentials.hpp"
 #include "net/NetError.hpp"
 
@@ -94,8 +96,20 @@ public:
      * @brief    connect — join the network described by creds.
      *
      * @dname    connect
-     * @param    creds     Validated domain credentials from ISecureStore.
-     * @param    hostname  STA hostname / mDNS label (no .local suffix).
+     * @param    creds              Validated domain credentials from
+     *                              ISecureStore.
+     * @param    hostname           STA hostname / mDNS label (no .local
+     *                              suffix).
+     * @param    bleFallbackStore   When set alongside bleFallbackIdentity,
+     *                              a link lost for over a minute *after*
+     *                              this call already returned successfully
+     *                              starts BLE provisioning (additive,
+     *                              STA reconnect attempts keep running) so
+     *                              the app can reconfigure Wi-Fi without a
+     *                              power cycle. Null skips this behaviour.
+     * @param    bleFallbackIdentity  Device identity for the BLE fallback's
+     *                              advertising name; must outlive this
+     *                              StaClient when bleFallbackStore is set.
      * @return   Ok on success, or NetError::StaConnectTimeout /
      *           NetError::StaConnectFailed.
      * @pubstate writes connected_ on success; uses creds via Secret.
@@ -105,7 +119,9 @@ public:
      */
     [[nodiscard]] std::expected<void, NetError>
     connect(const core::WifiCredentials& creds,
-            std::string_view hostname = {});
+            std::string_view hostname = {},
+            core::ISecureStore* bleFallbackStore = nullptr,
+            const core::DeviceIdentity* bleFallbackIdentity = nullptr);
 
 private:
     bool connected_;
