@@ -18,6 +18,8 @@
 
 #include "net/StaClient.hpp"
 
+#include "net/BleProvisioning.hpp"
+
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -39,9 +41,19 @@ constexpr int kFailedBit = BIT1;
 constexpr int kMaxConnectRetries = 10;
 constexpr TickType_t kConnectTimeout = pdMS_TO_TICKS(45000);
 constexpr TickType_t kRetryDelay = pdMS_TO_TICKS(800);
+/** How long a post-boot link loss must persist before BLE fallback starts. */
+constexpr TickType_t kBleFallbackThreshold = pdMS_TO_TICKS(60000);
 
 EventGroupHandle_t s_wifiEventGroup = nullptr;
 int s_connectRetries = 0;
+
+// Set once by connect() on success when the caller opted in; used only by
+// the post-boot branch of wifiEventHandler() below (s_wifiEventGroup is
+// null there, since the bounded connect() call has already returned).
+core::ISecureStore* s_bleFallbackStore = nullptr;
+const core::DeviceIdentity* s_bleFallbackIdentity = nullptr;
+TickType_t s_disconnectedSinceTick = 0;
+bool s_bleFallbackActive = false;
 
 /**
  * @brief    disconnectReasonString — map ESP-IDF Wi-Fi disconnect reason codes.
@@ -136,6 +148,32 @@ void wifiEventHandler(void* arg,
             return;
         }
 
+        // Post-boot link loss (the bounded connect() call above already
+        // succeeded once): esp_wifi_connect() below retries forever on its
+        // own, which used to be the whole story -- if the AP never comes
+        // back (moved, replaced, password changed), the device retried
+        // silently forever with no way for the app to reach it and no way
+        // for the user to reconfigure Wi-Fi short of a power cycle. After
+        // a sustained ~1 minute outage, start BLE provisioning alongside
+        // the ongoing reconnect attempts (does not stop them) so the app
+        // can push new credentials over Bluetooth.
+        if (s_disconnectedSinceTick == 0) {
+            s_disconnectedSinceTick = xTaskGetTickCount();
+        } else if (!s_bleFallbackActive && s_bleFallbackStore != nullptr
+                   && s_bleFallbackIdentity != nullptr
+                   && (xTaskGetTickCount() - s_disconnectedSinceTick)
+                          >= kBleFallbackThreshold) {
+            ESP_LOGW(kTag, "STA link lost for over a minute — starting BLE "
+                           "provisioning fallback");
+            if (auto bleResult = ble_provisioning::start(
+                    *s_bleFallbackStore, *s_bleFallbackIdentity);
+                !bleResult) {
+                ESP_LOGW(kTag, "BLE fallback provisioning failed to start");
+            } else {
+                s_bleFallbackActive = true;
+            }
+        }
+
         ESP_LOGW(kTag, "STA link lost — reconnecting");
         esp_wifi_connect();
     } else if (eventBase == IP_EVENT && eventId == IP_EVENT_STA_GOT_IP) {
@@ -145,6 +183,7 @@ void wifiEventHandler(void* arg,
             ESP_LOGI(kTag, "STA IP " IPSTR, IP2STR(&event->ip_info.ip));
         }
         applyStaLinkTuning();
+        s_disconnectedSinceTick = 0;
         if (s_wifiEventGroup != nullptr) {
             xEventGroupSetBits(s_wifiEventGroup, kConnectedBit);
         }
@@ -212,11 +251,19 @@ StaClient& StaClient::operator=(StaClient&& other) noexcept
 }
 
 std::expected<void, NetError>
-StaClient::connect(const core::WifiCredentials& creds, std::string_view hostname)
+StaClient::connect(const core::WifiCredentials& creds,
+                   std::string_view hostname,
+                   core::ISecureStore* bleFallbackStore,
+                   const core::DeviceIdentity* bleFallbackIdentity)
 {
     if (connected_) {
         return {};
     }
+
+    s_bleFallbackStore = bleFallbackStore;
+    s_bleFallbackIdentity = bleFallbackIdentity;
+    s_disconnectedSinceTick = 0;
+    s_bleFallbackActive = false;
 
     std::string hostLabel;
     if (!hostname.empty()) {
