@@ -5,9 +5,48 @@ un suggerimento. Se qualcosa non è chiaro o sembra in conflitto con codice
 esistente, chiedi prima di improvvisare una soluzione diversa — non inventare
 comportamenti non specificati qui.
 
-Dispositivo di test reale: `http://192.168.1.62` (mDNS `digiradio-CC4DB4.local`).
-Verifica ogni funzionalità contro il dispositivo vero prima di considerarla
-finita, non solo con dati mock.
+Dispositivo di test reale: `http://192.168.1.62` (mDNS **`igiradio-CC4DB4.local`**
+— vedi §0bis, è cambiato oggi). Verifica ogni funzionalità contro il
+dispositivo vero prima di considerarla finita, non solo con dati mock.
+
+---
+
+## 0bis. Identità dispositivo rinominata "DigiRadio" → "igiRadio" — OBBLIGATORIO
+
+Oggi il firmware è stato rinominato per coerenza con il nome dell'app. Tre
+stringhe sono cambiate:
+
+| Cosa | Prima | Ora |
+|---|---|---|
+| SSID WiFi di setup | `DigiRadio-<seriale>` | `igiRadio-<seriale>` |
+| Nome Bluetooth | `DigiRadio` | `igiRadio` |
+| Hostname mDNS | `digiradio-<seriale>.local` | `igiradio-<seriale>.local` |
+
+**Cerca in tutto il progetto app ogni occorrenza letterale di `"DigiRadio"` o
+`"digiradio"`** usata per riconoscere/filtrare il dispositivo (discovery WiFi
+locale, scan Bluetooth, matching SSID durante il provisioning) — non solo
+testo di UI. Candidati sospetti da controllare: `DigiRadioDiscoveryService`,
+`BLEProvisioningService`, `LocalNetworkScanner`. Se il filtro cerca ancora
+"DigiRadio", l'app smette di trovare il dispositivo reale.
+
+---
+
+## 0ter. Nuovo: fallback Bluetooth se il WiFi cade durante l'uso normale
+
+Prima, se il WiFi si perdeva DOPO essersi già connesso una volta (router
+riavviato, password cambiata, spostato di posto), il firmware ritentava
+all'infinito senza mai avvisare né dare un modo per riconfigurare — bisognava
+staccare la corrente. Ora, dopo **circa un minuto** di disconnessione
+continua, il dispositivo attiva automaticamente il provisioning Bluetooth
+(stesso protocollo BLE già usato al primo setup) **senza smettere di
+ritentare il WiFi in background**.
+
+Non serve un nuovo endpoint HTTP (il dispositivo potrebbe non essere
+raggiungibile via WiFi in quel momento, è proprio il punto). **Azione
+consigliata**: se l'app ha già una schermata "Cambia rete WiFi" che passa da
+Bluetooth (dovrebbe già esistere per il primo setup), verifica che scatti
+anche quando l'app perde la connessione HTTP al dispositivo per un po' — è
+il segnale che potrebbe essere entrato in questa modalità.
 
 ---
 

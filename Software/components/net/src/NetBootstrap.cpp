@@ -189,7 +189,8 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
 
     StaClient sta;
     if (auto staResult =
-            sta.connect(creds, deviceIdentity.hostname());
+            sta.connect(creds, deviceIdentity.hostname(), &store,
+                       &deviceIdentity);
         !staResult) {
         ESP_LOGW(kTag, "STA connect failed for SSID %.*s — credentials kept in NVS",
                  static_cast<int>(creds.ssid().value().size()),
