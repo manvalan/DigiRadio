@@ -354,6 +354,12 @@ StaClient::connect(const core::WifiCredentials& creds,
         if (!hostLabel.empty()) {
             if (mdns_init() == ESP_OK) {
                 mdns_hostname_set(hostLabel.c_str());
+                // Publishes the PTR/SRV/TXT records the app's Bonjour
+                // browse (_http._tcp) needs to discover this device.
+                // mdns_hostname_set() alone only answers direct A-record
+                // lookups of <hostLabel>.local, which a browse never sends.
+                mdns_service_add(hostLabel.c_str(), "_http", "_tcp", 80,
+                                 nullptr, 0);
             }
         }
         ESP_LOGI(kTag, "connected to %.*s",
