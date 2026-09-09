@@ -317,7 +317,7 @@ StaClient::connect(const core::WifiCredentials& creds,
     if (pwdLen == 0U) {
         wifiCfg.sta.threshold.authmode = WIFI_AUTH_OPEN;
     } else {
-        wifiCfg.sta.threshold.authmode = WIFI_AUTH_WPA2_WPA3_PSK;
+        wifiCfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     }
     wifiCfg.sta.pmf_cfg.capable = true;
     wifiCfg.sta.pmf_cfg.required = false;
