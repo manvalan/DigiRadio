@@ -44,6 +44,7 @@ idf_component_register(
         "src/AfFollowJson.cpp"
         "src/DabLinkage.cpp"
         "src/DabServiceFollower.cpp"
+        "src/SignalQuality.cpp"
     INCLUDE_DIRS "include"
 )
 

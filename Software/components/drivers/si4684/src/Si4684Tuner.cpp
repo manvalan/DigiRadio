@@ -145,6 +145,7 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         status.dabFreqIndex = dabIndex_;
         if (auto dig = driver_.readDabDigRadStatus(); dig) {
             status.locked = dig->valid;
+            status.dabRssiDbuV = dig->rssiDbuV;
             status.dabFicQuality = dig->ficQuality;
             status.dabCnrDb = dig->cnrDb;
         } else {

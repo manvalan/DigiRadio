@@ -1144,6 +1144,10 @@ Si4684Driver::readDabDigRadStatus()
     }
 
     Si4684DabDigRadStatus status = {};
+    // AN649 0xB2 reply: RESP6 RSSI, RESP7 SNR (signed), RESP8 FIC_QUALITY,
+    // RESP9 CNR; RESPn is raw[n + 1] after the SPI lead-in byte.
+    status.rssiDbuV = static_cast<std::int8_t>(raw[7]);
+    status.snrDb = static_cast<std::int8_t>(raw[8]);
     status.ficQuality = raw[9];
     status.cnrDb = raw[10];
     // raw[5]=RESP4 (see readFmRds()); ACQINT is RESP4 bit3.

@@ -58,6 +58,7 @@ struct TunerStatus {
     std::optional<std::uint8_t> dabFreqIndex; ///< Current Band III ensemble index.
     std::optional<std::uint8_t> dabFicQuality; ///< FIC quality 0–100 when DAB.
     std::optional<std::int8_t> dabCnrDb;    ///< CNR in dB when DAB.
+    std::optional<std::int8_t> dabRssiDbuV; ///< RSSI in dBµV when DAB.
     std::optional<std::uint32_t> dabPlayingServiceId;    ///< Last played DAB service.
     std::optional<std::uint32_t> dabPlayingComponentId;  ///< Last played DAB component.
     std::optional<FrequencyKHz> fmFrequency; ///< Tuned FM centre frequency.
