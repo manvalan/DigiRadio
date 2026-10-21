@@ -4,6 +4,7 @@ struct ConnectionView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: ConnectionViewModel?
     @State private var discoveryTimer: Timer?
+    @State private var confirmWifiReset = false
 
     var body: some View {
         let vm = viewModel ?? ConnectionViewModel(environment: environment)
@@ -83,6 +84,20 @@ struct ConnectionView: View {
                 if state.connection.isConnected {
                     Button("Disconnetti", role: .destructive) {
                         vm.disconnect()
+                    }
+                    Button("Reset Wi‑Fi del dispositivo", role: .destructive) {
+                        confirmWifiReset = true
+                    }
+                    .confirmationDialog(
+                        "Dimenticare la rete Wi‑Fi?",
+                        isPresented: $confirmWifiReset,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Reset e riavvia", role: .destructive) {
+                            Task { try? await environment.digiRadio.resetWifi() }
+                        }
+                    } message: {
+                        Text("DigiRadio cancella le credenziali e si riavvia in modalità setup (rete igiRadio-<seriale>, 192.168.4.1). Poi riconfiguralo via BLE o SoftAP.")
                     }
                 } else {
                     Button {

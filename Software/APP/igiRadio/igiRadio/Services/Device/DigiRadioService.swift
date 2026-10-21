@@ -67,6 +67,10 @@ protocol DigiRadioService: AnyObject {
     func scanBluetooth(seconds: Int) async throws
     func connectBluetooth(mac: String, name: String?, save: Bool) async throws
     func reconnectBluetooth() async throws
+    func setBluetoothEnabled(_ enabled: Bool) async throws
+
+    /// Forget the device's Wi-Fi credentials; it reboots into setup SoftAP.
+    func resetWifi() async throws
 }
 
 /// Wire DTO for PUT /api/audio/profile

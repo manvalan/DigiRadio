@@ -3,12 +3,20 @@ import SwiftUI
 struct BluetoothView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var isScanning = false
+    @State private var isSwitching = false
 
     var body: some View {
         let bt = environment.state.bluetooth
         Form {
             Section("Stato speaker (BT1035)") {
-                LabeledContent("Modulo", value: bt.booted ? "Attivo" : "Non pronto")
+                Toggle(isOn: Binding(
+                    get: { bt.booted },
+                    set: { enabled in Task { await setEnabled(enabled) } }
+                )) {
+                    Label("Modulo Bluetooth", systemImage: "power")
+                }
+                .disabled(isSwitching || !environment.state.connection.isConnected)
+                LabeledContent("Modulo", value: isSwitching ? "…" : (bt.booted ? "Attivo" : "Spento"))
                 LabeledContent("A2DP", value: bt.a2dpState.rawValue.capitalized)
                 LabeledContent("Dispositivo", value: bt.deviceName.isEmpty ? "—" : bt.deviceName)
                 if let speaker = bt.savedSpeaker {
@@ -21,11 +29,12 @@ struct BluetoothView: View {
                 Button(isScanning ? "Scansione..." : "Scansiona speaker vicini") {
                     Task { await scan() }
                 }
-                .disabled(isScanning)
+                .disabled(isScanning || !bt.booted)
 
                 Button("Riconnetti speaker salvato") {
                     Task { try? await environment.digiRadio.reconnectBluetooth() }
                 }
+                .disabled(!bt.booted)
             }
 
             if !bt.nearbyDevices.isEmpty {
@@ -63,6 +72,12 @@ struct BluetoothView: View {
         }
         .navigationTitle("Bluetooth Audio")
         .onAppear { Task { try? await environment.digiRadio.refreshBluetoothStatus() } }
+    }
+
+    private func setEnabled(_ enabled: Bool) async {
+        isSwitching = true
+        defer { isSwitching = false }
+        try? await environment.digiRadio.setBluetoothEnabled(enabled)
     }
 
     private func scan() async {

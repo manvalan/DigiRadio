@@ -117,6 +117,17 @@ final class HTTPDigiRadioClient {
         let _: StatusResponse = try await post("/api/bluetooth/reconnect", body: EmptyBody())
     }
 
+    func setBluetoothEnabled(_ enabled: Bool) async throws {
+        let path = enabled ? "/api/bluetooth/enable" : "/api/bluetooth/disable"
+        let _: StatusResponse = try await post(path, body: EmptyBody())
+    }
+
+    // MARK: - Wi-Fi
+
+    func resetWifi() async throws {
+        let _: StatusResponse = try await post("/api/wifi/reset", body: EmptyBody())
+    }
+
     // MARK: - Stations
 
     func fetchStations() async throws -> StationListResponse {

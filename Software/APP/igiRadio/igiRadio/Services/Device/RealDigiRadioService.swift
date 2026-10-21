@@ -194,6 +194,16 @@ final class RealDigiRadioService: DigiRadioService {
         try await refreshBluetoothStatus()
     }
 
+    func setBluetoothEnabled(_ enabled: Bool) async throws {
+        try await client.setBluetoothEnabled(enabled)
+        try await refreshBluetoothStatus()
+    }
+
+    func resetWifi() async throws {
+        try await client.resetWifi()
+        disconnect()
+    }
+
     private func applyTuner(_ tuner: TunerStatusResponse) {
         state.tuner.booted = tuner.booted
         state.tuner.band = TunerBand(rawValue: tuner.band) ?? .fm

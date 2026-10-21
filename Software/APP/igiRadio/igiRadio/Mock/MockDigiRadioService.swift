@@ -222,6 +222,16 @@ final class MockDigiRadioService: DigiRadioService {
         state.bluetooth.a2dpState = .streaming
     }
 
+    func setBluetoothEnabled(_ enabled: Bool) async throws {
+        try await delay()
+        state.bluetooth.booted = enabled
+    }
+
+    func resetWifi() async throws {
+        try await delay()
+        disconnect()
+    }
+
     private func delay(_ seconds: Double = 0.35) async throws {
         try await Task.sleep(for: .seconds(seconds))
     }
