@@ -156,6 +156,8 @@ struct Si4684DabServiceData {
  * @date     2026-07-06
  */
 struct Si4684DabDigRadStatus {
+    std::int8_t rssiDbuV;    ///< RSSI in dBµV (RESP6).
+    std::int8_t snrDb;       ///< SNR in dB (RESP7).
     std::uint8_t ficQuality; ///< FIC quality 0–100.
     std::uint8_t cnrDb;      ///< CNR in dB.
     bool acquired;           ///< Ensemble acquired flag.

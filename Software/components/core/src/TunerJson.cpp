@@ -130,6 +130,9 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         if (status.dabCnrDb) {
             out << ",\"cnr_db\":" << static_cast<int>(*status.dabCnrDb);
         }
+        if (status.dabRssiDbuV) {
+            out << ",\"rssi_dbuv\":" << static_cast<int>(*status.dabRssiDbuV);
+        }
         if (status.dabPlayingServiceId) {
             out << ",\"playing_service_id\":"
                 << *status.dabPlayingServiceId;
