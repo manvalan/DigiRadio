@@ -158,8 +158,17 @@ void sleepMs(std::uint32_t ms)
 [[noreturn]] void afFollowTask(void* arg)
 {
     auto* follow = static_cast<tuner::AfFollowService*>(arg);
+    UBaseType_t lowWater = ~0U;
     while (true) {
         follow->tick(static_cast<std::uint32_t>(esp_timer_get_time() / 1000));
+        // TunerStatus copies, RDS buffers and hunts are stack-heavy: an
+        // undersized stack overflowed here in 0.9.6. Log new lows.
+        const UBaseType_t free = uxTaskGetStackHighWaterMark(nullptr);
+        if (free < lowWater) {
+            lowWater = free;
+            ESP_LOGI(kTag, "af_follow stack free low-water: %u bytes",
+                     static_cast<unsigned>(free));
+        }
         vTaskDelay(kAfFollowPeriod);
     }
 }
@@ -302,7 +311,7 @@ extern "C" void app_main()
     bluetoothService.startupReconnect();
 
     static tuner::AfFollowService afFollow(tunerService, sleepMs);
-    if (xTaskCreate(afFollowTask, "af_follow", 6144, &afFollow, 3, nullptr)
+    if (xTaskCreate(afFollowTask, "af_follow", 12288, &afFollow, 3, nullptr)
         != pdPASS) {
         ESP_LOGW(kTag, "AF follow task create failed");
     }

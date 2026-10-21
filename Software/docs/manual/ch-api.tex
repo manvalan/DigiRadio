@@ -173,8 +173,9 @@ HTTP status: \textbf{200 OK}; \textbf{500} on driver failure;
 RDS alternate-frequency follow, run on the radio by
 \texttt{tuner::AfFollowService} (no app needed). When the FM signal gets
 weak the firmware briefly probes the station's AFs and moves to a stronger
-one with the same PI. POST \texttt{\{"enabled":false\}} turns it off;
-live only, every boot starts enabled.
+one with the same PI. Off by default (it briefly interrupts audio while
+probing): POST \texttt{\{"enabled":true\}} turns it on; live only, every
+boot starts disabled.
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]

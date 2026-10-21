@@ -70,7 +70,7 @@ struct AfFollowConfig {
  * @date     2026-10-21
  */
 struct AfFollowStats {
-    bool enabled = true;                  ///< Automatic AF following on.
+    bool enabled = false;                 ///< Automatic following (off by default).
     std::uint32_t hunts = 0U;             ///< AF probes since boot.
     std::uint32_t switches = 0U;          ///< Automatic retunes since boot.
     std::optional<FrequencyKHz> lastFrom; ///< Frequency left last time.

@@ -280,8 +280,11 @@ AF-follow task (\texttt{AfFollowService}) never interleave SPI commands.
 \section{AfFollowService}\label{cls:AfFollowService}
 Background RDS alternate-frequency follow. DigiRadio has a single Si4684,
 so an AF can only be measured by briefly retuning to it. Every 3\,s the
-\texttt{af\_follow} task calls \texttt{tick()}, which refreshes the tuner
-status (draining RDS) and feeds \texttt{core::AlternateFrequencyFollower}.
+\texttt{af\_follow} task calls \texttt{tick()}, which reads only the signal
+metrics (\texttt{ITuner::readSignal()}: FM\_RSQ\_STATUS or
+DAB\_DIGRAD\_STATUS) and feeds \texttt{core::AlternateFrequencyFollower};
+the full status with the RDS drain (AF list, PI) is read every tenth tick
+(about 30\,s). Polling RDS every 3\,s caused audible audio gaps.
 On a weak FM signal it holds the \texttt{TunerService} lock, probes up to six
 AFs (250\,ms settle each, plus a few RDS reads to confirm the PI) and stays
 on the best one carrying the same PI, or tunes back. In DAB it runs

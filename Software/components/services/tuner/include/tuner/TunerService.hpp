@@ -226,6 +226,19 @@ public:
         std::uint8_t level);
 
     /**
+     * @brief    refreshSignal — lock and signal metrics only.
+     *
+     * @dname    refreshSignal
+     * @return   TunerStatus without RDS / DLS fields, or a TunerError.
+     * @pubstate reads tuner_ under the tuner lock.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<core::TunerStatus, core::TunerError>
+    refreshSignal();
+
+    /**
      * @brief    readDabLinkage — service-following data for a DAB service.
      *
      * @dname    readDabLinkage

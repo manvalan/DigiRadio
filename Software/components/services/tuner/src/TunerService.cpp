@@ -475,6 +475,17 @@ void TunerService::setAfFollowEnabled(bool enabled)
     afStats_.enabled = enabled;
 }
 
+std::expected<core::TunerStatus, core::TunerError> TunerService::refreshSignal()
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto status = tuner_.readSignal();
+    if (status && status->band == core::TunerBand::Dab) {
+        status->dabPlayingServiceId = lastPlayedServiceId_;
+        status->dabPlayingComponentId = lastPlayedComponentId_;
+    }
+    return status;
+}
+
 std::expected<core::DabLinkage, core::TunerError>
 TunerService::readDabLinkage(std::uint32_t serviceId)
 {
