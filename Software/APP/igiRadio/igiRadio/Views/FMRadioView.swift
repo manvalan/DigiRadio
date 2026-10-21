@@ -80,12 +80,23 @@ struct FMRadioView: View {
                         .foregroundStyle(stereo ? .green : .secondary)
                 }
             }
+            if let offset = fm.freqOffPpm {
+                HStack {
+                    Text("Offset frequenza")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(offset) ppm")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                }
+            }
         }
         .igiPremiumCard()
     }
 
     private func hasRds(_ fm: FMTunerState) -> Bool {
         !(fm.stationName ?? "").isEmpty || !(fm.radiotext ?? "").isEmpty
+            || !(fm.afKhz ?? []).isEmpty
     }
 
     @ViewBuilder
@@ -109,11 +120,43 @@ struct FMRadioView: View {
                     .italic()
                     .contentTransition(.interpolate)
             }
+            if let afs = fm.afKhz, !afs.isEmpty {
+                alternateFrequencies(afs)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .igiPremiumCard()
         .animation(.snappy, value: fm.stationName)
         .animation(.snappy, value: fm.radiotext)
+        .animation(.snappy, value: fm.afKhz)
+    }
+
+    /// RDS AF list: tapping one retunes to that transmitter of the same station.
+    @ViewBuilder
+    private func alternateFrequencies(_ afs: [Int]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Frequenze alternative")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: IGITheme.spacingS) {
+                    ForEach(afs, id: \.self) { khz in
+                        Button {
+                            frequencyMHz = Double(khz) / 1000.0
+                            Task { await tune() }
+                        } label: {
+                            Text(String(format: "%.2f", Double(khz) / 1000.0))
+                                .font(.caption.weight(.semibold).monospacedDigit())
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Sintonizza \(String(format: "%.2f", Double(khz) / 1000.0)) MHz")
+                    }
+                }
+            }
+        }
     }
 
     private var seekSection: some View {

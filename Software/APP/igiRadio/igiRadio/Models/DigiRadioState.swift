@@ -59,6 +59,10 @@ struct FMTunerState: Equatable, Sendable, Codable {
     var stereo: Bool?
     var stationName: String?
     var radiotext: String?
+    /// Carrier offset in ppm (omitted by older firmware).
+    var freqOffPpm: Int? = nil
+    /// RDS alternate frequencies (group 0A), kHz; omitted when empty.
+    var afKhz: [Int]? = nil
 
     enum CodingKeys: String, CodingKey {
         case frequencyKhz = "frequency_khz"
@@ -67,6 +71,8 @@ struct FMTunerState: Equatable, Sendable, Codable {
         case stereo
         case stationName = "station_name"
         case radiotext
+        case freqOffPpm = "freqoff_ppm"
+        case afKhz = "af_khz"
     }
 }
 

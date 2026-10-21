@@ -69,7 +69,9 @@ final class MockDigiRadioService: DigiRadioService {
             snrDb: 22,
             stereo: true,
             stationName: "Radio Mock",
-            radiotext: "igiRadio demo mode"
+            radiotext: "igiRadio demo mode",
+            freqOffPpm: 2,
+            afKhz: [frequencyKhz + 2_300, frequencyKhz - 4_100]
         )
     }
 
