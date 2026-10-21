@@ -90,6 +90,22 @@ void appendOptionalLabel(std::ostringstream& out,
     appendJsonString(out, label->value());
 }
 
+void appendAfList(std::ostringstream& out,
+                  const std::vector<FrequencyKHz>& frequencies)
+{
+    if (frequencies.empty()) {
+        return;
+    }
+    out << ",\"af_khz\":[";
+    for (std::size_t i = 0; i < frequencies.size(); ++i) {
+        if (i > 0U) {
+            out << ',';
+        }
+        out << frequencies[i].value();
+    }
+    out << ']';
+}
+
 } // namespace
 
 std::string serializeTunerStatusJson(const TunerStatus& status)
@@ -147,16 +163,10 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         }
         appendOptionalLabel(out, "station_name", status.fmStationName);
         appendOptionalLabel(out, "radiotext", status.fmRadiotext);
-        if (!status.fmAlternateFrequencies.empty()) {
-            out << ",\"af_khz\":[";
-            for (std::size_t i = 0; i < status.fmAlternateFrequencies.size(); ++i) {
-                if (i > 0U) {
-                    out << ',';
-                }
-                out << status.fmAlternateFrequencies[i].value();
-            }
-            out << ']';
+        if (status.fmProgramId) {
+            out << ",\"pi\":" << *status.fmProgramId;
         }
+        appendAfList(out, status.fmAlternateFrequencies);
         out << "},\"dab\":null";
     }
     out << '}';

@@ -274,6 +274,29 @@ tests can use fakes.
 Application service exposing intent-level tuner operations to HTTP and
 future UI. Holds a reference to \texttt{core::ITuner}, tracks last tune
 target and volume, and maps driver failures to \texttt{core::TunerError}.
+Every public operation holds a recursive mutex, so the HTTP task and the
+AF-follow task (\texttt{AfFollowService}) never interleave SPI commands.
+
+\section{AfFollowService}\label{cls:AfFollowService}
+Background RDS alternate-frequency follow. DigiRadio has a single Si4684,
+so an AF can only be measured by briefly retuning to it. Every 3\,s the
+\texttt{af\_follow} task calls \texttt{tick()}, which refreshes the tuner
+status (draining RDS) and feeds \texttt{core::AlternateFrequencyFollower}.
+On a weak FM signal it holds the \texttt{TunerService} lock, probes up to six
+AFs (250\,ms settle each, plus a few RDS reads to confirm the PI) and stays
+on the best one carrying the same PI, or tunes back. Works with no app
+connected; state and on/off switch are at \texttt{/api/tuner/af}
+(Section~\ref{sec:api-tuner-af}).
+
+\section{AlternateFrequencyFollower}\label{cls:AlternateFrequencyFollower}
+Pure-core RDS AF policy. Tracks the current station (PI plus the AF set,
+including frequencies already used) from periodic \texttt{TunerStatus}
+snapshots; a frequency outside the set, or a different PI, starts a new
+station. Hunts when the signal is unlocked or below 12\,dB\textmu V, after an
+8\,s settle and outside a 20\,s cooldown. An AF is chosen only if locked,
+at least 5\,dB\textmu V, same PI (or PI not yet decoded) and 6\,dB stronger
+than the current frequency --- or any usable AF when the current one is
+unusable. Host-tested in \texttt{af\_follower\_test}.
 
 \section{Si4684Tuner}\label{cls:Si4684Tuner}
 \texttt{ITuner} adapter over \texttt{Si4684Driver}. Translates domain calls
@@ -312,7 +335,9 @@ Built by \texttt{BroadcastLabel::tryFromChipBytes()} in the pure core.
 
 \section{RdsMetadataAccumulator}\label{cls:RdsMetadataAccumulator}
 Stateful RDS decoder assembling program service name and radiotext from
-raw block~A--D snapshots returned by the Si4684 driver.
+raw block~A--D snapshots returned by the Si4684 driver. Also collects the
+group~0A AF list and the PI code (block~A), trusted only after two
+consecutive groups agree.
 
 \section{DabDynamicLabelAccumulator}\label{cls:DabDynamicLabelAccumulator}
 Reassembles segmented DAB DLS payloads into one dynamic label for

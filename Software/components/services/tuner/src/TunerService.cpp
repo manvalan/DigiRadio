@@ -18,6 +18,7 @@
 #include "freertos/task.h"
 
 #include <algorithm>
+#include <mutex>
 #include <cctype>
 #include <string>
 
@@ -155,6 +156,7 @@ void TunerService::setDefaultDabAntCap(std::uint8_t antCap) noexcept
 
 std::expected<core::TunerStatus, core::TunerError> TunerService::refreshStatus()
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto status = tuner_.readStatus();
     if (status) {
         volume_ = status->volume;
@@ -169,6 +171,7 @@ std::expected<core::TunerStatus, core::TunerError> TunerService::refreshStatus()
 std::expected<void, core::TunerError> TunerService::tuneDab(
     std::uint8_t freqIndex, std::optional<std::uint8_t> antCap)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (auto result =
             tuner_.tuneDab(freqIndex, antCap.value_or(defaultDabAntCap_));
         !result) {
@@ -183,6 +186,7 @@ std::expected<void, core::TunerError> TunerService::tuneDab(
 std::expected<void, core::TunerError> TunerService::tuneFm(
     core::FrequencyKHz frequency, std::optional<std::uint8_t> antCap)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (auto result = tuner_.tuneFm(frequency, antCap.value_or(defaultFmAntCap_));
         !result) {
         return result;
@@ -194,6 +198,7 @@ std::expected<void, core::TunerError> TunerService::tuneFm(
 std::expected<core::FrequencyKHz, core::TunerError> TunerService::seekFm(
     core::SeekDirection direction)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     auto result = tuner_.seekFm(direction);
     if (result) {
         lastFmFrequency_ = *result;
@@ -204,6 +209,7 @@ std::expected<core::FrequencyKHz, core::TunerError> TunerService::seekFm(
 std::expected<core::TunerScanResult, core::TunerError>
 TunerService::scanForStation(const core::TunerScanRequest& request)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     const std::string_view nameFilter = request.nameFilter;
 
     if (request.band == core::TunerBand::Fm) {
@@ -358,6 +364,7 @@ TunerService::scanForStation(const core::TunerScanRequest& request)
 std::expected<std::vector<core::TunerFmScannedStation>, core::TunerError>
 TunerService::scanFullFmBand()
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     const auto bandBottom = *core::FrequencyKHz::tryFromKhz(kFmScanMinKhz);
     if (auto tuned = tuneFm(bandBottom); !tuned) {
         return std::unexpected(tuned.error());
@@ -425,6 +432,7 @@ TunerService::scanFullFmBand()
 std::expected<std::vector<core::TunerServiceEntry>, core::TunerError>
 TunerService::listDabServices()
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     return tuner_.listDabServices();
 }
 
@@ -432,6 +440,7 @@ std::expected<void, core::TunerError> TunerService::playDabService(
     std::uint32_t serviceId,
     std::uint32_t componentId)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (auto result = tuner_.playDabService(serviceId, componentId); !result) {
         return result;
     }
@@ -442,6 +451,7 @@ std::expected<void, core::TunerError> TunerService::playDabService(
 
 std::expected<void, core::TunerError> TunerService::setVolume(std::uint8_t level)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (auto result = tuner_.setVolume(level); !result) {
         return result;
     }
@@ -452,6 +462,33 @@ std::expected<void, core::TunerError> TunerService::setVolume(std::uint8_t level
 core::ITuner& TunerService::tuner() noexcept
 {
     return tuner_;
+}
+
+std::recursive_mutex& TunerService::mutex() noexcept
+{
+    return mutex_;
+}
+
+void TunerService::setAfFollowEnabled(bool enabled)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    afStats_.enabled = enabled;
+}
+
+void TunerService::recordAfSwitch(core::FrequencyKHz from,
+                                  core::FrequencyKHz to)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ++afStats_.switches;
+    afStats_.lastFrom = from;
+    afStats_.lastTo = to;
+    lastFmFrequency_ = to;
+}
+
+core::AfFollowStats TunerService::afFollowStats()
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return afStats_;
 }
 
 } // namespace tuner

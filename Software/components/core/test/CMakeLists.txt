@@ -52,6 +52,8 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/OtaAppDescriptor.cpp"
     "${CORE_SRC_DIR}/WebRadioJson.cpp"
     "${CORE_SRC_DIR}/PowerStateJson.cpp"
+    "${CORE_SRC_DIR}/AlternateFrequencyFollower.cpp"
+    "${CORE_SRC_DIR}/AfFollowJson.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -169,3 +171,7 @@ target_sources(power_state_test PRIVATE
 )
 target_link_libraries(power_state_test PRIVATE digiradio_core)
 add_test(NAME power_state_test COMMAND power_state_test)
+
+add_executable(af_follower_test af_follower_test.cpp)
+target_link_libraries(af_follower_test PRIVATE digiradio_core)
+add_test(NAME af_follower_test COMMAND af_follower_test)
