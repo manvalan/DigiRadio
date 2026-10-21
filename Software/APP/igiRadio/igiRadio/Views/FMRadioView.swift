@@ -21,8 +21,8 @@ struct FMRadioView: View {
 
                 if let fm {
                     signalCard(fm)
-                    if let ps = fm.stationName, !ps.isEmpty {
-                        rdsCard(fm, ps: ps)
+                    if hasRds(fm) {
+                        rdsCard(fm)
                     }
                 }
 
@@ -38,7 +38,16 @@ struct FMRadioView: View {
             if let khz = environment.state.tuner.fm?.frequencyKhz {
                 frequencyMHz = Double(khz) / 1000.0
             }
-            Task { try? await environment.digiRadio.refreshTunerStatus() }
+        }
+        .task {
+            // RDS PS/radiotext arrive over several seconds after a tune:
+            // keep polling while this screen is visible (same 3 s as Home).
+            while !Task.isCancelled {
+                if environment.state.connection.isConnected {
+                    try? await environment.digiRadio.refreshTunerStatus()
+                }
+                try? await Task.sleep(for: .seconds(3))
+            }
         }
         .onChange(of: environment.state.tuner.fm?.frequencyKhz) { _, newValue in
             if let khz = newValue {
@@ -75,8 +84,12 @@ struct FMRadioView: View {
         .igiPremiumCard()
     }
 
+    private func hasRds(_ fm: FMTunerState) -> Bool {
+        !(fm.stationName ?? "").isEmpty || !(fm.radiotext ?? "").isEmpty
+    }
+
     @ViewBuilder
-    private func rdsCard(_ fm: FMTunerState, ps: String) -> some View {
+    private func rdsCard(_ fm: FMTunerState) -> some View {
         VStack(alignment: .leading, spacing: IGITheme.spacingS) {
             HStack {
                 Image(systemName: "text.bubble.fill")
@@ -84,17 +97,23 @@ struct FMRadioView: View {
                 Text("RDS")
                     .font(.headline)
             }
-            Text(ps)
-                .font(.title3.weight(.semibold))
+            if let ps = fm.stationName, !ps.isEmpty {
+                Text(ps)
+                    .font(.title3.weight(.semibold))
+                    .contentTransition(.interpolate)
+            }
             if let rt = fm.radiotext, !rt.isEmpty {
                 Text(rt)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .italic()
+                    .contentTransition(.interpolate)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .igiPremiumCard()
+        .animation(.snappy, value: fm.stationName)
+        .animation(.snappy, value: fm.radiotext)
     }
 
     private var seekSection: some View {
