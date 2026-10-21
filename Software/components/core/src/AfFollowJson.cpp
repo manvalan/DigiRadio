@@ -50,6 +50,7 @@ std::string serializeAfFollowJson(const AfFollowStats& stats)
 {
     std::string out = std::string(R"({"enabled":)")
                       + (stats.enabled ? "true" : "false")
+                      + R"(,"hunts":)" + std::to_string(stats.hunts)
                       + R"(,"switches":)" + std::to_string(stats.switches);
     if (stats.lastFrom && stats.lastTo) {
         out += R"(,"last_from_khz":)" + std::to_string(stats.lastFrom->value())

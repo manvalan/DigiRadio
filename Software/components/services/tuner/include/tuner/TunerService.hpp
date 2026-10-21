@@ -263,6 +263,17 @@ public:
     void setAfFollowEnabled(bool enabled);
 
     /**
+     * @brief    recordAfHunt — note that the AF task probed alternates.
+     *
+     * @dname    recordAfHunt
+     * @pubstate increments afStats_.hunts.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    void recordAfHunt();
+
+    /**
      * @brief    recordAfSwitch — note an automatic AF retune.
      *
      * @dname    recordAfSwitch

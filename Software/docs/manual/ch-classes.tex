@@ -292,8 +292,9 @@ connected; state and on/off switch are at \texttt{/api/tuner/af}
 Pure-core RDS AF policy. Tracks the current station (PI plus the AF set,
 including frequencies already used) from periodic \texttt{TunerStatus}
 snapshots; a frequency outside the set, or a different PI, starts a new
-station. Hunts when the signal is unlocked or below 12\,dB\textmu V, after an
-8\,s settle and outside a 20\,s cooldown. An AF is chosen only if locked,
+station. Hunts when the signal has been unlocked or below 12\,dB\textmu V for
+three snapshots in a row (about 9\,s; a single VALID flicker or RSSI dip
+never hunts), after an 8\,s settle and outside a 20\,s cooldown. An AF is chosen only if locked,
 at least 5\,dB\textmu V, same PI (or PI not yet decoded) and 6\,dB stronger
 than the current frequency --- or any usable AF when the current one is
 unusable. Host-tested in \texttt{af\_follower\_test}.

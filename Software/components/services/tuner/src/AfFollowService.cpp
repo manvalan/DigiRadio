@@ -58,6 +58,10 @@ void AfFollowService::hunt(std::uint32_t nowMs)
     if (!current) {
         return;
     }
+    tuner_.recordAfHunt();
+    ESP_LOGI(kTag, "weak signal (%d dBuV, locked %d): probing AFs",
+             static_cast<int>(current->rssiDbuV),
+             static_cast<int>(current->locked));
     const auto samples = probe(follower_.candidates());
     const core::FrequencyKHz chosen = follower_.choose(*current, samples);
     if (auto tuned = tuner_.tuneFm(chosen); !tuned) {

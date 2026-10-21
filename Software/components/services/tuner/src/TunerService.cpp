@@ -475,6 +475,12 @@ void TunerService::setAfFollowEnabled(bool enabled)
     afStats_.enabled = enabled;
 }
 
+void TunerService::recordAfHunt()
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ++afStats_.hunts;
+}
+
 void TunerService::recordAfSwitch(core::FrequencyKHz from,
                                   core::FrequencyKHz to)
 {

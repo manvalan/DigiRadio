@@ -56,6 +56,7 @@ struct AfFollowConfig {
     std::uint32_t settleMs = 8000U;     ///< Listen time after a new station.
     std::uint32_t cooldownMs = 20000U;  ///< Minimum gap between hunts.
     std::size_t maxCandidates = 6U;     ///< AFs probed per hunt.
+    std::uint8_t weakObservations = 3U; ///< Consecutive weak samples needed.
 };
 
 /**
@@ -70,6 +71,7 @@ struct AfFollowConfig {
  */
 struct AfFollowStats {
     bool enabled = true;                  ///< Automatic AF following on.
+    std::uint32_t hunts = 0U;             ///< AF probes since boot.
     std::uint32_t switches = 0U;          ///< Automatic retunes since boot.
     std::optional<FrequencyKHz> lastFrom; ///< Frequency left last time.
     std::optional<FrequencyKHz> lastTo;   ///< AF switched to last time.
@@ -122,8 +124,9 @@ public:
      *
      * @dname    shouldHunt
      * @param    nowMs  Monotonic time in milliseconds.
-     * @return   true when the current signal is weak, AFs are known and the
-     *           settle and cooldown windows have elapsed.
+     * @return   true when the signal was weak for weakObservations
+     *           consecutive snapshots (a lone VALID/RSSI dip never hunts),
+     *           AFs are known and the settle and cooldown windows elapsed.
      * @pubstate reads tracked station state.
      *
      * @author   Michele Bigi
@@ -200,6 +203,7 @@ private:
     std::vector<std::uint32_t> afSet_;
     std::uint32_t stationSinceMs_{0U};
     std::optional<std::uint32_t> lastHuntMs_;
+    std::uint8_t weakStreak_{0U};
 };
 
 } // namespace core
