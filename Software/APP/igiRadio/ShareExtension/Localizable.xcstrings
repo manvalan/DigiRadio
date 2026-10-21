@@ -1,0 +1,26 @@
+{
+  "sourceLanguage" : "it",
+  "strings" : {
+    "Fatto. igiRadio è su Stream: apri l'app per continuare." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done. igiRadio is on Stream: open the app to continue."
+          }
+        }
+      }
+    },
+    "Invio a igiRadio…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending to igiRadio…"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

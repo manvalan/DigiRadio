@@ -112,12 +112,12 @@ struct ScannedStation: Identifiable, Equatable, Sendable, Codable {
             guard !freqs.isEmpty else { return "FM" }
             let labels = freqs.map { String(format: "%.2f", Double($0) / 1000) }
             if labels.count == 1 {
-                return "FM \(labels[0]) MHz"
+                return String(localized: "FM \(labels[0]) MHz")
             }
             return "FM " + labels.joined(separator: " · ") + " MHz"
         case .dab:
             if let idx = dabFreqIndex {
-                return "DAB · ensemble \(idx)"
+                return String(localized: "DAB · ensemble \(idx)")
             }
             return "DAB"
         }

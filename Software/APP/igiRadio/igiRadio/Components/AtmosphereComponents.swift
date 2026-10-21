@@ -7,7 +7,7 @@ struct IGIAtmospherePill: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 14)
                 .frame(minHeight: 40)
@@ -284,7 +284,7 @@ struct IGIAtmosphereInputMeters: View {
         }()
         let quiet = (db ?? -96) < -40
         return VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(IGITheme.ink)
             IGIPathVUMeter(leftDb: left, rightDb: right, isAvailable: isAvailable, height: 56)
@@ -323,12 +323,12 @@ struct IGIOutputDestinationCard: View {
                     Text("Uscita")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(IGITheme.inkMuted)
-                    Text(title)
+                    Text(LocalizedStringKey(title))
                         .font(.headline)
                         .foregroundStyle(IGITheme.ink)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
-                    Text(subtitle)
+                    Text(LocalizedStringKey(subtitle))
                         .font(.caption)
                         .foregroundStyle(IGITheme.inkMuted)
                     Text(outputCaption)

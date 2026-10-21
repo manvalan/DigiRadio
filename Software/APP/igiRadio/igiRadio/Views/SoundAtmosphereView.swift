@@ -133,7 +133,7 @@ struct SoundAtmosphereView: View {
     private func characterSlider(title: String, value: Binding<Double>, onEnd: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.subheadline)
                     .foregroundStyle(IGITheme.ink)
                 Spacer()

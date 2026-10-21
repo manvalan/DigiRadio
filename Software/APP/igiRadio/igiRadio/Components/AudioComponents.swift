@@ -66,7 +66,7 @@ struct IGIVerticalFader: View {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.caption2.weight(.medium))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -120,8 +120,8 @@ struct IGIMixerChannelGroup: View {
                     .frame(width: 36, height: 36)
                     .background(IGITheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline)
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                    Text(LocalizedStringKey(title)).font(.headline)
+                    Text(LocalizedStringKey(subtitle)).font(.caption).foregroundStyle(.secondary)
                 }
             }
 
@@ -353,10 +353,10 @@ struct IGIEnhancementDial: View {
                         onCommit()
                     }
             )
-            .accessibilityLabel(title)
+            .accessibilityLabel(Text(LocalizedStringKey(title)))
             .accessibilityValue("\(Int(level)) su cento")
 
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }
@@ -446,7 +446,7 @@ struct IGIMasterVolumeHero: View {
                     .foregroundStyle(.tertiary)
             }
             HStack {
-                Text(label).font(.caption.weight(.bold))
+                Text(LocalizedStringKey(label)).font(.caption.weight(.bold))
                 Slider(value: value, in: 0 ... 100, step: 1) { editing in
                     if !editing { onCommit() }
                 }

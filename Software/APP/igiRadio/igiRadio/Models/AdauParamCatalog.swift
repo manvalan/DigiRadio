@@ -60,8 +60,8 @@ enum AdauParamCatalog {
 
     static func summary(for name: String) -> String {
         if let info = info(for: name) { return info.summary }
-        if name.contains("PARAMEQ1") { return "Coefficiente EQ" }
-        if name.contains("LIMITER") { return "Parametro limiter" }
-        return "Parametro SigmaStudio"
+        if name.contains("PARAMEQ1") { return String(localized: "Coefficiente EQ") }
+        if name.contains("LIMITER") { return String(localized: "Parametro limiter") }
+        return String(localized: "Parametro SigmaStudio")
     }
 }

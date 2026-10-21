@@ -35,7 +35,7 @@ final class AudioProfileEditorViewModel {
 
     func applyToDevice(persistUserCopy: Bool) async {
         guard service.state.connection.isConnected else {
-            errorMessage = "Non connesso a DigiRadio."
+            errorMessage = String(localized: "Non connesso a DigiRadio.")
             return
         }
         guard !isSaving else { return }

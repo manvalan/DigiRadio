@@ -197,7 +197,7 @@ struct RadioPathParamsView: View {
             .tint(IGITheme.accent)
             if let from = af.lastFromKhz, let to = af.lastToKhz {
                 Text(String(
-                    format: "Ultimo cambio della radio: %.2f → %.2f MHz",
+                    format: NSLocalizedString("Ultimo cambio della radio: %.2f → %.2f MHz", comment: ""),
                     Double(from) / 1000,
                     Double(to) / 1000
                 ))

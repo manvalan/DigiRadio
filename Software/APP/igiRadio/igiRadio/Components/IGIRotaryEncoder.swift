@@ -101,7 +101,7 @@ struct IGIRotaryEncoder: View {
         .aspectRatio(1, contentMode: .fit)
         .sensoryFeedback(.selection, trigger: detentToken)
         .accessibilityLabel("Encoder frequenza FM")
-        .accessibilityValue(String(format: "%.2f megahertz", value))
+        .accessibilityValue(String(format: NSLocalizedString("%.2f megahertz", comment: ""), value))
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment: value = snap(min(range.upperBound, value + step))

@@ -77,7 +77,7 @@ struct SettingsRootView: View {
             destination()
         } label: {
             Label {
-                Text(title)
+                Text(LocalizedStringKey(title))
             } icon: {
                 IGISettingsIcon(systemName: systemName, color: color)
             }
@@ -324,7 +324,7 @@ struct AboutView: View {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "—"
         let build = info?["CFBundleVersion"] as? String ?? "—"
-        return "\(version) (\(build))"
+        return String(localized: "\(version) (\(build))")
     }
 
     var body: some View {

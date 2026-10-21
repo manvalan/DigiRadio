@@ -201,7 +201,7 @@ struct HomeView: View {
 
     private var nowPlayingTitle: String {
         if streamIsActive {
-            if state.phoneAudioActive { return "Altre app" }
+            if state.phoneAudioActive { return String(localized: "Altre app") }
             if state.streaming.enabled {
                 if let named = WebRadioStore.load().first(where: { $0.url == state.streaming.url }) {
                     return named.name
@@ -233,7 +233,7 @@ struct HomeView: View {
 
     private var nowPlayingFrequency: String {
         if streamIsActive {
-            if state.phoneAudioActive { return "Dal telefono" }
+            if state.phoneAudioActive { return String(localized: "Dal telefono") }
             if state.streaming.enabled { return "Webradio" }
             return state.nowPlayingSubtitle
         }
@@ -249,7 +249,7 @@ struct HomeView: View {
             return "FM"
         case .dab:
             if let idx = state.tuner.dab?.freqIndex {
-                return "DAB · ensemble \(idx)"
+                return String(localized: "DAB · ensemble \(idx)")
             }
             return "DAB"
         }
@@ -288,7 +288,7 @@ struct HomeView: View {
     }
 
     private var speakerOutSubtitle: String {
-        if !state.bluetooth.booted { return "Uscita BT spenta" }
+        if !state.bluetooth.booted { return String(localized: "Uscita BT spenta") }
         return state.bluetooth.a2dpState.title
     }
 

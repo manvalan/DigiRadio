@@ -123,7 +123,7 @@ private struct AudioProfilesContent: View {
         allowDelete: Bool,
         onDelete: ((AudioProfileTemplate) -> Void)?
     ) -> some View {
-        Section(title) {
+        Section(LocalizedStringKey(title)) {
             if profiles.isEmpty {
                 Text("Nessun profilo.")
                     .foregroundStyle(.secondary)

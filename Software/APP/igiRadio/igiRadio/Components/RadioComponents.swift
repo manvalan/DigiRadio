@@ -129,7 +129,7 @@ struct IGIMetricBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(LocalizedStringKey(label)).font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Text(value).font(.caption.monospacedDigit().weight(.medium))
             }
@@ -218,7 +218,7 @@ struct IGIFrequencyHero: View {
 
     @ViewBuilder
     private func stepButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
+        Button(LocalizedStringKey(title), action: action)
             .font(.subheadline.weight(.semibold).monospacedDigit())
             .frame(width: 56, height: 48)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))

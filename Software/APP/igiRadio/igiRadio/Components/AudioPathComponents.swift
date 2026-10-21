@@ -35,13 +35,13 @@ struct IGIPathNode: View {
                 .shadow(color: isActive ? IGITheme.accent.opacity(0.28) : .clear, radius: 10, y: 4)
 
             VStack(spacing: 2) {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(IGITheme.ink)
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
                 if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
+                    Text(LocalizedStringKey(subtitle))
                         .font(.caption2)
                         .foregroundStyle(IGITheme.inkMuted)
                         .lineLimit(1)
@@ -57,7 +57,7 @@ struct IGIPathNode: View {
             onLongPress: onLongPress
         ))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
+        .accessibilityLabel(Text(LocalizedStringKey(title)))
         .accessibilityValue(subtitle ?? (isActive ? "attivo" : "inattivo"))
         .accessibilityHint(accessibilityHintText)
         .accessibilityAddTraits(.isButton)
@@ -69,12 +69,12 @@ struct IGIPathNode: View {
 
     private var accessibilityHintText: String {
         if onLongPress != nil {
-            return "Tocco per attivare, pressione prolungata per il livello"
+            return String(localized: "Tocco per attivare, pressione prolungata per il livello")
         }
         if onDoubleTap != nil {
-            return "Tocco per selezionare, doppio tocco per i parametri"
+            return String(localized: "Tocco per selezionare, doppio tocco per i parametri")
         }
-        return "Tocco per selezionare"
+        return String(localized: "Tocco per selezionare")
     }
 
     private var nodeBackground: Color {
@@ -208,11 +208,11 @@ struct IGIPathFader: View {
             }
             .frame(width: trackWidth + 18, height: height)
 
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.caption.weight(.semibold))
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
+        .accessibilityLabel(Text(LocalizedStringKey(label)))
         .accessibilityValue("\(Int(value.rounded()))")
         .accessibilityAdjustableAction { direction in
             switch direction {
@@ -247,7 +247,7 @@ struct IGIPathVUMeter: View {
     private var accessibilityValueText: String {
         let left = leftDb.map { String(format: "%.1f", $0) } ?? "—"
         let right = rightDb.map { String(format: "%.1f", $0) } ?? "—"
-        return "sinistra \(left) dB, destra \(right) dB"
+        return String(localized: "sinistra \(left) dB, destra \(right) dB")
     }
 
     private func meter(label: String, dbfs: Double?) -> some View {
@@ -267,7 +267,7 @@ struct IGIPathVUMeter: View {
             .frame(height: height)
             .animation(.easeOut(duration: 0.12), value: lit)
 
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(IGITheme.inkMuted)
         }

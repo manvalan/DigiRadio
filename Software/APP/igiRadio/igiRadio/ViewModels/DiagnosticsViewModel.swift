@@ -18,7 +18,7 @@ final class DiagnosticsViewModel {
 
     func refreshSnapshot() async {
         guard service.state.connection.isConnected else {
-            errorMessage = "Non connesso a DigiRadio."
+            errorMessage = String(localized: "Non connesso a DigiRadio.")
             return
         }
         isBusy = true
@@ -29,7 +29,7 @@ final class DiagnosticsViewModel {
             try await service.refreshTunerStatus()
             try await service.refreshBluetoothStatus()
             autoReconnectTimes = service.state.bluetooth.autoReconnect
-            statusMessage = "Snapshot aggiornato."
+            statusMessage = String(localized: "Snapshot aggiornato.")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -37,7 +37,7 @@ final class DiagnosticsViewModel {
 
     func testBeep(enabled: Bool) async {
         guard service.state.connection.isConnected else {
-            errorMessage = "Non connesso a DigiRadio."
+            errorMessage = String(localized: "Non connesso a DigiRadio.")
             return
         }
         isBusy = true
@@ -53,7 +53,7 @@ final class DiagnosticsViewModel {
 
     func loadDspParams() async {
         guard service.state.connection.isConnected else {
-            errorMessage = "Non connesso a DigiRadio."
+            errorMessage = String(localized: "Non connesso a DigiRadio.")
             return
         }
         isBusy = true
@@ -62,7 +62,7 @@ final class DiagnosticsViewModel {
         do {
             let response = try await service.fetchDspParams()
             dspParamCount = response.params.count
-            statusMessage = "Trovati \(response.params.count) parametri DSP."
+            statusMessage = String(localized: "Trovati \(response.params.count) parametri DSP.")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -70,7 +70,7 @@ final class DiagnosticsViewModel {
 
     func saveAutoReconnect() async {
         guard service.state.connection.isConnected else {
-            errorMessage = "Non connesso a DigiRadio."
+            errorMessage = String(localized: "Non connesso a DigiRadio.")
             return
         }
         isBusy = true
@@ -78,7 +78,7 @@ final class DiagnosticsViewModel {
         defer { isBusy = false }
         do {
             try await service.setBluetoothAutoReconnect(times: autoReconnectTimes)
-            statusMessage = "Auto-riconnessione BT impostata a \(autoReconnectTimes)."
+            statusMessage = String(localized: "Auto-riconnessione BT impostata a \(autoReconnectTimes).")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }

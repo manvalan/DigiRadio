@@ -44,7 +44,7 @@ final class AudioProfilesViewModel {
 
     func apply(_ profile: AudioProfileTemplate) async {
         guard service.state.connection.isConnected else {
-            errorMessage = "Connetti igiRadio a DigiRadio prima di applicare un profilo."
+            errorMessage = String(localized: "Connetti igiRadio a DigiRadio prima di applicare un profilo.")
             return
         }
         guard !isApplying else { return }
@@ -98,7 +98,7 @@ final class AudioProfilesViewModel {
         return AudioProfileTemplate(
             id: UUID().uuidString,
             name: name,
-            subtitle: "Creato dal dispositivo",
+            subtitle: String(localized: "Creato dal dispositivo"),
             systemImage: "waveform.path.ecg",
             isBuiltIn: false,
             eq: audio.eq.isEmpty ? AudioProfileLibrary.builtIn[0].eq : audio.eq,

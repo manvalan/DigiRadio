@@ -86,7 +86,8 @@ final class AppEnvironment {
             case let .otherApp(url):
                 presentStreaming = false
                 try await digiRadio.prepareForPhoneAudio()
-                shareBanner = "Radio su Stream (\(url.host ?? "app")). Per sentire: webradio, file o «Ricevi audio»."
+                let host = url.host ?? "app"
+                shareBanner = String(localized: "Radio su Stream (\(host)). Per sentire: webradio, file o «Ricevi audio».")
             case let .webStream(url):
                 presentStreaming = true
                 try await digiRadio.applyAudioSourceRouting(forStreaming: true)
@@ -94,14 +95,14 @@ final class AppEnvironment {
             }
             adauStudio.syncFromDevice()
         } catch {
-            shareBanner = "Condivisione ricevuta, radio non raggiunta."
+            shareBanner = String(localized: "Condivisione ricevuta, radio non raggiunta.")
         }
     }
 
     @MainActor
     func startPhoneCapture() async {
         guard digiRadio.state.connection.isConnected else {
-            shareBanner = "Radio non connessa."
+            shareBanner = String(localized: "Radio non connessa.")
             return
         }
         let chunks = AppAudioCapture.shared.start()

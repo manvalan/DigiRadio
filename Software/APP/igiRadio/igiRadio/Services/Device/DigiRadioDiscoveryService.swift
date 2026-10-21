@@ -27,7 +27,7 @@ final class DigiRadioDiscoveryService {
     guard !isSearching else { return }
     isSearching = true
     devices = []
-    statusMessage = "Avvio ricerca…"
+    statusMessage = String(localized: "Avvio ricerca…")
     ble.startScan()
     startBonjourBrowse()
     probe(host: LocalNetworkScanner.setupSoftAPHost, label: "igiRadio Setup (SoftAP)")
@@ -113,14 +113,14 @@ final class DigiRadioDiscoveryService {
   private func scanLAN() async {
   guard let subnet = LocalNetworkScanner.currentWiFiSubnet() else {
       await MainActor.run {
-        statusMessage = "Wi‑Fi non rilevato — inserisci l'IP manualmente."
+        statusMessage = String(localized: "Wi‑Fi non rilevato — inserisci l'IP manualmente.")
       }
       return
     }
 
     let hosts = LocalNetworkScanner.hosts(in: subnet)
     await MainActor.run {
-      statusMessage = "Scansione \(subnet.prefix).x (0/\(hosts.count))…"
+      statusMessage = String(localized: "Scansione \(subnet.prefix).x (0/\(hosts.count))…")
     }
 
     var found = 0
@@ -146,15 +146,15 @@ final class DigiRadioDiscoveryService {
 
       await MainActor.run {
         let scanned = min(chunkStart + chunkSize, hosts.count)
-        statusMessage = "Scansione \(subnet.prefix).x (\(scanned)/\(hosts.count)) — trovati \(found)"
+        statusMessage = String(localized: "Scansione \(subnet.prefix).x (\(scanned)/\(hosts.count)) — trovati \(found)")
       }
     }
 
     await MainActor.run {
       if found == 0 {
-        statusMessage = "Nessun igiRadio su \(subnet.prefix).x. Prova IP manuale o rete SoftAP 192.168.4.1"
+        statusMessage = String(localized: "Nessun igiRadio su \(subnet.prefix).x. Prova IP manuale o rete SoftAP 192.168.4.1")
       } else {
-        statusMessage = "Trovati \(found) dispositivo/i. Tocca per connettere."
+        statusMessage = String(localized: "Trovati \(found) dispositivo/i. Tocca per connettere.")
       }
     }
   }

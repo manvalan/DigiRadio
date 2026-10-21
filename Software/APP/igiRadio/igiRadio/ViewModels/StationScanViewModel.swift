@@ -272,12 +272,12 @@ final class StationScanViewModel {
         case .dab: scannedDAB = []
         }
         persistScanned()
-        statusMessage = "Elenco \(target.rawValue) svuotato sull'iPhone."
+        statusMessage = String(localized: "Elenco \(target.rawValue) svuotato sull'iPhone.")
     }
 
     func startScan() async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         stopAlternateFrequencyMonitor()
@@ -344,7 +344,7 @@ final class StationScanViewModel {
         guard let station = namingStation else { return }
         let trimmed = namingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            errorMessage = "Inserisci un nome per la stazione."
+            errorMessage = String(localized: "Inserisci un nome per la stazione.")
             return
         }
         namingStation = nil
@@ -362,7 +362,7 @@ final class StationScanViewModel {
         guard !isSaved(station) else { return }
         if addFavorite(station, customName: customName) {
             let label = customName ?? station.name
-            statusMessage = "Aggiunta ai preferiti: \(label)"
+            statusMessage = String(localized: "Aggiunta ai preferiti: \(label)")
         }
     }
 
@@ -375,7 +375,7 @@ final class StationScanViewModel {
         }
         guard !favoriteStations.contains(where: { $0.id == copy.id }) else { return true }
         guard favoriteStations.count < DigiRadioPresetLimits.maxPresets else {
-            errorMessage = "Hai già \(DigiRadioPresetLimits.maxPresets) preferiti — il DigiRadio non ne tiene di più."
+            errorMessage = String(localized: "Hai già \(DigiRadioPresetLimits.maxPresets) preferiti — il DigiRadio non ne tiene di più.")
             return false
         }
         favoriteStations.append(copy)
@@ -409,7 +409,7 @@ final class StationScanViewModel {
 
     func listen(_ station: ScannedStation) async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         listeningStationID = station.id
@@ -428,12 +428,12 @@ final class StationScanViewModel {
                 guard let idx = station.dabFreqIndex,
                       let sid = station.dabServiceId,
                       let cid = station.dabComponentId else {
-                    errorMessage = "Dati DAB incompleti — riscansiona la banda."
+                    errorMessage = String(localized: "Dati DAB incompleti — riscansiona la banda.")
                     return
                 }
                 try await service.playScannedDAB(ensemble: idx, serviceId: sid, componentId: cid)
             }
-            statusMessage = "In ascolto: \(station.displayTitle)"
+            statusMessage = String(localized: "In ascolto: \(station.displayTitle)")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -448,7 +448,7 @@ final class StationScanViewModel {
             if let index = favoriteStations.firstIndex(where: { $0.id == station.id || $0.matches(station.asPreset()) }) {
                 favoriteStations[index] = station
             } else if favoriteStations.count >= DigiRadioPresetLimits.maxPresets {
-                errorMessage = "Hai già \(DigiRadioPresetLimits.maxPresets) preferiti — il DigiRadio non ne tiene di più."
+                errorMessage = String(localized: "Hai già \(DigiRadioPresetLimits.maxPresets) preferiti — il DigiRadio non ne tiene di più.")
                 return
             } else {
                 favoriteStations.append(station)
@@ -479,12 +479,12 @@ final class StationScanViewModel {
         scannedDAB.removeAll { ids.contains($0.id) }
         persistFavorites()
         persistScanned()
-        statusMessage = "Stazione eliminata: \(draft.name)"
+        statusMessage = String(localized: "Stazione eliminata: \(draft.name)")
     }
 
     func saveCurrentTuner() async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         errorMessage = nil
@@ -493,7 +493,7 @@ final class StationScanViewModel {
         switch tuner.band {
         case .fm:
             guard let khz = tuner.fm?.frequencyKhz else {
-                errorMessage = "Nessuna frequenza FM sintonizzata."
+                errorMessage = String(localized: "Nessuna frequenza FM sintonizzata.")
                 return
             }
             let label = tuner.fm?.stationName?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -515,7 +515,7 @@ final class StationScanViewModel {
             guard let dab = tuner.dab,
                   let sid = dab.playingServiceId,
                   let cid = dab.playingComponentId else {
-                errorMessage = "Nessuna stazione DAB in riproduzione."
+                errorMessage = String(localized: "Nessuna stazione DAB in riproduzione.")
                 return
             }
             let label = dab.dynamicLabel?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -535,7 +535,7 @@ final class StationScanViewModel {
         }
         guard let scanned else { return }
         if addFavorite(scanned, customName: nil) {
-            statusMessage = "Aggiunta ai preferiti: \(scanned.name)"
+            statusMessage = String(localized: "Aggiunta ai preferiti: \(scanned.name)")
         }
     }
 
@@ -567,9 +567,9 @@ final class StationScanViewModel {
         persistScanned()
         await refreshLibrary()
         if discovered.isEmpty {
-            statusMessage = "Nessuna stazione FM trovata."
+            statusMessage = String(localized: "Nessuna stazione FM trovata.")
         } else {
-            statusMessage = "Trovate \(scannedFM.count) stazioni FM (\(discovered.count) frequenze)."
+            statusMessage = String(localized: "Trovate \(scannedFM.count) stazioni FM (\(discovered.count) frequenze).")
         }
     }
 
@@ -696,12 +696,12 @@ final class StationScanViewModel {
 
     private func scanDAB() async {
         var discovered: [ScannedStation] = []
-        progressMessage = "Preparazione scansione DAB…"
+        progressMessage = String(localized: "Preparazione scansione DAB…")
         await service.prepareForDABOperations()
 
         for idx in 0 ... 37 {
             guard !Task.isCancelled else { return }
-            progressMessage = "Scansione DAB \(idx + 1)/38…"
+            progressMessage = String(localized: "Scansione DAB \(idx + 1)/38…")
 
             do {
                 try await service.tuneDAB(freqIndex: idx)
@@ -738,7 +738,7 @@ final class StationScanViewModel {
         guard !Task.isCancelled else {
             if !sorted.isEmpty {
                 await persistDABScan(sorted)
-                statusMessage = "Scansione interrotta — \(sorted.count) stazioni DAB trovate."
+                statusMessage = String(localized: "Scansione interrotta — \(sorted.count) stazioni DAB trovate.")
             }
             return
         }
@@ -862,7 +862,7 @@ final class StationScanViewModel {
         var samples = [current]
         for khz in freqs where khz != current.khz {
             guard !Task.isCancelled else { return samples }
-            statusMessage = String(format: "Segnale debole — provo %.2f MHz…", Double(khz) / 1000)
+            statusMessage = String(format: NSLocalizedString("Segnale debole — provo %.2f MHz…", comment: ""), Double(khz) / 1000)
             if let sample = await sampleFM(khz) {
                 samples.append(sample)
             }
@@ -893,11 +893,11 @@ final class StationScanViewModel {
         if chosen.khz != original.khz {
             updatePreferredFrequency(stationID: stationID, khz: chosen.khz, rssi: chosen.rssiDbuv)
             statusMessage = String(
-                format: "Passato a %.2f MHz (segnale più forte)",
+                format: NSLocalizedString("Passato a %.2f MHz (segnale più forte)", comment: ""),
                 Double(chosen.khz) / 1000
             )
         } else if let station = stationForAF(id: stationID) {
-            statusMessage = "In ascolto: \(station.displayTitle)"
+            statusMessage = String(localized: "In ascolto: \(station.displayTitle)")
         }
     }
 

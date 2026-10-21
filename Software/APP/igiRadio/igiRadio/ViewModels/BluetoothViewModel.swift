@@ -70,7 +70,7 @@ final class BluetoothViewModel {
         isScanning = true
         defer { isScanning = false }
         do {
-            statusMessage = "Ricerca altoparlanti (~45 s)… tieni il Bose in pairing. I soundbar spesso non compaiono: usa il MAC."
+            statusMessage = String(localized: "Ricerca altoparlanti (~45 s)… tieni il Bose in pairing. I soundbar spesso non compaiono: usa il MAC.")
             try await service.scanBluetooth(seconds: 45)
             let count = service.state.bluetooth.nearbyDevices.count
             statusMessage = count == 0
@@ -86,9 +86,9 @@ final class BluetoothViewModel {
         isConnecting = true
         defer { isConnecting = false }
         do {
-            statusMessage = "Connessione a \(device.name)… può richiedere fino a un minuto."
+            statusMessage = String(localized: "Connessione a \(device.name)… può richiedere fino a un minuto.")
             try await service.connectBluetooth(mac: device.mac, name: device.name, save: true)
-            statusMessage = "Altoparlante connesso."
+            statusMessage = String(localized: "Altoparlante connesso.")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -99,9 +99,9 @@ final class BluetoothViewModel {
         isReconnecting = true
         defer { isReconnecting = false }
         do {
-            statusMessage = "Riconnessione all’altoparlante salvato…"
+            statusMessage = String(localized: "Riconnessione all’altoparlante salvato…")
             try await service.reconnectBluetooth()
-            statusMessage = "Riconnessione completata."
+            statusMessage = String(localized: "Riconnessione completata.")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -110,20 +110,20 @@ final class BluetoothViewModel {
     func connectManual() async {
         resetMessages()
         guard let mac = BtMacNormalizer.forApi(manualMac) else {
-            errorMessage = "MAC non valido. Servono 12 cifre esadecimali (es. 000C8A78AB62)."
+            errorMessage = String(localized: "MAC non valido. Servono 12 cifre esadecimali (es. 000C8A78AB62).")
             return
         }
         isConnecting = true
         defer { isConnecting = false }
         do {
             let name = manualName.trimmingCharacters(in: .whitespacesAndNewlines)
-            statusMessage = "Connessione all’altoparlante… tieni il Bose in pairing."
+            statusMessage = String(localized: "Connessione all’altoparlante… tieni il Bose in pairing.")
             try await service.connectBluetooth(
                 mac: mac,
                 name: name.isEmpty ? "Speaker" : name,
                 save: true
             )
-            statusMessage = "Altoparlante connesso."
+            statusMessage = String(localized: "Altoparlante connesso.")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }

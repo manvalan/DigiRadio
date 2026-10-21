@@ -15,19 +15,19 @@ actor PhonePCMStreamService {
         stop()
         let host = Self.parseHost(connectionHost)
         guard !host.isEmpty else {
-            statusMessage = "Host non valido"
+            statusMessage = String(localized: "Host non valido")
             return
         }
 
         isStreaming = true
-        statusMessage = "Avvio stream…"
+        statusMessage = String(localized: "Avvio stream…")
         streamTask = Task {
             do {
                 try await stream(fileURL: fileURL, host: host)
-                statusMessage = "Stream completato"
+                statusMessage = String(localized: "Stream completato")
                 isStreaming = false
             } catch is CancellationError {
-                statusMessage = "Stream interrotto"
+                statusMessage = String(localized: "Stream interrotto")
                 isStreaming = false
             } catch {
                 statusMessage = error.localizedDescription
@@ -41,21 +41,21 @@ actor PhonePCMStreamService {
         stop()
         let host = Self.parseHost(connectionHost)
         guard !host.isEmpty else {
-            statusMessage = "Host non valido"
+            statusMessage = String(localized: "Host non valido")
             return
         }
 
         isStreaming = true
-        statusMessage = "Avvio cattura…"
+        statusMessage = String(localized: "Avvio cattura…")
         streamTask = Task {
             do {
                 try await sendChunkedPUT(host: host, chunks: chunks)
                 if !Task.isCancelled {
-                    statusMessage = "Cattura terminata"
+                    statusMessage = String(localized: "Cattura terminata")
                 }
                 isStreaming = false
             } catch is CancellationError {
-                statusMessage = "Cattura interrotta"
+                statusMessage = String(localized: "Cattura interrotta")
                 isStreaming = false
             } catch {
                 statusMessage = error.localizedDescription

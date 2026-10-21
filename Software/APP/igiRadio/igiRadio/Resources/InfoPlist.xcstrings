@@ -1,0 +1,60 @@
+{
+  "sourceLanguage" : "it",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio"
+          }
+        }
+      }
+    },
+    "NSBluetoothAlwaysUsageDescription" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio uses Bluetooth to find the device in setup mode (named igiRadio-serial) and configure its Wi‑Fi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio usa Bluetooth per trovare il dispositivo in setup mode (nome igiRadio-seriale) e configurare il Wi‑Fi."
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio connects to the device on your local network (mDNS igiradio-serial.local) to control radio and audio."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio si connette al dispositivo sulla rete locale (mDNS igiradio-seriale.local) per controllare radio e audio."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

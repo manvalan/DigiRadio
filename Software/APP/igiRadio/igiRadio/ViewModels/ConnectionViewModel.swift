@@ -31,7 +31,7 @@ final class ConnectionViewModel {
 
         let primary = HostNormalizer.httpURL(from: hostInput)
         guard !primary.isEmpty else {
-            errorMessage = "Inserisci l'host dell'igiRadio (es. igiradio-cc4db4.local o 192.168.1.56)."
+            errorMessage = String(localized: "Inserisci l'host dell'igiRadio (es. igiradio-cc4db4.local o 192.168.1.56).")
             return
         }
 
@@ -133,17 +133,17 @@ final class ConnectionViewModel {
 
     private func friendlyMessage(for error: Error?) -> String {
         guard let error else {
-            return "Connessione non riuscita. Verifica Wi‑Fi, rete locale e host."
+            return String(localized: "Connessione non riuscita. Verifica Wi‑Fi, rete locale e host.")
         }
         let text = error.localizedDescription.lowercased()
         if text.contains("local network") || text.contains("rete locale") {
-            return "Autorizza l'accesso alla rete locale in Impostazioni → igiRadio."
+            return String(localized: "Autorizza l'accesso alla rete locale in Impostazioni → igiRadio.")
         }
         if text.contains("timed out") || text.contains("timeout") {
-            return "Timeout: il DigiRadio non risponde. Stessa rete Wi‑Fi? Prova l'IP LAN (es. 192.168.1.x) invece di .local."
+            return String(localized: "Timeout: il DigiRadio non risponde. Stessa rete Wi‑Fi? Prova l'IP LAN (es. 192.168.1.x) invece di .local.")
         }
         if text.contains("could not connect") || text.contains("network") {
-            return "Rete non raggiungibile. Controlla che iPhone e DigiRadio siano sulla stessa Wi‑Fi."
+            return String(localized: "Rete non raggiungibile. Controlla che iPhone e DigiRadio siano sulla stessa Wi‑Fi.")
         }
         return error.localizedDescription
     }
