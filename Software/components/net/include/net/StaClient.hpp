@@ -27,6 +27,10 @@
 #include <expected>
 #include <string_view>
 
+namespace bluetooth {
+class BluetoothService;
+} // namespace bluetooth
+
 namespace net {
 
 /**
@@ -110,6 +114,15 @@ public:
      * @param    bleFallbackIdentity  Device identity for the BLE fallback's
      *                              advertising name; must outlive this
      *                              StaClient when bleFallbackStore is set.
+     * @param    bluetoothFallback  When set, the same sustained (~1 minute)
+     *                              post-boot link loss that starts BLE
+     *                              provisioning above also re-enables
+     *                              classic Bluetooth (BluetoothService::
+     *                              setEnabled(true)) if a prior
+     *                              /api/bluetooth/disable had turned it
+     *                              off — with no Wi-Fi uplink, Bluetooth is
+     *                              the only remaining path to the device.
+     *                              Must outlive this StaClient when set.
      * @return   Ok on success, or NetError::StaConnectTimeout /
      *           NetError::StaConnectFailed.
      * @pubstate writes connected_ on success; uses creds via Secret.
@@ -121,7 +134,8 @@ public:
     connect(const core::WifiCredentials& creds,
             std::string_view hostname = {},
             core::ISecureStore* bleFallbackStore = nullptr,
-            const core::DeviceIdentity* bleFallbackIdentity = nullptr);
+            const core::DeviceIdentity* bleFallbackIdentity = nullptr,
+            bluetooth::BluetoothService* bluetoothFallback = nullptr);
 
 private:
     bool connected_;

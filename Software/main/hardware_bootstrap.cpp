@@ -271,16 +271,17 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         }
     }
 
-    if (auto btResult = gBt1035.boot(); !btResult) {
-        ESP_LOGE(kTag, "BT1035 boot failed — continuing without Bluetooth, "
-                       "retrying in background");
-        if (xTaskCreate(bt1035RetryTask, "bt1035_retry", 4096, nullptr, 3,
-                        nullptr)
-            != pdPASS) {
-            ESP_LOGW(kTag, "BT1035 background retry task create failed");
-        }
-    } else {
+    // Do not block Wi-Fi/HTTP on BT1035 UART bring-up (~25 s per attempt,
+    // intermittent silence). The retry task owns boot(); SoftAP setup must
+    // not call setEnabled() on the net thread before the web server starts.
+    if (gBt1035.isBooted()) {
         applyBt1035PostBootSetup();
+    } else if (xTaskCreate(bt1035RetryTask, "bt1035_retry", 4096, nullptr, 3,
+                           nullptr)
+               != pdPASS) {
+        ESP_LOGW(kTag, "BT1035 background retry task create failed");
+    } else {
+        ESP_LOGW(kTag, "BT1035 boot deferred to background");
     }
 
     gReady = true;

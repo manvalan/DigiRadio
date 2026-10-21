@@ -131,6 +131,21 @@ std::expected<void, bt1035::Bt1035Error> BluetoothService::stopPairing()
     return {};
 }
 
+std::expected<void, bt1035::Bt1035Error> BluetoothService::setEnabled(
+    bool enabled)
+{
+    pairingActive_ = false;
+    if (enabled) {
+        return driver_.boot();
+    }
+    return driver_.shutdown();
+}
+
+bool BluetoothService::isEnabled() const noexcept
+{
+    return driver_.isBooted();
+}
+
 std::expected<void, bt1035::Bt1035Error> BluetoothService::disconnect()
 {
     return driver_.disconnectA2dp();
