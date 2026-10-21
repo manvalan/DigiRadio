@@ -325,6 +325,28 @@ Si4684Tuner::listDabServices()
     return std::unexpected(mapError(list.error()));
 }
 
+std::expected<core::DabLinkage, core::TunerError>
+Si4684Tuner::readDabLinkage(std::uint32_t serviceId)
+{
+    if (currentBand() != core::TunerBand::Dab) {
+        return std::unexpected(core::TunerError::WrongBand);
+    }
+    core::DabLinkage linkage;
+    if (auto raw = driver_.readDabServiceLinking(serviceId); raw) {
+        linkage.sets = core::parseDabServiceLinking(*raw).value_or(
+            std::vector<core::DabLinkageSet>{});
+    }
+    if (auto raw = driver_.readDabOeServices(serviceId); raw) {
+        linkage.otherEnsembles = core::parseDabOeServices(*raw).value_or(
+            std::vector<std::uint16_t>{});
+    }
+    if (auto raw = driver_.readDabFreqInfo(); raw) {
+        linkage.frequencies = core::parseDabFreqInfo(*raw).value_or(
+            std::vector<core::DabFrequencyInfo>{});
+    }
+    return linkage;
+}
+
 std::expected<void, core::TunerError> Si4684Tuner::playDabService(
     std::uint32_t serviceId,
     std::uint32_t componentId)

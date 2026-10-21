@@ -43,7 +43,8 @@ namespace core {
  * @dname    serializeAfFollowJson
  * @param    stats  Current AF-follow state.
  * @return   {"enabled":bool,"hunts":n,"switches":n} plus "last_from_khz" and
- *           "last_to_khz" once a switch happened.
+ *           "last_to_khz" once a switch happened, then "dab_hunts" and
+ *           "dab_switches" (DAB service following).
  * @pubstate none
  *
  * @author   Michele Bigi

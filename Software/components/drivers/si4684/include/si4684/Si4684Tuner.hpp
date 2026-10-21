@@ -150,6 +150,21 @@ public:
     listDabServices() override;
 
     /**
+     * @brief    readDabLinkage — FIG 0/6, 0/24 and 0/21 for a service.
+     *
+     * @dname    readDabLinkage
+     * @param    serviceId  Service playing in the current ensemble.
+     * @return   Parsed linkage; parts the chip has not decoded yet are
+     *           left empty. WrongBand outside DAB.
+     * @pubstate sends AN649 0xB7, 0xC1 and 0xBF.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<core::DabLinkage, core::TunerError>
+    readDabLinkage(std::uint32_t serviceId) override;
+
+    /**
      * @brief    playDabService — start DAB audio output.
      *
      * @dname    playDabService

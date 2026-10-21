@@ -70,7 +70,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.9.3";
+constexpr char kFirmwareVersion[] = "0.9.4";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
