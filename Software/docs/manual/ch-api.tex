@@ -133,7 +133,8 @@ and~\ref{sec:si4684-fm-session}.
 \end{drcode}
 For FM, \texttt{fm} carries \texttt{frequency\_khz}, \texttt{rssi\_dbuv},
 \texttt{snr\_db}, \texttt{stereo}, optional \texttt{station\_name} (RDS PS),
-and \texttt{radiotext} (RDS RT); \texttt{dab} is \texttt{null}.
+\texttt{radiotext} (RDS RT), \texttt{pi} (RDS PI code, integer) and
+\texttt{af\_khz} (RDS alternate frequencies); \texttt{dab} is \texttt{null}.
 \end{drnote}
 
 HTTP status: \textbf{200 OK}; \textbf{500} with
@@ -141,6 +142,26 @@ HTTP status: \textbf{200 OK}; \textbf{500} with
 \textbf{503} when the tuner service is unavailable. FM responses may include
 \texttt{station\_name} and \texttt{radiotext}; DAB responses may include
 \texttt{dynamic\_label} when a programme is playing.
+
+\apiendpoint{GET / POST}{/api/tuner/af}
+\label{sec:api-tuner-af}
+
+RDS alternate-frequency follow, run on the radio by
+\texttt{tuner::AfFollowService} (no app needed). When the FM signal gets
+weak the firmware briefly probes the station's AFs and moves to a stronger
+one with the same PI. POST \texttt{\{"enabled":false\}} turns it off;
+live only, every boot starts enabled.
+
+\begin{drnote}[Response schema]
+\begin{drcode}[JSON]
+{"enabled":true,"switches":2,"last_from_khz":98400,"last_to_khz":87600}
+\end{drcode}
+\texttt{last\_from\_khz}/\texttt{last\_to\_khz} appear after the first
+automatic switch.
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{400} for a missing or non-boolean
+\texttt{enabled}; \textbf{503} when the tuner service is unavailable.
 
 \apiendpoint{GET}{/api/tuner/services}
 \label{sec:api-tuner-services}

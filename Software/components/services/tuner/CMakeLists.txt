@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "src/TunerService.cpp"
+        "src/AfFollowService.cpp"
     INCLUDE_DIRS "include"
     REQUIRES core freertos
 )

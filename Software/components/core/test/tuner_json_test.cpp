@@ -189,6 +189,12 @@ namespace {
         std::cerr << "FM AF list missing: " << afJson << '\n';
         return EXIT_FAILURE;
     }
+    status.fmProgramId = 0x5201U;
+    const std::string piJson = core::serializeTunerStatusJson(status);
+    if (piJson.find("\"pi\":20993") == std::string::npos) {
+        std::cerr << "FM PI missing: " << piJson << '\n';
+        return EXIT_FAILURE;
+    }
 
     status.band = core::TunerBand::Dab;
     status.dabFreqIndex = 5U;

@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "core/AlternateFrequencyFollower.hpp"
 #include "core/FrequencyKHz.hpp"
 #include "core/ITuner.hpp"
 #include "core/SeekDirection.hpp"
@@ -21,6 +22,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <mutex>
 #include <optional>
 #include <vector>
 
@@ -32,8 +34,10 @@ namespace tuner {
  * @dname    TunerService
  * @return   n/a (type)
  * @pubstate Borrows core::ITuner for the process lifetime. Tracks last tune
- *           target and cached volume for status reporting. No public data
- *           members.
+ *           target, cached volume and RDS AF-follow statistics. Every
+ *           public tuner operation holds a recursive mutex, so the HTTP
+ *           task and the AF-follow task never interleave SPI commands.
+ *           No public data members.
  *
  * Delegates hardware to core::ITuner; maps driver failures to TunerError
  * without exposing SPI details to the shell.
@@ -233,6 +237,56 @@ public:
      */
     [[nodiscard]] core::ITuner& tuner() noexcept;
 
+    /**
+     * @brief    mutex — lock guarding every tuner operation.
+     *
+     * @dname    mutex
+     * @return   Recursive mutex; hold it to run several operations (an AF
+     *           hunt) without the HTTP task retuning in between.
+     * @pubstate reads mutex_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::recursive_mutex& mutex() noexcept;
+
+    /**
+     * @brief    setAfFollowEnabled — turn RDS AF following on or off.
+     *
+     * @dname    setAfFollowEnabled
+     * @param    enabled  true lets the AF-follow task retune on weak signal.
+     * @pubstate writes afStats_.enabled (not persisted; default on).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    void setAfFollowEnabled(bool enabled);
+
+    /**
+     * @brief    recordAfSwitch — note an automatic AF retune.
+     *
+     * @dname    recordAfSwitch
+     * @param    from  Frequency left because of a weak signal.
+     * @param    to    Alternate frequency now playing.
+     * @pubstate increments afStats_.switches; updates last tune target.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    void recordAfSwitch(core::FrequencyKHz from, core::FrequencyKHz to);
+
+    /**
+     * @brief    afFollowStats — AF-follow state for GET /api/tuner/af.
+     *
+     * @dname    afFollowStats
+     * @return   Enabled flag, switch count and last switch.
+     * @pubstate reads afStats_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] core::AfFollowStats afFollowStats();
+
 private:
     core::ITuner& tuner_;
     std::uint8_t lastDabIndex_;
@@ -242,6 +296,8 @@ private:
     std::uint8_t defaultDabAntCap_;
     std::optional<std::uint32_t> lastPlayedServiceId_;
     std::optional<std::uint32_t> lastPlayedComponentId_;
+    core::AfFollowStats afStats_{};
+    std::recursive_mutex mutex_;
 };
 
 } // namespace tuner

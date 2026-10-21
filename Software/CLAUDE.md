@@ -121,6 +121,7 @@ Served at port 80. Key routes:
 - `GET /api/health` — chip status + serial number
 - `POST /api/tuner/tune` — `{"band":"fm","frequency":100900}`
 - `POST /api/tuner/seek` — `{"direction":"up"/"down"}`
+- `GET|POST /api/tuner/af` — `{"enabled":bool}` RDS alternate-frequency follow (firmware-side, `AfFollowService`)
 - `GET|PUT /api/audio/profile` — full mixer + EQ JSON
 - `POST /api/bluetooth/pair`, `GET /api/bluetooth/paired`, `POST /api/bluetooth/disconnect`
 - `POST /api/bluetooth/enable`, `POST /api/bluetooth/disable` — power the BT1035 module on/off
