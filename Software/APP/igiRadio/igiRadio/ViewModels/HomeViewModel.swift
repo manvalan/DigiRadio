@@ -34,6 +34,7 @@ final class HomeViewModel {
         guard state.connection.isConnected else { return }
         try? await service.refreshHealth()
         try? await service.refreshPower()
+        await service.refreshFirmwareAF()
         try? await service.refreshTunerStatus()
         try? await service.refreshAudioProfile()
         try? await service.refreshStations()

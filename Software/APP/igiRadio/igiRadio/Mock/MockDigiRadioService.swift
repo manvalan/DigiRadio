@@ -118,6 +118,17 @@ final class MockDigiRadioService: DigiRadioService {
         state.power = power
     }
 
+    func refreshFirmwareAF() async {
+        if state.firmwareAF == nil {
+            state.firmwareAF = FirmwareAFState(enabled: true, switches: 0)
+        }
+    }
+
+    func setFirmwareAF(enabled: Bool) async throws {
+        try await delay()
+        state.firmwareAF?.enabled = enabled
+    }
+
     func applyAudioSourceRouting(forStreaming: Bool) async throws {
         try await delay(0.1)
         if !forStreaming { state.phoneAudioActive = false }

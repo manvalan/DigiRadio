@@ -12,6 +12,23 @@ struct DigiRadioState: Equatable, Sendable {
     /// PCM dal telefono (ReplayKit / file), distinto dalla webradio HTTP.
     var phoneAudioActive = false
     var power: DevicePowerState = .on
+    /// GET /api/tuner/af — nil when the firmware does not follow AFs itself.
+    var firmwareAF: FirmwareAFState?
+}
+
+/// RDS alternate-frequency follow done by the radio (firmware 0.9.2+).
+struct FirmwareAFState: Equatable, Sendable, Codable {
+    var enabled: Bool
+    var switches: Int
+    var lastFromKhz: Int?
+    var lastToKhz: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case switches
+        case lastFromKhz = "last_from_khz"
+        case lastToKhz = "last_to_khz"
+    }
 }
 
 /// GET/POST /api/system/power — soft standby (master muted, Wi-Fi stays up).

@@ -174,6 +174,14 @@ final class RealDigiRadioService: DigiRadioService {
         state.power = try await client.setPower(power).state
     }
 
+    func refreshFirmwareAF() async {
+        state.firmwareAF = try? await client.fetchAfFollow()
+    }
+
+    func setFirmwareAF(enabled: Bool) async throws {
+        state.firmwareAF = try await client.setAfFollow(enabled: enabled)
+    }
+
     func applyAudioSourceRouting(forStreaming: Bool) async throws {
         try await audioGate.run {
             try await applyAudioSourceRoutingLocked(forStreaming: forStreaming)

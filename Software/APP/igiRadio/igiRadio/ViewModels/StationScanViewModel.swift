@@ -190,7 +190,9 @@ final class StationScanViewModel {
 
     private func mergeLiveFM(_ station: inout ScannedStation, name: String?, extras: [Int]) -> Bool {
         var changed = false
-        if let name, station.name != name {
+        // RDS may refresh a broadcast or placeholder name, never one the user chose.
+        let renamable = station.hasBroadcastName || station.hasPlaceholderName
+        if let name, station.name != name, renamable {
             station.name = name
             station.hasBroadcastName = true
             changed = true
@@ -800,6 +802,7 @@ final class StationScanViewModel {
         stopAlternateFrequencyMonitor()
         afStationID = stationID
         afMonitorTask = Task { [weak self] in
+            await self?.service.refreshFirmwareAF()
             try? await Task.sleep(nanoseconds: FMBandScan.afListenSettleMs * 1_000_000)
             while !Task.isCancelled {
                 await self?.huntStrongerAlternateIfNeeded()
@@ -815,6 +818,8 @@ final class StationScanViewModel {
 
     private func huntStrongerAlternateIfNeeded() async {
         guard isConnected, !isScanning, listeningStationID == nil else { return }
+        // Firmware 0.9.2+ follows RDS AFs on the radio itself (GET /api/tuner/af).
+        guard service.state.firmwareAF == nil else { return }
         guard let stationID = afStationID,
               let station = stationForAF(id: stationID) else { return }
         let freqs = station.allFMFrequenciesKhz

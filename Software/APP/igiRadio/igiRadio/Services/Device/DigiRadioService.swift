@@ -58,6 +58,9 @@ protocol DigiRadioService: AnyObject {
     func setStreaming(enabled: Bool, url: String) async throws
     func refreshPower() async throws
     func setPower(_ power: DevicePowerState) async throws
+    /// Reads GET /api/tuner/af; leaves `state.firmwareAF` nil on older firmware.
+    func refreshFirmwareAF() async
+    func setFirmwareAF(enabled: Bool) async throws
     func applyAudioSourceRouting(forStreaming: Bool) async throws
     /// Mux ADAU su Stream, ferma la webradio, volume udibile, flag phone audio.
     func prepareForPhoneAudio() async throws

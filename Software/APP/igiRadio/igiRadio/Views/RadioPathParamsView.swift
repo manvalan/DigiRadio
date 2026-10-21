@@ -114,7 +114,10 @@ struct RadioPathParamsView: View {
         .onAppear {
             scan.selectedBand = band == .dab ? .dab : .fm
             syncFrequencyFromDevice()
-            Task { await scan.refreshLibrary() }
+            Task {
+                await environment.digiRadio.refreshFirmwareAF()
+                await scan.refreshLibrary()
+            }
         }
         .onChange(of: environment.state.tuner.fm?.frequencyKhz) { _, _ in
             syncFrequencyFromDevice()
@@ -159,6 +162,10 @@ struct RadioPathParamsView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(IGITheme.inkMuted)
 
+            if let af = environment.state.firmwareAF {
+                firmwareAFRow(af)
+            }
+
             TextField("Frequenza", text: $frequencyText)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
@@ -175,6 +182,30 @@ struct RadioPathParamsView: View {
                 .padding(.top, 8)
         }
         .padding(.top, 8)
+    }
+
+    /// RDS AF follow runs on the radio (firmware 0.9.2+): show state and switch.
+    private func firmwareAFRow(_ af: FirmwareAFState) -> some View {
+        VStack(spacing: 4) {
+            Toggle("Segui frequenze alternative", isOn: Binding(
+                get: { af.enabled },
+                set: { enabled in
+                    Task { try? await environment.digiRadio.setFirmwareAF(enabled: enabled) }
+                }
+            ))
+            .font(.subheadline)
+            .tint(IGITheme.accent)
+            if let from = af.lastFromKhz, let to = af.lastToKhz {
+                Text(String(
+                    format: "Ultimo cambio della radio: %.2f → %.2f MHz",
+                    Double(from) / 1000,
+                    Double(to) / 1000
+                ))
+                .font(.caption)
+                .foregroundStyle(IGITheme.inkMuted)
+            }
+        }
+        .frame(maxWidth: 320)
     }
 
     private var dabNowPlaying: some View {
