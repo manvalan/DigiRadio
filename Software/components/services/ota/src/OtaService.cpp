@@ -26,7 +26,9 @@ namespace ota {
 namespace {
 
 constexpr char kTag[] = "OtaService";
-constexpr int kMaxOtaImageSize = 0x1B0000;
+// One OTA app slot (ota_0/ota_1 in partitions.csv); the image is also
+// checked against the actual update partition size in beginStream().
+constexpr int kMaxOtaImageSize = 0x400000;
 constexpr std::size_t kHeaderCaptureMax = 512U;
 
 void captureHeaderPrefix(std::vector<std::uint8_t>& prefix,
@@ -82,6 +84,9 @@ std::expected<void, OtaError> OtaService::beginStream(int contentLength)
         esp_ota_get_next_update_partition(nullptr);
     if (updatePartition == nullptr) {
         return std::unexpected(OtaError::NoUpdatePartition);
+    }
+    if (static_cast<std::uint32_t>(contentLength) > updatePartition->size) {
+        return std::unexpected(OtaError::ImageTooLarge);
     }
 
     esp_ota_handle_t handle = 0;

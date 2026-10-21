@@ -381,7 +381,7 @@ and HTTP are up calls
 
 HTTP status: \textbf{200 OK}; \textbf{400} with \texttt{\{"error":"..."\}}
 for invalid project/magic or flash write failures;
-\textbf{413} when the body exceeds 1.7\,MiB (\texttt{0x1B0000});
+\textbf{413} when the body exceeds one OTA slot, 4\,MiB (\texttt{0x400000});
 \textbf{500} on \texttt{esp\_ota\_end}/set-boot failures. Push with
 \texttt{curl --data-binary @build/digiradio.bin}.
 

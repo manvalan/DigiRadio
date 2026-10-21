@@ -1554,7 +1554,9 @@ esp_err_t otaPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
 
-    constexpr int kMaxOtaSize = 0x1B0000;
+    // One OTA app slot (4 MiB, partitions.csv); the old 1.7 MiB cap
+    // rejected the ~2.9 MiB image with 413.
+    constexpr int kMaxOtaSize = 0x400000;
     const int contentLen = req->content_len;
     if (contentLen <= 0 || contentLen > kMaxOtaSize) {
         httpd_resp_set_status(req, "413 Payload Too Large");
