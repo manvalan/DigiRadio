@@ -475,6 +475,28 @@ void TunerService::setAfFollowEnabled(bool enabled)
     afStats_.enabled = enabled;
 }
 
+std::expected<core::DabLinkage, core::TunerError>
+TunerService::readDabLinkage(std::uint32_t serviceId)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return tuner_.readDabLinkage(serviceId);
+}
+
+void TunerService::recordDabFollow(bool switched)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ++afStats_.dabHunts;
+    if (switched) {
+        ++afStats_.dabSwitches;
+    }
+}
+
+void TunerService::recordAfHunt()
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ++afStats_.hunts;
+}
+
 void TunerService::recordAfSwitch(core::FrequencyKHz from,
                                   core::FrequencyKHz to)
 {

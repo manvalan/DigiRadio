@@ -54,6 +54,8 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/PowerStateJson.cpp"
     "${CORE_SRC_DIR}/AlternateFrequencyFollower.cpp"
     "${CORE_SRC_DIR}/AfFollowJson.cpp"
+    "${CORE_SRC_DIR}/DabLinkage.cpp"
+    "${CORE_SRC_DIR}/DabServiceFollower.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -175,3 +177,7 @@ add_test(NAME power_state_test COMMAND power_state_test)
 add_executable(af_follower_test af_follower_test.cpp)
 target_link_libraries(af_follower_test PRIVATE digiradio_core)
 add_test(NAME af_follower_test COMMAND af_follower_test)
+
+add_executable(dab_follower_test dab_follower_test.cpp)
+target_link_libraries(dab_follower_test PRIVATE digiradio_core)
+add_test(NAME dab_follower_test COMMAND dab_follower_test)

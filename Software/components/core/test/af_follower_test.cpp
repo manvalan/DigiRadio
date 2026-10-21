@@ -59,8 +59,9 @@ constexpr std::uint16_t kPi = 0x5201U;
     return false;
 }
 
-/* A strong signal never hunts; a weak one hunts only after the settle
- * window, and not again inside the cooldown. */
+/* A strong signal never hunts; a weak one hunts only after three weak
+ * snapshots in a row and the settle window, and not again inside the
+ * cooldown. */
 [[nodiscard]] bool huntTimingTest()
 {
     core::AlternateFrequencyFollower follower;
@@ -69,17 +70,38 @@ constexpr std::uint16_t kPi = 0x5201U;
         return fail("strong signal must not hunt");
     }
     follower.observe(fmStatus(98400U, 8, true), 1000U);
+    follower.observe(fmStatus(98400U, 8, true), 2000U);
+    follower.observe(fmStatus(98400U, 8, true), 3000U);
     if (follower.shouldHunt(5000U)) {
         return fail("must wait the settle window after a new station");
     }
     if (!follower.shouldHunt(9000U)) {
-        return fail("weak signal after settle must hunt");
+        return fail("sustained weak signal after settle must hunt");
     }
     follower.finishHunt(khz(98400U), 9000U);
+    for (std::uint32_t t = 10000U; t <= 12000U; t += 1000U) {
+        follower.observe(fmStatus(98400U, 8, true), t);
+    }
     if (follower.shouldHunt(20000U)) {
         return fail("must respect the cooldown");
     }
     return follower.shouldHunt(29000U) || fail("hunt again after cooldown");
+}
+
+/* One or two bad snapshots (VALID flicker, RSSI dip) must not hunt. */
+[[nodiscard]] bool flickerTest()
+{
+    core::AlternateFrequencyFollower follower;
+    follower.observe(fmStatus(98400U, 36, true, {87600U}), 0U);
+    follower.observe(fmStatus(98400U, 36, false), 10000U);
+    follower.observe(fmStatus(98400U, 9, true), 13000U);
+    if (follower.shouldHunt(14000U)) {
+        return fail("two weak snapshots must not hunt");
+    }
+    follower.observe(fmStatus(98400U, 36, true), 16000U);
+    follower.observe(fmStatus(98400U, 9, true), 19000U);
+    follower.observe(fmStatus(98400U, 9, true), 22000U);
+    return !follower.shouldHunt(23000U) || fail("a good snapshot resets the streak");
 }
 
 /* Without any AF there is nothing to probe. */
@@ -177,15 +199,16 @@ constexpr std::uint16_t kPi = 0x5201U;
     }
     core::AfFollowStats stats;
     if (core::serializeAfFollowJson(stats)
-        != R"({"enabled":true,"switches":0})") {
+        != R"({"enabled":true,"hunts":0,"switches":0,)"
+           R"("dab_hunts":0,"dab_switches":0})") {
         return fail("default stats JSON mismatch");
     }
     stats.switches = 2U;
     stats.lastFrom = khz(98400U);
     stats.lastTo = khz(87600U);
     return core::serializeAfFollowJson(stats)
-               == R"({"enabled":true,"switches":2,"last_from_khz":98400,)"
-                  R"("last_to_khz":87600})"
+               == R"({"enabled":true,"hunts":0,"switches":2,"last_from_khz":98400,)"
+                  R"("last_to_khz":87600,"dab_hunts":0,"dab_switches":0})"
         || fail("switch stats JSON mismatch");
 }
 
@@ -193,7 +216,7 @@ constexpr std::uint16_t kPi = 0x5201U;
 
 int main()
 {
-    const bool ok = huntTimingTest() && noAfTest() && candidatesTest()
+    const bool ok = huntTimingTest() && flickerTest() && noAfTest() && candidatesTest()
                  && chooseTest() && piMismatchTest() && stationTrackingTest()
                  && jsonTest();
     return ok ? EXIT_SUCCESS : EXIT_FAILURE;

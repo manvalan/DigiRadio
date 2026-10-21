@@ -27,6 +27,8 @@ constexpr std::uint32_t kSettleMs = 250U;
 /** Extra RDS reads so a PI can be confirmed (two matching groups). */
 constexpr int kPiReads = 3;
 constexpr std::uint32_t kPiReadGapMs = 120U;
+/** Time for a DAB ensemble to acquire and publish its service list. */
+constexpr std::uint32_t kDabAcquireMs = 2500U;
 
 } // namespace
 
@@ -43,12 +45,114 @@ void AfFollowService::tick(std::uint32_t nowMs)
         return;
     }
     auto status = tuner_.refreshStatus();
-    if (!status || status->band != core::TunerBand::Fm) {
+    if (!status) {
         return;
     }
-    follower_.observe(*status, nowMs);
+    if (status->band == core::TunerBand::Fm) {
+        tickFm(*status, nowMs);
+    } else {
+        tickDab(*status, nowMs);
+    }
+}
+
+void AfFollowService::tickFm(const core::TunerStatus& status,
+                             std::uint32_t nowMs)
+{
+    follower_.observe(status, nowMs);
     if (follower_.shouldHunt(nowMs)) {
         hunt(nowMs);
+    }
+}
+
+void AfFollowService::tickDab(const core::TunerStatus& status,
+                              std::uint32_t nowMs)
+{
+    dabFollower_.observe(status, nowMs);
+    const auto sid = dabFollower_.serviceId();
+    if (sid && dabFollower_.needsLinkage(nowMs)) {
+        if (auto linkage = tuner_.readDabLinkage(*sid); linkage) {
+            dabFollower_.setLinkage(std::move(*linkage), nowMs);
+        }
+    }
+    if (dabFollower_.shouldHunt(nowMs)) {
+        huntDab(status, nowMs);
+    }
+}
+
+void AfFollowService::huntDab(const core::TunerStatus& status,
+                              std::uint32_t nowMs)
+{
+    const std::uint32_t sid = *dabFollower_.serviceId();
+    ESP_LOGI(kTag, "DAB service 0x%08x lost: trying linked sources",
+             static_cast<unsigned>(sid));
+    bool switched = false;
+    for (const auto& candidate : dabFollower_.candidates()) {
+        if (tryCandidate(candidate, sid)) {
+            switched = true;
+            break;
+        }
+    }
+    if (!switched) {
+        restoreDab(status);
+    }
+    dabFollower_.finishHunt(nowMs);
+    tuner_.recordDabFollow(switched);
+}
+
+bool AfFollowService::tryCandidate(const core::DabFollowCandidate& candidate,
+                                   std::uint32_t serviceId)
+{
+    if (candidate.fm) {
+        return tryFm(*candidate.fmFrequency, candidate.pi);
+    }
+    return tryEnsemble(candidate.dabFreqIndex, serviceId);
+}
+
+bool AfFollowService::tryEnsemble(std::uint8_t freqIndex,
+                                  std::uint32_t serviceId)
+{
+    if (auto tuned = tuner_.tuneDab(freqIndex); !tuned) {
+        return false;
+    }
+    sleep_(kDabAcquireMs);
+    auto services = tuner_.listDabServices();
+    if (!services) {
+        return false;
+    }
+    for (const auto& entry : *services) {
+        if (entry.serviceId == serviceId
+            && tuner_.playDabService(entry.serviceId, entry.componentId)) {
+            ESP_LOGI(kTag, "DAB service found on ensemble %u",
+                     static_cast<unsigned>(freqIndex));
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AfFollowService::tryFm(core::FrequencyKHz frequency, std::uint16_t pi)
+{
+    const auto sample = measure(frequency);
+    const bool ok = sample && sample->locked
+                    && sample->rssiDbuV >= core::AfFollowConfig{}.minRssiDbuV
+                    && (!sample->pi || *sample->pi == pi);
+    if (ok) {
+        ESP_LOGI(kTag, "DAB service continued on FM %u kHz",
+                 static_cast<unsigned>(frequency.value()));
+    }
+    return ok;
+}
+
+void AfFollowService::restoreDab(const core::TunerStatus& status)
+{
+    if (!status.dabFreqIndex || !status.dabPlayingServiceId
+        || !status.dabPlayingComponentId) {
+        return;
+    }
+    if (auto tuned = tuner_.tuneDab(*status.dabFreqIndex); tuned) {
+        sleep_(kDabAcquireMs);
+        (void)tuner_.playDabService(*status.dabPlayingServiceId,
+                                    *status.dabPlayingComponentId);
     }
 }
 
@@ -58,6 +162,10 @@ void AfFollowService::hunt(std::uint32_t nowMs)
     if (!current) {
         return;
     }
+    tuner_.recordAfHunt();
+    ESP_LOGI(kTag, "weak signal (%d dBuV, locked %d): probing AFs",
+             static_cast<int>(current->rssiDbuV),
+             static_cast<int>(current->locked));
     const auto samples = probe(follower_.candidates());
     const core::FrequencyKHz chosen = follower_.choose(*current, samples);
     if (auto tuned = tuner_.tuneFm(chosen); !tuned) {

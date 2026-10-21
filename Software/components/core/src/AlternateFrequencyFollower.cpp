@@ -52,6 +52,9 @@ void AlternateFrequencyFollower::observe(const TunerStatus& status,
         startStation(*sample, nowMs);
     }
     current_ = sample;
+    const bool weak = !sample->locked || sample->rssiDbuV < config_.weakRssiDbuV;
+    weakStreak_ = weak ? static_cast<std::uint8_t>(weakStreak_ + (weakStreak_ < 255U ? 1U : 0U))
+                       : 0U;
     mergeStatus(status);
 }
 
@@ -66,7 +69,7 @@ bool AlternateFrequencyFollower::shouldHunt(std::uint32_t nowMs) const
     if (lastHuntMs_ && nowMs - *lastHuntMs_ < config_.cooldownMs) {
         return false;
     }
-    return !current_->locked || current_->rssiDbuV < config_.weakRssiDbuV;
+    return weakStreak_ >= config_.weakObservations;
 }
 
 std::vector<FrequencyKHz> AlternateFrequencyFollower::candidates() const
@@ -115,6 +118,7 @@ void AlternateFrequencyFollower::finishHunt(FrequencyKHz chosen,
                                             std::uint32_t nowMs)
 {
     lastHuntMs_ = nowMs;
+    weakStreak_ = 0U;
     addFrequency(chosen.value());
 }
 
@@ -150,6 +154,7 @@ void AlternateFrequencyFollower::startStation(const AfSample& sample,
     stationPi_ = sample.pi;
     stationSinceMs_ = nowMs;
     lastHuntMs_.reset();
+    weakStreak_ = 0U;
 }
 
 void AlternateFrequencyFollower::addFrequency(std::uint32_t khz)

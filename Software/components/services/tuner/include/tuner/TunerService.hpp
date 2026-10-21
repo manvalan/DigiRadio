@@ -226,6 +226,32 @@ public:
         std::uint8_t level);
 
     /**
+     * @brief    readDabLinkage — service-following data for a DAB service.
+     *
+     * @dname    readDabLinkage
+     * @param    serviceId  Service playing in the current ensemble.
+     * @return   core::DabLinkage, or a TunerError from ITuner.
+     * @pubstate reads tuner_ under the tuner lock.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<core::DabLinkage, core::TunerError>
+    readDabLinkage(std::uint32_t serviceId);
+
+    /**
+     * @brief    recordDabFollow — note a DAB service-following attempt.
+     *
+     * @dname    recordDabFollow
+     * @param    switched  true when the service was found elsewhere.
+     * @pubstate increments afStats_.dabHunts (and dabSwitches).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    void recordDabFollow(bool switched);
+
+    /**
      * @brief    tuner — borrow the underlying driver for diagnostics.
      *
      * @dname    tuner
@@ -261,6 +287,17 @@ public:
      * @date     2026-10-21
      */
     void setAfFollowEnabled(bool enabled);
+
+    /**
+     * @brief    recordAfHunt — note that the AF task probed alternates.
+     *
+     * @dname    recordAfHunt
+     * @pubstate increments afStats_.hunts.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    void recordAfHunt();
 
     /**
      * @brief    recordAfSwitch — note an automatic AF retune.
