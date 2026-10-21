@@ -180,6 +180,23 @@ public:
         std::uint8_t level) = 0;
 
     /**
+     * @brief    readSignal — lock and signal metrics only.
+     *
+     * @dname    readSignal
+     * @return   TunerStatus with band, lock, frequency and RSSI/SNR (FM) or
+     *           FIC/CNR (DAB), without draining RDS or DAB data services.
+     *           Defaults to readStatus().
+     * @pubstate reads signal quality from the tuner.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] virtual std::expected<TunerStatus, TunerError> readSignal()
+    {
+        return readStatus();
+    }
+
+    /**
      * @brief    readDabLinkage — service-following data for a DAB service.
      *
      * @dname    readDabLinkage

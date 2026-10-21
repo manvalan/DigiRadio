@@ -29,6 +29,8 @@ constexpr int kPiReads = 3;
 constexpr std::uint32_t kPiReadGapMs = 120U;
 /** Time for a DAB ensemble to acquire and publish its service list. */
 constexpr std::uint32_t kDabAcquireMs = 2500U;
+/** Full status (RDS / DLS drain) once every this many ticks (~30 s). */
+constexpr std::uint32_t kMetadataEveryTicks = 10U;
 
 } // namespace
 
@@ -44,7 +46,10 @@ void AfFollowService::tick(std::uint32_t nowMs)
     if (!tuner_.afFollowStats().enabled) {
         return;
     }
-    auto status = tuner_.refreshStatus();
+    // Signal metrics every tick; RDS (AF list, PI) only every
+    // kMetadataEveryTicks, so the background task stays light.
+    const bool metadata = ticks_++ % kMetadataEveryTicks == 0U;
+    auto status = metadata ? tuner_.refreshStatus() : tuner_.refreshSignal();
     if (!status) {
         return;
     }
