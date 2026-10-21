@@ -9,7 +9,7 @@ final class ShareViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         preferredContentSize = CGSize(width: 320, height: 140)
-        status.text = "Invio a igiRadio…"
+        status.text = String(localized: "Invio a igiRadio…")
         status.font = .preferredFont(forTextStyle: .body)
         status.textAlignment = .center
         status.numberOfLines = 0
@@ -34,7 +34,7 @@ final class ShareViewController: UIViewController {
         let defaults = UserDefaults(suiteName: Self.appGroup)
         defaults?.set(shared, forKey: Self.pendingShareKey)
         await configureRadio(host: defaults?.string(forKey: Self.hostKey))
-        status.text = "Fatto. igiRadio è su Stream: apri l'app per continuare."
+        status.text = String(localized: "Fatto. igiRadio è su Stream: apri l'app per continuare.")
         try? await Task.sleep(for: .milliseconds(700))
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }

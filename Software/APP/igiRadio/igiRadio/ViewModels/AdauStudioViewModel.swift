@@ -178,7 +178,7 @@ final class AdauStudioViewModel {
             do {
                 try await service.applyAudioProfile(profile)
                 syncFromDevice()
-                statusMessage = "Impostazioni applicate."
+                statusMessage = String(localized: "Impostazioni applicate.")
             } catch {
                 errorMessage = DigiRadioFriendlyError.message(for: error)
             }
@@ -204,7 +204,7 @@ final class AdauStudioViewModel {
             userDivergedFromPreset = false
             selectedEQPresetID = nil
             syncFromDevice()
-            statusMessage = "Profilo ripristinato."
+            statusMessage = String(localized: "Profilo ripristinato.")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -212,13 +212,13 @@ final class AdauStudioViewModel {
 
     func loadDspParams() async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         do {
             let response = try await service.fetchDspParams()
             dspParams = response.params.sorted { $0.address < $1.address }
-            statusMessage = "\(dspParams.count) parametri DSP caricati."
+            statusMessage = String(localized: "\(dspParams.count) parametri DSP caricati.")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -227,7 +227,7 @@ final class AdauStudioViewModel {
     func writeDspParam() async {
         guard let param = selectedDspParam else { return }
         guard let value = Double(dspParamValue.replacingOccurrences(of: ",", with: ".")) else {
-            errorMessage = "Valore non valido."
+            errorMessage = String(localized: "Valore non valido.")
             return
         }
         isSaving = true
@@ -235,7 +235,7 @@ final class AdauStudioViewModel {
         defer { isSaving = false }
         do {
             try await service.setDspParam(name: param.name, value: value)
-            statusMessage = "\(param.name) = \(value) (live, non persistente)"
+            statusMessage = String(localized: "\(param.name) = \(value) (live, non persistente)")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -243,7 +243,7 @@ final class AdauStudioViewModel {
 
     func testBeep(enabled: Bool) async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         isSaving = true
@@ -255,13 +255,13 @@ final class AdauStudioViewModel {
                 activeSource = .beep
                 try await service.applyAudioProfile(currentProfileDTO())
                 try await service.playAudioBeep(enabled: true)
-                statusMessage = "Tono di test attivo (sorgente: beep)."
+                statusMessage = String(localized: "Tono di test attivo (sorgente: beep).")
             } else {
                 try await service.playAudioBeep(enabled: false)
                 activeSource = sourceBeforeBeep
                 try await service.applyAudioProfile(currentProfileDTO())
                 syncFromDevice()
-                statusMessage = "Tono di test disattivato."
+                statusMessage = String(localized: "Tono di test disattivato.")
             }
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
@@ -336,7 +336,7 @@ extension AdauStudioViewModel {
             do {
                 try await service.applyAudioPreset(preset)
                 applyPresetLocally(preset)
-                statusMessage = "Preset \(preset.name) applicato."
+                statusMessage = String(localized: "Preset \(preset.name) applicato.")
             } catch {
                 errorMessage = DigiRadioFriendlyError.message(for: error)
             }

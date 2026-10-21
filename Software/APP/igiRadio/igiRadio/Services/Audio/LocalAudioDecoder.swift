@@ -80,9 +80,9 @@ enum PhoneStreamError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConnected: return "DigiRadio non connesso."
-        case .formatUnsupported: return "Formato audio non supportato."
-        case .decodeFailed: return "Impossibile decodificare il file."
+        case .notConnected: return String(localized: "DigiRadio non connesso.")
+        case .formatUnsupported: return String(localized: "Formato audio non supportato.")
+        case .decodeFailed: return String(localized: "Impossibile decodificare il file.")
         case let .deviceRejected(code, body): return "Device HTTP \(code): \(body ?? "")"
         case let .transport(error): return error.localizedDescription
         }

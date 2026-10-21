@@ -12,6 +12,23 @@ struct DigiRadioState: Equatable, Sendable {
     /// PCM dal telefono (ReplayKit / file), distinto dalla webradio HTTP.
     var phoneAudioActive = false
     var power: DevicePowerState = .on
+    /// GET /api/tuner/af — nil when the firmware does not follow AFs itself.
+    var firmwareAF: FirmwareAFState?
+}
+
+/// RDS alternate-frequency follow done by the radio (firmware 0.9.2+).
+struct FirmwareAFState: Equatable, Sendable, Codable {
+    var enabled: Bool
+    var switches: Int
+    var lastFromKhz: Int?
+    var lastToKhz: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case switches
+        case lastFromKhz = "last_from_khz"
+        case lastToKhz = "last_to_khz"
+    }
 }
 
 /// GET/POST /api/system/power — soft standby (master muted, Wi-Fi stays up).
@@ -297,7 +314,7 @@ struct Station: Equatable, Sendable, Codable, Identifiable {
             return "FM"
         case .dab:
             if let idx = dabFreqIndex {
-                return "DAB ensemble \(idx)"
+                return String(localized: "DAB ensemble \(idx)")
             }
             return "DAB"
         }
@@ -313,7 +330,7 @@ struct Station: Equatable, Sendable, Codable, Identifiable {
             return "FM"
         case .dab:
             if let idx = dabFreqIndex {
-                return "DAB · ensemble \(idx)"
+                return String(localized: "DAB · ensemble \(idx)")
             }
             return "DAB"
         }
@@ -387,12 +404,12 @@ extension DigiRadioState {
             if let khz = tuner.fm?.frequencyKhz {
                 return String(format: "%.2f MHz", Double(khz) / 1000.0)
             }
-            return "Radio FM"
+            return String(localized: "Radio FM")
         case .dab:
             if let label = tuner.dab?.dynamicLabel?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty {
                 return label
             }
-            return "Radio DAB"
+            return String(localized: "Radio DAB")
         }
     }
 
@@ -402,19 +419,19 @@ extension DigiRadioState {
             if streaming.enabled, !streaming.url.isEmpty { return streaming.url }
             return "Stream"
         case .beep:
-            return "Tono di test"
+            return String(localized: "Tono di test")
         case .radio:
             switch tuner.band {
             case .fm:
                 if let khz = tuner.fm?.frequencyKhz {
                     let freq = String(format: "%.2f MHz", Double(khz) / 1000.0)
-                    if let rt = RDSText.sanitized(tuner.fm?.radiotext) { return "\(freq) · \(rt)" }
+                    if let rt = RDSText.sanitized(tuner.fm?.radiotext) { return String(localized: "\(freq) · \(rt)") }
                     return freq
                 }
                 return "FM"
             case .dab:
                 if let idx = tuner.dab?.freqIndex {
-                    return "DAB · canale \(idx)"
+                    return String(localized: "DAB · canale \(idx)")
                 }
                 return "DAB"
             }

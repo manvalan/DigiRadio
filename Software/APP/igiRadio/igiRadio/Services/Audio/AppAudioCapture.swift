@@ -10,7 +10,7 @@ enum AppAudioCaptureError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            return "Questo iPad/iPhone non può catturare l’audio delle altre app."
+            return String(localized: "Questo iPad/iPhone non può catturare l’audio delle altre app.")
         case let .startFailed(message):
             return message
         }

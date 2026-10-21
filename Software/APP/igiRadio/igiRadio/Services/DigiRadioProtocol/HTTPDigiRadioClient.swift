@@ -48,6 +48,16 @@ final class HTTPDigiRadioClient {
         try await post("/api/system/power", body: PowerStateResponse(state: power))
     }
 
+    // MARK: - RDS AF follow
+
+    func fetchAfFollow() async throws -> FirmwareAFState {
+        try await get("/api/tuner/af")
+    }
+
+    func setAfFollow(enabled: Bool) async throws -> FirmwareAFState {
+        try await post("/api/tuner/af", body: AfFollowRequest(enabled: enabled))
+    }
+
     // MARK: - Tuner
 
     func fetchTunerStatus() async throws -> TunerStatusResponse {
@@ -398,6 +408,10 @@ final class HTTPDigiRadioClient {
 struct EmptyBody: Codable {}
 
 /// Body and response of /api/system/power: {"state":"on"|"standby"}.
+struct AfFollowRequest: Codable {
+    let enabled: Bool
+}
+
 struct PowerStateResponse: Codable {
     let state: DevicePowerState
 }

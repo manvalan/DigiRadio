@@ -11,7 +11,7 @@ struct PrepareRadioView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
     @State private var phase: Phase
-    @State private var waitMessage = "Attendi, la radio si collega alla rete…"
+    @State private var waitMessage = String(localized: "Attendi, la radio si collega alla rete…")
     @State private var waitError: String?
 
     private enum Phase: Equatable {
@@ -109,9 +109,9 @@ struct PrepareRadioView: View {
 
     private func joinAfterWifi(expectedHost: String?) async {
         waitError = nil
-        waitMessage = "Attendi, la radio si riavvia…"
+        waitMessage = String(localized: "Attendi, la radio si riavvia…")
         try? await Task.sleep(for: .seconds(4))
-        waitMessage = "Cerco la radio in rete…"
+        waitMessage = String(localized: "Cerco la radio in rete…")
         var lastError: String?
         var candidates: [String] = []
         if let expectedHost, !expectedHost.isEmpty {

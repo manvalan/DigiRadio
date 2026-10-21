@@ -130,12 +130,12 @@ struct PresetsView: View {
             return vm.progressMessage ?? "Scansione in corso…"
         }
         if collection == .web {
-            return "Webradio salvate"
+            return String(localized: "Webradio salvate")
         }
         if let listening = vm.filteredFavorites.first(where: { vm.isTuned(to: $0) }) {
-            return "In ascolto · \(listening.displayTitle)"
+            return String(localized: "In ascolto · \(listening.displayTitle)")
         }
-        return "Preferiti ed elenco"
+        return String(localized: "Preferiti ed elenco")
     }
 
     @ViewBuilder

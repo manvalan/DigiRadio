@@ -90,7 +90,7 @@ struct IGIPrimaryButton: View {
     var body: some View {
         Button(action: action) {
             Label {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .fontWeight(.semibold)
             } icon: {
                 if let systemImage {
@@ -127,7 +127,7 @@ struct IGISectionHeader: View {
     var title: String
 
     var body: some View {
-        Text(title)
+        Text(LocalizedStringKey(title))
             .font(.title3.weight(.semibold))
             .foregroundStyle(IGITheme.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -144,10 +144,10 @@ struct IGIEmptyState: View {
             Image(systemName: systemImage)
                 .font(.system(size: 44))
                 .foregroundStyle(IGITheme.inkMuted)
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(IGITheme.ink)
-            Text(message)
+            Text(LocalizedStringKey(message))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(IGITheme.inkMuted)
         }

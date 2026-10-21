@@ -34,7 +34,7 @@ final class DABRadioViewModel {
     var nowPlayingLabel: String {
         if let label = dabState?.dynamicLabel, !label.isEmpty { return label }
         if let selected = selectedService { return selected.label }
-        return "Nessuna stazione"
+        return String(localized: "Nessuna stazione")
     }
 
     func onAppear() {
@@ -87,12 +87,12 @@ final class DABRadioViewModel {
 
     func tuneEnsemble() async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         isTuning = true
         errorMessage = nil
-        statusMessage = "Sintonizzazione ensemble \(freqIndex)…"
+        statusMessage = String(localized: "Sintonizzazione ensemble \(freqIndex)…")
         defer { isTuning = false }
         do {
             try await service.tuneDAB(freqIndex: freqIndex)
@@ -107,7 +107,7 @@ final class DABRadioViewModel {
                     ? "Ensemble \(freqIndex) ok — nessun servizio in elenco, prova un altro canale."
                     : "Ensemble \(freqIndex) senza segnale — prova un altro canale."
             } else {
-                statusMessage = "Ensemble \(freqIndex): \(services.count) stazioni trovate."
+                statusMessage = String(localized: "Ensemble \(freqIndex): \(services.count) stazioni trovate.")
             }
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
@@ -116,7 +116,7 @@ final class DABRadioViewModel {
 
     func playSelected() async {
         guard let service = selectedService else {
-            errorMessage = "Seleziona una stazione dal menu."
+            errorMessage = String(localized: "Seleziona una stazione dal menu.")
             return
         }
         await play(service)
@@ -124,7 +124,7 @@ final class DABRadioViewModel {
 
     func play(_ dabService: DABService) async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         isPlaying = true
@@ -135,7 +135,7 @@ final class DABRadioViewModel {
             try await service.playDAB(serviceId: dabService.serviceId, componentId: dabService.componentId)
             selectedServiceID = chosenID
             try await service.refreshTunerStatus()
-            statusMessage = "In riproduzione: \(dabService.label)"
+            statusMessage = String(localized: "In riproduzione: \(dabService.label)")
         } catch {
             errorMessage = DigiRadioFriendlyError.message(for: error)
         }
@@ -143,7 +143,7 @@ final class DABRadioViewModel {
 
     func loadServices(selectCurrent: Bool = false) async {
         guard isConnected else {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         isLoadingServices = true
@@ -152,7 +152,7 @@ final class DABRadioViewModel {
         do {
             services = try await service.listDABServices()
             if services.isEmpty {
-                statusMessage = "Nessun servizio su questo ensemble — prova un altro canale."
+                statusMessage = String(localized: "Nessun servizio su questo ensemble — prova un altro canale.")
             } else if selectCurrent,
                       let sid = dabState?.playingServiceId,
                       let cid = dabState?.playingComponentId,
@@ -165,7 +165,7 @@ final class DABRadioViewModel {
         } catch {
             let msg = DigiRadioFriendlyError.message(for: error)
             if msg.localizedCaseInsensitiveContains("servizi dab") {
-                statusMessage = "Nessun servizio leggibile su questo ensemble."
+                statusMessage = String(localized: "Nessun servizio leggibile su questo ensemble.")
                 errorMessage = nil
             } else {
                 errorMessage = msg

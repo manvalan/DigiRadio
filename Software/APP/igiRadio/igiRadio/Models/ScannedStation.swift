@@ -72,6 +72,12 @@ struct ScannedStation: Identifiable, Equatable, Sendable, Codable {
         String(format: "FM %.2f", Double(khz) / 1000)
     }
 
+    /// True while the name is still the automatic "FM 98.40" placeholder
+    /// (on any of the station's frequencies), not one the user typed.
+    var hasPlaceholderName: Bool {
+        name.isEmpty || allFMFrequenciesKhz.contains { Self.fmPlaceholderName(khz: $0) == name }
+    }
+
     func matches(_ saved: Station) -> Bool {
         switch band {
         case .fm:
@@ -106,12 +112,12 @@ struct ScannedStation: Identifiable, Equatable, Sendable, Codable {
             guard !freqs.isEmpty else { return "FM" }
             let labels = freqs.map { String(format: "%.2f", Double($0) / 1000) }
             if labels.count == 1 {
-                return "FM \(labels[0]) MHz"
+                return String(localized: "FM \(labels[0]) MHz")
             }
             return "FM " + labels.joined(separator: " · ") + " MHz"
         case .dab:
             if let idx = dabFreqIndex {
-                return "DAB · ensemble \(idx)"
+                return String(localized: "DAB · ensemble \(idx)")
             }
             return "DAB"
         }

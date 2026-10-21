@@ -1,0 +1,4376 @@
+{
+  "sourceLanguage" : "it",
+  "strings" : {
+    "%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        }
+      }
+    },
+    "%@  (−96 … +12 dB)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@  (−96 … +12 dB)."
+          }
+        }
+      }
+    },
+    "%@ (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (%@)"
+          }
+        }
+      }
+    },
+    "%@ = %lf (live, non persistente)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ = %2$lf (live, not saved)"
+          }
+        }
+      }
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@"
+          }
+        }
+      }
+    },
+    "%@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@"
+          }
+        }
+      }
+    },
+    "%@, %@, %@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@, %@%@"
+          }
+        }
+      }
+    },
+    "%@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: %@"
+          }
+        }
+      }
+    },
+    "%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        }
+      }
+    },
+    "%lld dBµV" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld dBµV"
+          }
+        }
+      }
+    },
+    "%lld parametri" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld parameters"
+          }
+        }
+      }
+    },
+    "%lld parametri DSP caricati." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld DSP parameters loaded."
+          }
+        }
+      }
+    },
+    "%lld percento" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld percent"
+          }
+        }
+      }
+    },
+    "%lld su cento" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld out of a hundred"
+          }
+        }
+      }
+    },
+    "+0.1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+0.1"
+          }
+        }
+      }
+    },
+    "+12 dB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+12 dB"
+          }
+        }
+      }
+    },
+    "-12 dB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "-12 dB"
+          }
+        }
+      }
+    },
+    "0" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0"
+          }
+        }
+      }
+    },
+    "0 disattiva il filtro SNR e trova più frequenze. Alza se vuoi scartare i segnali rumorosi." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0 disables the SNR filter and finds more frequencies. Raise it to discard noisy signals."
+          }
+        }
+      }
+    },
+    "1. Trova DigiRadio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1. Find DigiRadio"
+          }
+        }
+      }
+    },
+    "2. Reti Wi‑Fi disponibili" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2. Available Wi‑Fi networks"
+          }
+        }
+      }
+    },
+    "3. Password" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3. Password"
+          }
+        }
+      }
+    },
+    "A2DP" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A2DP"
+          }
+        }
+      }
+    },
+    "ADAU1701" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ADAU1701"
+          }
+        }
+      }
+    },
+    "Accendi DigiRadio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on DigiRadio"
+          }
+        }
+      }
+    },
+    "Accendi modulo audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on audio module"
+          }
+        }
+      }
+    },
+    "Accensione…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning on…"
+          }
+        }
+      }
+    },
+    "Aggiorna snapshot" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh snapshot"
+          }
+        }
+      }
+    },
+    "Aggiornamento OTA" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OTA update"
+          }
+        }
+      }
+    },
+    "Aggiornamento…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating…"
+          }
+        }
+      }
+    },
+    "Aggiungi webradio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add web radio"
+          }
+        }
+      }
+    },
+    "Aggiunta ai preferiti: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added to favorites: %@"
+          }
+        }
+      }
+    },
+    "Alti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Treble"
+          }
+        }
+      }
+    },
+    "Altoparlante" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speaker"
+          }
+        }
+      }
+    },
+    "Altoparlante (BT1035)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speaker (BT1035)"
+          }
+        }
+      }
+    },
+    "Altoparlante connesso." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speaker connected."
+          }
+        }
+      }
+    },
+    "Altoparlante — avanzate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speaker — advanced"
+          }
+        }
+      }
+    },
+    "Altre app" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other apps"
+          }
+        }
+      }
+    },
+    "Annulla" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "App" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App"
+          }
+        }
+      }
+    },
+    "Applica a DigiRadio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply to DigiRadio"
+          }
+        }
+      }
+    },
+    "Ascolta" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listen"
+          }
+        }
+      }
+    },
+    "Ascolto" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listen"
+          }
+        }
+      }
+    },
+    "Ascolto rilassato" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relaxed listening"
+          }
+        }
+      }
+    },
+    "Attendi, la radio si collega alla rete…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please wait, the radio is joining the network…"
+          }
+        }
+      }
+    },
+    "Attendi, la radio si riavvia…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please wait, the radio is restarting…"
+          }
+        }
+      }
+    },
+    "Attiva tono di test" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on test tone"
+          }
+        }
+      }
+    },
+    "Auto-riconnessione BT impostata a %lld." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BT auto-reconnect set to %lld."
+          }
+        }
+      }
+    },
+    "Auto-riconnessione: %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-reconnect: %lld"
+          }
+        }
+      }
+    },
+    "Autorizza l'accesso alla rete locale in Impostazioni → igiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow local network access in Settings → igiRadio."
+          }
+        }
+      }
+    },
+    "Avanzate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced"
+          }
+        }
+      }
+    },
+    "Avvia scansione %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start %@ scan"
+          }
+        }
+      }
+    },
+    "Avvia una ricerca per riempire l’elenco." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a search to fill the list."
+          }
+        }
+      }
+    },
+    "Avvio cattura…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting capture…"
+          }
+        }
+      }
+    },
+    "Avvio ricerca…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting search…"
+          }
+        }
+      }
+    },
+    "Avvio stream…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting stream…"
+          }
+        }
+      }
+    },
+    "BT1035" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BT1035"
+          }
+        }
+      }
+    },
+    "Banda" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Band"
+          }
+        }
+      }
+    },
+    "Banda %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Band %@"
+          }
+        }
+      }
+    },
+    "Bande equalizzatore" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equalizer bands"
+          }
+        }
+      }
+    },
+    "Bass Boost" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bass Boost"
+          }
+        }
+      }
+    },
+    "Bass Boost e Stereo Spread: POST dedicati 0–100. L'EQ resta indipendente." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bass Boost and Stereo Spread: dedicated POSTs, 0–100. The EQ stays independent."
+          }
+        }
+      }
+    },
+    "Bassi" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bass"
+          }
+        }
+      }
+    },
+    "Beep OFF" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beep OFF"
+          }
+        }
+      }
+    },
+    "Beep ON" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beep ON"
+          }
+        }
+      }
+    },
+    "Booted" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Booted"
+          }
+        }
+      }
+    },
+    "Caldo e naturale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warm and natural"
+          }
+        }
+      }
+    },
+    "Cambia Wi‑Fi" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Wi‑Fi"
+          }
+        }
+      }
+    },
+    "Cambia altoparlante" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change speaker"
+          }
+        }
+      }
+    },
+    "Canale %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Channel %@"
+          }
+        }
+      }
+    },
+    "Cancella le credenziali salvate e riavvia la scheda in SoftAP (igiRadio-seriale, 192.168.4.1 o hostname.local)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erases the saved credentials and restarts the board in SoftAP mode (igiRadio-serial, 192.168.4.1 or hostname.local)."
+          }
+        }
+      }
+    },
+    "Carica" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load"
+          }
+        }
+      }
+    },
+    "Cattura avviata. Torna all’altra app e dai play." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture started. Go back to the other app and press play."
+          }
+        }
+      }
+    },
+    "Cattura interrotta" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture stopped"
+          }
+        }
+      }
+    },
+    "Cattura terminata" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture finished"
+          }
+        }
+      }
+    },
+    "Cerca altri altoparlanti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search for other speakers"
+          }
+        }
+      }
+    },
+    "Cerca di nuovo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search again"
+          }
+        }
+      }
+    },
+    "Cerca dispositivi" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search for devices"
+          }
+        }
+      }
+    },
+    "Cerca igiRadio…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search for igiRadio…"
+          }
+        }
+      }
+    },
+    "Cerca la scheda sulla Wi‑Fi di casa (hostname .local o IP)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Look for the board on your home Wi‑Fi (.local hostname or IP)."
+          }
+        }
+      }
+    },
+    "Cerca parametro" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search parameter"
+          }
+        }
+      }
+    },
+    "Cerco la radio in rete…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking for the radio on the network…"
+          }
+        }
+      }
+    },
+    "Chip" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chip"
+          }
+        }
+      }
+    },
+    "Chiudi" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "Classica" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classical"
+          }
+        }
+      }
+    },
+    "Codec (avanzate)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codec (advanced)"
+          }
+        }
+      }
+    },
+    "Coefficiente EQ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EQ coefficient"
+          }
+        }
+      }
+    },
+    "Collega (Bose e soundbar)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect (Bose and soundbars)"
+          }
+        }
+      }
+    },
+    "Collega questo MAC" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect this MAC"
+          }
+        }
+      }
+    },
+    "Collega un altoparlante al modulo audio della radio (BT1035). Non è il BLE usato per configurare il Wi‑Fi." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect a speaker to the radio's audio module (BT1035). This is not the BLE used to set up Wi‑Fi."
+          }
+        }
+      }
+    },
+    "Component ID" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Component ID"
+          }
+        }
+      }
+    },
+    "Condivisione ricevuta, radio non raggiunta." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share received, but the radio could not be reached."
+          }
+        }
+      }
+    },
+    "Configura Wi‑Fi" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set up Wi‑Fi"
+          }
+        }
+      }
+    },
+    "Conflitto: un'altra sorgente audio è attiva o l'hardware non è pronto." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conflict: another audio source is active or the hardware is not ready."
+          }
+        }
+      }
+    },
+    "Connessione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection"
+          }
+        }
+      }
+    },
+    "Connessione HTTP" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP connection"
+          }
+        }
+      }
+    },
+    "Connessione a %@… può richiedere fino a un minuto." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to %@… this can take up to a minute."
+          }
+        }
+      }
+    },
+    "Connessione alla scheda…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to the board…"
+          }
+        }
+      }
+    },
+    "Connessione all’altoparlante… tieni il Bose in pairing." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to the speaker… keep the Bose in pairing mode."
+          }
+        }
+      }
+    },
+    "Connessione manuale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual connection"
+          }
+        }
+      }
+    },
+    "Connessione non riuscita. Verifica Wi‑Fi, rete locale e host." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection failed. Check Wi‑Fi, local network and host."
+          }
+        }
+      }
+    },
+    "Connessione..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting..."
+          }
+        }
+      }
+    },
+    "Connessione…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting…"
+          }
+        }
+      }
+    },
+    "Connesso" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        }
+      }
+    },
+    "Connesso. Scansione reti Wi‑Fi…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected. Scanning Wi‑Fi networks…"
+          }
+        }
+      }
+    },
+    "Connetti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "Connetti a DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to DigiRadio."
+          }
+        }
+      }
+    },
+    "Connetti igiRadio a DigiRadio prima di applicare un profilo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect igiRadio to DigiRadio before applying a profile."
+          }
+        }
+      }
+    },
+    "Connetti la radio per cercare le stazioni." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect the radio to search for stations."
+          }
+        }
+      }
+    },
+    "Continua" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "Crea" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create"
+          }
+        }
+      }
+    },
+    "Creato dal dispositivo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Created by the device"
+          }
+        }
+      }
+    },
+    "DAB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB"
+          }
+        }
+      }
+    },
+    "DAB ensemble %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB ensemble %lld"
+          }
+        }
+      }
+    },
+    "DAB · canale %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB · channel %lld"
+          }
+        }
+      }
+    },
+    "DAB · ensemble %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB · ensemble %lld"
+          }
+        }
+      }
+    },
+    "Dal telefono" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From the phone"
+          }
+        }
+      }
+    },
+    "Dati DAB incompleti — riscansiona la banda." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incomplete DAB data — rescan the band."
+          }
+        }
+      }
+    },
+    "Destra" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right"
+          }
+        }
+      }
+    },
+    "Dettaglio e aria" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detail and air"
+          }
+        }
+      }
+    },
+    "Diagnostica" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics"
+          }
+        }
+      }
+    },
+    "DigiRadio non connesso." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DigiRadio not connected."
+          }
+        }
+      }
+    },
+    "Dimentica Wi‑Fi e torna al setup" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forget Wi‑Fi and return to setup"
+          }
+        }
+      }
+    },
+    "Dimentica altoparlante" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forget speaker"
+          }
+        }
+      }
+    },
+    "Dimentica e riavvia" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forget and restart"
+          }
+        }
+      }
+    },
+    "Dimenticare la rete Wi‑Fi?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forget the Wi‑Fi network?"
+          }
+        }
+      }
+    },
+    "Disattiva tono" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off tone"
+          }
+        }
+      }
+    },
+    "Disconnetti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect"
+          }
+        }
+      }
+    },
+    "Dispositivo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device"
+          }
+        }
+      }
+    },
+    "Due cose: rete di casa e altoparlante. Il resto è in Avanzate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Two things: home network and speaker. Everything else is in Advanced."
+          }
+        }
+      }
+    },
+    "Elenco" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List"
+          }
+        }
+      }
+    },
+    "Elenco %@ svuotato sull'iPhone." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ list cleared on the iPhone."
+          }
+        }
+      }
+    },
+    "Elenco parametri DSP" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DSP parameter list"
+          }
+        }
+      }
+    },
+    "Elenco preset pieno (massimo 20 sul dispositivo)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preset list full (20 max on the device)."
+          }
+        }
+      }
+    },
+    "Elenco servizi DAB non ancora pronto — attendi un attimo e riprova." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB service list not ready yet — wait a moment and try again."
+          }
+        }
+      }
+    },
+    "Elimina" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "Elimina stazione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete station"
+          }
+        }
+      }
+    },
+    "Eliminare “%@”?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete “%@”?"
+          }
+        }
+      }
+    },
+    "Encoder frequenza FM" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FM frequency encoder"
+          }
+        }
+      }
+    },
+    "Energia V-shape" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "V-shaped energy"
+          }
+        }
+      }
+    },
+    "Ensemble %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ensemble %lld"
+          }
+        }
+      }
+    },
+    "Ensemble %lld: %lld stazioni trovate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ensemble %1$lld: %2$lld stations found."
+          }
+        }
+      }
+    },
+    "Equalizzatore" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equalizer"
+          }
+        }
+      }
+    },
+    "Equilibrio dinamico" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dynamic balance"
+          }
+        }
+      }
+    },
+    "Errore %lld: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error %1$lld: %2$@"
+          }
+        }
+      }
+    },
+    "Errore HTTP %lld." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP error %lld."
+          }
+        }
+      }
+    },
+    "Errore interno del dispositivo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Internal device error."
+          }
+        }
+      }
+    },
+    "FM" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FM"
+          }
+        }
+      }
+    },
+    "FM %@ MHz" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FM %@ MHz"
+          }
+        }
+      }
+    },
+    "FW %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FW %@"
+          }
+        }
+      }
+    },
+    "Fatto" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "Fatto! Il DigiRadio si riavvia e si collega alla tua rete." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done! DigiRadio is restarting and joining your network."
+          }
+        }
+      }
+    },
+    "Ferma ricerca" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop search"
+          }
+        }
+      }
+    },
+    "Fermo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped"
+          }
+        }
+      }
+    },
+    "File" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File"
+          }
+        }
+      }
+    },
+    "Fine" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "Firmware" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Firmware"
+          }
+        }
+      }
+    },
+    "Fisso" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fixed"
+          }
+        }
+      }
+    },
+    "Formato audio non supportato." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsupported audio format."
+          }
+        }
+      }
+    },
+    "Frequenza" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequency"
+          }
+        }
+      }
+    },
+    "Frequenze" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequencies"
+          }
+        }
+      }
+    },
+    "Grazie al team PCBWay per aver creduto in questo progetto open hardware e averci aiutato a dare vita alle prime schede." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thanks to the PCBWay team for believing in this open hardware project and helping us bring the first boards to life."
+          }
+        }
+      }
+    },
+    "HTTP" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP"
+          }
+        }
+      }
+    },
+    "Hai già %lld preferiti — il DigiRadio non ne tiene di più." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You already have %lld favorites — DigiRadio cannot hold more."
+          }
+        }
+      }
+    },
+    "Host" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host"
+          }
+        }
+      }
+    },
+    "Host non valido" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid host"
+          }
+        }
+      }
+    },
+    "Host non valido." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid host."
+          }
+        }
+      }
+    },
+    "I tuoi profili" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your profiles"
+          }
+        }
+      }
+    },
+    "Identità" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identity"
+          }
+        }
+      }
+    },
+    "Il DigiRadio deve essere acceso in setup mode (dopo reset o primo avvio)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DigiRadio must be on in setup mode (after a reset or first start)."
+          }
+        }
+      }
+    },
+    "Il DigiRadio scansiona le reti vicine a sé — premi «Scansiona reti»." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DigiRadio scans the networks around it — tap “Scan networks”."
+          }
+        }
+      }
+    },
+    "Il DigiRadio scarica e decodifica MP3. L’URL deve iniziare con http:// o https://." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DigiRadio downloads and decodes MP3. The URL must start with http:// or https://."
+          }
+        }
+      }
+    },
+    "Il DigiRadio si riavvia (~%lld s) e si unisce alla tua rete." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DigiRadio restarts (~%lld s) and joins your network."
+          }
+        }
+      }
+    },
+    "Il modulo audio non risponde. Tieni l’altoparlante in pairing e riprova." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The audio module is not responding. Keep the speaker in pairing mode and try again."
+          }
+        }
+      }
+    },
+    "Il tuner non è in modalità DAB. Sintonizza prima un ensemble." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tuner is not in DAB mode. Tune an ensemble first."
+          }
+        }
+      }
+    },
+    "Impossibile decodificare il file." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to decode the file."
+          }
+        }
+      }
+    },
+    "Impossibile leggere i servizi DAB — sintonizza prima un ensemble." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to read DAB services — tune an ensemble first."
+          }
+        }
+      }
+    },
+    "Impossibile salvare sul dispositivo. Riprova." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to save on the device. Try again."
+          }
+        }
+      }
+    },
+    "Imposta la sorgente su beep. Solo per collaudo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sets the source to beep. For testing only."
+          }
+        }
+      }
+    },
+    "Impostazioni" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "Impostazioni applicate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings applied."
+          }
+        }
+      }
+    },
+    "In ascolto · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening · %@"
+          }
+        }
+      }
+    },
+    "In ascolto: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening: %@"
+          }
+        }
+      }
+    },
+    "In riproduzione: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now playing: %@"
+          }
+        }
+      }
+    },
+    "Indirizzo MAC non valido." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid MAC address."
+          }
+        }
+      }
+    },
+    "Indirizzo dispositivo non valido." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid device address."
+          }
+        }
+      }
+    },
+    "Info" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Info"
+          }
+        }
+      }
+    },
+    "Informazioni" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Information"
+          }
+        }
+      }
+    },
+    "Inserisci l'host dell'igiRadio (es. igiradio-cc4db4.local o 192.168.1.56)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the igiRadio host (e.g. igiradio-cc4db4.local or 192.168.1.56)."
+          }
+        }
+      }
+    },
+    "Inserisci la password della rete." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the network password."
+          }
+        }
+      }
+    },
+    "Inserisci un nome per la stazione." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a name for the station."
+          }
+        }
+      }
+    },
+    "Invia file a DigiRadio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send file to DigiRadio"
+          }
+        }
+      }
+    },
+    "Invio al dispositivo…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending to the device…"
+          }
+        }
+      }
+    },
+    "Invio…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending…"
+          }
+        }
+      }
+    },
+    "Jazz" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jazz"
+          }
+        }
+      }
+    },
+    "L'aggiornamento firmware è supportato via POST /api/system/ota con un file .bin ESP-IDF valido. L'interfaccia di upload sarà aggiunta in una versione successiva." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Firmware updates are supported via POST /api/system/ota with a valid ESP-IDF .bin file. An upload screen will come in a later version."
+          }
+        }
+      }
+    },
+    "La banda a 20 Hz è un filtro passa-alto fisso del DSP." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The 20 Hz band is a fixed DSP high-pass filter."
+          }
+        }
+      }
+    },
+    "La mia radio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My radio"
+          }
+        }
+      }
+    },
+    "La scheda cancella le credenziali e torna in modalità setup. Dovrai riconfigurare la Wi‑Fi." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The board erases its credentials and returns to setup mode. You will need to set up Wi‑Fi again."
+          }
+        }
+      }
+    },
+    "La toglie dall'elenco sull'iPhone e, se era un preferito, anche dai preset del DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removes it from the list on the iPhone and, if it was a favorite, from the DigiRadio presets too."
+          }
+        }
+      }
+    },
+    "Le altre app restano una sorgente in Ascolto, non una stazione in elenco." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other apps stay a source in Listen, not a station in the list."
+          }
+        }
+      }
+    },
+    "Le frequenze alternative RDS restano in questa scheda. Se il segnale cala, si prova quella più forte." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RDS alternate frequencies stay on this card. If the signal drops, the strongest one is tried."
+          }
+        }
+      }
+    },
+    "Livello uscita stereo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stereo output level"
+          }
+        }
+      }
+    },
+    "Locked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locked"
+          }
+        }
+      }
+    },
+    "Lounge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lounge"
+          }
+        }
+      }
+    },
+    "MAC (000C8A78AB62)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MAC (000C8A78AB62)"
+          }
+        }
+      }
+    },
+    "MAC non valido. Servono 12 cifre esadecimali (es. 000C8A78AB62)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid MAC. 12 hexadecimal digits are required (e.g. 000C8A78AB62)."
+          }
+        }
+      }
+    },
+    "MHz" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MHz"
+          }
+        }
+      }
+    },
+    "Metti l’altoparlante in pairing, spegni il Bluetooth del telefono se è già agganciato, poi collega. Lo scan spesso non vede i Bose." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put the speaker in pairing mode, turn off the phone's Bluetooth if it is already paired, then connect. The scan often misses Bose speakers."
+          }
+        }
+      }
+    },
+    "Miglioramento suono" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound enhancement"
+          }
+        }
+      }
+    },
+    "Modalità demo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo mode"
+          }
+        }
+      }
+    },
+    "Modifica" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit"
+          }
+        }
+      }
+    },
+    "Modifica stazione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit station"
+          }
+        }
+      }
+    },
+    "Modulo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Module"
+          }
+        }
+      }
+    },
+    "Modulo audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio module"
+          }
+        }
+      }
+    },
+    "Modulo audio BT1035 non disponibile." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BT1035 audio module not available."
+          }
+        }
+      }
+    },
+    "Modulo audio spento. Accendilo da Impostazioni → Altoparlante." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio module is off. Turn it on in Settings → Speaker."
+          }
+        }
+      }
+    },
+    "Modulo radio non pronto — attendi l'avvio del dispositivo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio module not ready — wait for the device to start."
+          }
+        }
+      }
+    },
+    "Mostra bande EQ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show EQ bands"
+          }
+        }
+      }
+    },
+    "Mostra ingressi ADAU" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show ADAU inputs"
+          }
+        }
+      }
+    },
+    "Nascondi bande EQ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide EQ bands"
+          }
+        }
+      }
+    },
+    "Nei preferiti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In favorites"
+          }
+        }
+      }
+    },
+    "Nessun altoparlante in memoria." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No speaker saved."
+          }
+        }
+      }
+    },
+    "Nessun igiRadio su %@.x. Prova IP manuale o rete SoftAP 192.168.4.1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No igiRadio on %@.x. Try a manual IP or the SoftAP network 192.168.4.1"
+          }
+        }
+      }
+    },
+    "Nessun igiRadio trovato. Dopo un reset il device è in setup mode — riprova tra qualche secondo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No igiRadio found. After a reset the device is in setup mode — try again in a few seconds."
+          }
+        }
+      }
+    },
+    "Nessun preferito. Tieni premuto una stazione nell’elenco per salvarla." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No favorites. Press and hold a station in the list to save it."
+          }
+        }
+      }
+    },
+    "Nessun preferito. Tocca il tasto play per aprire tutte le stazioni." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No favorites. Tap the play button to open all stations."
+          }
+        }
+      }
+    },
+    "Nessun profilo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No profiles."
+          }
+        }
+      }
+    },
+    "Nessun servizio leggibile su questo ensemble." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No readable service on this ensemble."
+          }
+        }
+      }
+    },
+    "Nessun servizio su questo ensemble — prova un altro canale." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No service on this ensemble — try another channel."
+          }
+        }
+      }
+    },
+    "Nessuna frequenza FM sintonizzata." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No FM frequency tuned."
+          }
+        }
+      }
+    },
+    "Nessuna rete trovata — riprova." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No network found — try again."
+          }
+        }
+      }
+    },
+    "Nessuna stazione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No station"
+          }
+        }
+      }
+    },
+    "Nessuna stazione %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No %@ station"
+          }
+        }
+      }
+    },
+    "Nessuna stazione DAB in riproduzione." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No DAB station playing."
+          }
+        }
+      }
+    },
+    "Nessuna stazione FM trovata." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No FM station found."
+          }
+        }
+      }
+    },
+    "Nome" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "Nome (es. Bose)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name (e.g. Bose)"
+          }
+        }
+      }
+    },
+    "Nome RDS non disponibile" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RDS name not available"
+          }
+        }
+      }
+    },
+    "Nome da RDS" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name from RDS"
+          }
+        }
+      }
+    },
+    "Nome profilo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile name"
+          }
+        }
+      }
+    },
+    "Nome rete Wi‑Fi non valido." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid Wi‑Fi network name."
+          }
+        }
+      }
+    },
+    "Nome stazione FM" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FM station name"
+          }
+        }
+      }
+    },
+    "Nome stazione non valido." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid station name."
+          }
+        }
+      }
+    },
+    "Non connesso" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "Non connesso a DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected to DigiRadio."
+          }
+        }
+      }
+    },
+    "Non connesso — i preset si applicano solo dopo la connessione al DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected — presets apply only after connecting to DigiRadio."
+          }
+        }
+      }
+    },
+    "Nuovo profilo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New profile"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "Operazione tuner fallita — riprova o cambia banda." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuner operation failed — try again or change band."
+          }
+        }
+      }
+    },
+    "Operazione tuner fallita — riprova o cambia canale." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuner operation failed — try again or change channel."
+          }
+        }
+      }
+    },
+    "Parametri DSP" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DSP parameters"
+          }
+        }
+      }
+    },
+    "Parametri SigmaStudio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SigmaStudio parameters"
+          }
+        }
+      }
+    },
+    "Parametro SigmaStudio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SigmaStudio parameter"
+          }
+        }
+      }
+    },
+    "Parametro limiter" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limiter parameter"
+          }
+        }
+      }
+    },
+    "Parlato e podcast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speech and podcasts"
+          }
+        }
+      }
+    },
+    "Parte dal profilo attualmente sul DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts from the profile currently on DigiRadio."
+          }
+        }
+      }
+    },
+    "Password Wi‑Fi non valida (8–63 caratteri per WPA)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid Wi‑Fi password (8–63 characters for WPA)."
+          }
+        }
+      }
+    },
+    "Password della tua rete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your network password"
+          }
+        }
+      }
+    },
+    "Piatto" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flat"
+          }
+        }
+      }
+    },
+    "Più bassa: più stazioni, anche deboli. Più alta: solo emittenti chiare. Default %lld dBµV." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower: more stations, weak ones too. Higher: only clear stations. Default %lld dBµV."
+          }
+        }
+      }
+    },
+    "Più corpo e profondità" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More body and depth"
+          }
+        }
+      }
+    },
+    "Poi la radio sarà su %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Then the radio will be on %@."
+          }
+        }
+      }
+    },
+    "Predefiniti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Built-in"
+          }
+        }
+      }
+    },
+    "Preferiti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorites"
+          }
+        }
+      }
+    },
+    "Preferiti ed elenco" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorites and list"
+          }
+        }
+      }
+    },
+    "Prepara igiRadio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare igiRadio"
+          }
+        }
+      }
+    },
+    "Preparazione scansione DAB…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing DAB scan…"
+          }
+        }
+      }
+    },
+    "Preset %@ applicato." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preset %@ applied."
+          }
+        }
+      }
+    },
+    "Preset DAB incompleto — riscansiona e risalva la stazione." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incomplete DAB preset — rescan and save the station again."
+          }
+        }
+      }
+    },
+    "Preset FM incompleto — riscansiona e risalva la stazione." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incomplete FM preset — rescan and save the station again."
+          }
+        }
+      }
+    },
+    "Prima collega la scheda da Configurazione → Connessione." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First connect the board from Setup → Connection."
+          }
+        }
+      }
+    },
+    "Prima configurazione Wi‑Fi" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First Wi‑Fi setup"
+          }
+        }
+      }
+    },
+    "Principale MHz" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Main MHz"
+          }
+        }
+      }
+    },
+    "Profili" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profiles"
+          }
+        }
+      }
+    },
+    "Profilo attivo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active profile"
+          }
+        }
+      }
+    },
+    "Profilo audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio profile"
+          }
+        }
+      }
+    },
+    "Profilo personalizzato" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom profile"
+          }
+        }
+      }
+    },
+    "Profilo ripristinato." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile restored."
+          }
+        }
+      }
+    },
+    "Puoi chiudere anche se l’altoparlante è già collegato, o ritentare dopo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can close this even if the speaker is already connected, or try again later."
+          }
+        }
+      }
+    },
+    "Questo iPad/iPhone non può catturare l’audio delle altre app." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This iPad/iPhone cannot capture audio from other apps."
+          }
+        }
+      }
+    },
+    "RSSI minimo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum RSSI"
+          }
+        }
+      }
+    },
+    "Radio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio"
+          }
+        }
+      }
+    },
+    "Radio (FM/DAB) o stream — una alla volta. Il Bluetooth della scheda è solo l’uscita verso l’altoparlante. Il tono di test è in Diagnostica." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio (FM/DAB) or stream — one at a time. The board's Bluetooth is only the output to the speaker. The test tone is in Diagnostics."
+          }
+        }
+      }
+    },
+    "Radio DAB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB radio"
+          }
+        }
+      }
+    },
+    "Radio FM" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FM radio"
+          }
+        }
+      }
+    },
+    "Radio non connessa." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio not connected."
+          }
+        }
+      }
+    },
+    "Radio o stream telefono — una sorgente alla volta. L’altoparlante è in La mia radio → Cambia altoparlante." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio or phone stream — one source at a time. The speaker is in My radio → Change speaker."
+          }
+        }
+      }
+    },
+    "Radio su Stream (%@). Per sentire: webradio, file o «Ricevi audio»." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radio on Stream (%@). To listen: web radio, file or “Receive audio”."
+          }
+        }
+      }
+    },
+    "Regola livello" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjust level"
+          }
+        }
+      }
+    },
+    "Resta sulla Wi‑Fi di casa. Il BLE dell’ESP32 trova la scheda (igiRadio-seriale) e le invia le credenziali. Non è l’altoparlante BT1035." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stay on your home Wi‑Fi. The ESP32's BLE finds the board (igiRadio-serial) and sends it the credentials. This is not the BT1035 speaker."
+          }
+        }
+      }
+    },
+    "Rete" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
+          }
+        }
+      }
+    },
+    "Rete aperta — nessuna password." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open network — no password."
+          }
+        }
+      }
+    },
+    "Rete non raggiungibile. Controlla che iPhone e DigiRadio siano sulla stessa Wi‑Fi." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network unreachable. Check that iPhone and DigiRadio are on the same Wi‑Fi."
+          }
+        }
+      }
+    },
+    "Ricerca BLE (ESP32)…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BLE search (ESP32)…"
+          }
+        }
+      }
+    },
+    "Ricerca altoparlanti (~45 s)… tieni il Bose in pairing. I soundbar spesso non compaiono: usa il MAC." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching for speakers (~45 s)… keep the Bose in pairing mode. Soundbars often don't show up: use the MAC."
+          }
+        }
+      }
+    },
+    "Ricerca in corso" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching"
+          }
+        }
+      }
+    },
+    "Ricerca…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching…"
+          }
+        }
+      }
+    },
+    "Ricevi audio dalle altre app" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receive audio from other apps"
+          }
+        }
+      }
+    },
+    "Richiesta non accettata dal dispositivo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request not accepted by the device."
+          }
+        }
+      }
+    },
+    "Richiesta non valida — verifica connessione e riprova." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid request — check the connection and try again."
+          }
+        }
+      }
+    },
+    "Riconnessione all’altoparlante salvato…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting to the saved speaker…"
+          }
+        }
+      }
+    },
+    "Riconnessione completata." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnected."
+          }
+        }
+      }
+    },
+    "Riconnessione…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting…"
+          }
+        }
+      }
+    },
+    "Riconnetti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnect"
+          }
+        }
+      }
+    },
+    "Rimuovi" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        }
+      }
+    },
+    "Ringraziamenti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acknowledgements"
+          }
+        }
+      }
+    },
+    "Riparte dal collegamento speaker. Serve quando ne aggiungi uno nuovo o dopo un reset del Bose." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts again from speaker pairing. Needed when you add a new one or after resetting the Bose."
+          }
+        }
+      }
+    },
+    "Ripristina audio di fabbrica" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore factory audio"
+          }
+        }
+      }
+    },
+    "Ripristina default" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore defaults"
+          }
+        }
+      }
+    },
+    "Ripristina impostazioni audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore audio settings"
+          }
+        }
+      }
+    },
+    "Riproduzione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback"
+          }
+        }
+      }
+    },
+    "Riprova" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        }
+      }
+    },
+    "Risposta neutra" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neutral response"
+          }
+        }
+      }
+    },
+    "Risposta non valida dal dispositivo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid response from the device."
+          }
+        }
+      }
+    },
+    "Rock" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rock"
+          }
+        }
+      }
+    },
+    "SBC è sempre disponibile." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SBC is always available."
+          }
+        }
+      }
+    },
+    "SNR minimo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum SNR"
+          }
+        }
+      }
+    },
+    "Salta, collega dopo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip, connect later"
+          }
+        }
+      }
+    },
+    "Salva" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        }
+      }
+    },
+    "Salva auto-riconnessione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save auto-reconnect"
+          }
+        }
+      }
+    },
+    "Salva codec" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save codec"
+          }
+        }
+      }
+    },
+    "Salva come profilo personale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save as personal profile"
+          }
+        }
+      }
+    },
+    "Salva la sintonia attuale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the current tuning"
+          }
+        }
+      }
+    },
+    "Salva nei preferiti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save to favorites"
+          }
+        }
+      }
+    },
+    "Salva preferito" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save favorite"
+          }
+        }
+      }
+    },
+    "Salva profilo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save profile"
+          }
+        }
+      }
+    },
+    "Salvataggio…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving…"
+          }
+        }
+      }
+    },
+    "Salvato" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved"
+          }
+        }
+      }
+    },
+    "Scansiona reti" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan networks"
+          }
+        }
+      }
+    },
+    "Scansione %@.x (%lld/%lld) — trovati %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scanning %1$@.x (%2$lld/%3$lld) — found %4$lld"
+          }
+        }
+      }
+    },
+    "Scansione %@.x (0/%lld)…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scanning %1$@.x (0/%2$lld)…"
+          }
+        }
+      }
+    },
+    "Scansione (~5 s)…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scanning (~5 s)…"
+          }
+        }
+      }
+    },
+    "Scansione DAB %lld/38…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB scan %lld/38…"
+          }
+        }
+      }
+    },
+    "Scansione FM" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FM scan"
+          }
+        }
+      }
+    },
+    "Scansione interrotta — %lld stazioni DAB trovate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan stopped — %lld DAB stations found."
+          }
+        }
+      }
+    },
+    "Scheda" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Board"
+          }
+        }
+      }
+    },
+    "Scrivi (non persistente)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write (not saved)"
+          }
+        }
+      }
+    },
+    "Segnale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signal"
+          }
+        }
+      }
+    },
+    "Segui frequenze alternative" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow alternate frequencies"
+          }
+        }
+      }
+    },
+    "Seleziona un file e connetti DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a file and connect DigiRadio."
+          }
+        }
+      }
+    },
+    "Seleziona una rete Wi‑Fi." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a Wi‑Fi network."
+          }
+        }
+      }
+    },
+    "Seleziona una stazione dal menu." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a station from the menu."
+          }
+        }
+      }
+    },
+    "Serial number" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serial number"
+          }
+        }
+      }
+    },
+    "Service ID" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service ID"
+          }
+        }
+      }
+    },
+    "Servizio DAB non disponibile su questo ensemble — riscansiona o prova un'altra stazione." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DAB service not available on this ensemble — rescan or try another station."
+          }
+        }
+      }
+    },
+    "Servizio audio non disponibile — attendi l'avvio del DSP e riprova." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio service not available — wait for the DSP to start and try again."
+          }
+        }
+      }
+    },
+    "Servizio non disponibile sul dispositivo." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service not available on the device."
+          }
+        }
+      }
+    },
+    "Sezione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Section"
+          }
+        }
+      }
+    },
+    "Si spegne solo il BT1035 (uscita verso l’altoparlante). Il BLE ESP32 del setup Wi‑Fi resta a posto." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the BT1035 (output to the speaker) turns off. The ESP32 BLE used for Wi‑Fi setup is not affected."
+          }
+        }
+      }
+    },
+    "Si4684" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si4684"
+          }
+        }
+      }
+    },
+    "Sinistra" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left"
+          }
+        }
+      }
+    },
+    "Sintonizza" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune"
+          }
+        }
+      }
+    },
+    "Sintonizza DAB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune DAB"
+          }
+        }
+      }
+    },
+    "Sintonizza FM" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tune FM"
+          }
+        }
+      }
+    },
+    "Sintonizzazione ensemble %lld…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuning ensemble %lld…"
+          }
+        }
+      }
+    },
+    "Snapshot aggiornato." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snapshot updated."
+          }
+        }
+      }
+    },
+    "Soglia rumore" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noise threshold"
+          }
+        }
+      }
+    },
+    "Soglia segnale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signal threshold"
+          }
+        }
+      }
+    },
+    "Solo per prova senza scheda." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only for testing without a board."
+          }
+        }
+      }
+    },
+    "Sorgente" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        }
+      }
+    },
+    "Sorgente audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio source"
+          }
+        }
+      }
+    },
+    "Spegnere il modulo audio?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off the audio module?"
+          }
+        }
+      }
+    },
+    "Spegni" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off"
+          }
+        }
+      }
+    },
+    "Spegni DigiRadio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off DigiRadio"
+          }
+        }
+      }
+    },
+    "Spegni modulo audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off audio module"
+          }
+        }
+      }
+    },
+    "Stato" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "Stazione MP3 HTTP/HTTPS decodificata sul DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP/HTTPS MP3 station decoded on DigiRadio."
+          }
+        }
+      }
+    },
+    "Stazione eliminata: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Station deleted: %@"
+          }
+        }
+      }
+    },
+    "Stazione già presente nei preset." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Station already in the presets."
+          }
+        }
+      }
+    },
+    "Stereo Spread" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stereo Spread"
+          }
+        }
+      }
+    },
+    "Stesso elenco del tab Radio. Avvia una ricerca o passa all'altra banda." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Same list as the Radio tab. Start a search or switch to the other band."
+          }
+        }
+      }
+    },
+    "Stop" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        }
+      }
+    },
+    "Stream" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream"
+          }
+        }
+      }
+    },
+    "Stream completato" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream finished"
+          }
+        }
+      }
+    },
+    "Stream interrotto" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream stopped"
+          }
+        }
+      }
+    },
+    "Suono" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound"
+          }
+        }
+      }
+    },
+    "SuperPhat" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SuperPhat"
+          }
+        }
+      }
+    },
+    "Svuota" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "Test audio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio test"
+          }
+        }
+      }
+    },
+    "Timeout — il dispositivo impiega più tempo del previsto. Riprova." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeout — the device is taking longer than expected. Try again."
+          }
+        }
+      }
+    },
+    "Timeout: il DigiRadio non risponde. Stessa rete Wi‑Fi? Prova l'IP LAN (es. 192.168.1.x) invece di .local." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timeout: DigiRadio is not responding. Same Wi‑Fi network? Try the LAN IP (e.g. 192.168.1.x) instead of .local."
+          }
+        }
+      }
+    },
+    "Tocca il tuo igiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap your igiRadio."
+          }
+        }
+      }
+    },
+    "Tocca la tua rete Wi‑Fi di casa." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap your home Wi‑Fi network."
+          }
+        }
+      }
+    },
+    "Tocco per attivare, pressione prolungata per il livello" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to turn on, press and hold for the level"
+          }
+        }
+      }
+    },
+    "Tocco per cambiare altoparlante" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to change speaker"
+          }
+        }
+      }
+    },
+    "Tocco per selezionare" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to select"
+          }
+        }
+      }
+    },
+    "Tocco per selezionare, doppio tocco per i parametri" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to select, double-tap for parameters"
+          }
+        }
+      }
+    },
+    "Tocco: ascolta." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap: listen."
+          }
+        }
+      }
+    },
+    "Tocco: ascolta. Pressione prolungata: modifica o elimina." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap: listen. Press and hold: edit or delete."
+          }
+        }
+      }
+    },
+    "Tono di test" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test tone"
+          }
+        }
+      }
+    },
+    "Tono di test attivo (sorgente: beep)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test tone on (source: beep)."
+          }
+        }
+      }
+    },
+    "Tono di test disattivato." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test tone off."
+          }
+        }
+      }
+    },
+    "Trova la scheda" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find the board"
+          }
+        }
+      }
+    },
+    "Trova stazioni" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find stations"
+          }
+        }
+      }
+    },
+    "Trovate %lld stazioni FM (%lld frequenze)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found %1$lld FM stations (%2$lld frequencies)."
+          }
+        }
+      }
+    },
+    "Trovati" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found"
+          }
+        }
+      }
+    },
+    "Trovati %lld dispositivo/i. Tocca per connettere." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found %lld device(s). Tap to connect."
+          }
+        }
+      }
+    },
+    "Trovati %lld parametri DSP." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found %lld DSP parameters."
+          }
+        }
+      }
+    },
+    "Tuner" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuner"
+          }
+        }
+      }
+    },
+    "Tuner non disponibile — attendi l'avvio del modulo radio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuner not available — wait for the radio module to start."
+          }
+        }
+      }
+    },
+    "Tutte le stazioni" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All stations"
+          }
+        }
+      }
+    },
+    "URL" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL"
+          }
+        }
+      }
+    },
+    "URL di uno stream o podcast MP3 (http/https)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL of an MP3 stream or podcast (http/https)."
+          }
+        }
+      }
+    },
+    "Un grazie di cuore a **PCBWay**, che ha sponsorizzato parte della produzione e dell'assemblaggio dei prototipi di DigiRadio." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heartfelt thanks to **PCBWay**, who sponsored part of the fabrication and assembly of the DigiRadio prototypes."
+          }
+        }
+      }
+    },
+    "Usa il BLE dell’ESP32 (igiRadio-seriale). Non serve l’altoparlante e non cambiare rete sul telefono." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses the ESP32's BLE (igiRadio-serial). No speaker needed, and don't change network on the phone."
+          }
+        }
+      }
+    },
+    "Uscita" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output"
+          }
+        }
+      }
+    },
+    "Uscita %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output %1$@, %2$@"
+          }
+        }
+      }
+    },
+    "Uscita BT spenta" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BT output off"
+          }
+        }
+      }
+    },
+    "Valore non valido." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid value."
+          }
+        }
+      }
+    },
+    "Valore per %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Value for %@"
+          }
+        }
+      }
+    },
+    "Versione" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "Versione corrente" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current version"
+          }
+        }
+      }
+    },
+    "Voce in evidenza" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voice forward"
+          }
+        }
+      }
+    },
+    "Voci" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vocals"
+          }
+        }
+      }
+    },
+    "Voice Clarifier" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voice Clarifier"
+          }
+        }
+      }
+    },
+    "Volume" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume"
+          }
+        }
+      }
+    },
+    "Volume %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume %lld"
+          }
+        }
+      }
+    },
+    "Volume master" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Master volume"
+          }
+        }
+      }
+    },
+    "Webradio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Web radio"
+          }
+        }
+      }
+    },
+    "Webradio salvate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved web radios"
+          }
+        }
+      }
+    },
+    "Wi‑Fi configurato" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi‑Fi set up"
+          }
+        }
+      }
+    },
+    "Wi‑Fi non rilevato — inserisci l'IP manualmente." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wi‑Fi not detected — enter the IP manually."
+          }
+        }
+      }
+    },
+    "YouTube e Spotify mandano solo il link. Per l’audio vero tocca «Ricevi audio»: iOS lo chiama registrazione schermo, ma il microfono resta spento." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube and Spotify only send the link. For the actual audio tap “Receive audio”: iOS calls it screen recording, but the microphone stays off."
+          }
+        }
+      }
+    },
+    "connessione fallita" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "connection failed"
+          }
+        }
+      }
+    },
+    "errore" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "error"
+          }
+        }
+      }
+    },
+    "https://stream.example.com/play.mp3" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://stream.example.com/play.mp3"
+          }
+        }
+      }
+    },
+    "https://…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "https://…"
+          }
+        }
+      }
+    },
+    "iOS non dà l’audio delle altre app: per questo chiede «Registra schermo». Serve solo l’audio, il microfono è spento. Poi torna a YouTube Music e tieni il brano in play." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS doesn't share other apps' audio: that's why it asks for “Screen Recording”. Only the audio is used, the microphone stays off. Then go back to YouTube Music and keep the track playing."
+          }
+        }
+      }
+    },
+    "iPhone e scheda sulla stessa Wi‑Fi. Alla prima volta consenti Rete locale. Se .local non risponde, usa l’IP." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone and board on the same Wi‑Fi. The first time, allow Local Network. If .local doesn't respond, use the IP."
+          }
+        }
+      }
+    },
+    "igiRadio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio"
+          }
+        }
+      }
+    },
+    "igiRadio trovato — connessione in corso…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio found — connecting…"
+          }
+        }
+      }
+    },
+    "igiRadio è pronto" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiRadio is ready"
+          }
+        }
+      }
+    },
+    "igiradio-cc4db4.local" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "igiradio-cc4db4.local"
+          }
+        }
+      }
+    },
+    "sinistra %@ dB, destra %@ dB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "left %1$@ dB, right %2$@ dB"
+          }
+        }
+      }
+    },
+    "www.pcbway.com" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "www.pcbway.com"
+          }
+        }
+      }
+    },
+    "−0.1" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "−0.1"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

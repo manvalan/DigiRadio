@@ -57,7 +57,7 @@ struct AudioProfileTemplate: Identifiable, Codable, Equatable, Hashable {
         AudioProfileTemplate(
             id: UUID().uuidString,
             name: name,
-            subtitle: "Profilo personalizzato",
+            subtitle: String(localized: "Profilo personalizzato"),
             systemImage: "slider.horizontal.3",
             isBuiltIn: false,
             eq: eq,
@@ -68,15 +68,15 @@ struct AudioProfileTemplate: Identifiable, Codable, Equatable, Hashable {
 
 enum AudioProfileLibrary {
     static let builtIn: [AudioProfileTemplate] = [
-        template(id: "builtin.flat", name: "Piatto", subtitle: "Risposta neutra", icon: "minus", gains: [0, 0, 0, 0, 0, 0], stereo: 0, bass: 0),
-        template(id: "builtin.vocal", name: "Voci", subtitle: "Parlato e podcast", icon: "person.wave.2", gains: [-1, 0, 2, 4, 2, 0], stereo: 15, bass: 5),
-        template(id: "builtin.bass", name: "Bassi", subtitle: "Più corpo e profondità", icon: "waveform.path", gains: [0, 5, 2, 0, -1, -2], stereo: 10, bass: 35),
-        template(id: "builtin.treble", name: "Alti", subtitle: "Dettaglio e aria", icon: "sparkles", gains: [-1, -1, 0, 2, 4, 5], stereo: 25, bass: 0),
-        template(id: "builtin.rock", name: "Rock", subtitle: "Energia V-shape", icon: "guitars", gains: [3, 4, -1, 1, 4, 4], stereo: 30, bass: 25),
-        template(id: "builtin.jazz", name: "Jazz", subtitle: "Caldo e naturale", icon: "music.quarternote.3", gains: [2, 2, 1, 2, 1, 0], stereo: 20, bass: 15),
-        template(id: "builtin.classical", name: "Classica", subtitle: "Equilibrio dinamico", icon: "hifispeaker.2", gains: [1, 1, 0, 0, 2, 3], stereo: 15, bass: 5),
-        template(id: "builtin.lounge", name: "Lounge", subtitle: "Ascolto rilassato", icon: "moon.stars", gains: [1, 1, 0, -1, -2, -3], stereo: 10, bass: 20),
-        template(id: "builtin.fm", name: "Radio FM", subtitle: "Voce in evidenza", icon: "radio", gains: [0, 0, 2, 3, 2, 1], stereo: 20, bass: 10)
+        template(id: "builtin.flat", name: String(localized: "Piatto"), subtitle: String(localized: "Risposta neutra"), icon: "minus", gains: [0, 0, 0, 0, 0, 0], stereo: 0, bass: 0),
+        template(id: "builtin.vocal", name: String(localized: "Voci"), subtitle: String(localized: "Parlato e podcast"), icon: "person.wave.2", gains: [-1, 0, 2, 4, 2, 0], stereo: 15, bass: 5),
+        template(id: "builtin.bass", name: String(localized: "Bassi"), subtitle: String(localized: "Più corpo e profondità"), icon: "waveform.path", gains: [0, 5, 2, 0, -1, -2], stereo: 10, bass: 35),
+        template(id: "builtin.treble", name: String(localized: "Alti"), subtitle: String(localized: "Dettaglio e aria"), icon: "sparkles", gains: [-1, -1, 0, 2, 4, 5], stereo: 25, bass: 0),
+        template(id: "builtin.rock", name: String(localized: "Rock"), subtitle: String(localized: "Energia V-shape"), icon: "guitars", gains: [3, 4, -1, 1, 4, 4], stereo: 30, bass: 25),
+        template(id: "builtin.jazz", name: String(localized: "Jazz"), subtitle: String(localized: "Caldo e naturale"), icon: "music.quarternote.3", gains: [2, 2, 1, 2, 1, 0], stereo: 20, bass: 15),
+        template(id: "builtin.classical", name: String(localized: "Classica"), subtitle: String(localized: "Equilibrio dinamico"), icon: "hifispeaker.2", gains: [1, 1, 0, 0, 2, 3], stereo: 15, bass: 5),
+        template(id: "builtin.lounge", name: String(localized: "Lounge"), subtitle: String(localized: "Ascolto rilassato"), icon: "moon.stars", gains: [1, 1, 0, -1, -2, -3], stereo: 10, bass: 20),
+        template(id: "builtin.fm", name: String(localized: "Radio FM"), subtitle: String(localized: "Voce in evidenza"), icon: "radio", gains: [0, 0, 2, 3, 2, 1], stereo: 20, bass: 10)
     ]
 
     private static func template(

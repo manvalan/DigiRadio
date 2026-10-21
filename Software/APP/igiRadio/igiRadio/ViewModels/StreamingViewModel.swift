@@ -12,11 +12,11 @@ enum StreamSource: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .otherApps:
-            return "YouTube e Spotify mandano solo il link. Per l’audio vero tocca «Ricevi audio»: iOS lo chiama registrazione schermo, ma il microfono resta spento."
+            return String(localized: "YouTube e Spotify mandano solo il link. Per l’audio vero tocca «Ricevi audio»: iOS lo chiama registrazione schermo, ma il microfono resta spento.")
         case .webRadio:
-            return "Stazione MP3 HTTP/HTTPS decodificata sul DigiRadio."
+            return String(localized: "Stazione MP3 HTTP/HTTPS decodificata sul DigiRadio.")
         case .online:
-            return "URL di uno stream o podcast MP3 (http/https)."
+            return String(localized: "URL di uno stream o podcast MP3 (http/https).")
         }
     }
 }
@@ -138,7 +138,7 @@ final class StreamingViewModel {
     func startOtherApps() async {
         errorMessage = nil
         if !isConnected {
-            errorMessage = "Connetti a DigiRadio."
+            errorMessage = String(localized: "Connetti a DigiRadio.")
             return
         }
         do {
@@ -146,7 +146,7 @@ final class StreamingViewModel {
             syncFromDevice()
             let chunks = AppAudioCapture.shared.start()
             await PhonePCMStreamService.shared.start(connectionHost: connectionHost, chunks: chunks)
-            phoneStreamStatus = "Cattura avviata. Torna all’altra app e dai play."
+            phoneStreamStatus = String(localized: "Cattura avviata. Torna all’altra app e dai play.")
         } catch {
             AppAudioCapture.shared.stop()
             errorMessage = DigiRadioFriendlyError.message(for: error)
@@ -155,7 +155,7 @@ final class StreamingViewModel {
 
     func playLocalFile() async {
         guard isConnected, let fileURL = selectedFileURL else {
-            errorMessage = "Seleziona un file e connetti DigiRadio."
+            errorMessage = String(localized: "Seleziona un file e connetti DigiRadio.")
             return
         }
         errorMessage = nil
@@ -173,7 +173,7 @@ final class StreamingViewModel {
         AppAudioCapture.shared.stop()
         await PhonePCMStreamService.shared.stop()
         phoneStreamActive = false
-        phoneStreamStatus = "Fermo"
+        phoneStreamStatus = String(localized: "Fermo")
         try? await service.endPhoneAudio()
         syncFromDevice()
     }

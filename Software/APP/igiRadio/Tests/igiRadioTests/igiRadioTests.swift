@@ -14,6 +14,24 @@ final class HTTPDecoderTests: XCTestCase {
         XCTAssertTrue(health.chips.si4684)
     }
 
+    func testDecodeFirmwareAFFollow() throws {
+        let json = """
+        {"enabled":true,"switches":2,"last_from_khz":98400,"last_to_khz":87600}
+        """.data(using: .utf8)!
+        let af = try JSONDecoder.api.decode(FirmwareAFState.self, from: json)
+        XCTAssertTrue(af.enabled)
+        XCTAssertEqual(af.switches, 2)
+        XCTAssertEqual(af.lastFromKhz, 98400)
+        XCTAssertEqual(af.lastToKhz, 87600)
+
+        let fresh = try JSONDecoder.api.decode(
+            FirmwareAFState.self,
+            from: #"{"enabled":false,"switches":0}"#.data(using: .utf8)!
+        )
+        XCTAssertFalse(fresh.enabled)
+        XCTAssertNil(fresh.lastToKhz)
+    }
+
     func testDecodeBluetoothPaired() throws {
         let json = """
         {"devices":[{"index":1,"mac":"001122334455","name":"Phone"}]}

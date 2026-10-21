@@ -43,7 +43,8 @@ enum FMBandScan {
     }
 }
 
-/// Scelta della frequenza alternativa (AF) lato iPhone: il firmware non ha un API AF.
+/// Scelta della frequenza alternativa (AF) lato iPhone, solo con firmware
+/// precedenti alla 0.9.2: dalla 0.9.2 la radio segue le AF da sola (/api/tuner/af).
 enum AlternateFrequencyHunt {
     struct Snapshot: Equatable {
         var khz: Int

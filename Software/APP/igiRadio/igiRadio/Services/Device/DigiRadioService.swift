@@ -9,10 +9,12 @@ enum DigiRadioError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .notConnected: return "Non connesso a DigiRadio."
-        case .invalidHost: return "Host non valido."
-        case let .httpStatus(code, reason): return "HTTP \(code): \(reason ?? "errore")"
-        case .decodingFailed: return "Risposta non valida dal dispositivo."
+        case .notConnected: return String(localized: "Non connesso a DigiRadio.")
+        case .invalidHost: return String(localized: "Host non valido.")
+        case let .httpStatus(code, reason):
+            let detail = reason ?? String(localized: "errore")
+            return "HTTP \(code): \(detail)"
+        case .decodingFailed: return String(localized: "Risposta non valida dal dispositivo.")
         case let .network(error): return error.localizedDescription
         }
     }
@@ -58,6 +60,9 @@ protocol DigiRadioService: AnyObject {
     func setStreaming(enabled: Bool, url: String) async throws
     func refreshPower() async throws
     func setPower(_ power: DevicePowerState) async throws
+    /// Reads GET /api/tuner/af; leaves `state.firmwareAF` nil on older firmware.
+    func refreshFirmwareAF() async
+    func setFirmwareAF(enabled: Bool) async throws
     func applyAudioSourceRouting(forStreaming: Bool) async throws
     /// Mux ADAU su Stream, ferma la webradio, volume udibile, flag phone audio.
     func prepareForPhoneAudio() async throws
