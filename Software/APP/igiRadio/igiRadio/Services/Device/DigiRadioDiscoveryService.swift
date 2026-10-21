@@ -23,12 +23,14 @@ final class DigiRadioDiscoveryService {
   private var bonjourBrowser: NWBrowser?
   private var lanScanTask: Task<Void, Never>?
 
-  func start() {
+  /// - Parameter includeBLE: false for silent background searches, so the
+  ///   app never pops the Bluetooth permission just to find the radio.
+  func start(includeBLE: Bool = true) {
     guard !isSearching else { return }
     isSearching = true
     devices = []
     statusMessage = String(localized: "Avvio ricerca…")
-    ble.startScan()
+    if includeBLE { ble.startScan() }
     startBonjourBrowse()
     probe(host: LocalNetworkScanner.setupSoftAPHost, label: "igiRadio Setup (SoftAP)")
     lanScanTask = Task { await scanLAN() }
@@ -58,6 +60,20 @@ final class DigiRadioDiscoveryService {
     guard !normalized.isEmpty, let host = URL(string: normalized)?.host else { return }
     upsertDevice(DiscoveredDevice(name: host, host: normalized, isReachable: false, firmware: nil))
     probe(host: normalized, label: host)
+  }
+
+  /// Runs a silent search (mDNS + LAN sweep + SoftAP, no BLE) and returns
+  /// the first radio that answers /api/health, or nil after `timeout`.
+  @MainActor
+  func firstReachable(timeout: Duration = .seconds(20)) async -> DiscoveredDevice? {
+    start(includeBLE: false)
+    defer { stop() }
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline, !Task.isCancelled {
+      if let device = devices.first(where: \.isReachable) { return device }
+      try? await Task.sleep(for: .milliseconds(300))
+    }
+    return nil
   }
 
   static func httpHost(fromBLEName name: String) -> String? {
@@ -93,6 +109,13 @@ final class DigiRadioDiscoveryService {
         let host = "http://\(lowered.hasSuffix(".local") ? lowered : "\(lowered).local")"
         self.upsertDevice(DiscoveredDevice(name: name, host: host, isReachable: false, firmware: nil))
         self.probe(host: host, label: name)
+        // .local lookups are flaky on some networks: also resolve the
+        // Bonjour service to its IPv4 address and probe that directly.
+        let endpoint = result.endpoint
+        Task { [weak self] in
+          guard let ip = await BonjourResolver.ipv4(of: endpoint) else { return }
+          await MainActor.run { self?.probe(host: "http://\(ip)", label: name) }
+        }
       }
     }
     browser.start(queue: .main)
@@ -156,6 +179,57 @@ final class DigiRadioDiscoveryService {
       } else {
         statusMessage = String(localized: "Trovati \(found) dispositivo/i. Tocca per connettere.")
       }
+    }
+  }
+}
+
+/// Resolves a Bonjour service endpoint to the IPv4 address it connects to.
+enum BonjourResolver {
+  static func ipv4(of endpoint: NWEndpoint, timeout: TimeInterval = 3) async -> String? {
+    await withCheckedContinuation { continuation in
+      let connection = NWConnection(to: endpoint, using: .tcp)
+      let once = ResumeOnce(continuation)
+      connection.stateUpdateHandler = { state in
+        switch state {
+        case .ready:
+          once.resume(address(of: connection.currentPath?.remoteEndpoint))
+          connection.cancel()
+        case .failed, .cancelled:
+          once.resume(nil)
+        default:
+          break
+        }
+      }
+      connection.start(queue: .global(qos: .utility))
+      DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+        once.resume(nil)
+        connection.cancel()
+      }
+    }
+  }
+
+  private static func address(of endpoint: NWEndpoint?) -> String? {
+    guard case let .hostPort(host, _)? = endpoint, case let .ipv4(ip) = host else {
+      return nil
+    }
+    return "\(ip)".components(separatedBy: "%").first
+  }
+
+  /// Resumes a continuation at most once (ready, failure and timeout race).
+  private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<String?, Never>?
+
+    init(_ continuation: CheckedContinuation<String?, Never>) {
+      self.continuation = continuation
+    }
+
+    func resume(_ value: String?) {
+      lock.lock()
+      let pending = continuation
+      continuation = nil
+      lock.unlock()
+      pending?.resume(returning: value)
     }
   }
 }

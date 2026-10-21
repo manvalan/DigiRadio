@@ -28,6 +28,7 @@
 #include "core/ParseError.hpp"
 #include "core/PowerStateJson.hpp"
 #include "core/AfFollowJson.hpp"
+#include "core/SignalQuality.hpp"
 #include "core/SeekDirection.hpp"
 #include "core/StationListJson.hpp"
 #include "core/StoreError.hpp"
@@ -70,7 +71,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.9.4";
+constexpr char kFirmwareVersion[] = "0.9.5";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -369,6 +370,38 @@ esp_err_t tunerStatusGetHandler(httpd_req_t* req)
         return httpd_resp_send(req, json.c_str(), json.size());
     }
     const std::string json = core::serializeTunerStatusJson(*status);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    tunerSignalGetHandler — serve GET /api/tuner/signal as JSON.
+ *
+ * @dname    tunerSignalGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads a fresh tuner snapshot; core::computeSignalQuality().
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-21
+ */
+esp_err_t tunerSignalGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->tuner == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    auto status = ctx->tuner->refreshStatus();
+    if (!status) {
+        const std::string json =
+            core::serializeTunerErrorJson(tunerErrorToken(status.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    const std::string json =
+        core::serializeSignalQualityJson(core::computeSignalQuality(*status));
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -2361,7 +2394,7 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 12288;
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 56; // 53 routes registered below as of 2026-10-21;
+    config.max_uri_handlers = 56; // 54 routes registered below as of 2026-10-21;
                                    // keep headroom so a silent
                                    // httpd_register_uri_handler failure
                                    // ("no slots left") doesn't quietly drop
@@ -2610,6 +2643,14 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &afFollowGetUri);
+
+    const httpd_uri_t tunerSignalUri = {
+        .uri = "/api/tuner/signal",
+        .method = HTTP_GET,
+        .handler = tunerSignalGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &tunerSignalUri);
 
     const httpd_uri_t afFollowPostUri = {
         .uri = "/api/tuner/af",

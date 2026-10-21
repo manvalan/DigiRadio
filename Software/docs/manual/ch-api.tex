@@ -143,6 +143,30 @@ HTTP status: \textbf{200 OK}; \textbf{500} with
 \texttt{station\_name} and \texttt{radiotext}; DAB responses may include
 \texttt{dynamic\_label} when a programme is playing.
 
+\apiendpoint{GET}{/api/tuner/signal}
+\label{sec:api-tuner-signal}
+
+Reception level and a goodness score for the band in use, computed by
+\texttt{core::computeSignalQuality()} from a fresh tuner snapshot.
+
+\begin{drnote}[Response schema (FM example)]
+\begin{drcode}[JSON]
+{"band":"fm","locked":true,"level_dbuv":40,"snr_db":26,"quality":94,"grade":"excellent"}
+\end{drcode}
+\texttt{level\_dbuv} is the RSSI (FM\_RSQ\_STATUS or DAB\_DIGRAD\_STATUS
+RSSI); \texttt{snr\_db} is the FM SNR or the DAB CNR; DAB adds
+\texttt{fic\_quality} (0--100). \texttt{quality} (0--100) is 60\,\% SNR
+(3$\to$25\,dB) + 40\,\% RSSI (5$\to$45\,dB\textmu V) for FM, capped at 20
+without VALID; 70\,\% FIC quality + 30\,\% CNR (5$\to$25\,dB) for DAB, 0
+without lock. \texttt{grade} is \texttt{excellent} ($\geq$75),
+\texttt{good} ($\geq$50), \texttt{fair} ($\geq$25), \texttt{poor} or
+\texttt{none}.
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{500} on driver failure;
+\textbf{503} when the tuner service is unavailable. The DAB object of
+\texttt{/api/tuner/status} also carries \texttt{rssi\_dbuv}.
+
 \apiendpoint{GET / POST}{/api/tuner/af}
 \label{sec:api-tuner-af}
 

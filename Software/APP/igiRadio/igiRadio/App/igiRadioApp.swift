@@ -17,8 +17,12 @@ struct igiRadioApp: App {
                     consumeShare(IncomingShare.parse(openURL: url))
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    guard phase == .active else { return }
+                    guard phase == .active else {
+                        environment.stopAutoReconnect()
+                        return
+                    }
                     consumeShare(IncomingShare.consumePendingShare())
+                    environment.startAutoReconnect()
                 }
                 .task {
                     #if DEBUG
@@ -30,6 +34,7 @@ struct igiRadioApp: App {
                     #else
                     await environment.autoConnectIfNeeded()
                     #endif
+                    environment.startAutoReconnect()
                 }
         }
     }
