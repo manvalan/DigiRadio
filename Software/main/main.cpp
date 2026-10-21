@@ -22,6 +22,7 @@
 #include "secure_store/NvsSecureStore.hpp"
 #include "si4684/Si4684Tuner.hpp"
 #include "station/StationService.hpp"
+#include "tuner/AfFollowService.hpp"
 #include "tuner/TunerService.hpp"
 #include "antenna_calibration.hpp"
 #include "esp32_i2s_sink.hpp"
@@ -53,6 +54,8 @@ namespace {
 
 constexpr char kTag[] = "digiradio";
 constexpr TickType_t kHeartbeatPeriod = pdMS_TO_TICKS(5000);
+/** RDS AF follow poll period (the iOS app used to poll every 3-4 s). */
+constexpr TickType_t kAfFollowPeriod = pdMS_TO_TICKS(3000);
 
 /**
  * @brief    logGpioClockFrequency — one-shot edge-count frequency probe.
@@ -134,6 +137,30 @@ void heartbeatTask(void* arg)
     while (true) {
         ESP_LOGI(kTag, "heartbeat");
         vTaskDelay(kHeartbeatPeriod);
+    }
+}
+
+void sleepMs(std::uint32_t ms)
+{
+    vTaskDelay(pdMS_TO_TICKS(ms));
+}
+
+/**
+ * @brief    afFollowTask — follow the FM station to a stronger RDS AF.
+ *
+ * @dname    afFollowTask
+ * @param    arg  tuner::AfFollowService* (static lifetime).
+ * @pubstate polls the tuner every kAfFollowPeriod, with or without an app.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-21
+ */
+[[noreturn]] void afFollowTask(void* arg)
+{
+    auto* follow = static_cast<tuner::AfFollowService*>(arg);
+    while (true) {
+        follow->tick(static_cast<std::uint32_t>(esp_timer_get_time() / 1000));
+        vTaskDelay(kAfFollowPeriod);
     }
 }
 
@@ -273,6 +300,12 @@ extern "C" void app_main()
     }
 
     bluetoothService.startupReconnect();
+
+    static tuner::AfFollowService afFollow(tunerService, sleepMs);
+    if (xTaskCreate(afFollowTask, "af_follow", 6144, &afFollow, 3, nullptr)
+        != pdPASS) {
+        ESP_LOGW(kTag, "AF follow task create failed");
+    }
 
     if (xTaskCreate(web_radio_stream::run, "web_radio", 16384,
                     &webRadioService, 4, nullptr) != pdPASS) {
