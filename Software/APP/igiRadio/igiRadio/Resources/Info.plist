@@ -62,6 +62,8 @@
 	<array>
 		<string>_http._tcp</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>La fotocamera serve solo per leggere un eventuale codice QR di configurazione della radio.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>igiRadio si connette al dispositivo sulla rete locale (mDNS igiradio-seriale.local) per controllare radio e audio.</string>
 	<key>UIApplicationSceneManifest</key>
