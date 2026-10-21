@@ -438,6 +438,29 @@ Success response: \texttt{\{"status":"saved"\}}. HTTP status:
 \textbf{500} on safeload failure; \textbf{503} when the audio service is
 unavailable.
 
+\apiendpoint{GET / POST}{/api/system/power}
+\label{sec:api-system-power}
+
+Reads or sets the radio's power state. The board has no ESP32-controlled
+power switch, so \texttt{standby} is a \emph{soft} standby: the ADAU1701
+master output is safeloaded to the \texttt{GainDb} mute floor
+(\texttt{-96 dB}) while the ESP32, Wi-Fi and the HTTP server stay up, so the
+same route can switch the radio back \texttt{on}. Volume or profile
+changes made during standby are kept in RAM and take effect on wake. Live
+only --- never persisted; every boot starts \texttt{on}.
+
+\begin{drnote}[Request / response schema]
+\begin{drcode}[JSON]
+{"state":"standby"}
+\end{drcode}
+\end{drnote}
+
+\texttt{state} is \texttt{"on"} or \texttt{"standby"}; GET and a successful
+POST both answer with the current state. HTTP status: \textbf{200 OK};
+\textbf{400} for an invalid/missing \texttt{state}; \textbf{500} on
+safeload failure (state unchanged); \textbf{503} when the audio service is
+unavailable.
+
 \apiendpoint{GET}{/api/dsp/params}
 \label{sec:api-dsp-params}
 
