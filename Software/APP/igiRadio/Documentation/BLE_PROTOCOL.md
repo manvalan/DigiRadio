@@ -13,8 +13,8 @@ Il BLE dell'ESP32-S3 è usato **solo** per il provisioning Wi‑Fi (setup inizia
 | Parametro | Valore |
 |-----------|--------|
 | Stack | ESP-IDF `wifi_provisioning` + `scheme_ble` |
-| Sicurezza | protocomm **Security1** |
-| Proof of possession | **Serial number** dispositivo (EUI-48 da EEPROM) |
+| Sicurezza | protocomm **Security0** (firmware 0.9.0; manuale `ch-api.tex` indica Security1 + PoP) |
+| Proof of possession | **Non richiesto** nel firmware attuale |
 | Nome advertising | `DigiRadio-<suffix>` (es. `DigiRadio-CC4DB4`) |
 | Riferimento firmware | `components/net/src/BleProvisioning.cpp` |
 | Riferimento manuale | `ch-api.tex` §BLE provisioning |
@@ -23,7 +23,7 @@ Il BLE dell'ESP32-S3 è usato **solo** per il provisioning Wi‑Fi (setup inizia
 
 1. Dispositivo in setup mode (no credenziali Wi‑Fi salvate)
 2. Advertise BLE con nome = SoftAP SSID
-3. App iOS invia credenziali Wi‑Fi via protocomm (Security1 + PoP)
+3. App iOS invia credenziali Wi‑Fi via protocomm (Security0, senza PoP)
 4. Firmware valida, salva in NVS, reboot in STA
 5. App passa a controllo via **HTTP** su LAN
 
@@ -31,7 +31,7 @@ Il BLE dell'ESP32-S3 è usato **solo** per il provisioning Wi‑Fi (setup inizia
 
 - Usare **CoreBluetooth** solo per questa fase
 - Compatibile con app generiche "ESP BLE Provisioning" (stesso protocollo Espressif)
-- PoP richiesto dall'utente: serial da etichetta o da schermata setup SoftAP
+- PoP: **non usato** nel firmware 0.9.0 (Security0)
 
 ### UNKNOWN
 

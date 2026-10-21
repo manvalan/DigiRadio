@@ -226,7 +226,125 @@ struct IGIFrequencyHero: View {
     }
 }
 
-// MARK: - Scan result row
+struct IGIStationRow: View {
+    var station: ScannedStation
+    var isSaved: Bool
+    var isListening: Bool
+    var onListen: () -> Void
+    var onSave: () -> Void
+    var onEdit: (() -> Void)? = nil
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(station.displayTitle)
+                Text(station.subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if isListening {
+                ProgressView()
+            } else if isSaved {
+                Image(systemName: "star.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.yellow)
+                    .accessibilityLabel("Nei preferiti")
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onListen)
+        .onLongPressGesture(minimumDuration: 0.45) {
+            if let onEdit {
+                onEdit()
+            }
+        }
+        .foregroundStyle(.primary)
+        .accessibilityHint(onEdit == nil ? "Tocco: ascolta." : "Tocco: ascolta. Pressione prolungata: modifica o elimina.")
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if !isSaved {
+                Button(action: onSave) {
+                    Label("Salva", systemImage: "star.fill")
+                }
+                .tint(.yellow)
+            }
+        }
+    }
+}
+
+// MARK: - Scan result row (preferiti locali)
+
+struct IGIScannedStationRow: View {
+    var station: ScannedStation
+    var isSaved: Bool
+    var isListening: Bool
+    var onListen: () -> Void
+    var onSave: () -> Void
+
+    var body: some View {
+        Button(action: onListen) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(station.displayTitle)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .foregroundStyle(.primary)
+                    Text(station.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if station.band == .fm {
+                        Text(station.hasBroadcastName ? "Nome da RDS" : "Nome RDS non disponibile")
+                            .font(.caption2)
+                            .foregroundStyle(station.hasBroadcastName ? .green : .orange)
+                    }
+                    if let rssi = station.rssiDbuv {
+                        Text("\(rssi) dBµV")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                Spacer(minLength: 8)
+                if isListening {
+                    ProgressView()
+                        .controlSize(.regular)
+                } else if isSaved {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.green)
+                        .accessibilityLabel("Nei preferiti")
+                } else {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(IGITheme.accent)
+                        .accessibilityLabel("Ascolta")
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button(action: onListen) {
+                Label("Ascolta", systemImage: "play.fill")
+            }
+            if !isSaved {
+                Button(action: onSave) {
+                    Label("Salva nei preferiti", systemImage: "star")
+                }
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if !isSaved {
+                Button(action: onSave) {
+                    Label("Salva", systemImage: "star.fill")
+                }
+                .tint(.blue)
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+    }
+}
 
 struct IGIScanResultRow: View {
     var title: String

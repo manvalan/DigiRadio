@@ -1,23 +1,27 @@
 import Foundation
 import OSLog
 
-/// HTTP REST client for DigiRadio firmware API (ch-api.tex).
+/// HTTP REST client for DigiRadio firmware API (ch-api.tex, fw 0.9.0).
 final class HTTPDigiRadioClient {
     private let session: URLSession
     private let logger = Logger(subsystem: "com.digiradio.igiRadio", category: "HTTP")
     private var baseURL: URL?
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 15
+            config.timeoutIntervalForResource = 180
+            config.waitsForConnectivity = true
+            self.session = URLSession(configuration: config)
+        }
     }
 
     func setHost(_ host: String) throws {
-        let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { throw DigiRadioError.invalidHost }
-        var normalized = trimmed
-        if !normalized.hasPrefix("http://") && !normalized.hasPrefix("https://") {
-            normalized = "http://\(normalized)"
-        }
+        let normalized = HostNormalizer.httpURL(from: host)
+        guard !normalized.isEmpty else { throw DigiRadioError.invalidHost }
         guard let url = URL(string: normalized) else { throw DigiRadioError.invalidHost }
         baseURL = url
     }
@@ -54,24 +58,40 @@ final class HTTPDigiRadioClient {
         try await get("/api/tuner/services")
     }
 
-    func tune(body: TuneRequest) async throws -> TunerStatusResponse {
-        try await post("/api/tuner/tune", body: body)
+    func tune(body: TuneRequest, requestTimeout: TimeInterval = 15) async throws -> TunerStatusResponse {
+        // Come il pannello web: la risposta POST è già lo stato tuner completo.
+        try await post("/api/tuner/tune", body: body, requestTimeout: requestTimeout)
     }
 
     func playDAB(body: PlayRequest) async throws {
-        let _: StatusResponse = try await post("/api/tuner/play", body: body)
+        try await postAck("/api/tuner/play", body: body, requestTimeout: 30)
     }
 
     func seekFM(direction: String) async throws -> SeekResponse {
         try await post("/api/tuner/seek", body: SeekRequest(direction: direction))
     }
 
-    func scanStation(body: TunerScanRequest) async throws -> TunerScanResponse {
-        try await post("/api/tuner/scan", body: body)
+    func scanStation(body: TunerScanRequest, requestTimeout: TimeInterval = 15) async throws -> TunerScanResponse {
+        try await post("/api/tuner/scan", body: body, requestTimeout: requestTimeout)
+    }
+
+    func scanDAB(maxSteps: Int = 38, name: String? = nil) async throws -> TunerScanResponse {
+        try await scanStation(
+            body: TunerScanRequest(band: "dab", maxSteps: maxSteps, name: name),
+            requestTimeout: 90
+        )
     }
 
     func scanFullFM() async throws -> FMScanFullResponse {
-        try await post("/api/tuner/scan/full", body: EmptyBody())
+        try await post("/api/tuner/scan/full", body: EmptyBody(), requestTimeout: 120)
+    }
+
+    func calibrateAntenna(antcap: Int) async throws -> AntennaCalibrateResponse {
+        try await post(
+            "/api/tuner/calibrate-antenna",
+            body: AntennaCalibrateRequest(antcap: antcap),
+            requestTimeout: 30
+        )
     }
 
     // MARK: - Audio
@@ -80,16 +100,70 @@ final class HTTPDigiRadioClient {
         try await get("/api/audio/profile")
     }
 
-    func putAudioProfile(_ profile: AudioProfileDTO) async throws {
-        let _: StatusResponse = try await put("/api/audio/profile", body: profile)
+    func fetchAudioLevels() async throws -> AudioLevelsDTO {
+        try await get("/api/audio/levels")
+    }
+
+    func putAudioProfile(_ profile: AudioProfileDTO, requestTimeout: TimeInterval = 45) async throws {
+        let _: StatusResponse = try await put(
+            "/api/audio/profile",
+            body: profile,
+            requestTimeout: requestTimeout
+        )
     }
 
     func resetAudio() async throws {
-        let _: StatusResponse = try await post("/api/audio/reset", body: EmptyBody())
+        let _: StatusResponse = try await post("/api/audio/reset", body: EmptyBody(), requestTimeout: 45)
     }
 
     func setEnhance(path: String, level: Int) async throws {
-        let _: StatusResponse = try await post(path, body: EnhanceRequest(level: level))
+        let _: StatusResponse = try await post(
+            path,
+            body: EnhanceRequest(level: level),
+            requestTimeout: 30
+        )
+    }
+
+    // MARK: - Diagnostics / configuration
+
+    func setAudioBeep(enabled: Bool) async throws {
+        let _: StatusResponse = try await post(
+            "/api/audio/beep",
+            body: BeepRequest(enabled: enabled),
+            requestTimeout: 15
+        )
+    }
+
+    func fetchDspParams() async throws -> DspParamsResponse {
+        try await get("/api/dsp/params")
+    }
+
+    func putDspParam(name: String, value: Double) async throws {
+        let _: StatusResponse = try await put(
+            "/api/dsp/param",
+            body: DspParamPutRequest(name: name, value: value),
+            requestTimeout: 30
+        )
+    }
+
+    func setBluetoothAutoReconnect(times: Int) async throws {
+        let _: StatusResponse = try await post(
+            "/api/bluetooth/auto-reconnect",
+            body: AutoReconnectRequest(times: times),
+            requestTimeout: 15
+        )
+    }
+
+    func fetchA2DPCodec() async throws -> A2DPCodecResponse {
+        try await get("/api/bluetooth/a2dp-codec")
+    }
+
+    func setA2DPCodec(mask: Int) async throws -> A2DPCodecSetResponse {
+        try await post(
+            "/api/bluetooth/a2dp-codec",
+            body: A2DPCodecSetRequest(codecMask: mask),
+            requestTimeout: 15
+        )
     }
 
     // MARK: - Bluetooth
@@ -102,30 +176,74 @@ final class HTTPDigiRadioClient {
         try await get("/api/bluetooth/speaker")
     }
 
+    func fetchBluetoothPaired() async throws -> BluetoothPairedResponse {
+        try await get("/api/bluetooth/paired")
+    }
+
+    func startBluetoothPairing() async throws {
+        let _: StatusResponse = try await post("/api/bluetooth/pair", body: EmptyBody())
+    }
+
+    func stopBluetoothPairing() async throws {
+        let _: StatusResponse = try await post("/api/bluetooth/pair/stop", body: EmptyBody())
+    }
+
+    func disconnectBluetooth() async throws {
+        let _: StatusResponse = try await post("/api/bluetooth/disconnect", body: EmptyBody())
+    }
+
+    func saveBluetoothSpeaker(mac: String, name: String?) async throws {
+        let _: StatusResponse = try await post(
+            "/api/bluetooth/speaker",
+            body: SaveSpeakerRequest(mac: mac, name: name)
+        )
+    }
+
+    func clearBluetoothSpeaker() async throws {
+        let _: StatusResponse = try await delete("/api/bluetooth/speaker")
+    }
+
     func scanBluetooth(seconds: Int) async throws -> BluetoothScanResponse {
-        try await post("/api/bluetooth/scan", body: ScanRequest(seconds: seconds))
+        let timeout = TimeInterval(max(seconds + 20, 30))
+        return try await post(
+            "/api/bluetooth/scan",
+            body: ScanRequest(seconds: seconds),
+            requestTimeout: timeout
+        )
     }
 
     func connectBluetooth(mac: String, name: String?, save: Bool) async throws {
         let _: StatusResponse = try await post(
             "/api/bluetooth/connect",
-            body: ConnectRequest(mac: mac, name: name, save: save)
+            body: ConnectRequest(mac: mac, name: name, save: save),
+            requestTimeout: 90
         )
     }
 
     func reconnectBluetooth() async throws {
-        let _: StatusResponse = try await post("/api/bluetooth/reconnect", body: EmptyBody())
+        let _: StatusResponse = try await post(
+            "/api/bluetooth/reconnect",
+            body: EmptyBody(),
+            requestTimeout: 90
+        )
     }
 
-    func setBluetoothEnabled(_ enabled: Bool) async throws {
-        let path = enabled ? "/api/bluetooth/enable" : "/api/bluetooth/disable"
-        let _: StatusResponse = try await post(path, body: EmptyBody())
+    /// POST /api/bluetooth/enable — power-cycle hardware del BT1035.
+    func enableBluetooth() async throws {
+        let _: StatusResponse = try await post(
+            "/api/bluetooth/enable",
+            body: EmptyBody(),
+            requestTimeout: 60
+        )
     }
 
-    // MARK: - Wi-Fi
-
-    func resetWifi() async throws {
-        let _: StatusResponse = try await post("/api/wifi/reset", body: EmptyBody())
+    /// POST /api/bluetooth/disable — spegne il modulo BT1035.
+    func disableBluetooth() async throws {
+        let _: StatusResponse = try await post(
+            "/api/bluetooth/disable",
+            body: EmptyBody(),
+            requestTimeout: 30
+        )
     }
 
     // MARK: - Stations
@@ -163,6 +281,13 @@ final class HTTPDigiRadioClient {
         try await post("/api/streaming", body: config)
     }
 
+    // MARK: - Wi-Fi
+
+    /// POST /api/wifi/reset — cancella le credenziali STA e riavvia in SoftAP.
+    func resetWifi() async throws -> WiFiResetResponse {
+        try await post("/api/wifi/reset", body: EmptyBody())
+    }
+
     // MARK: - HTTP helpers
 
     private func url(for path: String) throws -> URL {
@@ -178,21 +303,68 @@ final class HTTPDigiRadioClient {
         return try await perform(request)
     }
 
-    private func post<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+    private func post<T: Decodable, B: Encodable>(
+        _ path: String,
+        body: B,
+        requestTimeout: TimeInterval = 15
+    ) async throws -> T {
         let url = try url(for: path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder.api.encode(body)
         return try await perform(request)
     }
 
-    private func put<T: Decodable, B: Encodable>(_ path: String, body: B) async throws -> T {
+    /// POST senza decodifica del body — usato quando la risposta può essere JSON minimale.
+    private func postAck<B: Encodable>(
+        _ path: String,
+        body: B,
+        requestTimeout: TimeInterval = 15
+    ) async throws {
+        let url = try url(for: path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = requestTimeout
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder.api.encode(body)
+        logger.debug("HTTP POST \(url.absoluteString)")
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                throw DigiRadioError.decodingFailed
+            }
+            guard (200 ... 299).contains(http.statusCode) else {
+                let reason = String(data: data, encoding: .utf8)
+                throw DigiRadioError.httpStatus(http.statusCode, reason)
+            }
+        } catch let error as DigiRadioError {
+            throw error
+        } catch {
+            throw DigiRadioError.network(error)
+        }
+    }
+
+    private func put<T: Decodable, B: Encodable>(
+        _ path: String,
+        body: B,
+        requestTimeout: TimeInterval = 15
+    ) async throws -> T {
         let url = try url(for: path)
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
+        request.timeoutInterval = requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder.api.encode(body)
+        return try await perform(request)
+    }
+
+    private func delete<T: Decodable>(_ path: String, requestTimeout: TimeInterval = 15) async throws -> T {
+        let url = try url(for: path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = requestTimeout
         return try await perform(request)
     }
 
@@ -278,11 +450,13 @@ struct TuneRequest: Codable {
     var band: String
     var freqIndex: Int?
     var frequencyKhz: Int?
+    var antcap: Int?
 
     enum CodingKeys: String, CodingKey {
         case band
         case freqIndex = "freq_index"
         case frequencyKhz = "frequency_khz"
+        case antcap
     }
 }
 
@@ -312,8 +486,83 @@ struct EnhanceRequest: Codable {
     var level: Int
 }
 
+struct BeepRequest: Codable {
+    var enabled: Bool
+}
+
+struct AutoReconnectRequest: Codable {
+    var times: Int
+}
+
+struct A2DPCodecResponse: Codable {
+    var codec: String
+}
+
+struct A2DPCodecSetRequest: Codable {
+    var codecMask: Int
+
+    enum CodingKeys: String, CodingKey {
+        case codecMask = "codec_mask"
+    }
+}
+
+struct A2DPCodecSetResponse: Codable {
+    var status: String
+    var reason: String?
+}
+
+struct DspParamEntry: Codable, Identifiable {
+    var id: String { name }
+    var name: String
+    var address: Int
+}
+
+struct DspParamsResponse: Codable {
+    var params: [DspParamEntry]
+}
+
+struct AntennaCalibrateRequest: Codable {
+    var antcap: Int
+}
+
+struct AntennaCalibrateResponse: Codable {
+    var status: String
+    var antcap: Int?
+}
+
+struct DspParamPutRequest: Codable {
+    var name: String
+    var value: Double
+}
+
+struct SaveSpeakerRequest: Codable {
+    var mac: String
+    var name: String?
+}
+
+struct BluetoothPairedResponse: Codable {
+    var devices: [BluetoothPairedDeviceDTO]
+}
+
+struct BluetoothPairedDeviceDTO: Codable {
+    var index: Int
+    var mac: String
+    var name: String
+}
+
 struct StatusResponse: Codable {
     var status: String
+}
+
+struct WiFiResetResponse: Codable {
+    var status: String
+    var rebootInSec: Int?
+    var reason: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status, reason
+        case rebootInSec = "reboot_in_sec"
+    }
 }
 
 struct BluetoothStatusResponse: Codable {

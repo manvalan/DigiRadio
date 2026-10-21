@@ -1,40 +1,321 @@
 import SwiftUI
 
+enum SettingsHubTab: String, CaseIterable, Identifiable {
+    case radio
+    case audio
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .radio: "Radio"
+        case .audio: "Audio"
+        }
+    }
+}
+
 struct SettingsRootView: View {
+    @State private var tab: SettingsHubTab = .radio
+
     var body: some View {
-        List {
-            Section("DigiRadio") {
-                NavigationLink("Connessione") { ConnectionView() }
-                NavigationLink("Informazioni dispositivo") { DeviceInfoView() }
-                NavigationLink("Diagnostica") { DiagnosticsView() }
-                NavigationLink("Firmware") { FirmwareView() }
-                NavigationLink {
-                    AboutView()
-                } label: {
-                    Label("Info", systemImage: "info.circle")
+        VStack(spacing: 0) {
+            Picker("Sezione", selection: $tab) {
+                ForEach(SettingsHubTab.allCases) { item in
+                    Text(item.title).tag(item)
                 }
             }
-            Section("Radio") {
-                NavigationLink("FM") { FMRadioView() }
-                NavigationLink("DAB") { DABRadioView() }
-                NavigationLink("Web radio stream") { StreamingView() }
-                NavigationLink("Preset") { PresetsView() }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            List {
+                switch tab {
+                case .radio:
+                    radioSection
+                case .audio:
+                    audioSection
+                }
             }
-            Section("Audio") {
-                NavigationLink {
-                    AudioProfilesView()
-                } label: {
-                    Label("Profili audio", systemImage: "waveform.path.ecg")
-                }
-                NavigationLink {
-                    AudioView()
-                } label: {
-                    Label("Mixer & volume", systemImage: "slider.vertical.3")
-                }
-                NavigationLink("Bluetooth speaker") { BluetoothView() }
+            .listStyle(.insetGrouped)
+        }
+        .igiThemedScreen()
+        .navigationTitle("Impostazioni")
+        .navigationBarTitleDisplayMode(.large)
+        .animation(.snappy, value: tab)
+    }
+
+    @ViewBuilder
+    private var radioSection: some View {
+        settingsLink("Scansione FM", systemName: "slider.horizontal.2.magnifyingglass", color: .orange) {
+            FMScanSettingsView()
+        }
+        settingsLink("Stream", systemName: "dot.radiowaves.forward", color: .indigo) {
+            StreamingView()
+        }
+        settingsLink("Info", systemName: "info.circle", color: .gray) {
+            AboutView()
+        }
+    }
+
+    @ViewBuilder
+    private var audioSection: some View {
+        settingsLink("Altoparlante", systemName: "hifispeaker.fill", color: .blue) {
+            PrepareRadioView(entry: .speaker)
+        }
+        settingsLink("Profili", systemName: "waveform.path.ecg", color: .teal) {
+            AudioProfilesView()
+        }
+    }
+
+    private func settingsLink<Destination: View>(
+        _ title: String,
+        systemName: String,
+        color: Color,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            Label {
+                Text(title)
+            } icon: {
+                IGISettingsIcon(systemName: systemName, color: color)
             }
         }
-        .navigationTitle("Impostazioni")
+    }
+}
+
+struct ConfigurationRootView: View {
+    var body: some View {
+        MyRadioView()
+    }
+}
+
+struct DeviceInfoView: View {
+    @Environment(AppEnvironment.self) private var environment
+    @State private var didProbe = false
+
+    private var isLive: Bool {
+        didProbe && environment.state.connection.isConnected
+    }
+
+    var body: some View {
+        let health = environment.state.health
+        let chips = health.chips
+        Form {
+            Section {
+                LabeledContent("Nome", value: DeviceIdentity.productName)
+                LabeledContent("Firmware", value: live(health.firmware))
+                LabeledContent("Serial number", value: live(health.serialNumber))
+                LabeledContent("Stato", value: live(health.status))
+            }
+            Section("Chip") {
+                LabeledContent("Si4684", value: chip(chips.si4684))
+                LabeledContent("ADAU1701", value: chip(chips.adau1701))
+                LabeledContent("BT1035", value: chip(chips.bt1035))
+            }
+            Section("Connessione") {
+                LabeledContent(
+                    "Host",
+                    value: isLive
+                        ? HostNormalizer.displayHost(from: environment.state.connection.host)
+                        : "—"
+                )
+                LabeledContent("HTTP", value: isLive ? "Connesso" : "Non connesso")
+            }
+        }
+        .navigationTitle("Informazioni")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            didProbe = false
+            Task {
+                _ = await environment.digiRadio.verifyReachability()
+                didProbe = true
+            }
+        }
+    }
+
+    private func live(_ value: String) -> String {
+        isLive && !value.isEmpty ? value : "—"
+    }
+
+    private func chip(_ ok: Bool) -> String {
+        isLive && ok ? "OK" : "—"
+    }
+}
+
+struct DiagnosticsView: View {
+    @Environment(AppEnvironment.self) private var environment
+    @State private var viewModel: DiagnosticsViewModel?
+
+    var body: some View {
+        Group {
+            if let viewModel {
+                diagnosticsForm(vm: viewModel)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("Diagnostica")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if viewModel == nil {
+                viewModel = DiagnosticsViewModel(service: environment.digiRadio)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func diagnosticsForm(@Bindable vm: DiagnosticsViewModel) -> some View {
+        Form {
+            Section("Tuner") {
+                LabeledContent("Booted", value: environment.state.tuner.booted ? "Sì" : "No")
+                LabeledContent("Banda", value: environment.state.tuner.band.rawValue.uppercased())
+                LabeledContent("Locked", value: environment.state.tuner.locked ? "Sì" : "No")
+            }
+            Section("Altoparlante (BT1035)") {
+                LabeledContent("A2DP", value: environment.state.bluetooth.a2dpState.rawValue)
+                LabeledContent("Modulo", value: environment.state.bluetooth.booted ? "Acceso" : "Spento")
+            }
+            Section("Test audio") {
+                Button("Beep ON") {
+                    Task { await vm.testBeep(enabled: true) }
+                }
+                .disabled(vm.isBusy)
+                Button("Beep OFF") {
+                    Task { await vm.testBeep(enabled: false) }
+                }
+                .disabled(vm.isBusy)
+                Button("Elenco parametri DSP") {
+                    Task { await vm.loadDspParams() }
+                }
+                .disabled(vm.isBusy)
+                if let count = vm.dspParamCount {
+                    LabeledContent("Parametri DSP", value: "\(count)")
+                }
+            }
+            Section("Altoparlante — avanzate") {
+                Stepper("Auto-riconnessione: \(vm.autoReconnectTimes)", value: $vm.autoReconnectTimes, in: 0...15)
+                Button("Salva auto-riconnessione") {
+                    Task { await vm.saveAutoReconnect() }
+                }
+                .disabled(vm.isBusy)
+            }
+            if let error = vm.errorMessage {
+                Section {
+                    Text(error).foregroundStyle(.red)
+                }
+            }
+            if let status = vm.statusMessage {
+                Section {
+                    Text(status)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section {
+                Button("Aggiorna snapshot") {
+                    Task { await vm.refreshSnapshot() }
+                }
+                .disabled(vm.isBusy)
+            }
+        }
+    }
+}
+
+struct FirmwareView: View {
+    @Environment(AppEnvironment.self) private var environment
+    @State private var didProbe = false
+
+    private var isLive: Bool {
+        didProbe && environment.state.connection.isConnected
+    }
+
+    var body: some View {
+        Form {
+            Section("Versione corrente") {
+                LabeledContent(
+                    "Firmware",
+                    value: isLive && !environment.state.health.firmware.isEmpty
+                        ? environment.state.health.firmware
+                        : "—"
+                )
+                LabeledContent("HTTP", value: isLive ? "Connesso" : "Non connesso")
+            }
+            Section {
+                Text("L'aggiornamento firmware è supportato via POST /api/system/ota con un file .bin ESP-IDF valido. L'interfaccia di upload sarà aggiunta in una versione successiva.")
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Aggiornamento OTA")
+            }
+        }
+        .navigationTitle("Firmware")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            didProbe = false
+            Task {
+                _ = await environment.digiRadio.verifyReachability()
+                didProbe = true
+            }
+        }
+    }
+}
+
+struct FMScanSettingsView: View {
+    @AppStorage(FMScanPreferences.rssiKey) private var minRssi = FMScanPreferences.defaultRssiDbuv
+    @AppStorage(FMScanPreferences.snrKey) private var minSnr = FMScanPreferences.defaultSnrDb
+
+    var body: some View {
+        Form {
+            Section {
+                Stepper(value: $minRssi, in: FMScanPreferences.rssiRange) {
+                    LabeledContent("RSSI minimo", value: "\(minRssi) dBµV")
+                }
+                Slider(
+                    value: Binding(
+                        get: { Double(minRssi) },
+                        set: { minRssi = Int($0.rounded()) }
+                    ),
+                    in: Double(FMScanPreferences.rssiRange.lowerBound)
+                        ... Double(FMScanPreferences.rssiRange.upperBound),
+                    step: 1
+                )
+                .accessibilityLabel("RSSI minimo")
+            } header: {
+                Text("Soglia segnale")
+            } footer: {
+                Text("Più bassa: più stazioni, anche deboli. Più alta: solo emittenti chiare. Default \(FMScanPreferences.defaultRssiDbuv) dBµV.")
+            }
+
+            Section {
+                Stepper(value: $minSnr, in: FMScanPreferences.snrRange) {
+                    LabeledContent("SNR minimo", value: minSnr == 0 ? "Off" : "\(minSnr) dB")
+                }
+                Slider(
+                    value: Binding(
+                        get: { Double(minSnr) },
+                        set: { minSnr = Int($0.rounded()) }
+                    ),
+                    in: Double(FMScanPreferences.snrRange.lowerBound)
+                        ... Double(FMScanPreferences.snrRange.upperBound),
+                    step: 1
+                )
+                .accessibilityLabel("SNR minimo")
+            } header: {
+                Text("Soglia rumore")
+            } footer: {
+                Text("0 disattiva il filtro SNR e trova più frequenze. Alza se vuoi scartare i segnali rumorosi.")
+            }
+
+            Section {
+                Button("Ripristina default") {
+                    minRssi = FMScanPreferences.defaultRssiDbuv
+                    minSnr = FMScanPreferences.defaultSnrDb
+                    FMScanPreferences.resetToDefault()
+                }
+            }
+        }
+        .navigationTitle("Scansione FM")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -62,81 +343,5 @@ struct AboutView: View {
             }
         }
         .navigationTitle("Info")
-    }
-}
-
-struct DeviceInfoView: View {
-    @Environment(AppEnvironment.self) private var environment
-
-    var body: some View {
-        let health = environment.state.health
-        let chips = health.chips
-        Form {
-            LabeledContent("Nome", value: "DigiRadio")
-            LabeledContent("Firmware", value: health.firmware.isEmpty ? "—" : health.firmware)
-            LabeledContent("Serial number", value: health.serialNumber.isEmpty ? "—" : health.serialNumber)
-            LabeledContent("Stato", value: health.status.isEmpty ? "—" : health.status)
-            Section("Chip") {
-                LabeledContent("Si4684", value: chips.si4684 ? "OK" : "—")
-                LabeledContent("ADAU1701", value: chips.adau1701 ? "OK" : "—")
-                LabeledContent("BT1035", value: chips.bt1035 ? "OK" : "—")
-            }
-            Section("Connessione") {
-                LabeledContent("Host", value: environment.state.connection.host.isEmpty ? "—" : environment.state.connection.host)
-                LabeledContent("HTTP", value: environment.state.connection.isConnected ? "Connesso" : "Non connesso")
-            }
-        }
-        .navigationTitle("Dispositivo")
-        .onAppear { Task { try? await environment.digiRadio.refreshHealth() } }
-    }
-}
-
-struct DiagnosticsView: View {
-    @Environment(AppEnvironment.self) private var environment
-
-    var body: some View {
-        Form {
-            Section("Tuner") {
-                LabeledContent("Booted", value: environment.state.tuner.booted ? "Sì" : "No")
-                LabeledContent("Banda", value: environment.state.tuner.band.rawValue.uppercased())
-                LabeledContent("Locked", value: environment.state.tuner.locked ? "Sì" : "No")
-            }
-            Section("Bluetooth") {
-                LabeledContent("A2DP", value: environment.state.bluetooth.a2dpState.rawValue)
-                LabeledContent("Pairing", value: environment.state.bluetooth.pairing ? "Sì" : "No")
-            }
-            Section {
-                Button("Aggiorna snapshot") {
-                    Task {
-                        try? await environment.digiRadio.refreshHealth()
-                        try? await environment.digiRadio.refreshTunerStatus()
-                        try? await environment.digiRadio.refreshBluetoothStatus()
-                    }
-                }
-            }
-        }
-        .navigationTitle("Diagnostica")
-    }
-}
-
-struct FirmwareView: View {
-    @Environment(AppEnvironment.self) private var environment
-
-    var body: some View {
-        Form {
-            Section("Versione corrente") {
-                LabeledContent("Firmware", value: environment.state.health.firmware.isEmpty ? "—" : environment.state.health.firmware)
-            }
-            Section("Aggiornamento OTA") {
-                Text("L'aggiornamento firmware è supportato via POST /api/system/ota con un file .bin ESP-IDF valido. L'interfaccia di upload file sarà aggiunta in una versione successiva.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text("UNKNOWN — specification required: progress reporting durante OTA stream.")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-            }
-        }
-        .navigationTitle("Firmware")
-        .onAppear { Task { try? await environment.digiRadio.refreshHealth() } }
     }
 }

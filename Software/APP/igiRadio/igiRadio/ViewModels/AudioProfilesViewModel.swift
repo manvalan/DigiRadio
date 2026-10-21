@@ -12,6 +12,8 @@ final class AudioProfilesViewModel {
     var isApplying = false
     var errorMessage: String?
 
+    var isConnected: Bool { service.state.connection.isConnected }
+
     init(service: any DigiRadioService) {
         self.service = service
         reloadUserProfiles()
@@ -23,9 +25,14 @@ final class AudioProfilesViewModel {
 
     func load() async {
         isLoading = true
+        errorMessage = nil
         defer { isLoading = false }
-        try? await service.refreshAudioProfile()
-        detectActiveProfile()
+        do {
+            try await service.refreshAudioProfile()
+            detectActiveProfile()
+        } catch {
+            errorMessage = DigiRadioFriendlyError.message(for: error)
+        }
     }
 
     func detectActiveProfile() {
@@ -36,16 +43,35 @@ final class AudioProfilesViewModel {
     }
 
     func apply(_ profile: AudioProfileTemplate) async {
+        guard service.state.connection.isConnected else {
+            errorMessage = "Connetti igiRadio a DigiRadio prima di applicare un profilo."
+            return
+        }
+        guard !isApplying else { return }
+
         isApplying = true
         errorMessage = nil
         defer { isApplying = false }
         do {
-            let audio = service.state.audio
-            let dto = profile.profileDTO(mixer: audio.mixer, master: audio.master)
-            try await service.applyAudioProfile(dto)
+            try await service.applyAudioPreset(profile)
+            try await service.refreshAudioProfile()
             activeProfileID = profile.id
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = DigiRadioFriendlyError.message(for: error)
+        }
+    }
+
+    func restoreFactoryAudio() async {
+        guard !isApplying else { return }
+        isApplying = true
+        errorMessage = nil
+        defer { isApplying = false }
+        do {
+            try await service.resetAudio()
+            try await service.refreshAudioProfile()
+            activeProfileID = AudioProfileLibrary.builtIn.first?.id
+        } catch {
+            errorMessage = DigiRadioFriendlyError.message(for: error)
         }
     }
 
@@ -65,18 +91,6 @@ final class AudioProfilesViewModel {
             userProfiles.append(copy)
         }
         AudioProfileStore.saveUserProfiles(userProfiles)
-    }
-
-    func duplicateAsUser(from profile: AudioProfileTemplate, name: String) -> AudioProfileTemplate {
-        AudioProfileTemplate(
-            id: UUID().uuidString,
-            name: name,
-            subtitle: "Profilo personalizzato",
-            systemImage: "slider.horizontal.3",
-            isBuiltIn: false,
-            eq: profile.eq,
-            enhancements: profile.enhancements
-        )
     }
 
     func profileFromDevice(name: String) -> AudioProfileTemplate {

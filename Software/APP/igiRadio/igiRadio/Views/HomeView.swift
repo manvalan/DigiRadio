@@ -2,130 +2,179 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var viewModel: HomeViewModel?
-    @State private var volume: Double = 42
+    @State private var showRadioParams = false
+    @State private var showDABParams = false
+    @State private var showStreamParams = false
+    @State private var showSpeaker = false
+    @State private var lastRDSName: String?
+
+    private var audio: AdauStudioViewModel { environment.adauStudio }
+    private var state: DigiRadioState { environment.state }
+    private var scan: StationScanViewModel { environment.stationScan }
 
     var body: some View {
-        let state = environment.state
         ScrollView {
-            VStack(alignment: .leading, spacing: IGITheme.spacingL) {
-                header(state: state)
-                powerCard(state: state)
-                nowPlayingCard(state: state)
-                    .opacity(state.power == .standby ? 0.45 : 1)
-                streamCard(state: state)
-                quickLinks
-                IGITransportCluster(
-                    onPrevious: { Task { await viewModel?.seekFM("down") } },
-                    onPlay: { Task { await viewModel?.refreshAll() } },
-                    onNext: { Task { await viewModel?.seekFM("up") } }
+            VStack(alignment: .leading, spacing: 20) {
+                header
+
+                if let shareBanner = environment.shareBanner {
+                    Text(shareBanner)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(IGITheme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .onTapGesture { environment.shareBanner = nil }
+                }
+
+                IGINowPlayingCard(
+                    kicker: nowPlayingKicker,
+                    title: nowPlayingTitle,
+                    frequency: nowPlayingFrequency,
+                    messageKind: digitalMessageKind,
+                    message: nowPlayingMessage
                 )
-                volumeSection
-                presetsSection(state: state)
-            }
-            .padding(IGITheme.spacingM)
-        }
-        .background(IGIHeroBackground())
-        .navigationTitle("igiRadio")
-        .navigationBarTitleDisplayMode(.large)
-        .safeAreaInset(edge: .top) {
-            if !state.connection.isConnected {
-                connectionBanner
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    ConnectionView()
-                } label: {
-                    Label(state.connection.isConnected ? "Connesso" : "Connetti", systemImage: "link")
-                }
-            }
-        }
-        .onAppear {
-            if viewModel == nil {
-                viewModel = HomeViewModel(service: environment.digiRadio)
-            }
-            viewModel?.onAppear()
-            volume = Double(state.tuner.volume)
-            Task { try? await environment.digiRadio.refreshStreaming() }
-        }
-        .onDisappear { viewModel?.onDisappear() }
-        .onChange(of: environment.state.tuner.volume) { _, newValue in
-            volume = Double(newValue)
-        }
-    }
+                .animation(.snappy, value: nowPlayingMessage)
+                .opacity(state.power == .standby ? 0.45 : 1)
 
-    private var connectionBanner: some View {
-        NavigationLink {
-            ConnectionView()
-        } label: {
-            HStack {
-                Image(systemName: "wifi.exclamationmark")
-                Text("DigiRadio non connesso — tocca per collegare")
-                    .font(.subheadline.weight(.medium))
-                Spacer()
-                Image(systemName: "chevron.right")
-            }
-            .padding(.horizontal, IGITheme.spacingM)
-            .padding(.vertical, 10)
-            .background(.orange.opacity(0.15))
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private func header(state: DigiRadioState) -> some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("DigiRadio")
-                    .font(.title.weight(.bold))
                 HStack(spacing: 8) {
-                    IGIStatusDot(isConnected: state.connection.isConnected)
-                    Text(state.connection.isConnected ? "Connesso" : "Non connesso")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    IGIAtmospherePill(title: "FM", isOn: fmIsActive) {
+                        Task { await selectFM() }
+                    }
+                    IGIAtmospherePill(title: "DAB", isOn: dabIsActive) {
+                        Task { await selectDAB() }
+                    }
+                    IGIAtmospherePill(title: "Stream", isOn: streamIsActive) {
+                        Task { await selectStream() }
+                    }
                 }
-                IGIBandBadge(band: state.tuner.band, locked: state.tuner.locked)
+
+                IGIAtmosphereVolume(
+                    level: Binding(
+                        get: { audio.masterLevel },
+                        set: { audio.masterLevel = $0 }
+                    ),
+                    dbLabel: audio.masterDbLabel,
+                    onEditingEnded: {
+                        audio.pushMasterLevelToChannels()
+                        Task { await audio.setMasterVolumeFromHome(audio.masterLevel) }
+                    }
+                )
+                .onChange(of: audio.masterLevel) { _, _ in
+                    audio.pushMasterLevelToChannels()
+                }
+
+                IGIOutputDestinationCard(
+                    title: speakerOutTitle,
+                    subtitle: speakerOutSubtitle,
+                    isLinked: state.bluetooth.a2dpState.isLinked,
+                    levels: audio.outputLevels,
+                    levelsAvailable: audio.outputLevelsAvailable
+                ) {
+                    showSpeaker = true
+                }
+
+                if !quickFavorites.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Preferiti")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(IGITheme.inkMuted)
+                        IGIChipWrap(spacing: 8) {
+                            ForEach(quickFavorites) { station in
+                                IGIFavoriteChip(
+                                    title: station.displayTitle,
+                                    isCurrent: scan.isTuned(to: station)
+                                ) {
+                                    Task {
+                                        await scan.listenFavorite(station)
+                                        environment.adauStudio.syncFromDevice()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .accessibilityLabel("Preferiti")
+                }
+            }
+            .padding(.horizontal, sizeClass == .regular ? 32 : 20)
+            .padding(.vertical, 20)
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
+        }
+        .background(IGITheme.canvas)
+        .toolbarBackground(IGITheme.canvas, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("igiRadio")
+                    .font(.headline)
+                    .foregroundStyle(IGITheme.ink)
+            }
+        }
+        .sheet(isPresented: $showRadioParams) { radioParamsSheet }
+        .sheet(isPresented: $showDABParams) { dabParamsSheet }
+        .sheet(isPresented: $showStreamParams) { streamParamsSheet }
+        .sheet(isPresented: $showSpeaker) { speakerSheet }
+        .onAppear(perform: appear)
+        .onDisappear {
+            viewModel?.onDisappear()
+            environment.adauStudio.stopOutputLevelsPolling()
+        }
+        .onChange(of: environment.state.audio.master) { _, _ in
+            environment.adauStudio.syncFromDevice()
+        }
+        .onChange(of: environment.state.tuner.fm) { _, fm in
+            lastRDSName = nil
+            if let fm {
+                applyLiveStationName(fm.stationName, khz: fm.frequencyKhz, afKhz: fm.afKhz ?? [])
+            }
+        }
+        .onChange(of: environment.state.tuner.band) { _, band in
+            if band != .fm {
+                environment.stationScan.stopAlternateFrequencyMonitor()
+            } else if let khz = environment.state.tuner.fm?.frequencyKhz {
+                environment.stationScan.syncAlternateFrequencyMonitor(forFMKhz: khz)
+            }
+        }
+        .contextMenu {
+            Button("Sintonizza FM") { showRadioParams = true }
+            Button("Sintonizza DAB") { showDABParams = true }
+            Button("Stream") { showStreamParams = true }
+            Button("Altoparlante") { showSpeaker = true }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .lastTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Ascolto")
+                    .font(.largeTitle.weight(.semibold))
+                    .foregroundStyle(IGITheme.ink)
             }
             Spacer()
-            if let rssi = state.tuner.fm?.rssiDbuv {
-                VStack(alignment: .trailing, spacing: 6) {
-                    Text("Segnale")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    IGISignalBar(level: Double(rssi) / 80.0)
-                        .frame(width: 100)
-                }
-            }
+            powerButton
+            Text(audio.masterDbLabel)
+                .font(.title2.monospacedDigit().weight(.medium))
+                .foregroundStyle(IGITheme.ink)
         }
     }
 
-    @ViewBuilder
-    private func powerCard(state: DigiRadioState) -> some View {
+    private var powerButton: some View {
         let isOn = state.power == .on
-        Button {
+        return Button {
             Task { await viewModel?.togglePower() }
         } label: {
-            HStack(spacing: IGITheme.spacingM) {
-                ZStack {
-                    Circle()
-                        .fill(isOn ? IGITheme.accent.opacity(0.2) : Color.secondary.opacity(0.12))
-                        .frame(width: 52, height: 52)
-                    Image(systemName: "power")
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(isOn ? IGITheme.accent : .secondary)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(isOn ? "Acceso" : "In standby")
-                        .font(.headline)
-                    Text(isOn ? "Tocca per spegnere" : "Tocca per accendere")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .igiPremiumCard()
+            Image(systemName: "power")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(isOn ? IGITheme.accent : .secondary)
+                .frame(width: 40, height: 40)
+                .background(
+                    Circle().fill(isOn ? IGITheme.accent.opacity(0.2) : Color.secondary.opacity(0.12))
+                )
         }
         .buttonStyle(.plain)
         .disabled(!state.connection.isConnected)
@@ -133,194 +182,227 @@ struct HomeView: View {
         .animation(.snappy, value: state.power)
     }
 
-    @ViewBuilder
-    private func nowPlayingCard(state: DigiRadioState) -> some View {
-        VStack(spacing: IGITheme.spacingM) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                IGITheme.accent.opacity(0.45),
-                                .purple.opacity(0.35),
-                                IGITheme.accent.opacity(0.25)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(height: 200)
-                    .overlay {
-                        Circle()
-                            .fill(.white.opacity(0.08))
-                            .frame(width: 160, height: 160)
-                            .blur(radius: 2)
-                    }
-
-                Image(systemName: state.tuner.band == .fm ? "radio.fill" : "antenna.radiowaves.left.and.right")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.white.opacity(0.95))
-                    .symbolEffect(.pulse, options: .repeating, value: state.tuner.locked)
-            }
-
-            VStack(spacing: 6) {
-                Text(primaryTitle(state: state))
-                    .font(.title2.weight(.bold))
-                    .multilineTextAlignment(.center)
-                    .contentTransition(.interpolate)
-                Text(secondaryLine(state: state))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-            }
-        }
-        .igiPremiumCard()
-        .animation(.snappy, value: state.tuner.fm?.frequencyKhz)
-        .animation(.snappy, value: state.tuner.fm?.stationName)
+    private var fmIsActive: Bool {
+        audio.activeSource == .radio && state.tuner.band == .fm
     }
 
-    @ViewBuilder
-    private func streamCard(state: DigiRadioState) -> some View {
-        NavigationLink {
-            StreamingView()
-        } label: {
-            HStack(spacing: IGITheme.spacingM) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(state.streaming.enabled ? IGITheme.accent.opacity(0.2) : Color.secondary.opacity(0.12))
-                        .frame(width: 52, height: 52)
-                    Image(systemName: state.streaming.enabled ? "dot.radiowaves.forward" : "dot.radiowaves.forward.slash")
-                        .font(.title2)
-                        .foregroundStyle(state.streaming.enabled ? IGITheme.accent : .secondary)
+    private var dabIsActive: Bool {
+        audio.activeSource == .radio && state.tuner.band == .dab
+    }
+
+    private var streamIsActive: Bool {
+        audio.activeSource == .bluetooth
+    }
+
+    private var nowPlayingKicker: String {
+        if streamIsActive { return "Stream" }
+        return state.tuner.band == .dab ? "DAB" : "FM"
+    }
+
+    private var nowPlayingTitle: String {
+        if streamIsActive {
+            if state.phoneAudioActive { return "Altre app" }
+            if state.streaming.enabled {
+                if let named = WebRadioStore.load().first(where: { $0.url == state.streaming.url }) {
+                    return named.name
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Web radio stream")
-                        .font(.headline)
-                    if state.streaming.enabled, !state.streaming.url.isEmpty {
-                        Text(state.streaming.url)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    } else {
-                        Text("Nessuno stream attivo")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
+                return URL(string: state.streaming.url)?.host ?? "Webradio"
             }
-            .igiPremiumCard()
+            return state.nowPlayingTitle
         }
-        .buttonStyle(.plain)
-    }
-
-    private var quickLinks: some View {
-        HStack(spacing: IGITheme.spacingS) {
-            NavigationLink {
-                FMRadioView()
-            } label: {
-                quickLinkLabel("FM", icon: "dot.radiowaves.left.and.right")
-            }
-            NavigationLink {
-                DABRadioView()
-            } label: {
-                quickLinkLabel("DAB", icon: "antenna.radiowaves.left.and.right")
-            }
-            NavigationLink {
-                AudioProfilesView()
-            } label: {
-                quickLinkLabel("Profilo", icon: "waveform.path.ecg")
-            }
-            NavigationLink {
-                StreamingView()
-            } label: {
-                quickLinkLabel("Stream", icon: "dot.radiowaves.forward")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func quickLinkLabel(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon)
-            .font(.caption.weight(.semibold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-
-    private var volumeSection: some View {
-        VStack(alignment: .leading, spacing: IGITheme.spacingS) {
-            HStack {
-                Text("Volume")
-                    .font(.headline)
-                Spacer()
-                Text("\(Int(volume))")
-                    .font(.title3.weight(.bold).monospacedDigit())
-                    .foregroundStyle(IGITheme.accent)
-                    .contentTransition(.numericText())
-            }
-            IGIVolumeSlider(value: $volume) { value in
-                Task { await viewModel?.setVolume(value) }
-            }
-        }
-        .igiPremiumCard()
-    }
-
-    @ViewBuilder
-    private func presetsSection(state: DigiRadioState) -> some View {
-        IGISectionHeader(title: "Preset")
-        if state.stations.isEmpty {
-            IGIEmptyState(
-                title: "Nessun preset",
-                message: "Salva le tue stazioni preferite dalla schermata Preset.",
-                systemImage: "star"
-            )
-        } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: IGITheme.spacingS) {
-                    ForEach(Array(state.stations.enumerated()), id: \.offset) { index, station in
-                        IGIPresetChip(
-                            name: station.name,
-                            subtitle: station.band.rawValue.uppercased()
-                        ) {
-                            Task { await viewModel?.tunePreset(at: index) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func primaryTitle(state: DigiRadioState) -> String {
         switch state.tuner.band {
         case .fm:
-            if let name = state.tuner.fm?.stationName, !name.isEmpty { return name }
+            if let khz = state.tuner.fm?.frequencyKhz,
+               let name = scan.displayName(forFMFrequencyKhz: khz, liveName: state.tuner.fm?.stationName) {
+                return name
+            }
+            return lastRDSName ?? state.nowPlayingTitle
+        case .dab:
+            if let dab = state.tuner.dab,
+               let name = scan.displayName(
+                forDAB: dab.freqIndex,
+                serviceId: dab.playingServiceId,
+                componentId: dab.playingComponentId,
+                liveLabel: nil
+               ) {
+                return name
+            }
+            return "DAB"
+        }
+    }
+
+    private var nowPlayingFrequency: String {
+        if streamIsActive {
+            if state.phoneAudioActive { return "Dal telefono" }
+            if state.streaming.enabled { return "Webradio" }
+            return state.nowPlayingSubtitle
+        }
+        switch state.tuner.band {
+        case .fm:
             if let khz = state.tuner.fm?.frequencyKhz {
-                return String(format: "%.2f MHz", Double(khz) / 1000.0)
+                if let station = scan.stationCarrying(fmKhz: khz),
+                   station.allFMFrequenciesKhz.count > 1 {
+                    return station.subtitle
+                }
+                return String(format: "%.2f MHz", Double(khz) / 1000)
             }
             return "FM"
         case .dab:
-            return state.tuner.dab?.dynamicLabel ?? "DAB"
+            if let idx = state.tuner.dab?.freqIndex {
+                return "DAB · ensemble \(idx)"
+            }
+            return "DAB"
         }
     }
 
-    private func secondaryLine(state: DigiRadioState) -> String {
+    private var digitalMessageKind: String {
+        state.tuner.band == .dab ? "DAB" : "RDS"
+    }
+
+    private var nowPlayingMessage: String? {
+        if streamIsActive { return nil }
         switch state.tuner.band {
         case .fm:
-            if let khz = state.tuner.fm?.frequencyKhz {
-                let freq = String(format: "%.2f MHz", Double(khz) / 1000.0)
-                if let rt = state.tuner.fm?.radiotext, !rt.isEmpty { return "\(freq) · \(rt)" }
-                return freq
-            }
-            return state.tuner.fm?.radiotext ?? "FM Radio"
+            guard fmIsActive else { return nil }
+            return RDSText.sanitized(state.tuner.fm?.radiotext)
         case .dab:
-            if let cnr = state.tuner.dab?.cnrDb {
-                return "CNR \(cnr) dB"
+            guard dabIsActive else { return nil }
+            let label = RDSText.sanitized(state.tuner.dab?.dynamicLabel)
+            if label == nowPlayingTitle { return nil }
+            return label
+        }
+    }
+
+    private var quickFavorites: [ScannedStation] {
+        scan.favoriteStations
+    }
+
+    private var speakerOutTitle: String {
+        let live = state.bluetooth.deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !live.isEmpty { return live }
+        if let saved = state.bluetooth.savedSpeaker {
+            let name = saved.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            return name.isEmpty ? "Altoparlante" : name
+        }
+        return "Altoparlante"
+    }
+
+    private var speakerOutSubtitle: String {
+        if !state.bluetooth.booted { return "Uscita BT spenta" }
+        return state.bluetooth.a2dpState.title
+    }
+
+    private func selectFM() async {
+        if fmIsActive {
+            showRadioParams = true
+            return
+        }
+        await environment.stopPhoneCapture()
+        await viewModel?.selectFM()
+        environment.adauStudio.syncFromDevice()
+    }
+
+    private func selectDAB() async {
+        if dabIsActive {
+            showDABParams = true
+            return
+        }
+        await environment.stopPhoneCapture()
+        await viewModel?.selectDAB()
+        environment.adauStudio.syncFromDevice()
+    }
+
+    private func selectStream() async {
+        if streamIsActive {
+            showStreamParams = true
+            return
+        }
+        await viewModel?.selectStream()
+        environment.adauStudio.syncFromDevice()
+    }
+
+    private var radioParamsSheet: some View {
+        NavigationStack {
+            RadioPathParamsView(band: .fm, viewModel: viewModel)
+                .navigationTitle("FM")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fine") { showRadioParams = false }
+                    }
+                }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var dabParamsSheet: some View {
+        NavigationStack {
+            RadioPathParamsView(band: .dab, viewModel: viewModel)
+                .navigationTitle("DAB")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fine") { showDABParams = false }
+                    }
+                }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var streamParamsSheet: some View {
+        NavigationStack {
+            StreamingView()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fine") { showStreamParams = false }
+                    }
+                }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var speakerSheet: some View {
+        NavigationStack {
+            PrepareRadioView(entry: .speaker)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Fine") { showSpeaker = false }
+                    }
+                }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func applyLiveStationName(_ raw: String?, khz: Int?, afKhz: [Int] = []) {
+        guard let khz else { return }
+        environment.stationScan.ingestLiveFM(khz: khz, stationName: raw, afKhz: afKhz)
+        environment.stationScan.syncAlternateFrequencyMonitor(forFMKhz: khz)
+        lastRDSName = StationNameDisplay.meaningful(raw, khz: khz)
+    }
+
+    private func appear() {
+        if viewModel == nil {
+            viewModel = HomeViewModel(service: environment.digiRadio)
+        }
+        viewModel?.onAppear()
+        environment.adauStudio.syncFromDevice()
+        environment.adauStudio.startOutputLevelsPolling()
+        lastRDSName = StationNameDisplay.meaningful(
+            environment.state.tuner.fm?.stationName,
+            khz: environment.state.tuner.fm?.frequencyKhz
+        )
+        Task {
+            try? await environment.digiRadio.refreshStreaming()
+            await viewModel?.refreshAll()
+            await environment.stationScan.refreshLibrary()
+            if let fm = environment.state.tuner.fm {
+                applyLiveStationName(fm.stationName, khz: fm.frequencyKhz, afKhz: fm.afKhz ?? [])
             }
-            return "Digital Radio"
+            environment.adauStudio.syncFromDevice()
         }
     }
 }

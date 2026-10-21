@@ -5,99 +5,167 @@ struct ConnectionView: View {
     @State private var viewModel: ConnectionViewModel?
     @State private var discoveryTimer: Timer?
     @State private var confirmWifiReset = false
+    @State private var didProbe = false
+
+    private var isLive: Bool {
+        didProbe && environment.state.connection.isConnected
+    }
 
     var body: some View {
-        let vm = viewModel ?? ConnectionViewModel(environment: environment)
+        Group {
+            if let viewModel {
+                connectionForm(viewModel, isLive: isLive)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("Connessione")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if viewModel == nil {
+                viewModel = ConnectionViewModel(environment: environment)
+            }
+            guard let viewModel else { return }
+            didProbe = false
+            Task {
+                await viewModel.verifyReachability()
+                if environment.useMockDevice, !environment.state.connection.isConnected {
+                    await viewModel.connect()
+                } else if !environment.useMockDevice, !environment.state.connection.isConnected {
+                    startDiscovery(viewModel)
+                }
+                didProbe = true
+            }
+        }
+        .confirmationDialog(
+            "Dimenticare la rete Wi‑Fi?",
+            isPresented: $confirmWifiReset,
+            titleVisibility: .visible
+        ) {
+            Button("Dimentica e riavvia", role: .destructive) {
+                Task { await viewModel?.resetWifi() }
+            }
+            Button("Annulla", role: .cancel) {}
+        } message: {
+            Text("La scheda cancella le credenziali e torna in modalità setup. Dovrai riconfigurare la Wi‑Fi.")
+        }
+        .onDisappear {
+            if let viewModel { stopDiscovery(viewModel) }
+        }
+    }
+
+    @ViewBuilder
+    private func connectionForm(_ vm: ConnectionViewModel, isLive: Bool) -> some View {
         let state = environment.state
 
         Form {
-            Section("Dispositivo") {
-                Toggle("Modalità demo (Mock)", isOn: Binding(
-                    get: { environment.useMockDevice },
-                    set: { vm.toggleMock($0) }
-                ))
+            Section("Prima configurazione Wi‑Fi") {
+                NavigationLink("Configura Wi‑Fi") {
+                    WiFiSetupView()
+                }
+                Text("Usa il BLE dell’ESP32 (igiRadio-seriale). Non serve l’altoparlante e non cambiare rete sul telefono.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             if !environment.useMockDevice {
-                Section("Ricerca in rete") {
+                Section("Trova la scheda") {
                     if vm.discovery.isSearching {
                         HStack {
                             IGIScanningIndicator().frame(width: 28, height: 28)
-                            Text("Cerca DigiRadio...")
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Cerca igiRadio…")
+                                if let status = vm.discovery.statusMessage {
+                                    Text(status)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                         Button("Ferma ricerca") { stopDiscovery(vm) }
                     } else {
                         Button("Cerca dispositivi") { startDiscovery(vm) }
                     }
 
-                    if vm.discovery.devices.isEmpty {
-                        Text("Avvia la ricerca per trovare DigiRadio via BLE (setup) o verificare l'host inserito.")
+                    if vm.discovery.devices.isEmpty, !vm.discovery.isSearching {
+                        Text("Cerca la scheda sulla Wi‑Fi di casa (hostname .local o IP).")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(vm.discovery.devices) { device in
-                            Button {
-                                Task { await vm.connect(to: device.host) }
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(device.name).font(.headline)
-                                        Text(device.host).font(.caption).foregroundStyle(.secondary)
-                                        if let fw = device.firmware {
-                                            Text("FW \(fw)").font(.caption2).foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                    if device.isReachable {
-                                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                                    } else {
-                                        Image(systemName: "questionmark.circle").foregroundStyle(.orange)
+                    }
+
+                    ForEach(vm.discovery.devices) { device in
+                        Button {
+                            Task { await vm.connect(to: device.host) }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(device.name).font(.headline)
+                                    Text(device.host).font(.caption).foregroundStyle(.secondary)
+                                    if let fw = device.firmware {
+                                        Text("FW \(fw)").font(.caption2).foregroundStyle(.secondary)
                                     }
                                 }
+                                Spacer()
+                                if device.isReachable {
+                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                } else {
+                                    Image(systemName: "hourglass").foregroundStyle(.orange)
+                                }
                             }
-                            .disabled(vm.isBusy)
                         }
+                        .disabled(vm.isBusy)
                     }
                 }
             }
 
             Section("Connessione HTTP") {
-                TextField("Host", text: Binding(
+                TextField("igiradio-cc4db4.local", text: Binding(
                     get: { vm.hostInput },
                     set: { vm.hostInput = $0 }
                 ))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
+                .textContentType(.URL)
 
-                if state.connection.isConnected {
-                    LabeledContent("Stato", value: "Connesso")
-                    LabeledContent("Host", value: state.connection.host)
+                if !vm.recentHosts.isEmpty {
+                    ForEach(vm.recentHosts, id: \.self) { host in
+                        Button {
+                            Task { await vm.connect(to: host) }
+                        } label: {
+                            HStack {
+                                Text(HostNormalizer.displayHost(from: host))
+                                Spacer()
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .disabled(vm.isBusy)
+                    }
                 }
+
+                LabeledContent("Stato", value: isLive ? "Connesso" : "Non connesso")
+                LabeledContent(
+                    "Host",
+                    value: isLive
+                        ? HostNormalizer.displayHost(from: state.connection.host)
+                        : "—"
+                )
 
                 if let error = vm.errorMessage ?? state.connection.lastError {
                     Text(error).foregroundStyle(.red)
                 }
+                if let reset = vm.wifiResetMessage {
+                    Text(reset)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section {
-                if state.connection.isConnected {
+                if isLive {
                     Button("Disconnetti", role: .destructive) {
                         vm.disconnect()
-                    }
-                    Button("Reset Wi‑Fi del dispositivo", role: .destructive) {
-                        confirmWifiReset = true
-                    }
-                    .confirmationDialog(
-                        "Dimenticare la rete Wi‑Fi?",
-                        isPresented: $confirmWifiReset,
-                        titleVisibility: .visible
-                    ) {
-                        Button("Reset e riavvia", role: .destructive) {
-                            Task { try? await environment.digiRadio.resetWifi() }
-                        }
-                    } message: {
-                        Text("DigiRadio cancella le credenziali e si riavvia in modalità setup (rete igiRadio-<seriale>, 192.168.4.1). Poi riconfiguralo via BLE o SoftAP.")
                     }
                 } else {
                     Button {
@@ -116,31 +184,32 @@ struct ConnectionView: View {
                 }
             }
 
-            Section("Provisioning Wi‑Fi (BLE)") {
-                NavigationLink("Configura Wi‑Fi via BLE") {
-                    BLEProvisioningView()
+            if isLive {
+                Section {
+                    Button("Dimentica Wi‑Fi e torna al setup", role: .destructive) {
+                        confirmWifiReset = true
+                    }
+                    .disabled(vm.isBusy)
+                } footer: {
+                    Text("Cancella le credenziali salvate e riavvia la scheda in SoftAP (igiRadio-seriale, 192.168.4.1 o hostname.local).")
                 }
-                Text("DigiRadio espone BLE solo per il provisioning Wi‑Fi. Il nome BLE (es. DigiRadio-CC4DB4) corrisponde all'host HTTP digiradio-cc4db4.local.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
-            Section("Suggerimenti host") {
-                Text("• Setup mode: http://192.168.4.1")
-                Text("• STA mode: http://digiradio-<suffix>.local")
-                Text("• Oppure IP LAN del dispositivo")
+            Section {
+                Text("iPhone e scheda sulla stessa Wi‑Fi. Alla prima volta consenti Rete locale. Se .local non risponde, usa l’IP.")
             }
             .font(.footnote)
             .foregroundStyle(.secondary)
-        }
-        .navigationTitle("Connessione")
-        .onAppear {
-            if viewModel == nil { viewModel = vm }
-            if environment.useMockDevice && !state.connection.isConnected {
-                Task { await vm.connect() }
+
+            Section {
+                Toggle("Modalità demo", isOn: Binding(
+                    get: { environment.useMockDevice },
+                    set: { vm.toggleMock($0) }
+                ))
+            } footer: {
+                Text("Solo per prova senza scheda.")
             }
         }
-        .onDisappear { stopDiscovery(vm) }
     }
 
     private func startDiscovery(_ vm: ConnectionViewModel) {

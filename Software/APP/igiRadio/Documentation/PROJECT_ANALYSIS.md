@@ -2,7 +2,7 @@
 
 **Data analisi:** 2026-08-18  
 **Fonte primaria:** `Software/docs/manual/` (non modificata)  
-**Firmware di riferimento:** 0.8.5+
+**Firmware di riferimento:** 0.9.0
 
 ---
 
@@ -41,8 +41,8 @@ Documentazione aggiuntiva letta: `Software/CLAUDE.md`, `Software/docs/security-f
 **Solo provisioning Wi‑Fi** in setup mode (`ch-api.tex` §BLE provisioning):
 
 - Stack: ESP-IDF `wifi_provisioning` + `scheme_ble`
-- Sicurezza: **Security1** (protocomm)
-- **Proof of possession (PoP):** serial number dispositivo (stesso valore di `GET /api/health` → `serialNumber`)
+- Sicurezza manuale (`ch-api.tex`): **Security1** + PoP = serial
+- **Firmware 0.9.0 effettivo** (`BleProvisioning.hpp`): **Security0** (no PoP, no encryption)
 - **Nome servizio BLE:** SSID SoftAP = `DigiRadio-<suffix>` (es. `DigiRadio-CC4DB4`)
 - Su successo: credenziali salvate in NVS, reboot in STA
 - **Non è un endpoint HTTP** — nessuna REST call
@@ -80,6 +80,7 @@ Sorgenti audio nel DSP: **Si4684** (radio), **ESP32 I2S** (stream locale / phone
 | POST | `/api/tuner/seek` | Seek FM up/down |
 | POST | `/api/tuner/scan` | Scan singola stazione |
 | POST | `/api/tuner/scan/full` | Scan completo banda FM |
+| POST | `/api/tuner/calibrate-antenna` | Calibrazione antcap Si4684 |
 | GET/PUT | `/api/audio/profile` | Profilo mixer/EQ/master |
 | POST | `/api/audio/reset` | Reset profilo factory |
 | POST | `/api/audio/stereo-enhance` | Enhancement stereo 0–100 |
@@ -101,6 +102,7 @@ Sorgenti audio nel DSP: **Si4684** (radio), **ESP32 I2S** (stream locale / phone
 | GET/POST/DELETE | `/api/bluetooth/speaker` | Speaker default |
 | POST | `/api/bluetooth/reconnect` | Reconnect manuale |
 | POST | `/api/bluetooth/auto-reconnect` | Retry count 0–15 |
+| GET/POST | `/api/bluetooth/a2dp-codec` | Codec negoziato / preferenze bitmask |
 | GET | `/api/stations` | Lista preset |
 | POST | `/api/stations` | Aggiungi preset |
 | POST | `/api/stations/remove` | Rimuovi preset |
@@ -134,7 +136,7 @@ Sorgenti audio nel DSP: **Si4684** (radio), **ESP32 I2S** (stream locale / phone
 ## 6. Implicazioni per igiRadio
 
 1. **DigiRadioService** → implementazione **HTTP REST** (URLSession), non GATT custom.
-2. **BLE layer** → solo **Wi‑Fi provisioning** (ESP protocomm Security1 + PoP = serial).
+2. **BLE layer** → solo **Wi‑Fi provisioning** (ESP protocomm **Security0** nel firmware 0.9.0; manuale descrive Security1 + PoP).
 3. **MockDigiRadioService** → stessa interfaccia, dati fittizi.
 4. **Discovery** → mDNS `.local`, IP manuale, o join SoftAP in setup.
 5. **Real-time** → polling selettivo su `/api/tuner/status` quando in radio; nessuna notifica BLE documentata.
