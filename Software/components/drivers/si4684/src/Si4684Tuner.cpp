@@ -129,29 +129,67 @@ std::expected<void, core::TunerError> Si4684Tuner::ensureBandLoaded(
     return {};
 }
 
-std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
+std::expected<void, core::TunerError> Si4684Tuner::readSignalInto(
+    core::TunerStatus& status)
 {
     if (!driver_.isBooted()) {
         return std::unexpected(core::TunerError::NotBooted);
     }
-
-    core::TunerStatus status = {};
     status.booted = true;
     status.volume = volume_;
     status.band = driver_.loadedBand() == Si4684Band::Fm ? core::TunerBand::Fm
                                                          : core::TunerBand::Dab;
-
     if (status.band == core::TunerBand::Dab) {
         status.dabFreqIndex = dabIndex_;
-        if (auto dig = driver_.readDabDigRadStatus(); dig) {
-            status.locked = dig->valid;
-            status.dabRssiDbuV = dig->rssiDbuV;
-            status.dabFicQuality = dig->ficQuality;
-            status.dabCnrDb = dig->cnrDb;
-        } else {
+        auto dig = driver_.readDabDigRadStatus();
+        if (!dig) {
             return std::unexpected(mapError(dig.error()));
         }
+        status.locked = dig->valid;
+        status.dabRssiDbuV = dig->rssiDbuV;
+        status.dabFicQuality = dig->ficQuality;
+        status.dabCnrDb = dig->cnrDb;
+        return {};
+    }
+    auto rsq = driver_.readFmRsq();
+    if (!rsq) {
+        return std::unexpected(mapError(rsq.error()));
+    }
+    status.locked = rsq->valid;
+    status.fmRssiDbuV = rsq->rssiDbuV;
+    status.fmSnrDb = rsq->snrDb;
+    status.fmFreqOffBppm = rsq->freqOffBppm;
+    status.fmStereo = rsq->stereo;
+    status.fmChipReadFrequency = rsq->frequency;
+    // Keep commanded frequency when chip READFREQ is stale (stuck at band
+    // bottom); adopt READFREQ only when valid or it matches our target.
+    status.fmFrequency = fmFrequency_;
+    if (rsq->frequency) {
+        const std::uint32_t chipKhz = rsq->frequency->value();
+        if (rsq->valid || chipKhz == fmFrequency_.value()) {
+            status.fmFrequency = *rsq->frequency;
+            fmFrequency_ = *rsq->frequency;
+        }
+    }
+    return {};
+}
 
+std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readSignal()
+{
+    core::TunerStatus status = {};
+    if (auto ok = readSignalInto(status); !ok) {
+        return std::unexpected(ok.error());
+    }
+    return status;
+}
+
+std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
+{
+    core::TunerStatus status = {};
+    if (auto ok = readSignalInto(status); !ok) {
+        return std::unexpected(ok.error());
+    }
+    if (status.band == core::TunerBand::Dab) {
         if (lastDabServiceId_) {
             if (auto data = driver_.readDabServiceData(false, true); data) {
                 if (*data && (*data)->dataSrc == 2U) {
@@ -164,54 +202,32 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
                 return std::unexpected(mapError(data.error()));
             }
         }
-    } else {
-        status.fmFrequency = fmFrequency_;
-        if (auto rsq = driver_.readFmRsq(); rsq) {
-            status.locked = rsq->valid;
-            status.fmRssiDbuV = rsq->rssiDbuV;
-            status.fmSnrDb = rsq->snrDb;
-            status.fmFreqOffBppm = rsq->freqOffBppm;
-            status.fmStereo = rsq->stereo;
-            status.fmChipReadFrequency = rsq->frequency;
-            // Keep commanded frequency when chip READFREQ is stale (stuck at band
-            // bottom); adopt READFREQ only when valid or it matches our target.
-            status.fmFrequency = fmFrequency_;
-            if (rsq->frequency) {
-                const std::uint32_t chipKhz = rsq->frequency->value();
-                if (rsq->valid || chipKhz == fmFrequency_.value()) {
-                    status.fmFrequency = *rsq->frequency;
-                    fmFrequency_ = *rsq->frequency;
-                }
-            }
-        } else {
-            return std::unexpected(mapError(rsq.error()));
+        return status;
+    }
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        auto rds = driver_.readFmRds();
+        if (!rds) {
+            ESP_LOGW(kTag, "FM RDS read failed (attempt %d)", attempt);
+            break;
         }
-
-        for (int attempt = 0; attempt < 8; ++attempt) {
-            auto rds = driver_.readFmRds();
-            if (!rds) {
-                ESP_LOGW(kTag, "FM RDS read failed (attempt %d)", attempt);
-                break;
-            }
-            if (!rds->received) {
-                break;
-            }
-            rdsMetadata_.applyGroup(rds->blockA,
-                                    rds->blockB,
-                                    rds->blockC,
-                                    rds->blockD);
-            if (rds->fifoUsed <= 1U) {
-                break;
-            }
+        if (!rds->received) {
+            break;
         }
-        status.fmStationName = rdsMetadata_.programName();
-        status.fmRadiotext = rdsMetadata_.radiotext();
-        status.fmProgramId = rdsMetadata_.programIdentification();
-        status.fmAlternateFrequencies.clear();
-        for (const std::uint32_t khz : rdsMetadata_.alternateFrequenciesKhz()) {
-            if (auto freq = core::FrequencyKHz::tryFromKhz(khz); freq) {
-                status.fmAlternateFrequencies.push_back(*freq);
-            }
+        rdsMetadata_.applyGroup(rds->blockA,
+                                rds->blockB,
+                                rds->blockC,
+                                rds->blockD);
+        if (rds->fifoUsed <= 1U) {
+            break;
+        }
+    }
+    status.fmStationName = rdsMetadata_.programName();
+    status.fmRadiotext = rdsMetadata_.radiotext();
+    status.fmProgramId = rdsMetadata_.programIdentification();
+    status.fmAlternateFrequencies.clear();
+    for (const std::uint32_t khz : rdsMetadata_.alternateFrequenciesKhz()) {
+        if (auto freq = core::FrequencyKHz::tryFromKhz(khz); freq) {
+            status.fmAlternateFrequencies.push_back(*freq);
         }
     }
     return status;

@@ -150,6 +150,19 @@ public:
     listDabServices() override;
 
     /**
+     * @brief    readSignal — RSQ (FM) or DIGRAD (DAB) only.
+     *
+     * @dname    readSignal
+     * @return   TunerStatus without RDS / DLS fields, or TunerError.
+     * @pubstate sends FM_RSQ_STATUS or DAB_DIGRAD_STATUS only.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<core::TunerStatus, core::TunerError>
+    readSignal() override;
+
+    /**
      * @brief    readDabLinkage — FIG 0/6, 0/24 and 0/21 for a service.
      *
      * @dname    readDabLinkage
@@ -243,6 +256,9 @@ private:
     std::uint8_t dabIndex_;
     core::FrequencyKHz fmFrequency_;
     std::uint8_t volume_;
+
+    [[nodiscard]] std::expected<void, core::TunerError> readSignalInto(
+        core::TunerStatus& status);
     bool fmBandReady_;
     core::RdsMetadataAccumulator rdsMetadata_;
     core::DabDynamicLabelAccumulator dabDynamicLabel_;

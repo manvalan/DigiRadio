@@ -951,7 +951,7 @@ std::expected<Si4684FmRsq, Si4684Error> Si4684Driver::readFmRsq()
     if (raw.size() < kFmRsqOffSnr + 1U) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
-    ESP_LOGI(kTag,
+    ESP_LOGD(kTag,
              "FM RSQ raw: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
              "%02x %02x",
              raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7],

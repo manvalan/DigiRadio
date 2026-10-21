@@ -97,6 +97,7 @@ private:
     SleepFn sleep_;
     core::AlternateFrequencyFollower follower_;
     core::DabServiceFollower dabFollower_;
+    std::uint32_t ticks_{0U};
 };
 
 } // namespace tuner
