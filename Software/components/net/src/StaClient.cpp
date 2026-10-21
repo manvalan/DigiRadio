@@ -18,6 +18,7 @@
 
 #include "net/StaClient.hpp"
 
+#include "bluetooth/BluetoothService.hpp"
 #include "net/BleProvisioning.hpp"
 
 #include "esp_event.h"
@@ -52,6 +53,7 @@ int s_connectRetries = 0;
 // null there, since the bounded connect() call has already returned).
 core::ISecureStore* s_bleFallbackStore = nullptr;
 const core::DeviceIdentity* s_bleFallbackIdentity = nullptr;
+bluetooth::BluetoothService* s_bluetoothFallback = nullptr;
 TickType_t s_disconnectedSinceTick = 0;
 bool s_bleFallbackActive = false;
 
@@ -159,18 +161,32 @@ void wifiEventHandler(void* arg,
         // can push new credentials over Bluetooth.
         if (s_disconnectedSinceTick == 0) {
             s_disconnectedSinceTick = xTaskGetTickCount();
-        } else if (!s_bleFallbackActive && s_bleFallbackStore != nullptr
-                   && s_bleFallbackIdentity != nullptr
-                   && (xTaskGetTickCount() - s_disconnectedSinceTick)
-                          >= kBleFallbackThreshold) {
-            ESP_LOGW(kTag, "STA link lost for over a minute — starting BLE "
-                           "provisioning fallback");
-            if (auto bleResult = ble_provisioning::start(
-                    *s_bleFallbackStore, *s_bleFallbackIdentity);
-                !bleResult) {
-                ESP_LOGW(kTag, "BLE fallback provisioning failed to start");
-            } else {
-                s_bleFallbackActive = true;
+        } else if ((xTaskGetTickCount() - s_disconnectedSinceTick)
+                   >= kBleFallbackThreshold) {
+            if (!s_bleFallbackActive && s_bleFallbackStore != nullptr
+                && s_bleFallbackIdentity != nullptr) {
+                ESP_LOGW(kTag, "STA link lost for over a minute — starting "
+                               "BLE provisioning fallback");
+                if (auto bleResult = ble_provisioning::start(
+                        *s_bleFallbackStore, *s_bleFallbackIdentity);
+                    !bleResult) {
+                    ESP_LOGW(kTag, "BLE fallback provisioning failed to start");
+                } else {
+                    s_bleFallbackActive = true;
+                }
+            }
+
+            // No Wi-Fi uplink right now — make sure classic Bluetooth is
+            // still available as a fallback path, in case a prior
+            // /api/bluetooth/disable had turned it off.
+            if (s_bluetoothFallback != nullptr
+                && !s_bluetoothFallback->isEnabled()) {
+                ESP_LOGW(kTag, "STA link lost — re-enabling Bluetooth as a "
+                               "fallback path");
+                if (auto btResult = s_bluetoothFallback->setEnabled(true);
+                    !btResult) {
+                    ESP_LOGW(kTag, "Bluetooth re-enable failed");
+                }
             }
         }
 
@@ -254,7 +270,8 @@ std::expected<void, NetError>
 StaClient::connect(const core::WifiCredentials& creds,
                    std::string_view hostname,
                    core::ISecureStore* bleFallbackStore,
-                   const core::DeviceIdentity* bleFallbackIdentity)
+                   const core::DeviceIdentity* bleFallbackIdentity,
+                   bluetooth::BluetoothService* bluetoothFallback)
 {
     if (connected_) {
         return {};
@@ -262,6 +279,7 @@ StaClient::connect(const core::WifiCredentials& creds,
 
     s_bleFallbackStore = bleFallbackStore;
     s_bleFallbackIdentity = bleFallbackIdentity;
+    s_bluetoothFallback = bluetoothFallback;
     s_disconnectedSinceTick = 0;
     s_bleFallbackActive = false;
 
@@ -317,7 +335,7 @@ StaClient::connect(const core::WifiCredentials& creds,
     if (pwdLen == 0U) {
         wifiCfg.sta.threshold.authmode = WIFI_AUTH_OPEN;
     } else {
-        wifiCfg.sta.threshold.authmode = WIFI_AUTH_WPA2_WPA3_PSK;
+        wifiCfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     }
     wifiCfg.sta.pmf_cfg.capable = true;
     wifiCfg.sta.pmf_cfg.required = false;
@@ -354,6 +372,12 @@ StaClient::connect(const core::WifiCredentials& creds,
         if (!hostLabel.empty()) {
             if (mdns_init() == ESP_OK) {
                 mdns_hostname_set(hostLabel.c_str());
+                // Publishes the PTR/SRV/TXT records the app's Bonjour
+                // browse (_http._tcp) needs to discover this device.
+                // mdns_hostname_set() alone only answers direct A-record
+                // lookups of <hostLabel>.local, which a browse never sends.
+                mdns_service_add(hostLabel.c_str(), "_http", "_tcp", 80,
+                                 nullptr, 0);
             }
         }
         ESP_LOGI(kTag, "connected to %.*s",

@@ -77,6 +77,27 @@ public:
     [[nodiscard]] std::expected<void, bt1035::Bt1035Error> stopPairing();
 
     /**
+     * @brief    setEnabled — power the BT1035 module on or off.
+     *
+     * @dname    setEnabled
+     * @param    enabled  true boots (or re-boots) the module; false powers
+     *                    it down.
+     * @return   Ok on success, or a Bt1035Error.
+     * @pubstate calls driver_.boot()/shutdown(); clears pairingActive_.
+     */
+    [[nodiscard]] std::expected<void, bt1035::Bt1035Error> setEnabled(
+        bool enabled);
+
+    /**
+     * @brief    isEnabled — whether the BT1035 module is currently powered.
+     *
+     * @dname    isEnabled
+     * @return   true when the module is booted.
+     * @pubstate reads driver_.
+     */
+    [[nodiscard]] bool isEnabled() const noexcept;
+
+    /**
      * @brief    disconnect — tear down the current A2DP link.
      *
      * @dname    disconnect

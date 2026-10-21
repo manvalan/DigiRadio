@@ -57,16 +57,14 @@ wireless output (Section~\ref{sec:bt1035-i2s}).
   \label{tab:bt1035-uart}
 \end{table}
 
-\begin{drnote}[Flow control disabled, not just unused]
-Earlier revisions wired \texttt{RTS}/\texttt{CTS} through
-\texttt{Bt1035Pins} and configured \texttt{UART\_HW\_FLOWCTRL\_CTS\_RTS}.
-That was reverted: \texttt{Bt1035Driver.cpp} now configures
-\texttt{UART\_HW\_FLOWCTRL\_DISABLE} and passes
-\texttt{UART\_PIN\_NO\_CHANGE} for both lines --- GPIO14/21 are not driven by
-this driver. No AT command in \texttt{core::Bt1035AtCommand} configures flow
-control on the module side either; this has not caused observed boot
-failures, but has not been independently verified against the module's own
-flow-control expectation.
+\begin{drnote}[ESP32 UART flow control off; module CTS driven]
+\texttt{Bt1035Driver} keeps \texttt{UART\_HW\_FLOWCTRL\_DISABLE} on UART2
+(no RTS/CTS on the ESP32 UART). GPIO21 (module UART\_CTS, pin~15) is driven
+\textbf{low} so the module's own CTS input is asserted (UART clear-to-send
+is active-low). Leaving that net floating HIGH gated module TX and produced
+intermittent silent boots (no banner, AT timeout at every baud). GPIO14
+(RTS/PIO2, factory PA\_MUTE) stays an input for diagnostics. No AT command
+in \texttt{core::Bt1035AtCommand} changes flow control on the module.
 \end{drnote}
 
 \subsection{Response handling}

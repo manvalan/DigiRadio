@@ -123,9 +123,12 @@ Served at port 80. Key routes:
 - `POST /api/tuner/seek` — `{"direction":"up"/"down"}`
 - `GET|PUT /api/audio/profile` — full mixer + EQ JSON
 - `POST /api/bluetooth/pair`, `GET /api/bluetooth/paired`, `POST /api/bluetooth/disconnect`
+- `POST /api/bluetooth/enable`, `POST /api/bluetooth/disable` — power the BT1035 module on/off
 - `GET|POST /api/stations`, `POST /api/stations/tune`
 - `POST /api/wifi` — STA provisioning (triggers reboot)
+- `POST /api/wifi/reset` — forget Wi-Fi credentials, reboot into setup SoftAP (reachable at `<hostname>.local`, default AP IP 192.168.4.1)
 - `POST /api/system/ota` — firmware image upload (reboot)
+- `GET|POST /api/system/power` — `{"state":"on"|"standby"}` soft standby (master mute)
 - `POST /api/dsp/program` — ADAU1701 DRAD blob upload (reboot)
 
 ### Dual OTA & Partitions (`partitions.csv`)

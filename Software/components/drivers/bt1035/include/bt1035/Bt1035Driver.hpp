@@ -46,10 +46,11 @@ struct Bt1035Pins {
     int sysCtlGpio; ///< SYS_CTL (pin 34), active-high. Driven LOW/HIGH on
                     ///< every resetAndInitOnce() call, together with
                     ///< resetGpio, to force a real power-cycle each retry.
-    int ctsGpio;    ///< Host->module UART_CTS (module pin 15). Diagnostic
-                    ///< only (2026-08-22): read-only floating input, never
-                    ///< driven — this driver does not implement hardware
-                    ///< flow control. See boot()'s comment.
+    int ctsGpio;    ///< Host->module UART_CTS (module pin 15). ESP32 UART
+                    ///< flow control stays off (UART_HW_FLOWCTRL_DISABLE);
+                    ///< this pad is driven LOW so the module's own CTS
+                    ///< input is asserted (clear-to-send). A floating HIGH
+                    ///< here gated module UART TX and made boot intermittent.
     int rtsGpio;    ///< Module UART_RTS/PIO2 (module pin 16), factory
                     ///< default function is PA_MUTE, not flow control
                     ///< (Feasycom programming guide). Diagnostic only
@@ -102,8 +103,9 @@ public:
      * @return   Ok on success, or Bt1035Error.
      * @pubstate sets booted_ after Ping + I2S init both return OK.
      *
-     * Sequence: hardware reset, UART @ 115200 with RTS/CTS, then
-     * core::bootInitSequence() (see manual chapter bt1035).
+     * Sequence: hardware reset, UART @ 115200 (no ESP32 HW flow control;
+     * module CTS driven low), then core::bootInitSequence()
+     * (see manual chapter bt1035).
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -121,6 +123,23 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] bool isBooted() const noexcept;
+
+    /**
+     * @brief    shutdown — power down the module (AN §4.8 mechanism).
+     *
+     * @dname    shutdown
+     * @return   Ok always (no-op when already shut down).
+     * @pubstate clears booted_; asserts RESET# with SYS_CTRL low past the
+     *          ~1.8 s Reset Protection timeout, the same power-down path
+     *          resetAndInitOnce() already uses between retries — see its
+     *          comment for the datasheet citation. The UART driver and GPIO
+     *          configuration are left in place so a later boot() re-powers
+     *          the module without re-installing them.
+     *
+     * @author   Michele Bigi
+     * @date     2026-09-03
+     */
+    [[nodiscard]] std::expected<void, Bt1035Error> shutdown();
 
     /**
      * @brief    sendCommand — transmit one typed AT command and expect OK.
