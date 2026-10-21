@@ -17,6 +17,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <span>
 
 namespace core {
 
@@ -49,11 +50,12 @@ public:
      * @dname    applyGroup
      * @param    blockA  RDS block A (PI code, currently unused).
      * @param    blockB  RDS block B (group type and segment address).
-     * @param    blockC  RDS block C (RT text for group 2 only; group 0's
-     *                   AF list/repeated PI is not text and is ignored).
+     * @param    blockC  RDS block C (RT text for group 2; AF codes for
+     *                   group 0A; ignored for group 0B).
      * @param    blockD  RDS block D (PS text for group 0; RT text for
      *                   group 2, per ETSI EN 62106 §3.1.5/§3.1.5.3).
-     * @pubstate updates PS/RT buffers for group types 0A and 2A.
+     * @pubstate updates PS/RT buffers for group types 0A and 2A, and the
+     *           AF list for group 0A.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -87,9 +89,21 @@ public:
      */
     [[nodiscard]] std::optional<BroadcastLabel> radiotext() const;
 
+    /**
+     * @brief    alternateFrequenciesKhz — FM AF codes decoded from group 0A.
+     *
+     * @dname    alternateFrequenciesKhz
+     * @return   Unique centre frequencies in kHz (87.6–107.9), excluding
+     *           filler and LF/MF markers.
+     */
+    [[nodiscard]] std::span<const std::uint32_t> alternateFrequenciesKhz() const;
+
 private:
     static constexpr std::size_t kPsSegments = 4U;
     static constexpr std::size_t kRtSegments = 16U;
+    static constexpr std::size_t kMaxAf = 25U;
+
+    void ingestAfCode(std::uint8_t code) noexcept;
 
     std::array<char, 8> psBuffer_{};
     std::array<bool, kPsSegments> psSegmentValid_{};
@@ -97,6 +111,8 @@ private:
     std::array<bool, kRtSegments> rtSegmentValid_{};
     bool rtAbFlag_{false};
     bool rtAbInitialized_{false};
+    std::array<std::uint32_t, kMaxAf> afKhz_{};
+    std::uint8_t afCount_{0};
 };
 
 } // namespace core

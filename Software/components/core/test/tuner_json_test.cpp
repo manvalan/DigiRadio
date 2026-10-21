@@ -180,6 +180,16 @@ namespace {
         return EXIT_FAILURE;
     }
 
+    status.fmAlternateFrequencies.push_back(
+        *core::FrequencyKHz::tryFromKhz(105300U));
+    status.fmAlternateFrequencies.push_back(
+        *core::FrequencyKHz::tryFromKhz(102700U));
+    const std::string afJson = core::serializeTunerStatusJson(status);
+    if (afJson.find("\"af_khz\":[105300,102700]") == std::string::npos) {
+        std::cerr << "FM AF list missing: " << afJson << '\n';
+        return EXIT_FAILURE;
+    }
+
     status.band = core::TunerBand::Dab;
     status.dabFreqIndex = 5U;
     status.dabDynamicLabel =
