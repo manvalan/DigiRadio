@@ -19,6 +19,18 @@
         }
       }
     },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "it" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "igiRadio"
+          }
+        }
+      }
+    },
     "NSBluetoothAlwaysUsageDescription" : {
       "comment" : "",
       "extractionState" : "manual",
@@ -33,6 +45,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "igiRadio usa Bluetooth per trovare il dispositivo in setup mode (nome igiRadio-seriale) e configurare il Wi‑Fi."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera is only used to read a setup QR code for the radio, if there is one."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fotocamera serve solo per leggere un eventuale codice QR di configurazione della radio."
           }
         }
       }
