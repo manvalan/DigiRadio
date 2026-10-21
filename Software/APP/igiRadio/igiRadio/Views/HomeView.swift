@@ -10,7 +10,9 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: IGITheme.spacingL) {
                 header(state: state)
+                powerCard(state: state)
                 nowPlayingCard(state: state)
+                    .opacity(state.power == .standby ? 0.45 : 1)
                 streamCard(state: state)
                 quickLinks
                 IGITransportCluster(
@@ -97,6 +99,38 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func powerCard(state: DigiRadioState) -> some View {
+        let isOn = state.power == .on
+        Button {
+            Task { await viewModel?.togglePower() }
+        } label: {
+            HStack(spacing: IGITheme.spacingM) {
+                ZStack {
+                    Circle()
+                        .fill(isOn ? IGITheme.accent.opacity(0.2) : Color.secondary.opacity(0.12))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: "power")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(isOn ? IGITheme.accent : .secondary)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(isOn ? "Acceso" : "In standby")
+                        .font(.headline)
+                    Text(isOn ? "Tocca per spegnere" : "Tocca per accendere")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .igiPremiumCard()
+        }
+        .buttonStyle(.plain)
+        .disabled(!state.connection.isConnected)
+        .accessibilityLabel(isOn ? "Spegni DigiRadio" : "Accendi DigiRadio")
+        .animation(.snappy, value: state.power)
     }
 
     @ViewBuilder

@@ -42,6 +42,8 @@ protocol DigiRadioService: AnyObject {
     func refreshStations() async throws
     func refreshStreaming() async throws
     func setStreaming(enabled: Bool, url: String) async throws
+    func refreshPower() async throws
+    func setPower(_ power: DevicePowerState) async throws
 
     func tuneFM(frequencyKhz: Int) async throws
     func tuneDAB(freqIndex: Int) async throws

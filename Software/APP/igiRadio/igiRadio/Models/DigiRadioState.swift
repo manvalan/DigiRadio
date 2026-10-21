@@ -9,6 +9,13 @@ struct DigiRadioState: Equatable, Sendable {
     var bluetooth = BluetoothState()
     var stations: [Station] = []
     var streaming = StreamingState()
+    var power: DevicePowerState = .on
+}
+
+/// GET/POST /api/system/power — soft standby (master muted, Wi-Fi stays up).
+enum DevicePowerState: String, Codable, Sendable {
+    case on
+    case standby
 }
 
 struct ConnectionState: Equatable, Sendable {

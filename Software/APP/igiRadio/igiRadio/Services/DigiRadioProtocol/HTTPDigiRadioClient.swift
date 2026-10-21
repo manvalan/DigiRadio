@@ -34,6 +34,16 @@ final class HTTPDigiRadioClient {
         try await get("/api/health")
     }
 
+    // MARK: - Power
+
+    func fetchPower() async throws -> PowerStateResponse {
+        try await get("/api/system/power")
+    }
+
+    func setPower(_ power: DevicePowerState) async throws -> PowerStateResponse {
+        try await post("/api/system/power", body: PowerStateResponse(state: power))
+    }
+
     // MARK: - Tuner
 
     func fetchTunerStatus() async throws -> TunerStatusResponse {
@@ -203,6 +213,11 @@ final class HTTPDigiRadioClient {
 // MARK: - API DTOs
 
 struct EmptyBody: Codable {}
+
+/// Body and response of /api/system/power: {"state":"on"|"standby"}.
+struct PowerStateResponse: Codable {
+    let state: DevicePowerState
+}
 
 struct HealthResponse: Codable {
     var status: String

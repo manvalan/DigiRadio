@@ -8,6 +8,11 @@ struct SettingsRootView: View {
                 NavigationLink("Informazioni dispositivo") { DeviceInfoView() }
                 NavigationLink("Diagnostica") { DiagnosticsView() }
                 NavigationLink("Firmware") { FirmwareView() }
+                NavigationLink {
+                    AboutView()
+                } label: {
+                    Label("Info", systemImage: "info.circle")
+                }
             }
             Section("Radio") {
                 NavigationLink("FM") { FMRadioView() }
@@ -30,6 +35,33 @@ struct SettingsRootView: View {
             }
         }
         .navigationTitle("Impostazioni")
+    }
+}
+
+struct AboutView: View {
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(version) (\(build))"
+    }
+
+    var body: some View {
+        Form {
+            Section("igiRadio") {
+                LabeledContent("App", value: "igiRadio")
+                LabeledContent("Versione", value: appVersion)
+                LabeledContent("Dispositivo", value: "DigiRadio DAB+/FM")
+            }
+            Section("Ringraziamenti") {
+                Text("Un grazie di cuore a **PCBWay**, che ha sponsorizzato parte della produzione e dell'assemblaggio dei prototipi di DigiRadio.")
+                Text("Grazie al team PCBWay per aver creduto in questo progetto open hardware e averci aiutato a dare vita alle prime schede.")
+                Link(destination: URL(string: "https://www.pcbway.com")!) {
+                    Label("www.pcbway.com", systemImage: "safari")
+                }
+            }
+        }
+        .navigationTitle("Info")
     }
 }
 

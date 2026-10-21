@@ -32,10 +32,16 @@ final class HomeViewModel {
     func refreshAll() async {
         guard state.connection.isConnected else { return }
         try? await service.refreshHealth()
+        try? await service.refreshPower()
         try? await service.refreshTunerStatus()
         try? await service.refreshAudioProfile()
         try? await service.refreshBluetoothStatus()
         try? await service.refreshStations()
+    }
+
+    func togglePower() async {
+        let next: DevicePowerState = state.power == .on ? .standby : .on
+        try? await service.setPower(next)
     }
 
     func setVolume(_ value: Double) async {

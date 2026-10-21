@@ -45,6 +45,15 @@ final class MockDigiRadioService: DigiRadioService {
         try await delay()
     }
 
+    func refreshPower() async throws {
+        try await delay()
+    }
+
+    func setPower(_ power: DevicePowerState) async throws {
+        try await delay()
+        state.power = power
+    }
+
     func setStreaming(enabled: Bool, url: String) async throws {
         try await delay()
         state.streaming = StreamingState(enabled: enabled, url: url)
