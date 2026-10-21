@@ -39,6 +39,7 @@ idf_component_register(
         "src/DspProgramBlob.cpp"
         "src/OtaAppDescriptor.cpp"
         "src/WebRadioJson.cpp"
+        "src/PowerStateJson.cpp"
     INCLUDE_DIRS "include"
 )
 

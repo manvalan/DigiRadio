@@ -21,12 +21,21 @@ namespace {
 
 constexpr char kTag[] = "AudioService";
 
+// Standby mute floor: GainDb's lowest legal value. -96 dB in the ADAU1701
+// 5.23 gain format is ~132 LSB of 2^23 (core::gainDbToLinearFixpoint), far
+// below audibility, so no new DSP cell or register is needed.
+[[nodiscard]] core::GainDb muteGain()
+{
+    return *core::GainDb::tryFromDb(core::GainDb::kMinDb);
+}
+
 } // namespace
 
 AudioService::AudioService(core::IDsp& dsp, core::IAudioProfileStore* store)
     : dsp_(dsp)
     , store_(store)
     , profile_(core::AudioProfile::factoryDefault())
+    , powerState_(core::PowerState::On)
 {
 }
 
@@ -72,7 +81,12 @@ std::expected<void, core::StoreError> AudioService::persistProfile() const
 std::expected<void, core::StoreError> AudioService::applyProfileToDsp(
     const core::AudioProfile& profile)
 {
-    if (auto applied = dsp_.applyProfile(profile); !applied) {
+    core::AudioProfile output = profile;
+    if (powerState_ == core::PowerState::Standby) {
+        output.masterLeft = muteGain();
+        output.masterRight = muteGain();
+    }
+    if (auto applied = dsp_.applyProfile(output); !applied) {
         ESP_LOGW(kTag, "applyProfileToDsp: DSP safeload failed");
         return std::unexpected(core::StoreError::IoFailed);
     }
@@ -108,7 +122,7 @@ std::expected<void, core::StoreError> AudioService::selectSource(
 std::expected<void, core::StoreError> AudioService::setMasterVolume(
     core::GainDb left, core::GainDb right, bool persist)
 {
-    if (auto applied = dsp_.setMasterVolume(left, right); !applied) {
+    if (auto applied = writeMaster(left, right); !applied) {
         return std::unexpected(core::StoreError::IoFailed);
     }
     profile_.masterLeft = left;
@@ -129,7 +143,7 @@ std::expected<void, core::StoreError> AudioService::applyRadioFirstMix(
     if (auto applied = dsp_.selectSource(profile_.activeSource); !applied) {
         return std::unexpected(core::StoreError::IoFailed);
     }
-    if (auto master = dsp_.setMasterVolume(unity, unity); !master) {
+    if (auto master = writeMaster(unity, unity); !master) {
         return std::unexpected(core::StoreError::IoFailed);
     }
     if (persist) {
@@ -191,6 +205,36 @@ std::expected<void, core::DspError> AudioService::writeRawParam(
     unsigned address, float value)
 {
     return dsp_.writeRawParam(address, value);
+}
+
+std::expected<void, core::DspError> AudioService::writeMaster(
+    core::GainDb left, core::GainDb right)
+{
+    if (powerState_ == core::PowerState::Standby) {
+        return dsp_.setMasterVolume(muteGain(), muteGain());
+    }
+    return dsp_.setMasterVolume(left, right);
+}
+
+std::expected<void, core::DspError> AudioService::setPowerState(
+    core::PowerState state)
+{
+    const core::PowerState previous = powerState_;
+    powerState_ = state;
+    auto applied = writeMaster(profile_.masterLeft, profile_.masterRight);
+    if (!applied) {
+        powerState_ = previous;
+        ESP_LOGW(kTag, "setPowerState: master safeload failed");
+        return applied;
+    }
+    ESP_LOGI(kTag, "power state: %s",
+             state == core::PowerState::Standby ? "standby" : "on");
+    return {};
+}
+
+core::PowerState AudioService::powerState() const noexcept
+{
+    return powerState_;
 }
 
 std::expected<core::AudioLevels, core::DspError> AudioService::readLevels()

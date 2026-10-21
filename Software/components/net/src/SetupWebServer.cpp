@@ -26,6 +26,7 @@
 #include "core/DspProgramBlob.hpp"
 #include "core/IntegrationError.hpp"
 #include "core/ParseError.hpp"
+#include "core/PowerStateJson.hpp"
 #include "core/SeekDirection.hpp"
 #include "core/StationListJson.hpp"
 #include "core/StoreError.hpp"
@@ -967,6 +968,81 @@ esp_err_t audioBeepPostHandler(httpd_req_t* req)
     }
 
     const std::string json = core::serializeAudioSavedJson();
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    powerGetHandler — serve GET /api/system/power as JSON.
+ *
+ * @dname    powerGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads AudioService::powerState(); no I/O with the chips.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-21
+ */
+esp_err_t powerGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const std::string json =
+        core::serializePowerStateJson(ctx->audio->powerState());
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    powerPostHandler — handle POST /api/system/power (on / standby).
+ *
+ * @dname    powerPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate live-only master mute/unmute via AudioService::setPowerState();
+ *           does not touch AudioProfile or NVS.
+ *
+ * Soft standby only: the ESP32 and the HTTP server keep running so the
+ * same route can switch the radio back on.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-21
+ */
+esp_err_t powerPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->audio == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    const auto parsed = core::parsePowerStateJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeAudioErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    if (auto applied = ctx->audio->setPowerState(*parsed); !applied) {
+        const std::string json = core::serializeAudioErrorJson("dsp_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json = core::serializePowerStateJson(*parsed);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -2115,7 +2191,7 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 12288;
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 56; // 41 routes registered below as of 2026-08-19;
+    config.max_uri_handlers = 56; // 48 routes registered below as of 2026-10-21;
                                    // keep headroom so a silent
                                    // httpd_register_uri_handler failure
                                    // ("no slots left") doesn't quietly drop
@@ -2332,6 +2408,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &streamingPostUri);
+
+    const httpd_uri_t powerGetUri = {
+        .uri = "/api/system/power",
+        .method = HTTP_GET,
+        .handler = powerGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &powerGetUri);
+
+    const httpd_uri_t powerPostUri = {
+        .uri = "/api/system/power",
+        .method = HTTP_POST,
+        .handler = powerPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &powerPostUri);
 
     const httpd_uri_t dspProgramUri = {
         .uri = "/api/dsp/program",

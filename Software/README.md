@@ -102,6 +102,7 @@ Header shows EEPROM serial from `/api/health`. Source:
 | POST | `/api/audio/bass-enhance` | Bass enhance overlay (0–100) |
 | POST | `/api/dsp/program` | Upload ADAU1701 DRAD blob (raw bytes, reboot) |
 | POST | `/api/system/ota` | Upload ESP32 firmware image (raw bytes, reboot) |
+| GET / POST | `/api/system/power` | Soft standby: `{"state":"on"\|"standby"}` (master mute, Wi-Fi stays up) |
 | GET | `/api/bluetooth/status` | BT1035 boot, pairing, A2DP, name, auto-reconnect |
 | GET | `/api/bluetooth/paired` | Paired-device list from module |
 | POST | `/api/bluetooth/pair` | Enter discoverable mode |

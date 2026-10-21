@@ -126,6 +126,7 @@ Served at port 80. Key routes:
 - `GET|POST /api/stations`, `POST /api/stations/tune`
 - `POST /api/wifi` — STA provisioning (triggers reboot)
 - `POST /api/system/ota` — firmware image upload (reboot)
+- `GET|POST /api/system/power` — `{"state":"on"|"standby"}` soft standby (master mute)
 - `POST /api/dsp/program` — ADAU1701 DRAD blob upload (reboot)
 
 ### Dual OTA & Partitions (`partitions.csv`)
