@@ -21,7 +21,7 @@ namespace core {
 namespace {
 
 constexpr std::size_t kMinProjectNameCheck =
-    kOtaAppDescriptorOffset + 4U + 4U + 32U + 32U;
+    kOtaAppDescriptorOffset + kOtaProjectNameOffset + 32U;
 
 [[nodiscard]] std::uint32_t readLe32(const std::uint8_t* p)
 {
@@ -66,7 +66,7 @@ validateOtaAppDescriptor(std::span<const std::uint8_t> imagePrefix)
     }
 
     const char* projectName =
-        reinterpret_cast<const char*>(desc + 4U + 4U + 32U);
+        reinterpret_cast<const char*>(desc + kOtaProjectNameOffset);
     if (!projectNameMatches(projectName)) {
         return std::unexpected(OtaImageError::InvalidProject);
     }
