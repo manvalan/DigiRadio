@@ -24,6 +24,14 @@ namespace core {
 /** Byte offset of esp_app_desc_t in a raw application .bin image. */
 inline constexpr std::size_t kOtaAppDescriptorOffset = 0x20U;
 
+/** Offset of esp_app_desc_t::version inside the descriptor: magic_word,
+ *  secure_version and reserv1[2] (4 + 4 + 8 bytes) come first. */
+inline constexpr std::size_t kOtaAppVersionOffset = 16U;
+
+/** Offset of esp_app_desc_t::project_name inside the descriptor
+ *  (version is char[32]). */
+inline constexpr std::size_t kOtaProjectNameOffset = kOtaAppVersionOffset + 32U;
+
 /** Expected esp_app_desc_t::magic_word (ESP_APP_DESC_MAGIC_WORD). */
 inline constexpr std::uint32_t kOtaAppDescriptorMagic = 0xABCD5432U;
 

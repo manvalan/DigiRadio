@@ -33,7 +33,7 @@ std::array<std::uint8_t, 256> makeValidPrefix()
     std::array<std::uint8_t, 256> image{};
     writeLe32(image.data() + core::kOtaAppDescriptorOffset,
               core::kOtaAppDescriptorMagic);
-    std::memcpy(image.data() + core::kOtaAppDescriptorOffset + 40U,
+    std::memcpy(image.data() + core::kOtaAppDescriptorOffset + core::kOtaProjectNameOffset,
                 core::kOtaProjectName,
                 std::strlen(core::kOtaProjectName));
     return image;
@@ -42,6 +42,22 @@ std::array<std::uint8_t, 256> makeValidPrefix()
 void testValidDescriptor()
 {
     const auto image = makeValidPrefix();
+    const auto result = core::validateOtaAppDescriptor(image);
+    assert(result.has_value());
+}
+
+// Real esp_app_desc_t layout (reserv1[2] before version): a git-describe
+// version such as "96a2bec-dirty" must not hide the project name. The
+// old +40 offset read the tail of version and rejected every real image.
+void testRealLayoutWithVersion()
+{
+    auto image = makeValidPrefix();
+    const char version[] = "96a2bec-dirty";
+    std::memcpy(image.data() + core::kOtaAppDescriptorOffset
+                    + core::kOtaAppVersionOffset,
+                version,
+                sizeof(version));
+    assert(core::kOtaProjectNameOffset == 48U);
     const auto result = core::validateOtaAppDescriptor(image);
     assert(result.has_value());
 }
@@ -67,7 +83,7 @@ void testInvalidProject()
 {
     auto image = makeValidPrefix();
     const char foreign[] = "other-project";
-    std::memcpy(image.data() + core::kOtaAppDescriptorOffset + 40U,
+    std::memcpy(image.data() + core::kOtaAppDescriptorOffset + core::kOtaProjectNameOffset,
                 foreign,
                 sizeof(foreign));
     const auto result = core::validateOtaAppDescriptor(image);
@@ -80,6 +96,7 @@ void testInvalidProject()
 int main()
 {
     testValidDescriptor();
+    testRealLayoutWithVersion();
     testInsufficientHeader();
     testInvalidMagic();
     testInvalidProject();
