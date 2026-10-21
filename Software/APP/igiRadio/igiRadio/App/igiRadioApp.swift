@@ -18,7 +18,7 @@ struct igiRadioApp: App {
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
-                    consumeShare(IncomingShare.consumePasteboard())
+                    consumeShare(IncomingShare.consumePendingShare())
                 }
                 .task {
                     #if DEBUG

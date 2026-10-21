@@ -15,11 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>15</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>igiRadio configura la radio sulla rete locale quando condividi un brano.</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
@@ -37,5 +35,7 @@
 		<key>NSExtensionPrincipalClass</key>
 		<string>ShareViewController</string>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>igiRadio configura la radio sulla rete locale quando condividi un brano.</string>
 </dict>
 </plist>

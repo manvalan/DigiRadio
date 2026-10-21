@@ -24,13 +24,17 @@ final class ShareViewController: UIViewController {
         Task { await run() }
     }
 
+    /// Must match SharedAppGroup in the app (ConnectionPreferences.swift).
+    private static let appGroup = "group.com.digiradio.igiRadio"
+    private static let hostKey = "igiRadio.host"
+    private static let pendingShareKey = "igiRadio.pendingShare"
+
     private func run() async {
         let shared = await firstSharedURL() ?? "https://music.youtube.com"
-        UIPasteboard.general.addItems([["com.digiradio.igiRadio.share": shared]])
-        let open = Self.appURL(for: shared) ?? URL(string: "igiradio://share")!
-        openApp(open)
-        await configureRadio()
-        status.text = "Fatto. igiRadio è su Stream."
+        let defaults = UserDefaults(suiteName: Self.appGroup)
+        defaults?.set(shared, forKey: Self.pendingShareKey)
+        await configureRadio(host: defaults?.string(forKey: Self.hostKey))
+        status.text = "Fatto. igiRadio è su Stream: apri l'app per continuare."
         try? await Task.sleep(for: .milliseconds(700))
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }
@@ -71,9 +75,7 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private func configureRadio() async {
-        let host = (UIPasteboard.general.value(forPasteboardType: "com.digiradio.igiRadio.host") as? String)
-            ?? UIPasteboard.general.string
+    private func configureRadio(host: String?) async {
         guard let host, !host.isEmpty else { return }
         let base = host.hasPrefix("http") ? host : "http://\(host)"
         guard let streaming = URL(string: base + "/api/streaming"),
@@ -123,45 +125,5 @@ final class ShareViewController: UIViewController {
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         return detector?.firstMatch(in: text, options: [], range: range)?.url?.absoluteString
-    }
-
-    private static func appURL(for shared: String) -> URL? {
-        var parts = URLComponents()
-        parts.scheme = "igiradio"
-        parts.host = "share"
-        parts.queryItems = [URLQueryItem(name: "u", value: shared)]
-        return parts.url
-    }
-
-    private func openApp(_ url: URL) {
-        if let appClass = NSClassFromString("UIApplication") as? NSObject.Type {
-            let sharedSel = NSSelectorFromString("sharedApplication")
-            if let app = appClass.perform(sharedSel)?.takeUnretainedValue() as? NSObject {
-                callOpen(app, url: url)
-            }
-        }
-        var responder: UIResponder? = self
-        let legacy = NSSelectorFromString("openURL:")
-        while let current = responder {
-            if current.responds(to: legacy) {
-                current.perform(legacy, with: url)
-                break
-            }
-            responder = current.next
-        }
-    }
-
-    private func callOpen(_ target: NSObject, url: URL) {
-        let modern = NSSelectorFromString("openURL:options:completionHandler:")
-        if target.responds(to: modern), let imp = target.method(for: modern) {
-            typealias Fn = @convention(c) (Any, Selector, URL, NSDictionary, (@convention(block) (Bool) -> Void)?) -> Void
-            let done: @convention(block) (Bool) -> Void = { _ in }
-            unsafeBitCast(imp, to: Fn.self)(target, modern, url, [:], done)
-            return
-        }
-        let legacy = NSSelectorFromString("openURL:")
-        if target.responds(to: legacy) {
-            target.perform(legacy, with: url)
-        }
     }
 }

@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 
 enum ConnectionPreferences {
     private static let lastHostKey = "igiRadio.lastHost"
@@ -21,9 +20,19 @@ enum ConnectionPreferences {
         recent.insert(normalized, at: 0)
         UserDefaults.standard.set(Array(recent.prefix(5)), forKey: recentHostsKey)
         if let host = URL(string: normalized)?.host {
-            UIPasteboard.general.addItems([["com.digiradio.igiRadio.host": host]])
+            SharedAppGroup.defaults?.set(host, forKey: SharedAppGroup.hostKey)
         }
     }
+}
+
+/// App Group shared with the share extension (radio host, pending link).
+/// Keys and suite must match ShareExtension/ShareViewController.swift.
+enum SharedAppGroup {
+    static let suiteName = "group.com.digiradio.igiRadio"
+    static let hostKey = "igiRadio.host"
+    static let pendingShareKey = "igiRadio.pendingShare"
+
+    static var defaults: UserDefaults? { UserDefaults(suiteName: suiteName) }
 }
 
 enum HostNormalizer {
