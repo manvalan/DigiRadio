@@ -1,97 +1,161 @@
 import Foundation
+import Network
 import Observation
 import OSLog
 
-/// Maps BLE setup names (DigiRadio-XXXX) to HTTP hosts and verifies reachability.
+/// Finds DigiRadio via BLE name mapping, mDNS browse, and LAN /api/health scan.
 @Observable
 final class DigiRadioDiscoveryService {
-    struct DiscoveredDevice: Identifiable, Equatable {
-        var id: String { host }
-        var name: String
-        var host: String
-        var isReachable: Bool
-        var firmware: String?
+  struct DiscoveredDevice: Identifiable, Equatable {
+    var id: String { host }
+    var name: String
+    var host: String
+    var isReachable: Bool
+    var firmware: String?
+  }
+
+  private(set) var devices: [DiscoveredDevice] = []
+  private(set) var isSearching = false
+  private(set) var statusMessage: String?
+
+  private let ble = BLEProvisioningService()
+  private let logger = Logger(subsystem: "com.digiradio.igiRadio", category: "Discovery")
+  private var bonjourBrowser: NWBrowser?
+  private var lanScanTask: Task<Void, Never>?
+
+  func start() {
+    guard !isSearching else { return }
+    isSearching = true
+    devices = []
+    statusMessage = "Avvio ricerca…"
+    ble.startScan()
+    startBonjourBrowse()
+    probe(host: LocalNetworkScanner.setupSoftAPHost, label: "igiRadio Setup (SoftAP)")
+    lanScanTask = Task { await scanLAN() }
+    logger.info("Discovery started")
+  }
+
+  func stop() {
+    isSearching = false
+    statusMessage = nil
+    ble.stopScan()
+    bonjourBrowser?.cancel()
+    bonjourBrowser = nil
+    lanScanTask?.cancel()
+    lanScanTask = nil
+  }
+
+  func refreshFromBLE() {
+    for entry in ble.discoveredDevices {
+      guard let host = Self.httpHost(fromBLEName: entry.name) else { continue }
+      upsertDevice(DiscoveredDevice(name: entry.name, host: host, isReachable: false, firmware: nil))
+      probe(host: host, label: entry.name)
     }
+  }
 
-    private(set) var devices: [DiscoveredDevice] = []
-    private(set) var isSearching = false
+  func addManualHost(_ raw: String) {
+    let normalized = HostNormalizer.httpURL(from: raw)
+    guard !normalized.isEmpty, let host = URL(string: normalized)?.host else { return }
+    upsertDevice(DiscoveredDevice(name: host, host: normalized, isReachable: false, firmware: nil))
+    probe(host: normalized, label: host)
+  }
 
-    private let ble = BLEProvisioningService()
-    private let logger = Logger(subsystem: "com.digiradio.igiRadio", category: "Discovery")
-    private var probeTasks: [Task<Void, Never>] = []
+  static func httpHost(fromBLEName name: String) -> String? {
+    DeviceIdentity.httpHost(fromAdvertisedName: name)
+  }
 
-    func start() {
-        guard !isSearching else { return }
-        isSearching = true
-        devices = []
-        ble.startScan()
-        logger.info("Discovery started")
+  private func upsertDevice(_ candidate: DiscoveredDevice) {
+    if let index = devices.firstIndex(where: { $0.host == candidate.host }) {
+      if candidate.isReachable { devices[index] = candidate }
+      return
     }
+    devices.append(candidate)
+  }
 
-    func stop() {
-        isSearching = false
-        ble.stopScan()
-        probeTasks.forEach { $0.cancel() }
-        probeTasks = []
+  private func markReachable(host: String, name: String, firmware: String) {
+    let normalized = HostNormalizer.httpURL(from: host)
+    let device = DiscoveredDevice(name: name, host: normalized, isReachable: true, firmware: firmware)
+    if let index = devices.firstIndex(where: { $0.host == normalized }) {
+      devices[index] = device
+    } else {
+      devices.append(device)
     }
+  }
 
-    func refreshFromBLE() {
-        let candidates = ble.discoveredDevices.compactMap { entry -> DiscoveredDevice? in
-            guard let host = Self.httpHost(fromBLEName: entry.name) else { return nil }
-            return DiscoveredDevice(name: entry.name, host: host, isReachable: false, firmware: nil)
+  private func startBonjourBrowse() {
+    let browser = NWBrowser(for: .bonjour(type: "_http._tcp", domain: nil), using: .tcp)
+    browser.browseResultsChangedHandler = { [weak self] results, _ in
+      guard let self else { return }
+      for result in results {
+        guard case let .service(name, _, _, _) = result.endpoint else { continue }
+        let lowered = name.lowercased()
+        guard DeviceIdentity.matchesBonjourServiceName(name) else { continue }
+        let host = "http://\(lowered.hasSuffix(".local") ? lowered : "\(lowered).local")"
+        self.upsertDevice(DiscoveredDevice(name: name, host: host, isReachable: false, firmware: nil))
+        self.probe(host: host, label: name)
+      }
+    }
+    browser.start(queue: .main)
+    bonjourBrowser = browser
+  }
+
+  private func probe(host: String, label: String) {
+    Task {
+      if let result = await DigiRadioHealthProbe.probe(host: host) {
+        await MainActor.run {
+          let display = label.isEmpty ? HostNormalizer.displayHost(from: result.host) : label
+          markReachable(host: result.host, name: display, firmware: result.firmware)
         }
+      }
+    }
+  }
 
-        for candidate in candidates {
-            guard !devices.contains(where: { $0.host == candidate.host }) else { continue }
-            devices.append(candidate)
-            probe(host: candidate.host)
+  private func scanLAN() async {
+  guard let subnet = LocalNetworkScanner.currentWiFiSubnet() else {
+      await MainActor.run {
+        statusMessage = "Wi‑Fi non rilevato — inserisci l'IP manualmente."
+      }
+      return
+    }
+
+    let hosts = LocalNetworkScanner.hosts(in: subnet)
+    await MainActor.run {
+      statusMessage = "Scansione \(subnet.prefix).x (0/\(hosts.count))…"
+    }
+
+    var found = 0
+    let chunkSize = 24
+    for chunkStart in stride(from: 0, to: hosts.count, by: chunkSize) {
+      if Task.isCancelled { break }
+      let chunk = Array(hosts[chunkStart ..< min(chunkStart + chunkSize, hosts.count)])
+
+      await withTaskGroup(of: DigiRadioHealthProbe.Result?.self) { group in
+        for host in chunk {
+          group.addTask { await DigiRadioHealthProbe.probe(host: host) }
         }
-    }
-
-    func addManualHost(_ raw: String) {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        var host = trimmed
-        if !host.hasPrefix("http://") && !host.hasPrefix("https://") {
-            host = "http://\(host)"
+        for await result in group {
+          guard let result else { continue }
+          found += 1
+          await MainActor.run {
+            let ip = HostNormalizer.displayHost(from: result.host)
+            let name = result.serialNumber.isEmpty ? "igiRadio @ \(ip)" : "igiRadio \(result.serialNumber)"
+            markReachable(host: result.host, name: name, firmware: result.firmware)
+          }
         }
-        guard let url = URL(string: host), let schemeHost = url.host else { return }
-        let normalized = "http://\(schemeHost)"
-        guard !devices.contains(where: { $0.host == normalized }) else { return }
-        let name = schemeHost
-        devices.append(DiscoveredDevice(name: name, host: normalized, isReachable: false, firmware: nil))
-        probe(host: normalized)
+      }
+
+      await MainActor.run {
+        let scanned = min(chunkStart + chunkSize, hosts.count)
+        statusMessage = "Scansione \(subnet.prefix).x (\(scanned)/\(hosts.count)) — trovati \(found)"
+      }
     }
 
-    static func httpHost(fromBLEName name: String) -> String? {
-        // SoftAP / BLE name: DigiRadio-CC4DB4 → digiradio-cc4db4.local
-        guard name.hasPrefix("DigiRadio-") else { return nil }
-        let suffix = String(name.dropFirst("DigiRadio-".count)).lowercased()
-        guard !suffix.isEmpty else { return nil }
-        return "http://digiradio-\(suffix).local"
+    await MainActor.run {
+      if found == 0 {
+        statusMessage = "Nessun igiRadio su \(subnet.prefix).x. Prova IP manuale o rete SoftAP 192.168.4.1"
+      } else {
+        statusMessage = "Trovati \(found) dispositivo/i. Tocca per connettere."
+      }
     }
-
-    private func probe(host: String) {
-        let task = Task {
-            let client = HTTPDigiRadioClient()
-            do {
-                try client.setHost(host)
-                let health = try await client.fetchHealth()
-                await MainActor.run {
-                    if let index = devices.firstIndex(where: { $0.host == host }) {
-                        devices[index].isReachable = health.status == "ok"
-                        devices[index].firmware = health.fw
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    if let index = devices.firstIndex(where: { $0.host == host }) {
-                        devices[index].isReachable = false
-                    }
-                }
-                logger.debug("Probe failed for \(host, privacy: .public): \(error.localizedDescription)")
-            }
-        }
-        probeTasks.append(task)
-    }
+  }
 }

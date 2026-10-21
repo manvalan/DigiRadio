@@ -23,6 +23,8 @@ void RdsMetadataAccumulator::reset() noexcept
     rtSegmentValid_.fill(false);
     rtAbFlag_ = false;
     rtAbInitialized_ = false;
+    afKhz_.fill(0U);
+    afCount_ = 0U;
 }
 
 void RdsMetadataAccumulator::applyGroup(std::uint16_t blockA,
@@ -45,6 +47,11 @@ void RdsMetadataAccumulator::applyGroup(std::uint16_t blockA,
                 static_cast<char>((blockD >> 8U) & 0xFFU);
             psBuffer_[index * 2U + 1U] = static_cast<char>(blockD & 0xFFU);
             psSegmentValid_[index] = true;
+        }
+        const bool versionA = ((blockB >> 11U) & 0x01U) == 0U;
+        if (versionA) {
+            ingestAfCode(static_cast<std::uint8_t>((blockC >> 8U) & 0xFFU));
+            ingestAfCode(static_cast<std::uint8_t>(blockC & 0xFFU));
         }
         return;
     }
@@ -98,6 +105,30 @@ std::optional<BroadcastLabel> RdsMetadataAccumulator::radiotext() const
     }
     return BroadcastLabel::tryFromChipBytes(
         std::string_view(rtBuffer_.data(), rtBuffer_.size()));
+}
+
+void RdsMetadataAccumulator::ingestAfCode(std::uint8_t code) noexcept
+{
+    // IEC 62106: codes 1–204 are 87.6–107.9 MHz in 100 kHz steps.
+    if (code < 1U || code > 204U) {
+        return;
+    }
+    const std::uint32_t khz = 87500U + (static_cast<std::uint32_t>(code) * 100U);
+    for (std::uint8_t i = 0; i < afCount_; ++i) {
+        if (afKhz_[i] == khz) {
+            return;
+        }
+    }
+    if (afCount_ >= kMaxAf) {
+        return;
+    }
+    afKhz_[afCount_] = khz;
+    ++afCount_;
+}
+
+std::span<const std::uint32_t> RdsMetadataAccumulator::alternateFrequenciesKhz() const
+{
+    return std::span<const std::uint32_t>(afKhz_.data(), afCount_);
 }
 
 } // namespace core

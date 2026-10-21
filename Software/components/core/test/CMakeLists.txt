@@ -51,6 +51,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/DspProgramBlob.cpp"
     "${CORE_SRC_DIR}/OtaAppDescriptor.cpp"
     "${CORE_SRC_DIR}/WebRadioJson.cpp"
+    "${CORE_SRC_DIR}/PowerStateJson.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -157,3 +158,14 @@ target_sources(integration_service_test PRIVATE
 )
 target_link_libraries(integration_service_test PRIVATE digiradio_core)
 add_test(NAME integration_service_test COMMAND integration_service_test)
+
+add_executable(power_state_test power_state_test.cpp)
+target_include_directories(power_state_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/host_stubs"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/include"
+)
+target_sources(power_state_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/src/AudioService.cpp"
+)
+target_link_libraries(power_state_test PRIVATE digiradio_core)
+add_test(NAME power_state_test COMMAND power_state_test)

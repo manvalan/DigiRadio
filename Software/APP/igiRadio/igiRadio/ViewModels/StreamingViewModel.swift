@@ -3,25 +3,20 @@ import Observation
 import UniformTypeIdentifiers
 
 enum StreamSource: String, CaseIterable, Identifiable {
-    case webRadio = "Radio web"
-    case urlContent = "URL contenuto"
-    case localFile = "File iPhone"
+    case otherApps = "Altre app"
+    case webRadio = "Webradio"
+    case online = "Stream online"
 
     var id: String { rawValue }
 
     var subtitle: String {
         switch self {
-        case .webRadio: "MP3 HTTP sul DigiRadio (decoder ESP32)"
-        case .urlContent: "Podcast, playlist o stream personalizzato"
-        case .localFile: "File audio decodificato e inviato dal telefono"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .webRadio: "antenna.radiowaves.left.and.right"
-        case .urlContent: "link"
-        case .localFile: "music.note.list"
+        case .otherApps:
+            return "YouTube e Spotify mandano solo il link. Per l’audio vero tocca «Ricevi audio»: iOS lo chiama registrazione schermo, ma il microfono resta spento."
+        case .webRadio:
+            return "Stazione MP3 HTTP/HTTPS decodificata sul DigiRadio."
+        case .online:
+            return "URL di uno stream o podcast MP3 (http/https)."
         }
     }
 }
@@ -33,10 +28,10 @@ struct StreamPreset: Identifiable {
 }
 
 enum StreamPresets {
-    /// Default from firmware WebRadioConfig.hpp (documented example).
     static let catalog: [StreamPreset] = [
         StreamPreset(name: "Radio Monte Carlo", url: "http://edge.radiomontecarlo.net/RMC.mp3"),
-        StreamPreset(name: "Esempio MP3", url: "http://stream.example.com/radio.mp3")
+        StreamPreset(name: "Rai Radio 1", url: "http://icestreaming.rai.it/1.mp3"),
+        StreamPreset(name: "Radio 105", url: "http://icecast.unitedradio.it/Radio105.mp3"),
     ]
 }
 
@@ -95,20 +90,24 @@ final class StreamingViewModel {
     func normalizedHTTPURL() -> String? {
         var trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return nil }
-        if !trimmed.hasPrefix("http://") {
-            if trimmed.hasPrefix("https://") {
-                errorMessage = "Il firmware accetta solo URL http:// (non https)."
-                return nil
-            }
-            trimmed = "http://\(trimmed)"
+        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
+            return trimmed
         }
+        trimmed = "http://\(trimmed)"
         return trimmed
     }
 
     func playWebStream() async {
         guard let normalized = normalizedHTTPURL() else { return }
         url = normalized
+        await stopPhoneSilently()
         await apply(enabled: true)
+    }
+
+    func playSaved(_ radio: SavedWebRadio) async {
+        url = radio.url
+        source = .webRadio
+        await playWebStream()
     }
 
     func stopWebStream() async {
@@ -125,15 +124,33 @@ final class StreamingViewModel {
             try await service.setStreaming(enabled: targetEnabled, url: normalized)
             syncFromDevice()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = DigiRadioFriendlyError.message(for: error)
         }
     }
 
     func pickFile(_ url: URL) {
         selectedFileURL = url
         selectedFileName = url.lastPathComponent
-        source = .localFile
+        source = .otherApps
         errorMessage = nil
+    }
+
+    func startOtherApps() async {
+        errorMessage = nil
+        if !isConnected {
+            errorMessage = "Connetti a DigiRadio."
+            return
+        }
+        do {
+            try await service.prepareForPhoneAudio()
+            syncFromDevice()
+            let chunks = AppAudioCapture.shared.start()
+            await PhonePCMStreamService.shared.start(connectionHost: connectionHost, chunks: chunks)
+            phoneStreamStatus = "Cattura avviata. Torna all’altra app e dai play."
+        } catch {
+            AppAudioCapture.shared.stop()
+            errorMessage = DigiRadioFriendlyError.message(for: error)
+        }
     }
 
     func playLocalFile() async {
@@ -142,19 +159,38 @@ final class StreamingViewModel {
             return
         }
         errorMessage = nil
-        await stopWebStreamSilently()
-        await PhonePCMStreamService.shared.start(fileURL: fileURL, connectionHost: connectionHost)
+        AppAudioCapture.shared.stop()
+        do {
+            try await service.prepareForPhoneAudio()
+            syncFromDevice()
+            await PhonePCMStreamService.shared.start(fileURL: fileURL, connectionHost: connectionHost)
+        } catch {
+            errorMessage = DigiRadioFriendlyError.message(for: error)
+        }
     }
 
-    func stopLocalFile() async {
+    func stopPhone() async {
+        AppAudioCapture.shared.stop()
         await PhonePCMStreamService.shared.stop()
         phoneStreamActive = false
         phoneStreamStatus = "Fermo"
+        try? await service.endPhoneAudio()
+        syncFromDevice()
+    }
+
+    func stopLocalFile() async {
+        await stopPhone()
     }
 
     func stopPolling() {
         statusPollTask?.cancel()
         statusPollTask = nil
+    }
+
+    private func stopPhoneSilently() async {
+        AppAudioCapture.shared.stop()
+        await PhonePCMStreamService.shared.stop()
+        phoneStreamActive = false
     }
 
     private func stopWebStreamSilently() async {

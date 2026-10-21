@@ -288,6 +288,11 @@ loads from \texttt{IAudioProfileStore} after boot, and applies changes via
 safeload. Stereo depth and bass enhance levels are merged into the effective
 EQ via \texttt{core::applyEnhancementsToEq()}. Exposed on
 \texttt{/api/audio/*} and the web UI Audio section.
+It also owns the soft standby state (\texttt{core::PowerState}): in
+standby every master write is replaced by the mute floor while the
+profile keeps the user's levels, so \texttt{setPowerState(On)} restores
+them exactly (\texttt{/api/system/power},
+Section~\ref{sec:api-system-power}).
 
 \section{EnhanceLevel}\label{cls:EnhanceLevel}
 Strong type for 0--100 enhancement intensity (stereo depth and bass boost).

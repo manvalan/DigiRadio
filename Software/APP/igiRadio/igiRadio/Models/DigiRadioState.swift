@@ -9,6 +9,15 @@ struct DigiRadioState: Equatable, Sendable {
     var bluetooth = BluetoothState()
     var stations: [Station] = []
     var streaming = StreamingState()
+    /// PCM dal telefono (ReplayKit / file), distinto dalla webradio HTTP.
+    var phoneAudioActive = false
+    var power: DevicePowerState = .on
+}
+
+/// GET/POST /api/system/power — soft standby (master muted, Wi-Fi stays up).
+enum DevicePowerState: String, Codable, Sendable {
+    case on
+    case standby
 }
 
 struct ConnectionState: Equatable, Sendable {
@@ -52,6 +61,10 @@ struct FMTunerState: Equatable, Sendable, Codable {
     var stereo: Bool?
     var stationName: String?
     var radiotext: String?
+    /// Carrier offset in ppm (omitted by older firmware).
+    var freqOffPpm: Int? = nil
+    /// RDS alternate frequencies (group 0A), kHz; omitted when empty.
+    var afKhz: [Int]? = nil
 
     enum CodingKeys: String, CodingKey {
         case frequencyKhz = "frequency_khz"
@@ -60,6 +73,8 @@ struct FMTunerState: Equatable, Sendable, Codable {
         case stereo
         case stationName = "station_name"
         case radiotext
+        case freqOffPpm = "freqoff_ppm"
+        case afKhz = "af_khz"
     }
 }
 
@@ -70,6 +85,33 @@ struct DABTunerState: Equatable, Sendable, Codable {
     var playingServiceId: Int?
     var playingComponentId: Int?
     var dynamicLabel: String?
+
+    init(
+        freqIndex: Int,
+        ficQuality: Int? = nil,
+        cnrDb: Int? = nil,
+        playingServiceId: Int? = nil,
+        playingComponentId: Int? = nil,
+        dynamicLabel: String? = nil
+    ) {
+        self.freqIndex = freqIndex
+        self.ficQuality = ficQuality
+        self.cnrDb = cnrDb
+        self.playingServiceId = playingServiceId
+        self.playingComponentId = playingComponentId
+        self.dynamicLabel = dynamicLabel
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Il firmware può omettere freq_index subito dopo una sintonizzazione DAB.
+        freqIndex = try container.decodeIfPresent(Int.self, forKey: .freqIndex) ?? 0
+        ficQuality = try container.decodeIfPresent(Int.self, forKey: .ficQuality)
+        cnrDb = try container.decodeIfPresent(Int.self, forKey: .cnrDb)
+        playingServiceId = try container.decodeIfPresent(Int.self, forKey: .playingServiceId)
+        playingComponentId = try container.decodeIfPresent(Int.self, forKey: .playingComponentId)
+        dynamicLabel = try container.decodeIfPresent(String.self, forKey: .dynamicLabel)
+    }
 
     enum CodingKeys: String, CodingKey {
         case freqIndex = "freq_index"
@@ -82,28 +124,11 @@ struct DABTunerState: Equatable, Sendable, Codable {
 }
 
 struct AudioState: Equatable, Sendable {
-    var mixer = MixerState()
+    var activeSource: AudioActiveSource = .radio
     var master = MasterVolumeState()
     var eq: [EQBandState] = []
     var enhancements = EnhancementsState()
-}
-
-struct MixerState: Equatable, Sendable, Codable {
-    var si4684LeftDb: Double = 0
-    var si4684RightDb: Double = 0
-    var esp32LeftDb: Double = 0
-    var esp32RightDb: Double = 0
-    var mixLeftDb: Double = 0
-    var mixRightDb: Double = 0
-
-    enum CodingKeys: String, CodingKey {
-        case si4684LeftDb = "si4684_left_db"
-        case si4684RightDb = "si4684_right_db"
-        case esp32LeftDb = "esp32_left_db"
-        case esp32RightDb = "esp32_right_db"
-        case mixLeftDb = "mix_left_db"
-        case mixRightDb = "mix_right_db"
-    }
+    var baseEQ: [EQBandState]?
 }
 
 struct MasterVolumeState: Equatable, Sendable, Codable {
@@ -122,18 +147,22 @@ struct EQBandState: Equatable, Hashable, Sendable, Codable, Identifiable {
     var gainDb: Double
     var centerHz: Double
     var q: Double
+    /// `true` se il firmware ignora questa banda (passa-alto fisso o enhancement attivo).
+    var isLocked: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case gainDb = "gain_db"
         case centerHz = "center_hz"
         case q
+        case isLocked = "locked"
     }
 
-    init(index: Int, gainDb: Double, centerHz: Double, q: Double) {
+    init(index: Int, gainDb: Double, centerHz: Double, q: Double, isLocked: Bool = false) {
         self.index = index
         self.gainDb = gainDb
         self.centerHz = centerHz
         self.q = q
+        self.isLocked = isLocked
     }
 
     init(from decoder: Decoder) throws {
@@ -142,6 +171,7 @@ struct EQBandState: Equatable, Hashable, Sendable, Codable, Identifiable {
         gainDb = try container.decode(Double.self, forKey: .gainDb)
         centerHz = try container.decode(Double.self, forKey: .centerHz)
         q = try container.decode(Double.self, forKey: .q)
+        isLocked = try container.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -155,10 +185,31 @@ struct EQBandState: Equatable, Hashable, Sendable, Codable, Identifiable {
 struct EnhancementsState: Equatable, Hashable, Sendable, Codable {
     var stereoLevel: Int = 0
     var bassLevel: Int = 0
+    var voiceClean: Bool = false
 
     enum CodingKeys: String, CodingKey {
         case stereoLevel = "stereo_level"
         case bassLevel = "bass_level"
+        case voiceClean = "voice_clean"
+    }
+
+    init(stereoLevel: Int = 0, bassLevel: Int = 0, voiceClean: Bool = false) {
+        self.stereoLevel = stereoLevel
+        self.bassLevel = bassLevel
+        self.voiceClean = voiceClean
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        stereoLevel = try container.decodeIfPresent(Int.self, forKey: .stereoLevel) ?? 0
+        bassLevel = try container.decodeIfPresent(Int.self, forKey: .bassLevel) ?? 0
+        voiceClean = try container.decodeIfPresent(Bool.self, forKey: .voiceClean) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(stereoLevel, forKey: .stereoLevel)
+        try container.encode(bassLevel, forKey: .bassLevel)
     }
 }
 
@@ -171,10 +222,26 @@ struct BluetoothState: Equatable, Sendable {
     var savedSpeaker: SavedSpeaker?
     var nearbyDevices: [BluetoothDevice] = []
     var pairedDevices: [BluetoothPairedDevice] = []
+    var negotiatedCodec: A2DPCodec = .sbc
 }
 
 enum A2DPState: String, Sendable {
     case standby, connecting, connected, streaming, paused, unknown
+
+    var title: String {
+        switch self {
+        case .standby: "In attesa"
+        case .connecting: "Connessione…"
+        case .connected: "Collegato"
+        case .streaming: "In uscita"
+        case .paused: "In pausa"
+        case .unknown: "—"
+        }
+    }
+
+    var isLinked: Bool {
+        self == .connected || self == .streaming || self == .paused
+    }
 
     init(apiValue: String) {
         switch apiValue.lowercased() {
@@ -217,6 +284,41 @@ struct Station: Equatable, Sendable, Codable, Identifiable {
     var dabComponentId: Int?
     var fmFrequencyKhz: Int?
 
+    /// Etichetta da mostrare in UI: nome stazione se c’è, altrimenti la frequenza.
+    var displayLabel: String {
+        if let named = StationNameDisplay.meaningful(name, khz: fmFrequencyKhz) {
+            return named
+        }
+        switch band {
+        case .fm:
+            if let khz = fmFrequencyKhz {
+                return String(format: "FM %.2f MHz", Double(khz) / 1000)
+            }
+            return "FM"
+        case .dab:
+            if let idx = dabFreqIndex {
+                return "DAB ensemble \(idx)"
+            }
+            return "DAB"
+        }
+    }
+
+    /// Etichetta secondaria per le liste stazioni.
+    var listSubtitle: String {
+        switch band {
+        case .fm:
+            if let khz = fmFrequencyKhz {
+                return String(format: "FM %.2f MHz", Double(khz) / 1000)
+            }
+            return "FM"
+        case .dab:
+            if let idx = dabFreqIndex {
+                return "DAB · ensemble \(idx)"
+            }
+            return "DAB"
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case name, band
         case dabFreqIndex = "dab_freq_index"
@@ -226,9 +328,36 @@ struct Station: Equatable, Sendable, Codable, Identifiable {
     }
 }
 
+extension ScannedStation {
+    static func from(_ station: Station) -> ScannedStation {
+        ScannedStation(
+            id: station.id,
+            name: station.displayLabel,
+            band: station.band,
+            fmFrequencyKhz: station.fmFrequencyKhz,
+            dabFreqIndex: station.dabFreqIndex,
+            dabServiceId: station.dabServiceId,
+            dabComponentId: station.dabComponentId,
+            rssiDbuv: nil,
+            fmFrequenciesKhz: station.fmFrequencyKhz.map { [$0] } ?? [],
+            hasBroadcastName: !station.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        )
+    }
+}
+
 struct StreamingState: Equatable, Sendable, Codable {
+    /// Stesso default del firmware (`WebRadioConfig::factoryDefault`).
+    static let defaultURL = "http://edge.radiomontecarlo.net/RMC.mp3"
+
     var enabled = false
     var url: String = ""
+
+    /// Il POST `/api/streaming` accetta `http://` e `https://`.
+    static func deviceSafeURL(_ url: String) -> String {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") { return trimmed }
+        return defaultURL
+    }
 }
 
 struct DABService: Equatable, Sendable, Identifiable, Codable {
@@ -241,5 +370,62 @@ struct DABService: Equatable, Sendable, Identifiable, Codable {
         case serviceId = "service_id"
         case componentId = "component_id"
         case label
+    }
+}
+
+extension DigiRadioState {
+    var nowPlayingTitle: String {
+        if audio.activeSource == .bluetooth {
+            return phoneAudioActive ? "Altre app" : "Stream"
+        }
+        switch tuner.band {
+        case .fm:
+            if let khz = tuner.fm?.frequencyKhz,
+               let name = StationNameDisplay.meaningful(tuner.fm?.stationName, khz: khz) {
+                return name
+            }
+            if let khz = tuner.fm?.frequencyKhz {
+                return String(format: "%.2f MHz", Double(khz) / 1000.0)
+            }
+            return "Radio FM"
+        case .dab:
+            if let label = tuner.dab?.dynamicLabel?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty {
+                return label
+            }
+            return "Radio DAB"
+        }
+    }
+
+    var nowPlayingSubtitle: String {
+        switch audio.activeSource {
+        case .bluetooth:
+            if streaming.enabled, !streaming.url.isEmpty { return streaming.url }
+            return "Stream"
+        case .beep:
+            return "Tono di test"
+        case .radio:
+            switch tuner.band {
+            case .fm:
+                if let khz = tuner.fm?.frequencyKhz {
+                    let freq = String(format: "%.2f MHz", Double(khz) / 1000.0)
+                    if let rt = RDSText.sanitized(tuner.fm?.radiotext) { return "\(freq) · \(rt)" }
+                    return freq
+                }
+                return "FM"
+            case .dab:
+                if let idx = tuner.dab?.freqIndex {
+                    return "DAB · canale \(idx)"
+                }
+                return "DAB"
+            }
+        }
+    }
+
+    var nowPlayingSymbol: String {
+        switch audio.activeSource {
+        case .bluetooth: "dot.radiowaves.forward"
+        case .beep: "waveform"
+        case .radio: tuner.band == .dab ? "antenna.radiowaves.left.and.right" : "radio.fill"
+        }
     }
 }

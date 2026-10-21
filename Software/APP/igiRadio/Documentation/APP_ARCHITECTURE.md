@@ -11,7 +11,7 @@ RealDigiRadioService ──→ HTTPDigiRadioClient (URLSession)
 MockDigiRadioService   ──→ dati in-memory
 
 BLEProvisioningService (solo setup Wi‑Fi)
-    ↓ CoreBluetooth + protocomm (ESP Security1)
+    ↓ CoreBluetooth + protocomm (ESP Security0 — allineato firmware 0.9.0)
 ```
 
 ## Principi

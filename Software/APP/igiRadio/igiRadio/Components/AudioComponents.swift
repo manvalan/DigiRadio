@@ -108,6 +108,7 @@ struct IGIMixerChannelGroup: View {
     var systemImage: String
     @Binding var leftDb: Double
     @Binding var rightDb: Double
+    var range: ClosedRange<Double> = -40 ... 12
     var onCommit: () -> Void
 
     var body: some View {
@@ -126,8 +127,8 @@ struct IGIMixerChannelGroup: View {
 
             HStack(spacing: IGITheme.spacingL) {
                 Spacer()
-                IGIVerticalFader(label: "Sinistra", icon: "l.circle", valueDb: $leftDb, onCommit: onCommit)
-                IGIVerticalFader(label: "Destra", icon: "r.circle", valueDb: $rightDb, onCommit: onCommit)
+                IGIVerticalFader(label: "Sinistra", icon: "l.circle", valueDb: $leftDb, range: range, onCommit: onCommit)
+                IGIVerticalFader(label: "Destra", icon: "r.circle", valueDb: $rightDb, range: range, onCommit: onCommit)
                 Spacer()
             }
         }
@@ -139,6 +140,7 @@ struct IGIMixerChannelGroup: View {
 
 struct IGIGraphicEqualizer: View {
     @Binding var bands: [EQBandState]
+    var onEditing: (() -> Void)? = nil
     var onCommit: () -> Void
 
     private let gainRange: ClosedRange<Double> = -12 ... 12
@@ -146,7 +148,6 @@ struct IGIGraphicEqualizer: View {
 
     var body: some View {
         VStack(spacing: IGITheme.spacingM) {
-            // Curve preview
             GeometryReader { geo in
                 let w = geo.size.width
                 let h = geo.size.height
@@ -171,11 +172,13 @@ struct IGIGraphicEqualizer: View {
 
             HStack(alignment: .bottom, spacing: IGITheme.spacingS) {
                 ForEach($bands) { $band in
-                    EQBar(
+                    IGIEQBandBar(
                         centerHz: band.centerHz,
                         gainDb: $band.gainDb,
+                        isLocked: band.isLocked,
                         maxHeight: barMaxHeight,
                         range: gainRange,
+                        onEditing: onEditing,
                         onCommit: onCommit
                     )
                 }
@@ -198,38 +201,49 @@ struct IGIGraphicEqualizer: View {
     }
 }
 
-private struct EQBar: View {
+struct IGIEQBandBar: View {
     var centerHz: Double
     @Binding var gainDb: Double
+    var isLocked: Bool
     var maxHeight: CGFloat
     var range: ClosedRange<Double>
+    var onEditing: (() -> Void)? = nil
     var onCommit: () -> Void
 
     var body: some View {
         VStack(spacing: 6) {
-            Text(gainLabel)
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(gainDb == 0 ? .secondary : IGITheme.accent)
-                .frame(height: 14)
+            if isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.orange)
+                    .frame(height: 14)
+            } else {
+                Text(gainLabel)
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(gainDb == 0 ? .secondary : IGITheme.accent)
+                    .frame(height: 14)
+            }
 
             GeometryReader { geo in
                 let h = geo.size.height
                 let mid = h * 0.5
                 ZStack(alignment: .bottom) {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(0.06))
+                        .fill(Color.primary.opacity(isLocked ? 0.03 : 0.06))
 
-                    if gainDb >= 0 {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(barGradient)
-                            .frame(height: max(4, normalized(gainDb) * mid))
-                            .offset(y: -mid)
-                    } else {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(barGradient)
-                            .frame(height: max(4, normalized(abs(gainDb)) * mid))
-                            .offset(y: -(mid - max(4, normalized(abs(gainDb)) * mid)))
+                    if !isLocked {
+                        if gainDb >= 0 {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(barGradient)
+                                .frame(height: max(4, normalized(gainDb) * mid))
+                                .offset(y: -mid)
+                        } else {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(barGradient)
+                                .frame(height: max(4, normalized(abs(gainDb)) * mid))
+                                .offset(y: -(mid - max(4, normalized(abs(gainDb)) * mid)))
+                        }
                     }
                 }
                 .overlay {
@@ -241,12 +255,18 @@ private struct EQBar: View {
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { drag in
+                            guard !isLocked else { return }
+                            onEditing?()
                             gainDb = db(from: drag.location.y, height: h)
                         }
-                        .onEnded { _ in onCommit() }
+                        .onEnded { _ in
+                            guard !isLocked else { return }
+                            onCommit()
+                        }
                 )
             }
             .frame(height: maxHeight)
+            .opacity(isLocked ? 0.45 : 1)
 
             Text(freqLabel)
                 .font(.system(size: 9, weight: .medium, design: .rounded))
@@ -257,7 +277,7 @@ private struct EQBar: View {
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Banda \(freqLabel)")
-        .accessibilityValue(gainLabel)
+        .accessibilityValue(isLocked ? "Bloccata" : gainLabel)
     }
 
     private var gainLabel: String {
@@ -351,13 +371,30 @@ struct IGIMasterVolumeHero: View {
     @Binding var rightDb: Double
     var onCommit: () -> Void
 
-    private var linkedDb: Binding<Double> {
+    private var linkedPercent: Binding<Double> {
         Binding(
-            get: { (leftDb + rightDb) / 2 },
+            get: {
+                Double(VolumeMapping.volumePercent(forMasterDb: (leftDb + rightDb) / 2))
+            },
             set: { newValue in
-                leftDb = newValue
-                rightDb = newValue
+                let db = VolumeMapping.masterDb(forVolumePercent: Int(newValue))
+                leftDb = db
+                rightDb = db
             }
+        )
+    }
+
+    private var leftPercent: Binding<Double> {
+        Binding(
+            get: { Double(VolumeMapping.volumePercent(forMasterDb: leftDb)) },
+            set: { leftDb = VolumeMapping.masterDb(forVolumePercent: Int($0)) }
+        )
+    }
+
+    private var rightPercent: Binding<Double> {
+        Binding(
+            get: { Double(VolumeMapping.volumePercent(forMasterDb: rightDb)) },
+            set: { rightDb = VolumeMapping.masterDb(forVolumePercent: Int($0)) }
         )
     }
 
@@ -368,37 +405,46 @@ struct IGIMasterVolumeHero: View {
                     Text("Volume master")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
-                    Text("\(Int(linkedDb.wrappedValue))")
+                    Text("\(Int(linkedPercent.wrappedValue))")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .contentTransition(.numericText())
+                    Text(dbLabel((leftDb + rightDb) / 2))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: "speaker.wave.3.fill")
                     .font(.largeTitle)
                     .foregroundStyle(IGITheme.accent.gradient)
-                    .symbolEffect(.variableColor.iterative, options: .repeating, value: linkedDb.wrappedValue)
+                    .symbolEffect(.variableColor.iterative, options: .repeating, value: linkedPercent.wrappedValue)
             }
 
-            Slider(value: linkedDb, in: 0 ... 100, step: 1) { editing in
+            Slider(value: linkedPercent, in: 0 ... 100, step: 1) { editing in
                 if !editing { onCommit() }
             }
             .tint(IGITheme.accent)
 
             HStack(spacing: IGITheme.spacingL) {
-                stereoBalance(label: "L", value: $leftDb)
-                stereoBalance(label: "R", value: $rightDb)
+                stereoBalance(label: "L", value: leftPercent, db: leftDb)
+                stereoBalance(label: "R", value: rightPercent, db: rightDb)
             }
         }
         .igiAudioCard()
     }
 
     @ViewBuilder
-    private func stereoBalance(label: String, value: Binding<Double>) -> some View {
+    private func stereoBalance(label: String, value: Binding<Double>, db: Double) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Canale \(label)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("Canale \(label)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(dbLabel(db))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
             HStack {
                 Text(label).font(.caption.weight(.bold))
                 Slider(value: value, in: 0 ... 100, step: 1) { editing in
@@ -408,6 +454,10 @@ struct IGIMasterVolumeHero: View {
             }
         }
     }
+
+    private func dbLabel(_ db: Double) -> String {
+        db >= 0 ? String(format: "+%.1f dB", db) : String(format: "%.1f dB", db)
+    }
 }
 
 // MARK: - Card style
@@ -415,19 +465,5 @@ struct IGIMasterVolumeHero: View {
 extension View {
     func igiAudioCard() -> some View {
         igiPremiumCard()
-    }
-}
-
-enum AudioPanel: String, CaseIterable, Identifiable {
-    case mixer = "Mixer"
-    case enhance = "FX"
-
-    var id: String { rawValue }
-
-    var icon: String {
-        switch self {
-        case .mixer: "slider.vertical.3"
-        case .enhance: "sparkles"
-        }
     }
 }

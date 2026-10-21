@@ -3,9 +3,7 @@ import Foundation
 import Observation
 import OSLog
 
-/// Discovers DigiRadio BLE provisioning endpoints (ESP-IDF wifi_provisioning / scheme_ble).
-/// Full credential exchange uses Espressif protocomm Security1 (PoP = device serial).
-/// This service performs discovery only; credential provisioning UI is documented in BLE_PROTOCOL.md.
+/// Discovers DigiRadio BLE provisioning endpoints (ESP-IDF wifi_provisioning / scheme_ble, Security0).
 @Observable
 final class BLEProvisioningService: NSObject {
     enum Phase: Equatable {
@@ -62,7 +60,7 @@ extension BLEProvisioningService: CBCentralManagerDelegate {
         rssi RSSI: NSNumber
     ) {
         let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? ""
-        guard name.hasPrefix("DigiRadio") else { return }
+        guard DeviceIdentity.matchesAdvertisedName(name) else { return }
         let entry = (name: name, id: peripheral.identifier, rssi: RSSI.intValue)
         if !discoveredDevices.contains(where: { $0.id == entry.id }) {
             discoveredDevices.append(entry)

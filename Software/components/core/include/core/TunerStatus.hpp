@@ -19,6 +19,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 namespace core {
 
@@ -71,6 +72,7 @@ struct TunerStatus {
     std::optional<bool> fmStereo;           ///< FM stereo pilot detected.
     std::optional<BroadcastLabel> fmStationName; ///< FM RDS program service name.
     std::optional<BroadcastLabel> fmRadiotext;   ///< FM RDS radiotext (RT).
+    std::vector<FrequencyKHz> fmAlternateFrequencies; ///< RDS AF list (group 0A).
     std::optional<BroadcastLabel> dabDynamicLabel; ///< DAB DLS now-playing label.
 };
 

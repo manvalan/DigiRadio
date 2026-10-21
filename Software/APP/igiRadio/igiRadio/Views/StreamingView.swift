@@ -8,31 +8,43 @@ struct StreamingView: View {
 
     var body: some View {
         let vm = viewModel ?? StreamingViewModel(service: environment.digiRadio)
-
-        ScrollView {
-            VStack(alignment: .leading, spacing: IGITheme.spacingL) {
-                sourcePicker(vm)
-                statusHero(vm)
-
-                switch vm.source {
-                case .webRadio:
-                    webRadioSection(vm)
-                case .urlContent:
-                    urlContentSection(vm)
-                case .localFile:
-                    localFileSection(vm)
+        Form {
+            Section {
+                Picker("Sorgente", selection: Binding(
+                    get: { vm.source },
+                    set: { vm.source = $0 }
+                )) {
+                    ForEach(StreamSource.allCases) { item in
+                        Text(item.rawValue).tag(item)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+            } footer: {
+                Text(vm.source.subtitle)
+            }
 
-                if let error = vm.errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .igiPremiumCard()
+            Section("Stato") {
+                LabeledContent("Riproduzione", value: playbackLabel(vm))
+                Text(statusSubtitle(vm))
+                    .foregroundStyle(.secondary)
+            }
+
+            switch vm.source {
+            case .otherApps:
+                otherAppsSections(vm)
+            case .webRadio:
+                webRadioSections(vm)
+            case .online:
+                urlContentSections(vm)
+            }
+
+            if let error = vm.errorMessage {
+                Section {
+                    Text(error).foregroundStyle(.red)
                 }
             }
-            .padding(IGITheme.spacingM)
         }
-        .background(IGIHeroBackground())
         .navigationTitle("Stream")
         .navigationBarTitleDisplayMode(.large)
         .fileImporter(
@@ -46,190 +58,156 @@ struct StreamingView: View {
         }
         .onAppear {
             if viewModel == nil { viewModel = vm }
-            Task { await vm.load() }
+            Task {
+                await vm.load()
+                await consumeIncomingShare(vm)
+            }
+        }
+        .onChange(of: environment.incomingShare) { _, _ in
+            Task { await consumeIncomingShare(vm) }
         }
         .onDisappear {
             viewModel?.stopPolling()
         }
     }
 
-    @ViewBuilder
-    private func sourcePicker(_ vm: StreamingViewModel) -> some View {
-        VStack(alignment: .leading, spacing: IGITheme.spacingS) {
-            Text("Sorgente")
-                .font(.headline)
-            ForEach(StreamSource.allCases) { item in
-                Button {
-                    withAnimation(.snappy) { vm.source = item }
-                } label: {
-                    HStack(spacing: IGITheme.spacingM) {
-                        Image(systemName: item.icon)
-                            .frame(width: 28)
-                            .foregroundStyle(vm.source == item ? .white : IGITheme.accent)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.rawValue).font(.subheadline.weight(.semibold))
-                            Text(item.subtitle).font(.caption2).foregroundStyle(vm.source == item ? .white.opacity(0.85) : .secondary)
-                        }
-                        Spacer()
-                        if vm.source == item {
-                            Image(systemName: "checkmark.circle.fill")
-                        }
-                    }
-                    .padding(IGITheme.spacingM)
-                    .background(
-                        vm.source == item
-                            ? AnyShapeStyle(IGITheme.accent.gradient)
-                            : AnyShapeStyle(Color.primary.opacity(0.05)),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
-                    .foregroundStyle(vm.source == item ? .white : .primary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .igiPremiumCard()
-    }
-
-    @ViewBuilder
-    private func statusHero(_ vm: StreamingViewModel) -> some View {
-        let active = vm.source == .localFile ? vm.phoneStreamActive : vm.enabled
-        VStack(spacing: IGITheme.spacingM) {
-            Image(systemName: active ? "dot.radiowaves.forward" : "pause.circle")
-                .font(.system(size: 48))
-                .foregroundStyle(active ? IGITheme.accent : .secondary)
-                .symbolEffect(.pulse, options: .repeating, value: active)
-
-            Text(active ? "In riproduzione" : "Fermo")
-                .font(.title3.weight(.bold))
-            Text(statusSubtitle(vm))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .igiPremiumCard()
+    private func playbackLabel(_ vm: StreamingViewModel) -> String {
+        let active = vm.source == .otherApps ? vm.phoneStreamActive : vm.enabled
+        return active ? "In riproduzione" : "Fermo"
     }
 
     private func statusSubtitle(_ vm: StreamingViewModel) -> String {
         switch vm.source {
-        case .webRadio, .urlContent:
+        case .webRadio, .online:
             return vm.enabled ? vm.url : "Nessuno stream web attivo"
-        case .localFile:
-            return vm.phoneStreamStatus.isEmpty ? "Nessun file in invio" : vm.phoneStreamStatus
+        case .otherApps:
+            return vm.phoneStreamStatus.isEmpty ? "Nessun audio in invio" : vm.phoneStreamStatus
         }
     }
 
     @ViewBuilder
-    private func webRadioSection(_ vm: StreamingViewModel) -> some View {
-        VStack(alignment: .leading, spacing: IGITheme.spacingM) {
-            Text("Stazioni")
-                .font(.headline)
+    private func otherAppsSections(_ vm: StreamingViewModel) -> some View {
+        Section {
+            Button {
+                Task { await vm.startOtherApps() }
+            } label: {
+                Label("Ricevi audio dalle altre app", systemImage: "app.badge.checkmark")
+            }
+            .disabled(!vm.isConnected || vm.phoneStreamActive)
+
+            Button {
+                Task { await vm.stopPhone() }
+            } label: {
+                Label("Stop", systemImage: "stop.fill")
+            }
+            .disabled(!vm.phoneStreamActive)
+        } header: {
+            Text("Dal telefono")
+        } footer: {
+            Text("iOS non dà l’audio delle altre app: per questo chiede «Registra schermo». Serve solo l’audio, il microfono è spento. Poi torna a YouTube Music e tieni il brano in play.")
+        }
+
+        Section {
+            Button {
+                showFilePicker = true
+            } label: {
+                Label(
+                    vm.selectedFileName.isEmpty ? "Oppure scegli un file audio" : vm.selectedFileName,
+                    systemImage: "folder"
+                )
+            }
+            Button {
+                Task { await vm.playLocalFile() }
+            } label: {
+                Label("Invia file a DigiRadio", systemImage: "arrow.up.circle")
+            }
+            .disabled(!vm.isConnected || vm.selectedFileURL == nil || vm.phoneStreamActive)
+        } header: {
+            Text("File")
+        }
+    }
+
+    @ViewBuilder
+    private func webRadioSections(_ vm: StreamingViewModel) -> some View {
+        Section("Webradio") {
             ForEach(StreamPresets.catalog) { preset in
                 Button {
                     vm.selectPreset(preset)
                 } label: {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(preset.name).font(.headline)
-                            Text(preset.url).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                        Spacer()
-                        Image(systemName: "play.circle.fill").font(.title2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(preset.name)
+                            .foregroundStyle(.primary)
+                        Text(preset.url)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
-                .buttonStyle(.plain)
-                if preset.id != StreamPresets.catalog.last?.id {
-                    Divider()
-                }
             }
         }
-        .igiPremiumCard()
-
-        streamURLControls(vm, playLabel: "Play radio")
+        streamURLSection(vm, playTitle: "Play webradio")
     }
 
     @ViewBuilder
-    private func urlContentSection(_ vm: StreamingViewModel) -> some View {
-        VStack(alignment: .leading, spacing: IGITheme.spacingS) {
-            Text("Contenuto via URL")
-                .font(.headline)
-            Text("Il DigiRadio scarica e decodifica MP3 HTTP sul device. L'URL deve iniziare con http:// (max 200 caratteri).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private func urlContentSections(_ vm: StreamingViewModel) -> some View {
+        Section {
+            streamURLFields(vm)
+        } header: {
+            Text("URL")
+        } footer: {
+            Text("Il DigiRadio scarica e decodifica MP3. L’URL deve iniziare con http:// o https://.")
         }
-        .igiPremiumCard()
-
-        streamURLControls(vm, playLabel: "Play contenuto")
+        streamActions(vm, playTitle: "Play stream")
     }
 
     @ViewBuilder
-    private func streamURLControls(_ vm: StreamingViewModel, playLabel: String) -> some View {
-        VStack(alignment: .leading, spacing: IGITheme.spacingM) {
-            TextField("http://…", text: Binding(get: { vm.url }, set: { vm.url = $0 }))
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
-                .padding()
-                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+    private func streamURLSection(_ vm: StreamingViewModel, playTitle: String) -> some View {
+        Section("URL") {
+            streamURLFields(vm)
+        }
+        streamActions(vm, playTitle: playTitle)
+    }
 
-            HStack(spacing: IGITheme.spacingM) {
-                Button { Task { await vm.playWebStream() } } label: {
-                    Label(playLabel, systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(vm.isSaving || !vm.isConnected)
+    @ViewBuilder
+    private func streamURLFields(_ vm: StreamingViewModel) -> some View {
+        TextField("https://…", text: Binding(get: { vm.url }, set: { vm.url = $0 }))
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.URL)
+    }
 
-                Button { Task { await vm.stopWebStream() } } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.bordered)
-                .disabled(vm.isSaving)
+    @ViewBuilder
+    private func streamActions(_ vm: StreamingViewModel, playTitle: String) -> some View {
+        Section {
+            Button {
+                Task { await vm.playWebStream() }
+            } label: {
+                Label(playTitle, systemImage: "play.fill")
             }
-        }
-        .igiPremiumCard()
-    }
-
-    @ViewBuilder
-    private func localFileSection(_ vm: StreamingViewModel) -> some View {
-        VStack(alignment: .leading, spacing: IGITheme.spacingM) {
-            Text("File sul telefono")
-                .font(.headline)
-            Text("L'iPhone decodifica il file e invia PCM stereo 48 kHz a PUT /api/stream/phone. Ferma prima eventuali stream web sul device.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .disabled(vm.isSaving || !vm.isConnected)
 
             Button {
-                showFilePicker = true
+                Task { await vm.stopWebStream() }
             } label: {
-                Label(vm.selectedFileName.isEmpty ? "Scegli file audio" : vm.selectedFileName, systemImage: "folder")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                Label("Stop", systemImage: "stop.fill")
             }
-            .buttonStyle(.plain)
-
-            HStack(spacing: IGITheme.spacingM) {
-                Button { Task { await vm.playLocalFile() } } label: {
-                    Label("Invia a DigiRadio", systemImage: "arrow.up.circle.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!vm.isConnected || vm.selectedFileURL == nil || vm.phoneStreamActive)
-
-                Button { Task { await vm.stopLocalFile() } } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.bordered)
-                .disabled(!vm.phoneStreamActive)
-            }
+            .disabled(vm.isSaving)
         }
-        .igiPremiumCard()
+    }
+
+    @MainActor
+    private func consumeIncomingShare(_ vm: StreamingViewModel) async {
+        guard let share = environment.incomingShare else { return }
+        environment.incomingShare = nil
+        switch share {
+        case let .webStream(url):
+            vm.source = .online
+            vm.url = url.absoluteString
+            await vm.playWebStream()
+        case let .otherApp(url):
+            vm.source = .otherApps
+            vm.url = url.absoluteString
+            environment.adauStudio.syncFromDevice()
+        }
     }
 }

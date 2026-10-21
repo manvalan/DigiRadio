@@ -205,6 +205,12 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         }
         status.fmStationName = rdsMetadata_.programName();
         status.fmRadiotext = rdsMetadata_.radiotext();
+        status.fmAlternateFrequencies.clear();
+        for (const std::uint32_t khz : rdsMetadata_.alternateFrequenciesKhz()) {
+            if (auto freq = core::FrequencyKHz::tryFromKhz(khz); freq) {
+                status.fmAlternateFrequencies.push_back(*freq);
+            }
+        }
     }
     return status;
 }

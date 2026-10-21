@@ -37,6 +37,34 @@ actor PhonePCMStreamService {
         }
     }
 
+    func start(connectionHost: String, chunks: AsyncThrowingStream<Data, Error>) {
+        stop()
+        let host = Self.parseHost(connectionHost)
+        guard !host.isEmpty else {
+            statusMessage = "Host non valido"
+            return
+        }
+
+        isStreaming = true
+        statusMessage = "Avvio cattura…"
+        streamTask = Task {
+            do {
+                try await sendChunkedPUT(host: host, chunks: chunks)
+                if !Task.isCancelled {
+                    statusMessage = "Cattura terminata"
+                }
+                isStreaming = false
+            } catch is CancellationError {
+                statusMessage = "Cattura interrotta"
+                isStreaming = false
+            } catch {
+                statusMessage = error.localizedDescription
+                isStreaming = false
+                logger.error("Live phone stream failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     func stop() {
         streamTask?.cancel()
         streamTask = nil

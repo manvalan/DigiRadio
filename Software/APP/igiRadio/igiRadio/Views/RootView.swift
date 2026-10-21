@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct RootView: View {
-    @Environment(AppEnvironment.self) private var environment
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(AppEnvironment.self) private var environment
 
     var body: some View {
+        @Bindable var environment = environment
         Group {
             if horizontalSizeClass == .regular {
                 IPadRootView()
@@ -12,93 +13,110 @@ struct RootView: View {
                 IPhoneRootView()
             }
         }
+        .preferredColorScheme(.light)
         .tint(IGITheme.accent)
+        .igiThemedScreen()
+        .sheet(isPresented: $environment.presentStreaming) {
+            NavigationStack {
+                StreamingView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Fine") { environment.presentStreaming = false }
+                        }
+                    }
+            }
+        }
     }
 }
 
 private struct IPhoneRootView: View {
-    @Environment(AppEnvironment.self) private var environment
-
     var body: some View {
         TabView {
-            NavigationStack { HomeView() }
-                .tabItem { Label("Home", systemImage: "house.fill") }
+            NavigationStack {
+                HomeView()
+            }
+            .tabItem { Label("Ascolto", systemImage: "play.square.stack.fill") }
 
-            NavigationStack { FMRadioView() }
-                .tabItem { Label("FM", systemImage: "dot.radiowaves.left.and.right") }
+            NavigationStack {
+                PresetsView()
+            }
+            .tabItem { Label("Radio", systemImage: "radio.fill") }
 
-            NavigationStack { DABRadioView() }
-                .tabItem { Label("DAB", systemImage: "antenna.radiowaves.left.and.right") }
+            NavigationStack {
+                AppDestinationView(destination: .sound)
+            }
+            .tabItem { Label("Suono", systemImage: "slider.horizontal.3") }
 
-            NavigationStack { StreamingView() }
-                .tabItem { Label("Stream", systemImage: "dot.radiowaves.forward") }
+            NavigationStack {
+                SettingsRootView()
+            }
+            .tabItem { Label("Impostazioni", systemImage: "gearshape.fill") }
 
-            NavigationStack { PresetsView() }
-                .tabItem { Label("Preset", systemImage: "star.fill") }
-
-            NavigationStack { AudioProfilesView() }
-                .tabItem { Label("Profilo", systemImage: "waveform.path.ecg") }
-
-            NavigationStack { SettingsRootView() }
-                .tabItem { Label("Impostazioni", systemImage: "gearshape.fill") }
+            NavigationStack {
+                ConfigurationRootView()
+            }
+            .tabItem { Label("La mia radio", systemImage: "hifispeaker.and.homepod.fill") }
         }
     }
 }
 
 private struct IPadRootView: View {
-    @State private var selection: SidebarItem? = .home
+    @State private var selection: AppDestination = .listening
 
     var body: some View {
-        NavigationSplitView {
-            List(SidebarItem.allCases, selection: $selection) { item in
-                NavigationLink(value: item) {
-                    Label(item.title, systemImage: item.systemImage)
-                }
-            }
-            .navigationTitle("igiRadio")
-        } detail: {
-            switch selection ?? .home {
-            case .home: HomeView()
-            case .fm: FMRadioView()
-            case .dab: DABRadioView()
-            case .stream: StreamingView()
-            case .bluetooth: BluetoothView()
-            case .audioProfiles: AudioProfilesView()
-            case .presets: PresetsView()
-            case .settings: SettingsRootView()
+        VStack(spacing: 0) {
+            IPadTopMenu(selection: $selection)
+            NavigationStack {
+                AppDestinationView(destination: selection)
+                    .id(selection)
             }
         }
+        .background(IGITheme.canvas)
     }
 }
 
-enum SidebarItem: String, CaseIterable, Identifiable {
-    case home, fm, dab, stream, bluetooth, audioProfiles, presets, settings
+private struct IPadTopMenu: View {
+    @Binding var selection: AppDestination
 
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .home: "Home"
-        case .fm: "FM"
-        case .dab: "DAB"
-        case .stream: "Stream"
-        case .bluetooth: "Bluetooth"
-        case .audioProfiles: "Profilo audio"
-        case .presets: "Preset"
-        case .settings: "Impostazioni"
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(AppDestination.sidebarRoots) { destination in
+                    Button {
+                        selection = destination
+                    } label: {
+                        Label(destination.title, systemImage: destination.systemImage)
+                            .font(.subheadline.weight(selection == destination ? .semibold : .medium))
+                            .labelStyle(.titleAndIcon)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .foregroundStyle(selection == destination ? IGITheme.ink : IGITheme.inkMuted)
+                            .background(
+                                selection == destination ? IGITheme.card : Color.clear,
+                                in: Capsule()
+                            )
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(
+                                        selection == destination
+                                            ? IGITheme.ink.opacity(0.10)
+                                            : Color.clear,
+                                        lineWidth: 1
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selection == destination ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
         }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .home: "house.fill"
-        case .fm: "dot.radiowaves.left.and.right"
-        case .dab: "antenna.radiowaves.left.and.right"
-        case .stream: "dot.radiowaves.forward"
-        case .bluetooth: "dot.radiowaves.left.and.right"
-        case .audioProfiles: "waveform.path.ecg"
-        case .presets: "star.fill"
-        case .settings: "gearshape.fill"
+        .background(IGITheme.canvas)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(IGITheme.ink.opacity(0.08))
+                .frame(height: 1)
         }
     }
 }

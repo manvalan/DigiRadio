@@ -22,6 +22,7 @@
 #include "core/GainDb.hpp"
 #include "core/IAudioProfileStore.hpp"
 #include "core/IDsp.hpp"
+#include "core/PowerState.hpp"
 #include "core/StoreError.hpp"
 
 #include <expected>
@@ -34,7 +35,11 @@ namespace audio {
  * @dname    AudioService
  * @return   n/a (type)
  * @pubstate Borrows core::IDsp; optionally persists via IAudioProfileStore.
- *           Tracks the last applied profile in RAM.
+ *           Tracks the last applied profile and the power state in RAM.
+ *
+ * While in PowerState::Standby every master write reaching the DSP is
+ * replaced by the mute floor; profile_ keeps the user's levels so leaving
+ * standby restores them exactly.
  *
  * @author   Michele Bigi
  * @date     2026-07-06
@@ -231,6 +236,34 @@ public:
         unsigned address, float value);
 
     /**
+     * @brief    setPowerState — enter or leave soft standby (master mute).
+     *
+     * @dname    setPowerState
+     * @param    state  On restores profile_'s master; Standby mutes it.
+     * @return   Ok on success, or DspError if the master safeload failed
+     *           (powerState_ is then left unchanged).
+     * @pubstate writes powerState_; reads profile_ master fields. Live-only:
+     *           never persisted, does not touch profile_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<void, core::DspError> setPowerState(
+        core::PowerState state);
+
+    /**
+     * @brief    powerState — report whether the output is on or in standby.
+     *
+     * @dname    powerState
+     * @return   Current PowerState.
+     * @pubstate reads powerState_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] core::PowerState powerState() const noexcept;
+
+    /**
      * @brief    readLevels — on-demand read of all six level meters.
      *
      * @dname    readLevels
@@ -250,9 +283,13 @@ private:
     [[nodiscard]] std::expected<void, core::StoreError> applyProfileToDsp(
         const core::AudioProfile& profile);
 
+    [[nodiscard]] std::expected<void, core::DspError> writeMaster(
+        core::GainDb left, core::GainDb right);
+
     core::IDsp& dsp_;
     core::IAudioProfileStore* store_;
     core::AudioProfile profile_;
+    core::PowerState powerState_;
 };
 
 } // namespace audio
