@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "core/DabLinkage.hpp"
 #include "core/FrequencyKHz.hpp"
 #include "core/SeekDirection.hpp"
 #include "core/TunerBand.hpp"
@@ -177,6 +178,25 @@ public:
      */
     [[nodiscard]] virtual std::expected<void, TunerError> setVolume(
         std::uint8_t level) = 0;
+
+    /**
+     * @brief    readDabLinkage — service-following data for a DAB service.
+     *
+     * @dname    readDabLinkage
+     * @param    serviceId  Service playing in the current ensemble.
+     * @return   FIG 0/6 links, FIG 0/24 other ensembles and FIG 0/21
+     *           frequencies; HardwareFailed when unsupported (default).
+     * @pubstate reads linkage information from the tuner.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] virtual std::expected<DabLinkage, TunerError> readDabLinkage(
+        std::uint32_t serviceId)
+    {
+        (void)serviceId;
+        return std::unexpected(TunerError::HardwareFailed);
+    }
 };
 
 } // namespace core

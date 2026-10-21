@@ -1176,6 +1176,65 @@ Si4684Driver::readDabEventStatus()
     return events;
 }
 
+std::expected<std::vector<std::uint8_t>, Si4684Error>
+Si4684Driver::dabQuery(Command cmd, std::span<const std::uint8_t> argsFrom2)
+{
+    if (auto band = ensureBand(Si4684Band::Dab); !band) {
+        return std::unexpected(band.error());
+    }
+    // ARG1 is 0x00 for all three linkage queries (AN649 0xB7 SELECT with
+    // no *EN bit honoured, 0xBF ARG1=0, 0xC1 ARG1=0x00).
+    if (auto sent = writeCommand(cmd, argsFrom2.data(), argsFrom2.size());
+        !sent) {
+        return std::unexpected(Si4684Error::CommandFailed);
+    }
+    // These replies carry their own counts (NUM_LINKSETS, NUM_EIDS,
+    // LENGTH_FI_LIST); read a generous fixed frame and let the core
+    // parsers bound themselves. raw[0] is the SPI lead-in, raw[1..4]
+    // STATUS0-3, so the payload starts at RESP4 = raw[5].
+    constexpr std::size_t kReplyBytes = 1024U;
+    std::vector<std::uint8_t> raw(kReplyBytes, 0U);
+    if (auto rd = readRaw(raw); !rd) {
+        return std::unexpected(rd.error());
+    }
+    return std::vector<std::uint8_t>(raw.begin() + 5, raw.end());
+}
+
+std::expected<std::vector<std::uint8_t>, Si4684Error>
+Si4684Driver::readDabServiceLinking(std::uint32_t serviceId)
+{
+    // AN649 Command 0xB7: ARG1 SELECT (0 here, prepended by writeCommand),
+    // ARG2 ENABLE = 0 (return active+inactive, hard+soft, all link types,
+    // national+international), ARG3 = 0x00, ARG4..7 = SERVICEID LE.
+    const std::uint8_t args[] = {
+        0x00U, 0x00U,
+        static_cast<std::uint8_t>(serviceId),
+        static_cast<std::uint8_t>(serviceId >> 8U),
+        static_cast<std::uint8_t>(serviceId >> 16U),
+        static_cast<std::uint8_t>(serviceId >> 24U)};
+    return dabQuery(Command::DabGetServiceLinkingInfo, args);
+}
+
+std::expected<std::vector<std::uint8_t>, Si4684Error>
+Si4684Driver::readDabOeServices(std::uint32_t serviceId)
+{
+    // AN649 Command 0xC1: ARG1..ARG3 = 0x00, ARG4..7 = SERVICEID LE.
+    const std::uint8_t args[] = {
+        0x00U, 0x00U,
+        static_cast<std::uint8_t>(serviceId),
+        static_cast<std::uint8_t>(serviceId >> 8U),
+        static_cast<std::uint8_t>(serviceId >> 16U),
+        static_cast<std::uint8_t>(serviceId >> 24U)};
+    return dabQuery(Command::DabGetOeServicesInfo, args);
+}
+
+std::expected<std::vector<std::uint8_t>, Si4684Error>
+Si4684Driver::readDabFreqInfo()
+{
+    // AN649 Command 0xBF has a single argument, ARG1 = 0.
+    return dabQuery(Command::DabGetFreqInfo, {});
+}
+
 std::expected<std::vector<Si4684DabService>, Si4684Error>
 Si4684Driver::fetchDabServiceList()
 {

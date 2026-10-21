@@ -199,7 +199,8 @@ constexpr std::uint16_t kPi = 0x5201U;
     }
     core::AfFollowStats stats;
     if (core::serializeAfFollowJson(stats)
-        != R"({"enabled":true,"hunts":0,"switches":0})") {
+        != R"({"enabled":true,"hunts":0,"switches":0,)"
+           R"("dab_hunts":0,"dab_switches":0})") {
         return fail("default stats JSON mismatch");
     }
     stats.switches = 2U;
@@ -207,7 +208,7 @@ constexpr std::uint16_t kPi = 0x5201U;
     stats.lastTo = khz(87600U);
     return core::serializeAfFollowJson(stats)
                == R"({"enabled":true,"hunts":0,"switches":2,"last_from_khz":98400,)"
-                  R"("last_to_khz":87600})"
+                  R"("last_to_khz":87600,"dab_hunts":0,"dab_switches":0})"
         || fail("switch stats JSON mismatch");
 }
 

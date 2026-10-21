@@ -284,9 +284,26 @@ so an AF can only be measured by briefly retuning to it. Every 3\,s the
 status (draining RDS) and feeds \texttt{core::AlternateFrequencyFollower}.
 On a weak FM signal it holds the \texttt{TunerService} lock, probes up to six
 AFs (250\,ms settle each, plus a few RDS reads to confirm the PI) and stays
-on the best one carrying the same PI, or tunes back. Works with no app
-connected; state and on/off switch are at \texttt{/api/tuner/af}
+on the best one carrying the same PI, or tunes back. In DAB it runs
+\texttt{core::DabServiceFollower} instead (service following). Works with
+no app connected; state and on/off switch are at \texttt{/api/tuner/af}
 (Section~\ref{sec:api-tuner-af}).
+
+\section{DabServiceFollower}\label{cls:DabServiceFollower}
+Pure-core DAB service-following policy, the DAB counterpart of
+\texttt{AlternateFrequencyFollower}. While the playing service has a good
+signal, \texttt{AfFollowService} reads its linkage with AN649 commands
+0xB7 \texttt{DAB\_GET\_SERVICE\_LINKING\_INFO} (FIG~0/6), 0xC1
+\texttt{DAB\_GET\_OE\_SERVICES\_INFO} (FIG~0/24) and 0xBF
+\texttt{DAB\_GET\_FREQ\_INFO} (FIG~0/21), parsed by
+\texttt{core::parseDabServiceLinking/OeServices/FreqInfo}. After three
+snapshots in a row unlocked or with FIC quality below 25 (8\,s settle,
+30\,s cooldown) it lists, in order, the other ensembles carrying the same
+SId that are in the frequency table, then the FM frequencies (R\&M
+\texttt{1000}, FM with RDS) of hard-linked RDS PI codes. The service tunes
+each ensemble and starts the SId if it appears in the service list, or
+tunes FM and checks the PI; if nothing works it goes back to the original
+service. Host-tested in \texttt{dab\_follower\_test}.
 
 \section{AlternateFrequencyFollower}\label{cls:AlternateFrequencyFollower}
 Pure-core RDS AF policy. Tracks the current station (PI plus the AF set,

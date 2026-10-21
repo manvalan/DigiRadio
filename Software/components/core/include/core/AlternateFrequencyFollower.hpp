@@ -75,6 +75,8 @@ struct AfFollowStats {
     std::uint32_t switches = 0U;          ///< Automatic retunes since boot.
     std::optional<FrequencyKHz> lastFrom; ///< Frequency left last time.
     std::optional<FrequencyKHz> lastTo;   ///< AF switched to last time.
+    std::uint32_t dabHunts = 0U;          ///< DAB service-following tries.
+    std::uint32_t dabSwitches = 0U;       ///< DAB services found elsewhere.
 };
 
 /**

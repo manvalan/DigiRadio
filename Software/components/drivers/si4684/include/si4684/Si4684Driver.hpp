@@ -359,6 +359,50 @@ public:
     readDabEventStatus();
 
     /**
+     * @brief    readDabServiceLinking — FIG 0/6 links for a service.
+     *
+     * @dname    readDabServiceLinking
+     * @param    serviceId  Service id in the current ensemble.
+     * @return   Reply bytes from RESP4 (AN649 Command 0xB7
+     *           DAB_GET_SERVICE_LINKING_INFO, all link types), or error.
+     * @pubstate sends one command and reads its reply.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, Si4684Error>
+    readDabServiceLinking(std::uint32_t serviceId);
+
+    /**
+     * @brief    readDabOeServices — FIG 0/24 ensembles carrying a service.
+     *
+     * @dname    readDabOeServices
+     * @param    serviceId  Service id (current or linked).
+     * @return   Reply bytes from RESP4 (AN649 Command 0xC1
+     *           DAB_GET_OE_SERVICES_INFO), or error.
+     * @pubstate sends one command and reads its reply.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, Si4684Error>
+    readDabOeServices(std::uint32_t serviceId);
+
+    /**
+     * @brief    readDabFreqInfo — FIG 0/21 frequency information.
+     *
+     * @dname    readDabFreqInfo
+     * @return   Reply bytes from RESP4 (AN649 Command 0xBF
+     *           DAB_GET_FREQ_INFO), or error.
+     * @pubstate sends one command and reads its reply.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, Si4684Error>
+    readDabFreqInfo();
+
+    /**
      * @brief    fetchDabServiceList — retrieve programmes for the ensemble.
      *
      * @dname    fetchDabServiceList
@@ -428,8 +472,14 @@ private:
         DabTuneFreq = 0xB0,
         DabDigRadStatus = 0xB2,
         DabGetEventStatus = 0xB3,
+        DabGetServiceLinkingInfo = 0xB7,
         DabSetFreqList = 0xB8,
+        DabGetFreqInfo = 0xBF,
+        DabGetOeServicesInfo = 0xC1,
     };
+
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, Si4684Error>
+    dabQuery(Command cmd, std::span<const std::uint8_t> argsFrom2);
 
     [[nodiscard]] std::expected<void, Si4684Error> ensureBooted() const;
     [[nodiscard]] std::expected<void, Si4684Error> ensureBand(

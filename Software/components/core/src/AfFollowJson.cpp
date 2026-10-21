@@ -56,6 +56,8 @@ std::string serializeAfFollowJson(const AfFollowStats& stats)
         out += R"(,"last_from_khz":)" + std::to_string(stats.lastFrom->value())
                + R"(,"last_to_khz":)" + std::to_string(stats.lastTo->value());
     }
+    out += R"(,"dab_hunts":)" + std::to_string(stats.dabHunts)
+           + R"(,"dab_switches":)" + std::to_string(stats.dabSwitches);
     return out + "}";
 }
 

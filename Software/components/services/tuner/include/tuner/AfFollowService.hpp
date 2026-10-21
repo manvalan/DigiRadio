@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/AlternateFrequencyFollower.hpp"
+#include "core/DabServiceFollower.hpp"
 #include "tuner/TunerService.hpp"
 
 #include <cstdint>
@@ -35,6 +36,12 @@ namespace tuner {
  * retuning to it: when the signal is weak, tick() holds the tuner lock,
  * probes each AF for a short settle time, then stays on the best one
  * with the same PI (or goes back).
+ *
+ * In DAB the same task does service following: while the signal is good
+ * it reads the FIG 0/6, 0/24 and 0/21 linkage of the playing service; on
+ * a sustained loss it tries the other ensembles carrying the same SId,
+ * then the FM frequencies of hard-linked RDS PI codes, and goes back to
+ * the original service if none works.
  *
  * @author   Michele Bigi
  * @date     2026-10-21
@@ -71,7 +78,16 @@ public:
     void tick(std::uint32_t nowMs);
 
 private:
+    void tickFm(const core::TunerStatus& status, std::uint32_t nowMs);
+    void tickDab(const core::TunerStatus& status, std::uint32_t nowMs);
     void hunt(std::uint32_t nowMs);
+    void huntDab(const core::TunerStatus& status, std::uint32_t nowMs);
+    [[nodiscard]] bool tryCandidate(const core::DabFollowCandidate& candidate,
+                                    std::uint32_t serviceId);
+    [[nodiscard]] bool tryEnsemble(std::uint8_t freqIndex,
+                                   std::uint32_t serviceId);
+    [[nodiscard]] bool tryFm(core::FrequencyKHz frequency, std::uint16_t pi);
+    void restoreDab(const core::TunerStatus& status);
     [[nodiscard]] std::vector<core::AfSample> probe(
         const std::vector<core::FrequencyKHz>& candidates);
     [[nodiscard]] std::optional<core::AfSample> measure(
@@ -80,6 +96,7 @@ private:
     TunerService& tuner_;
     SleepFn sleep_;
     core::AlternateFrequencyFollower follower_;
+    core::DabServiceFollower dabFollower_;
 };
 
 } // namespace tuner

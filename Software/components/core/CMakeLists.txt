@@ -42,6 +42,8 @@ idf_component_register(
         "src/PowerStateJson.cpp"
         "src/AlternateFrequencyFollower.cpp"
         "src/AfFollowJson.cpp"
+        "src/DabLinkage.cpp"
+        "src/DabServiceFollower.cpp"
     INCLUDE_DIRS "include"
 )
 
