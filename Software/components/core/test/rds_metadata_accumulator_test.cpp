@@ -109,6 +109,35 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+[[nodiscard]] int runAlternateFrequencyTest()
+{
+    core::RdsMetadataAccumulator acc;
+    // Group 0A (version bit 11 clear): Block C is two AF codes.
+    // 105.3 MHz → code 178, 102.7 MHz → code 152.
+    const std::uint16_t blockC =
+        (static_cast<std::uint16_t>(178U) << 8) | 152U;
+    acc.applyGroup(0x1234U, 0x0000U, blockC, 0x5241U);
+
+    const auto af = acc.alternateFrequenciesKhz();
+    if (af.size() != 2U) {
+        std::cerr << "expected 2 AF codes, got " << af.size() << '\n';
+        return EXIT_FAILURE;
+    }
+    if (af[0] != 105300U || af[1] != 102700U) {
+        std::cerr << "AF kHz mismatch\n";
+        return EXIT_FAILURE;
+    }
+
+    // Group 0B must not treat Block C as AF.
+    core::RdsMetadataAccumulator accB;
+    accB.applyGroup(0x1234U, 0x0800U, blockC, 0x5241U);
+    if (!accB.alternateFrequenciesKhz().empty()) {
+        std::cerr << "0B must not ingest AF from Block C\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main()
@@ -120,6 +149,9 @@ int main()
         return EXIT_FAILURE;
     }
     if (runRadiotextTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runAlternateFrequencyTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
