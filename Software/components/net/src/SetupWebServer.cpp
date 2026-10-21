@@ -69,7 +69,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.9.0";
+constexpr char kFirmwareVersion[] = "0.9.1";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -281,7 +281,15 @@ esp_err_t healthGetHandler(httpd_req_t* req)
     if (ctx != nullptr) {
         si4684Ready = ctx->companionChips.si4684Ready;
         adau1701Ready = ctx->companionChips.adau1701Ready;
-        bt1035Ready = ctx->companionChips.bt1035Ready;
+        // Live state, not the one-time boot snapshot in companionChips:
+        // BT1035 boot can fail at power-on and succeed later via the
+        // background retry (see hw_boot's bt1035RetryTask), and the module
+        // can be turned back off/on at runtime via /api/bluetooth/disable
+        // and /api/bluetooth/enable — same source BluetoothService::
+        // isEnabled() that GET /api/bluetooth/status reports as "booted".
+        bt1035Ready = ctx->bluetooth != nullptr
+                          ? ctx->bluetooth->isEnabled()
+                          : ctx->companionChips.bt1035Ready;
         const std::string_view serial = ctx->deviceIdentity.serialNumber();
         if (!serial.empty() && serial.size() <= 32U) {
             serialNumber = serial.data();
@@ -1396,6 +1404,47 @@ esp_err_t wifiPostHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    wifiResetPostHandler — accept POST /api/wifi/reset.
+ *
+ * @dname    wifiResetPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate erases stored STA credentials via the route context store, then
+ *          reboots; the next boot finds no credentials and comes up in the
+ *          setup SoftAP (igiRadio-<serial>, default AP IP 192.168.4.1),
+ *          reachable at its hostname.local once a client mDNS-resolves it
+ *          on that network.
+ *
+ * @author   Michele Bigi
+ * @date     2026-09-03
+ */
+esp_err_t wifiResetPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->store == nullptr) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+
+    if (!ctx->store->clearWifiCredentials()) {
+        const std::string json =
+            core::serializeWifiProvisionErrorJson("store_failed");
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+
+    const std::string json =
+        std::string(R"({"status":"reset","reboot_in_sec":)")
+        + std::to_string(kRebootDelaySec) + "}";
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.size());
+
+    xTaskCreate(rebootTask, "reboot", 2048, nullptr, 5, nullptr);
+    return ESP_OK;
+}
+
+/**
  * @brief    wifiScanPostHandler — list nearby Wi-Fi access points.
  *
  * @dname    wifiScanPostHandler
@@ -1588,6 +1637,64 @@ esp_err_t bluetoothStatusGetHandler(httpd_req_t* req)
     const std::string json = core::serializeBluetoothStatusJson(*status);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    bluetoothEnablePostHandler — POST /api/bluetooth/enable.
+ *
+ * @dname    bluetoothEnablePostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate boots (or re-boots) the BT1035 module via the route context.
+ *
+ * @author   Michele Bigi
+ * @date     2026-09-03
+ */
+esp_err_t bluetoothEnablePostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    if (auto result = ctx->bluetooth->setEnabled(true); !result) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(result.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"enabled\"}", 21);
+}
+
+/**
+ * @brief    bluetoothDisablePostHandler — POST /api/bluetooth/disable.
+ *
+ * @dname    bluetoothDisablePostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate powers down the BT1035 module via the route context.
+ *
+ * @author   Michele Bigi
+ * @date     2026-09-03
+ */
+esp_err_t bluetoothDisablePostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->bluetooth == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    if (auto result = ctx->bluetooth->setEnabled(false); !result) {
+        const std::string json =
+            core::serializeBluetoothErrorJson(bt1035ErrorToken(result.error()));
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, "{\"status\":\"disabled\"}", 22);
 }
 
 esp_err_t bluetoothPairPostHandler(httpd_req_t* req)
@@ -2241,6 +2348,14 @@ std::expected<void, NetError> SetupWebServer::start(
     };
     httpd_register_uri_handler(server_, &wifiScanUri);
 
+    const httpd_uri_t wifiResetUri = {
+        .uri = "/api/wifi/reset",
+        .method = HTTP_POST,
+        .handler = wifiResetPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &wifiResetUri);
+
     const httpd_uri_t tunerStatusUri = {
         .uri = "/api/tuner/status",
         .method = HTTP_GET,
@@ -2448,6 +2563,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &bluetoothStatusUri);
+
+    const httpd_uri_t bluetoothEnableUri = {
+        .uri = "/api/bluetooth/enable",
+        .method = HTTP_POST,
+        .handler = bluetoothEnablePostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothEnableUri);
+
+    const httpd_uri_t bluetoothDisableUri = {
+        .uri = "/api/bluetooth/disable",
+        .method = HTTP_POST,
+        .handler = bluetoothDisablePostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &bluetoothDisableUri);
 
     const httpd_uri_t bluetoothPairUri = {
         .uri = "/api/bluetooth/pair",

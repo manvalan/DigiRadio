@@ -1039,9 +1039,8 @@ std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
     ESP_LOGI(kTag, "power-up: SYS_CTRL=%d (want 1, driven) RESET#=%d "
                    "(want 1, driven)",
              gpio_get_level(sysCtlPin), gpio_get_level(resetPin));
-    ESP_LOGI(kTag, "before banner wait: CTS=%d (module's flow-control "
-                   "input, host side floating) RTS/PIO2=%d (module's "
-                   "PA_MUTE by factory default)",
+    ESP_LOGI(kTag, "before banner wait: CTS=%d (want 0, driven low) "
+                   "RTS/PIO2=%d (module PA_MUTE, input)",
              gpio_get_level(ctsPin), gpio_get_level(rtsPin));
 
     logRawUartBoot(uartPort_);
@@ -1051,6 +1050,27 @@ std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
     vTaskDelay(pdMS_TO_TICKS(kPostUartMs));
 
     return runInitSequence();
+}
+
+std::expected<void, Bt1035Error> Bt1035Driver::shutdown()
+{
+    if (!booted_) {
+        return {};
+    }
+
+    // Same power-down path as resetAndInitOnce()'s first half: asserting
+    // RESET# (active-low) while SYS_CTRL is deasserted, held past the
+    // datasheet's ~1.8 s Reset Protection timeout (§4.8), forces the module
+    // to actually power off rather than just resetting its logic.
+    const auto sysCtlPin = static_cast<gpio_num_t>(pins_.sysCtlGpio);
+    const auto resetPin = static_cast<gpio_num_t>(pins_.resetGpio);
+    gpio_set_level(resetPin, 0);
+    gpio_set_level(sysCtlPin, 0);
+    vTaskDelay(pdMS_TO_TICKS(kSysCtlDeassertMs));
+
+    booted_ = false;
+    ESP_LOGI(kTag, "BT1035 powered down (RESET# + SYS_CTRL held low)");
+    return {};
 }
 
 std::expected<void, Bt1035Error> Bt1035Driver::boot()
@@ -1089,25 +1109,20 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
         return std::unexpected(Bt1035Error::ResetFailed);
     }
 
-    // CTS (module pin 15, host->module) and RTS (module pin 16/PIO2,
-    // factory default function PA_MUTE per the Feasycom programming
-    // guide) — diagnostic only (2026-08-22): this driver does not
-    // implement UART hardware flow control (UART_HW_FLOWCTRL_DISABLE
-    // below), so these are wired but otherwise unused. Configured as
-    // floating inputs, pull-up/pull-down both disabled, purely to read
-    // back their level for the diagnostic log — never driven. Exploring
-    // whether the module's CTS input floating could be gating its own
-    // UART TX (a common hardware-flow-control behavior), and whether RTS
-    // toggles at all (would indicate the module's internal firmware is
-    // alive even when UART TX is silent).
+    // Module UART_CTS (pin 15) is an input on the BT1035. UART clear-to-send
+    // is active-low: if this net floats HIGH the module may hold TX, which
+    // matches the intermittent "0 banner bytes / silent at every baud" boot
+    // (CTS read back as 1). ESP32 UART flow control stays disabled; we only
+    // drive this GPIO LOW so the module is allowed to transmit.
     gpio_config_t ctsCfg = {};
     ctsCfg.pin_bit_mask = 1ULL << pins_.ctsGpio;
-    ctsCfg.mode = GPIO_MODE_INPUT;
+    ctsCfg.mode = GPIO_MODE_INPUT_OUTPUT;
     ctsCfg.pull_up_en = GPIO_PULLUP_DISABLE;
     ctsCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
     if (gpio_config(&ctsCfg) != ESP_OK) {
         return std::unexpected(Bt1035Error::ResetFailed);
     }
+    gpio_set_level(static_cast<gpio_num_t>(pins_.ctsGpio), 0);
 
     gpio_config_t rtsCfg = {};
     rtsCfg.pin_bit_mask = 1ULL << pins_.rtsGpio;

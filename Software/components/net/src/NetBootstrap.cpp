@@ -22,6 +22,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
+#include "mdns.h"
 #include "audio/AudioService.hpp"
 #include "net/BleProvisioning.hpp"
 #include "bluetooth/BluetoothService.hpp"
@@ -29,6 +30,8 @@
 #include "station/StationService.hpp"
 #include "tuner/TunerService.hpp"
 #include "webradio/WebRadioService.hpp"
+
+#include <string>
 
 namespace net {
 
@@ -110,14 +113,42 @@ startSetupMode(core::ISecureStore& store, tuner::TunerService& tuner,
                core::CompanionChipStatus companionChips,
                const core::DeviceIdentity& deviceIdentity)
 {
-    esp_netif_create_default_wifi_ap();
-    esp_netif_create_default_wifi_sta();
+    // Idempotent: this path also runs after a failed startStaMode() attempt
+    // (NetBootstrap::start()'s fallback below), which already created the
+    // "WIFI_STA_DEF" netif. Re-creating a netif with a key that already
+    // exists hits an assert in esp_netif_create_default_wifi_sta() (a
+    // duplicate if_key is a fatal config error, not a recoverable one),
+    // crash-looping the device with no way to reach /api/wifi/reset.
+    if (esp_netif_get_handle_from_ifkey("WIFI_AP_DEF") == nullptr) {
+        esp_netif_create_default_wifi_ap();
+    }
+    if (esp_netif_get_handle_from_ifkey("WIFI_STA_DEF") == nullptr) {
+        esp_netif_create_default_wifi_sta();
+    }
 
     SoftApHost softAp(SoftApConfig::forSsid(deviceIdentity.softApSsid()));
     if (auto apResult = softAp.start(); !apResult) {
         return std::unexpected(apResult.error());
     }
 
+    // Advertise <hostname>.local on the SoftAP's own subnet too, so the
+    // device is reachable the same way (by name, not just by the AP's
+    // default IP 192.168.4.1) whether Wi-Fi ends up in setup mode or STA
+    // mode — see StaClient::connect() for the STA-side registration.
+    if (!deviceIdentity.hostname().empty()) {
+        const std::string hostLabel(deviceIdentity.hostname());
+        if (mdns_init() == ESP_OK) {
+            mdns_hostname_set(hostLabel.c_str());
+            // See StaClient::connect() for why this is required alongside
+            // mdns_hostname_set() for the app's Bonjour browse to find us.
+            mdns_service_add(hostLabel.c_str(), "_http", "_tcp", 80,
+                             nullptr, 0);
+        }
+    }
+
+    // BT1035 bring-up runs in hardware::bt1035RetryTask. Do not call
+    // setEnabled() here: boot() blocks ~25 s on a silent UART and delayed
+    // HTTP/BLE on every SoftAP fallback.
     SetupWebServer webServer;
     if (auto webResult =
             webServer.start(store, NetState::SoftApSetup, tuner, audio,
@@ -190,7 +221,7 @@ startStaMode(core::ISecureStore& store, tuner::TunerService& tuner,
     StaClient sta;
     if (auto staResult =
             sta.connect(creds, deviceIdentity.hostname(), &store,
-                       &deviceIdentity);
+                       &deviceIdentity, &bluetooth);
         !staResult) {
         ESP_LOGW(kTag, "STA connect failed for SSID %.*s — credentials kept in NVS",
                  static_cast<int>(creds.ssid().value().size()),
