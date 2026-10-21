@@ -138,6 +138,38 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+/*
+ * PI (block A) is only trusted once two consecutive groups agree, so a
+ * single corrupted block A cannot make the AF follower reject (or accept)
+ * a transmitter by mistake. reset() forgets it on retune.
+ */
+[[nodiscard]] int runProgramIdentificationTest()
+{
+    core::RdsMetadataAccumulator acc;
+    acc.applyGroup(0x5201U, 0x0800U, 0x0000U, 0x2020U);
+    if (acc.programIdentification()) {
+        std::cerr << "PI must not be confirmed after one group\n";
+        return EXIT_FAILURE;
+    }
+    acc.applyGroup(0x5A01U, 0x0800U, 0x0000U, 0x2020U); // corrupted A
+    acc.applyGroup(0x5201U, 0x0800U, 0x0000U, 0x2020U);
+    if (acc.programIdentification()) {
+        std::cerr << "PI must need two consecutive matching groups\n";
+        return EXIT_FAILURE;
+    }
+    acc.applyGroup(0x5201U, 0x0800U, 0x0000U, 0x2020U);
+    if (acc.programIdentification() != 0x5201U) {
+        std::cerr << "PI 0x5201 expected after two matching groups\n";
+        return EXIT_FAILURE;
+    }
+    acc.reset();
+    if (acc.programIdentification()) {
+        std::cerr << "reset() must clear PI\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main()
@@ -152,6 +184,9 @@ int main()
         return EXIT_FAILURE;
     }
     if (runAlternateFrequencyTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
+    if (runProgramIdentificationTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

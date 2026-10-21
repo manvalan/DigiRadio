@@ -48,7 +48,8 @@ public:
      * @brief    applyGroup — ingest one RDS group (blocks A–D).
      *
      * @dname    applyGroup
-     * @param    blockA  RDS block A (PI code, currently unused).
+     * @param    blockA  RDS block A (PI code; confirmed once two
+     *                   consecutive groups agree).
      * @param    blockB  RDS block B (group type and segment address).
      * @param    blockC  RDS block C (RT text for group 2; AF codes for
      *                   group 0A; ignored for group 0B).
@@ -98,6 +99,20 @@ public:
      */
     [[nodiscard]] std::span<const std::uint32_t> alternateFrequenciesKhz() const;
 
+    /**
+     * @brief    programIdentification — confirmed RDS PI code (block A).
+     *
+     * @dname    programIdentification
+     * @return   PI code once two consecutive groups carried the same
+     *           block A (guards against a single corrupted block), or
+     *           nullopt before that.
+     * @pubstate reads piConfirmed_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-21
+     */
+    [[nodiscard]] std::optional<std::uint16_t> programIdentification() const;
+
 private:
     static constexpr std::size_t kPsSegments = 4U;
     static constexpr std::size_t kRtSegments = 16U;
@@ -113,6 +128,8 @@ private:
     bool rtAbInitialized_{false};
     std::array<std::uint32_t, kMaxAf> afKhz_{};
     std::uint8_t afCount_{0};
+    std::optional<std::uint16_t> piCandidate_;
+    std::optional<std::uint16_t> piConfirmed_;
 };
 
 } // namespace core

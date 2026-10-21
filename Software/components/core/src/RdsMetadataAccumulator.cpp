@@ -25,6 +25,8 @@ void RdsMetadataAccumulator::reset() noexcept
     rtAbInitialized_ = false;
     afKhz_.fill(0U);
     afCount_ = 0U;
+    piCandidate_.reset();
+    piConfirmed_.reset();
 }
 
 void RdsMetadataAccumulator::applyGroup(std::uint16_t blockA,
@@ -32,7 +34,12 @@ void RdsMetadataAccumulator::applyGroup(std::uint16_t blockA,
                                         std::uint16_t blockC,
                                         std::uint16_t blockD) noexcept
 {
-    (void)blockA;
+    if (blockA != 0U) {
+        if (piCandidate_ == blockA) {
+            piConfirmed_ = blockA;
+        }
+        piCandidate_ = blockA;
+    }
     const std::uint8_t groupType =
         static_cast<std::uint8_t>((blockB >> 12U) & 0x0FU);
 
@@ -129,6 +136,11 @@ void RdsMetadataAccumulator::ingestAfCode(std::uint8_t code) noexcept
 std::span<const std::uint32_t> RdsMetadataAccumulator::alternateFrequenciesKhz() const
 {
     return std::span<const std::uint32_t>(afKhz_.data(), afCount_);
+}
+
+std::optional<std::uint16_t> RdsMetadataAccumulator::programIdentification() const
+{
+    return piConfirmed_;
 }
 
 } // namespace core

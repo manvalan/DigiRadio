@@ -27,6 +27,7 @@
 #include "core/IntegrationError.hpp"
 #include "core/ParseError.hpp"
 #include "core/PowerStateJson.hpp"
+#include "core/AfFollowJson.hpp"
 #include "core/SeekDirection.hpp"
 #include "core/StationListJson.hpp"
 #include "core/StoreError.hpp"
@@ -69,7 +70,7 @@ namespace net {
 
 namespace {
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.9.1";
+constexpr char kFirmwareVersion[] = "0.9.2";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -1053,6 +1054,66 @@ esp_err_t powerPostHandler(httpd_req_t* req)
     const std::string json = core::serializePowerStateJson(*parsed);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    afFollowGetHandler — serve GET /api/tuner/af as JSON.
+ *
+ * @dname    afFollowGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads TunerService::afFollowStats(); no I/O with the chips.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-21
+ */
+esp_err_t afFollowGetHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->tuner == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    const std::string json =
+        core::serializeAfFollowJson(ctx->tuner->afFollowStats());
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+/**
+ * @brief    afFollowPostHandler — POST /api/tuner/af {"enabled":bool}.
+ *
+ * @dname    afFollowPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate turns RDS AF following on/off (not persisted; default on).
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-21
+ */
+esp_err_t afFollowPostHandler(httpd_req_t* req)
+{
+    auto* ctx = routeContextFrom(req);
+    if (ctx == nullptr || ctx->tuner == nullptr) {
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    std::array<char, 128> body{};
+    if (!readRequestBody(req, body)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    const auto parsed =
+        core::parseAfFollowEnabledJson(std::string_view(body.data()));
+    if (!parsed) {
+        const std::string json =
+            core::serializeTunerErrorJson(parseErrorToken(parsed.error()));
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_set_type(req, "application/json");
+        return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    ctx->tuner->setAfFollowEnabled(*parsed);
+    return afFollowGetHandler(req);
 }
 
 /**
@@ -2300,7 +2361,7 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 12288;
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 56; // 51 routes registered below as of 2026-10-21;
+    config.max_uri_handlers = 56; // 53 routes registered below as of 2026-10-21;
                                    // keep headroom so a silent
                                    // httpd_register_uri_handler failure
                                    // ("no slots left") doesn't quietly drop
@@ -2541,6 +2602,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &powerPostUri);
+
+    const httpd_uri_t afFollowGetUri = {
+        .uri = "/api/tuner/af",
+        .method = HTTP_GET,
+        .handler = afFollowGetHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &afFollowGetUri);
+
+    const httpd_uri_t afFollowPostUri = {
+        .uri = "/api/tuner/af",
+        .method = HTTP_POST,
+        .handler = afFollowPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &afFollowPostUri);
 
     const httpd_uri_t dspProgramUri = {
         .uri = "/api/dsp/program",

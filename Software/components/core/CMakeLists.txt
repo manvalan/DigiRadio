@@ -40,6 +40,8 @@ idf_component_register(
         "src/OtaAppDescriptor.cpp"
         "src/WebRadioJson.cpp"
         "src/PowerStateJson.cpp"
+        "src/AlternateFrequencyFollower.cpp"
+        "src/AfFollowJson.cpp"
     INCLUDE_DIRS "include"
 )
 
