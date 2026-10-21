@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 
 enum IncomingShare: Equatable, Sendable {
     case webStream(URL)
@@ -21,15 +20,11 @@ enum IncomingShare: Equatable, Sendable {
         return nil
     }
 
-    static func consumePasteboard() -> IncomingShare? {
-        let pasteboard = UIPasteboard.general
-        let type = "com.digiradio.igiRadio.share"
-        let raw: String?
-        if let data = pasteboard.data(forPasteboardType: type) {
-            raw = String(data: data, encoding: .utf8)
-        } else {
-            raw = pasteboard.value(forPasteboardType: type) as? String
-        }
+    /// Link left by the share extension in the shared App Group.
+    static func consumePendingShare() -> IncomingShare? {
+        let defaults = SharedAppGroup.defaults
+        let raw = defaults?.string(forKey: SharedAppGroup.pendingShareKey)
+        defaults?.removeObject(forKey: SharedAppGroup.pendingShareKey)
         guard let raw, !raw.isEmpty else { return nil }
         if let shared = urlFromSharedText(raw) {
             return classify(shared)
