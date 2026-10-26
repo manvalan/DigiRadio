@@ -65,15 +65,35 @@ void logSummary();
  * The confirmation used to happen right after the network came up, before
  * the af_follow and web radio tasks even started, so the 0.9.6 image that
  * crashed in af_follow was already "valid" and the bootloader had nothing
- * to roll back to. Now a timer confirms after kProbationSeconds; a reset
- * before that makes the bootloader return to the previous image.
+ * to roll back to. Since 0.12.4 a periodic check confirms only after 60 s
+ * AND once a client has read GET /api/health after that (Wi-Fi, lwIP and
+ * HTTP work) AND the heap never fell below 4 KB. 0.12.3 hung out of
+ * memory, still confirmed by the old 60 s timer, and could not be rolled
+ * back; an image that hangs or nearly runs out of memory now stays
+ * unconfirmed, so the next reset returns to the previous image.
  *
  * @dname    confirmOtaAfterProbation
- * @pubstate starts a one-shot esp_timer.
+ * @pubstate starts a periodic esp_timer (5 s) that stops itself.
  *
  * @author   Michele Bigi
  * @date     2026-10-26
  */
 void confirmOtaAfterProbation();
+
+/**
+ * @brief    bootSettled — whether background start-up may begin.
+ *
+ * @dname    bootSettled
+ * @return   true once 20 s have passed since boot and the running image is
+ *           confirmed (not in OTA probation).
+ * @pubstate reads the uptime and the OTA state of the running partition.
+ *
+ * The web radio waits for this before resuming a stream that was left on,
+ * so a fresh image is never judged while a stream eats the heap.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-27
+ */
+[[nodiscard]] bool bootSettled();
 
 } // namespace system_diag

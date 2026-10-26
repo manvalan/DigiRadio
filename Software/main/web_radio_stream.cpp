@@ -18,10 +18,12 @@
 
 #include "audio_routing.hpp"
 #include "esp32_i2s_sink.hpp"
+#include "system_diag.hpp"
 #include "web_radio_session.hpp"
 #include "webradio/WebRadioService.hpp"
 
 #include "core/PcmResampler.hpp"
+#include "core/WebRadioBudget.hpp"
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
@@ -41,13 +43,6 @@ namespace web_radio_stream {
 namespace {
 
 constexpr char kTag[] = "web_radio";
-/** About 2.5 s at 128 kbit/s. Internal RAM (no PSRAM on this module), so
- *  it exists only while streaming is on; smaller sizes are tried when the
- *  heap is fragmented. */
-constexpr std::array<std::size_t, 3> kRingSizes{40U * 1024U, 24U * 1024U,
-                                                16U * 1024U};
-/** Contiguous heap a TLS connection needs once the ring is taken. */
-constexpr std::size_t kTlsReserveBytes = 18U * 1024U;
 constexpr unsigned kStartFillPercent = 50U;
 /** Low-bitrate streams fill slowly: start anyway after this long. */
 constexpr std::int64_t kPrefillTimeoutUs = 6000000;
@@ -356,27 +351,29 @@ void playSession(Player& p, const std::string& url, std::uint32_t generation)
     stopFetch(p);
 }
 
-[[nodiscard]] bool createRing(Session& s)
+/** Ring sized from the free heap (core::chooseWebRadioRing): the MP3
+ *  decoder, the network task, HTTP(S) and Wi-Fi still need ~40-56 KB once
+ *  it exists. 0.12.3 took a ring regardless, the heap fell to 1.6 KB and
+ *  Wi-Fi stopped: now a start without enough heap is refused. */
+[[nodiscard]] bool createRing(Session& s, bool https)
 {
-    // HTTPS still needs one contiguous ~17 KB block (mbedTLS input record
-    // buffer) after the ring: skip sizes that would leave less.
+    const std::size_t freeBytes = heap_caps_get_free_size(MALLOC_CAP_8BIT);
     const std::size_t largest =
         heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-    for (const std::size_t bytes : kRingSizes) {
-        if (bytes != kRingSizes.back() && bytes + kTlsReserveBytes > largest) {
-            continue;
-        }
-        s.ring = xStreamBufferCreate(bytes, 1U);
-        if (s.ring != nullptr) {
-            s.ringBytes = bytes;
-            ESP_LOGI(kTag, "ring buffer %u bytes", static_cast<unsigned>(bytes));
-            return true;
-        }
+    const auto bytes = core::chooseWebRadioRing(freeBytes, largest, https);
+    if (bytes) {
+        s.ring = xStreamBufferCreate(*bytes, 1U);
     }
-    ESP_LOGE(kTag, "no heap for the ring buffer (largest block %u)",
-             static_cast<unsigned>(
-                 heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
-    return false;
+    if (s.ring == nullptr) {
+        ESP_LOGE(kTag, "not enough heap to stream (free %u, largest %u)",
+                 static_cast<unsigned>(freeBytes),
+                 static_cast<unsigned>(largest));
+        return false;
+    }
+    s.ringBytes = *bytes;
+    ESP_LOGI(kTag, "ring buffer %u bytes (heap free %u)",
+             static_cast<unsigned>(*bytes), static_cast<unsigned>(freeBytes));
+    return true;
 }
 
 void deleteRing(Session& s)
@@ -423,7 +420,8 @@ void streamWhileEnabled(Player& p)
         vTaskDelay(kSinkBusyRetryDelay); // the phone stream has the sink
         return;
     }
-    if (!createRing(p.session)) {
+    const bool https = p.service->config().url.starts_with("https://");
+    if (!createRing(p.session, https)) {
         esp32_i2s_sink::release();
         publishFault(p, core::WebRadioFault::OutOfMemory);
         vTaskDelay(kInitRetryDelay);
@@ -456,6 +454,12 @@ void run(void* arg)
         ESP_LOGE(kTag, "web radio unavailable (I2S or memory), retrying");
         publishFault(player, core::WebRadioFault::AudioOutput);
         vTaskDelay(kInitRetryDelay);
+    }
+    // A stream left on is resumed only once the system is up and a fresh
+    // OTA image is confirmed, so an update is never judged (or locked up,
+    // as 0.12.3 was) while a stream eats the heap during boot.
+    while (!system_diag::bootSettled()) {
+        vTaskDelay(kIdlePollDelay);
     }
     while (true) {
         if (player.service->config().enabled) {

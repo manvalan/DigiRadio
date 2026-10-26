@@ -50,6 +50,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/DlsDecoder.cpp"
     "${CORE_SRC_DIR}/EbuLatin.cpp"
     "${CORE_SRC_DIR}/JsonText.cpp"
+    "${CORE_SRC_DIR}/WebRadioBudget.cpp"
     "${CORE_SRC_DIR}/RadioSpectrum.cpp"
     "${CORE_SRC_DIR}/DabReturnPolicy.cpp"
     "${CORE_SRC_DIR}/MscDataGroup.cpp"
@@ -243,3 +244,7 @@ add_test(NAME rds_rt_plus_test COMMAND rds_rt_plus_test)
 add_executable(json_text_test json_text_test.cpp)
 target_link_libraries(json_text_test PRIVATE digiradio_core)
 add_test(NAME json_text_test COMMAND json_text_test)
+
+add_executable(web_radio_budget_test web_radio_budget_test.cpp)
+target_link_libraries(web_radio_budget_test PRIVATE digiradio_core)
+add_test(NAME web_radio_budget_test COMMAND web_radio_budget_test)

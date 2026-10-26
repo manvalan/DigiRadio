@@ -39,6 +39,18 @@ constexpr std::size_t kMaxTasks = 12U;
 /** Long enough for every task to have started and for the first tune,
  *  stream and AF check to have run (af_follow polls every 3 s). */
 constexpr std::int64_t kProbationSeconds = 60;
+/** How often the probation check runs once kProbationSeconds passed. */
+constexpr std::int64_t kProbationCheckUs = 5LL * 1000000LL;
+/** heap_min_free below this means the image nearly ran out of memory
+ *  (0.12.3 hit 1.6 KB and lost Wi-Fi): leave it unconfirmed. */
+constexpr std::size_t kMinHealthyHeapBytes = 4096U;
+/** Web radio autostart waits at least this long after boot. */
+constexpr std::int64_t kSettleSeconds = 20;
+
+/** A client read GET /api/health after the probation time: Wi-Fi, lwIP
+ *  and the web server demonstrably work. */
+std::atomic<bool> gHealthSeenAfterProbation{false};
+esp_timer_handle_t gProbationTimer = nullptr;
 
 struct WatchedTask {
     const char* name;
@@ -103,14 +115,40 @@ std::atomic<std::size_t> gTaskCount{0U};
     return diag;
 }
 
-void confirmNow(void* /*arg*/)
+void confirmNow()
 {
     if (auto confirmed = ota::OtaService::confirmBoot(); !confirmed) {
         ESP_LOGW(kTag, "OTA rollback confirm failed");
         return;
     }
-    ESP_LOGI(kTag, "running image confirmed after %lld s of probation",
-             static_cast<long long>(kProbationSeconds));
+    ESP_LOGI(kTag, "running image confirmed after %lld s",
+             static_cast<long long>(esp_timer_get_time() / 1000000));
+}
+
+// Periodic esp_timer callback: confirm a pending image once it has run
+// kProbationSeconds AND proved healthy (a health request was served after
+// that, so Wi-Fi and HTTP work, and the heap never nearly ran out). A
+// hung image is never confirmed: the next reset rolls it back.
+void probationCheck(void* /*arg*/)
+{
+    esp_timer_handle_t timer = gProbationTimer;
+    if (!pendingVerify(esp_ota_get_running_partition())) {
+        (void)esp_timer_stop(timer);
+        return;
+    }
+    const bool heapOk = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)
+                        >= kMinHealthyHeapBytes;
+    if (!gHealthSeenAfterProbation.load()) {
+        return;
+    }
+    if (!heapOk) {
+        ESP_LOGW(kTag, "heap went below %u B: image left unconfirmed",
+                 static_cast<unsigned>(kMinHealthyHeapBytes));
+        (void)esp_timer_stop(timer);
+        return;
+    }
+    confirmNow();
+    (void)esp_timer_stop(timer);
 }
 
 } // namespace
@@ -127,7 +165,16 @@ void watchTask(const char* name, TaskHandle_t handle)
 
 std::string json()
 {
+    if (esp_timer_get_time() / 1000000 >= kProbationSeconds) {
+        gHealthSeenAfterProbation.store(true);
+    }
     return core::serializeSystemDiagnosticsJson(collect());
+}
+
+bool bootSettled()
+{
+    return esp_timer_get_time() / 1000000 >= kSettleSeconds
+           && !pendingVerify(esp_ota_get_running_partition());
 }
 
 void logSummary()
@@ -148,23 +195,23 @@ void logSummary()
 
 void confirmOtaAfterProbation()
 {
-    static esp_timer_handle_t timer = nullptr;
-    if (timer != nullptr) {
+    if (gProbationTimer != nullptr) {
         return;
     }
     const esp_timer_create_args_t args = {
-        .callback = confirmNow,
+        .callback = probationCheck,
         .arg = nullptr,
         .dispatch_method = ESP_TIMER_TASK,
         .name = "ota_confirm",
-        .skip_unhandled_events = false,
+        .skip_unhandled_events = true,
     };
-    if (esp_timer_create(&args, &timer) != ESP_OK
-        || esp_timer_start_once(timer, kProbationSeconds * 1000000) != ESP_OK) {
+    if (esp_timer_create(&args, &gProbationTimer) != ESP_OK
+        || esp_timer_start_periodic(gProbationTimer, kProbationCheckUs)
+               != ESP_OK) {
         // No timer, no probation: confirm now rather than leave the image
         // for the bootloader to undo at the next ordinary reset.
         ESP_LOGW(kTag, "probation timer unavailable, confirming now");
-        confirmNow(nullptr);
+        confirmNow();
     }
 }
 

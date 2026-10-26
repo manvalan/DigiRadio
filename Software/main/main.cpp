@@ -39,6 +39,7 @@
 
 #include "driver/pulse_cnt.h"
 #include "esp_log.h"
+#include "esp_bt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -350,7 +351,9 @@ extern "C" void app_main()
         system_diag::watchTask("af_follow", handle);
     }
 
-    if (xTaskCreate(web_radio_stream::run, "web_radio", 16384,
+    // 0.12.3 measured 14 KB of 16 KB never used: the decoder state is on
+    // the heap, not on this stack.
+    if (xTaskCreate(web_radio_stream::run, "web_radio", 8192,
                     &webRadioService, 4, &handle) != pdPASS) {
         ESP_LOGW(kTag, "web radio stream task create failed");
     } else {
@@ -376,6 +379,12 @@ extern "C" void app_main()
     system_diag::confirmOtaAfterProbation();
 
     if (net.state() == net::NetState::StaConnected) {
+        // BLE is only used for Wi-Fi provisioning, which runs in setup mode
+        // (a fresh boot); in STA mode give its controller and NimBLE
+        // memory to the heap for the web radio (fw 0.12.4).
+        if (esp_bt_mem_release(ESP_BT_MODE_BLE) != ESP_OK) {
+            ESP_LOGW(kTag, "BLE memory not released");
+        }
         const auto& identity = hardware::HardwareBootstrap::deviceIdentity();
         ESP_LOGI(kTag,
                  "running in STA mode — open http://%.*s.local/ "

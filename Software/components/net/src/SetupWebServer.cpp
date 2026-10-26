@@ -77,7 +77,7 @@ const AlarmApi* gAlarmApi = nullptr;
 tuner::SpectrumScanService* gSpectrum = nullptr;
 const SlideApi* gSlideApi = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.12.3";
+constexpr char kFirmwareVersion[] = "0.12.4";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(

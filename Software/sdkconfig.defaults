@@ -56,3 +56,14 @@ CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH=y
 CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
 CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
 CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
+
+# fw 0.12.4: Wi-Fi may hold up to this many dynamic RX buffers (~1.6 KB
+# each). The default 32 let a 256 kbit/s stream take the last 10 KB of
+# heap in 0.12.3, after which Wi-Fi itself could not allocate. TCP window
+# is 5760 B (4 segments), so 12 still covers it and the AMPDU window (6).
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=12
+
+# fw 0.12.4: a task-watchdog timeout (idle task starved for 5 s) resets
+# the chip. With the health-gated OTA confirm, an image that locks up is
+# then rolled back instead of staying hung until a power cycle.
+CONFIG_ESP_TASK_WDT_PANIC=y

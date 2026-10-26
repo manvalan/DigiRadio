@@ -38,6 +38,7 @@ idf_component_register(
         "src/DlsDecoder.cpp"
         "src/EbuLatin.cpp"
         "src/JsonText.cpp"
+        "src/WebRadioBudget.cpp"
         "src/RadioSpectrum.cpp"
         "src/DabReturnPolicy.cpp"
         "src/MscDataGroup.cpp"

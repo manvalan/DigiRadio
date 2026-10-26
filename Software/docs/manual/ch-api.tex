@@ -55,8 +55,9 @@ Returns a health-check DTO serialised by
         \ldots), \texttt{uptime\_s}, internal heap \texttt{heap\_free},
         \texttt{heap\_min\_free} (lowest since boot) and
         \texttt{heap\_largest\_block}, the running OTA \texttt{partition},
-        \texttt{ota\_pending\_verify} (true during the 60\,s probation
-        after an OTA, see below) and \texttt{stack\_min\_free}, the least
+        \texttt{ota\_pending\_verify} (true during the probation after an
+        OTA: at least 60\,s and until a client reads this endpoint, see
+        below) and \texttt{stack\_min\_free}, the least
         free stack ever seen per watched task (httpd, heartbeat,
         af\_follow, web\_radio, phone\_pcm, alarm).
         From 0.11.1 also \texttt{si4684\_store} (\texttt{ready},
@@ -496,9 +497,16 @@ Streams a raw ESP-IDF application \texttt{.bin} into the inactive OTA slot
 (\texttt{ota\_0}/\texttt{ota\_1}). The body is raw bytes; the server validates
 the embedded \texttt{esp\_app\_desc\_t} at offset~0x20 (magic and
 \texttt{project\_name == "digiradio"}) while streaming. On success the new
-slot is selected and the device reboots; the first healthy boot after Wi-Fi
-and HTTP are up calls
-\texttt{ota::OtaService::confirmBoot()} to cancel rollback.
+slot is selected and the device reboots. The new image is confirmed
+(\texttt{ota::OtaService::confirmBoot()}) only after 60\,s of running AND
+once a client has read \texttt{GET /api/health} after that, with
+\texttt{heap\_min\_free} never below 4\,KB (0.12.4+; before, a plain 60\,s
+timer confirmed 0.12.3 although it had locked up out of memory). Until
+then any reset, including a task-watchdog panic, rolls back to the previous
+image, and a web radio left on is not resumed (it also waits 20\,s after
+every boot). A stream start is refused with \texttt{out\_of\_memory} when
+the free heap cannot hold the ring plus decoder, network task and Wi-Fi
+headroom (\texttt{core::chooseWebRadioRing()}).
 
 \begin{drnote}[Success response]
 \begin{drcode}[JSON]
