@@ -46,6 +46,8 @@ constexpr char kTag[] = "web_radio";
  *  heap is fragmented. */
 constexpr std::array<std::size_t, 3> kRingSizes{40U * 1024U, 24U * 1024U,
                                                 16U * 1024U};
+/** Contiguous heap a TLS connection needs once the ring is taken. */
+constexpr std::size_t kTlsReserveBytes = 18U * 1024U;
 constexpr unsigned kStartFillPercent = 50U;
 /** Low-bitrate streams fill slowly: start anyway after this long. */
 constexpr std::int64_t kPrefillTimeoutUs = 6000000;
@@ -356,7 +358,14 @@ void playSession(Player& p, const std::string& url, std::uint32_t generation)
 
 [[nodiscard]] bool createRing(Session& s)
 {
+    // HTTPS still needs one contiguous ~17 KB block (mbedTLS input record
+    // buffer) after the ring: skip sizes that would leave less.
+    const std::size_t largest =
+        heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
     for (const std::size_t bytes : kRingSizes) {
+        if (bytes != kRingSizes.back() && bytes + kTlsReserveBytes > largest) {
+            continue;
+        }
         s.ring = xStreamBufferCreate(bytes, 1U);
         if (s.ring != nullptr) {
             s.ringBytes = bytes;

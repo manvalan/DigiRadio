@@ -34,6 +34,13 @@ bool tryAcquire();
 void release();
 
 /**
+ * Whether a producer (web radio or phone PCM) holds the channel, i.e. the
+ * ESP32 is the audio source. The DAB data pump stands aside meanwhile.
+ * @return true between a successful tryAcquire() and release().
+ */
+bool inUse();
+
+/**
  * Write one frame's worth of already-32-bit-slot-formatted stereo samples
  * (left, right pairs). Blocks until the DMA accepts the data.
  * @param samples      Interleaved L,R int32 samples (top-aligned 24-bit).

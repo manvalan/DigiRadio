@@ -62,7 +62,10 @@ namespace {
 constexpr char kTag[] = "digiradio";
 constexpr TickType_t kHeartbeatPeriod = pdMS_TO_TICKS(60000);
 /** RDS AF follow poll period (the iOS app used to poll every 3-4 s). */
-constexpr TickType_t kAfFollowPeriod = pdMS_TO_TICKS(3000);
+/** DAB data drain period; the tuner's DSRV queue is small. */
+constexpr TickType_t kDabDataPeriod = pdMS_TO_TICKS(150);
+/** AF follow tick: every 20 drains, i.e. every 3 s as before. */
+constexpr unsigned kDrainsPerAfTick = 20U;
 
 /**
  * @brief    logGpioClockFrequency — one-shot edge-count frequency probe.
@@ -155,11 +158,14 @@ void sleepMs(std::uint32_t ms)
 }
 
 /**
- * @brief    afFollowTask — follow the FM station to a stronger RDS AF.
+ * @brief    afFollowTask — drain DAB data every 150 ms and run AF/DAB
+ *           following every 3 s.
  *
  * @dname    afFollowTask
  * @param    arg  tuner::AfFollowService* (static lifetime).
- * @pubstate polls the tuner every kAfFollowPeriod, with or without an app.
+ * @pubstate dab_slideshow::poll() every kDabDataPeriod and
+ *           AfFollowService::tick() every kDrainsPerAfTick drains, with or
+ *           without an app.
  *
  * @author   Michele Bigi
  * @date     2026-10-21
@@ -168,8 +174,12 @@ void sleepMs(std::uint32_t ms)
 {
     auto* follow = static_cast<tuner::AfFollowService*>(arg);
     UBaseType_t lowWater = ~0U;
-    while (true) {
-        follow->tick(static_cast<std::uint32_t>(esp_timer_get_time() / 1000));
+    for (unsigned n = 0U;; ++n) {
+        dab_slideshow::poll();
+        if (n % kDrainsPerAfTick == 0U) {
+            follow->tick(
+                static_cast<std::uint32_t>(esp_timer_get_time() / 1000));
+        }
         // TunerStatus copies, RDS buffers and hunts are stack-heavy: an
         // undersized stack overflowed here in 0.9.6. Log new lows.
         const UBaseType_t free = uxTaskGetStackHighWaterMark(nullptr);
@@ -178,7 +188,7 @@ void sleepMs(std::uint32_t ms)
             ESP_LOGI(kTag, "af_follow stack free low-water: %u bytes",
                      static_cast<unsigned>(free));
         }
-        vTaskDelay(kAfFollowPeriod);
+        vTaskDelay(kDabDataPeriod);
     }
 }
 
@@ -327,14 +337,13 @@ extern "C" void app_main()
     static tuner::SpectrumScanService spectrum(tunerService);
     net::setSpectrumScanService(&spectrum);
 
-    if (TaskHandle_t dabData = dab_slideshow::start(tunerService);
-        dabData == nullptr) {
-        ESP_LOGW(kTag, "DAB data task create failed: no DLS/slideshow");
-    } else {
-        system_diag::watchTask("dab_data", dabData);
+    if (!dab_slideshow::start(tunerService)) {
+        ESP_LOGW(kTag, "slide flash unavailable: DLS only, no slideshow");
     }
-    // 0.10.1 measured 10 KB of 12 KB never used.
-    if (xTaskCreate(afFollowTask, "af_follow", 8192, &afFollow, 3, &handle)
+    // AF follow plus the DAB data drain (0.12.1: one task instead of two).
+    // The drain peaked at 5.8 KB in 0.12.0's own 8 KB task, AF at ~2 KB;
+    // they run one after the other, so 10 KB keeps a 4 KB margin.
+    if (xTaskCreate(afFollowTask, "af_follow", 10240, &afFollow, 3, &handle)
         != pdPASS) {
         ESP_LOGW(kTag, "AF follow task create failed");
     } else {

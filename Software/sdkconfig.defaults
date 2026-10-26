@@ -47,3 +47,12 @@ CONFIG_ESP_WIFI_IRAM_OPT=n
 CONFIG_ESP_WIFI_RX_IRAM_OPT=n
 CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
 CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH=y
+
+# Web radio over HTTPS (fw 0.12.1): with static buffers mbedTLS holds a
+# 16 KB input + 4 KB output record buffer for the whole connection, and
+# 0.12.0 left too little heap for them next to the ring and the MP3
+# decoder. Dynamic buffers size each record buffer to the record and free
+# the CA chain and config data once the handshake is done.
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y

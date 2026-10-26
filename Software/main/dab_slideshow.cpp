@@ -18,6 +18,8 @@
 
 #include "dab_slideshow.hpp"
 
+#include "esp32_i2s_sink.hpp"
+
 #include "core/IDabDataSink.hpp"
 #include "core/ISlideWriter.hpp"
 #include "core/MotSlideAssembler.hpp"
@@ -28,7 +30,6 @@
 #include "esp_log.h"
 #include "esp_partition.h"
 #include "esp_timer.h"
-#include "freertos/task.h"
 
 #include <atomic>
 #include <bitset>
@@ -49,10 +50,7 @@ constexpr std::uint32_t kSlotCount = 16U;
 constexpr std::uint32_t kSectorSize = 0x1000U;
 constexpr char kLabel[] = "slides";
 
-constexpr TickType_t kPollPeriod = pdMS_TO_TICKS(150);
 constexpr std::size_t kPacketsPerPoll = 32U;
-// writeCommand() keeps a 4 KB command buffer on the caller's stack.
-constexpr std::uint32_t kTaskStackBytes = 8192U;
 constexpr std::int64_t kInterestWindowUs = 5LL * 60LL * 1000000LL;
 
 /**
@@ -239,38 +237,32 @@ constexpr net::SlideApi kSlideApi{
     .touch = touch,
 };
 
-[[noreturn]] void dabDataTask(void* /*arg*/)
-{
-    static InterestGatedSink sink(gStore);
-    while (true) {
-        if (!gTuner->sweepActive()) {
-            if (auto ok = gTuner->pollDabData(sink, kPacketsPerPoll); !ok) {
-                ESP_LOGD(kTag, "DSRV poll failed (%d)",
-                         static_cast<int>(ok.error()));
-            }
-        }
-        vTaskDelay(kPollPeriod);
-    }
-}
-
 } // namespace
 
-TaskHandle_t start(tuner::TunerService& tuner)
+bool start(tuner::TunerService& tuner)
 {
     gTuner = &tuner;
     if (!gStore.open()) {
         ESP_LOGE(kTag, "cannot register slide flash at 0x%lx: no slideshow",
                  static_cast<unsigned long>(kFlashOffset));
-    } else {
-        net::setSlideApi(&kSlideApi);
+        return false;
     }
-    TaskHandle_t handle = nullptr;
-    if (xTaskCreate(dabDataTask, "dab_data", kTaskStackBytes, nullptr, 4,
-                    &handle)
-        != pdPASS) {
-        return nullptr;
+    net::setSlideApi(&kSlideApi);
+    return true;
+}
+
+void poll()
+{
+    static InterestGatedSink sink(gStore);
+    // While the ESP32 feeds the speaker (web radio, phone) the DAB
+    // programme is not heard, and the 8 KB DSRV frames would compete
+    // with the stream's TLS buffers for the few large heap blocks.
+    if (gTuner == nullptr || gTuner->sweepActive() || esp32_i2s_sink::inUse()) {
+        return;
     }
-    return handle;
+    if (auto ok = gTuner->pollDabData(sink, kPacketsPerPoll); !ok) {
+        ESP_LOGD(kTag, "DSRV poll failed (%d)", static_cast<int>(ok.error()));
+    }
 }
 
 } // namespace dab_slideshow

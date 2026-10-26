@@ -457,8 +457,10 @@ order, assembly left to the host). Implemented in
 \texttt{main/dab\_slideshow.cpp}, which hands the groups to
 \texttt{MotSlideAssembler} only while a client watches the slideshow.
 \texttt{pollDabData()} also keeps DLS/DL Plus inside the tuner: it runs
-from the \texttt{dab\_data} task every 150\,ms and empties the chip's
-queue, where the previous one-packet-per-status read let MOT traffic
+every 150\,ms from the \texttt{af\_follow} task (0.12.1; 0.12.0 had a
+separate 8\,KB \texttt{dab\_data} task whose stack the web radio needed)
+and empties the chip's queue, except during spectrum sweeps and while the
+ESP32 feeds the speaker (web radio, phone audio). The previous one-packet-per-status read let MOT traffic
 starve the dynamic label. The payload is now read as the tail of one full
 reply frame (every RD\_REPLY restarts at the status bytes).
 

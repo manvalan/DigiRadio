@@ -99,6 +99,11 @@ void release()
     gInUse.store(false);
 }
 
+bool inUse()
+{
+    return gInUse.load();
+}
+
 bool writeSamples(const std::int32_t* samples, std::size_t sampleCount)
 {
     if (gTxHandle == nullptr) {
