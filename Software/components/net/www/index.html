@@ -55,6 +55,7 @@
       }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
     body {
       font-family: var(--font);
       font-size: var(--text-base);
@@ -317,6 +318,46 @@
       font-weight: 600;
     }
     .stat span { display: block; color: var(--muted); font-size: 0.7rem; font-weight: 500; margin-bottom: 0.1rem; }
+    .now-slide {
+      display: block;
+      width: 100%;
+      max-height: 20rem;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      margin-bottom: var(--space-2);
+    }
+    .now-label {
+      font-size: var(--text-sm);
+      color: var(--muted);
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem var(--space-2);
+      margin-bottom: var(--space-2);
+      word-break: break-word;
+    }
+    .meter {
+      height: 0.5rem;
+      border-radius: 1rem;
+      background: var(--surface-3);
+      overflow: hidden;
+      margin: 0.35rem 0 var(--space-2);
+    }
+    .meter > div {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 0.4s ease;
+    }
+    canvas.chart {
+      display: block;
+      width: 100%;
+      height: 11rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--space-2);
+    }
     .band-panel { display: none; }
     .band-panel.show { display: block; }
     ul.list {
@@ -482,6 +523,7 @@
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button type="button" class="active" data-tab="now" role="tab">Now</button>
       <button type="button" data-tab="radio" role="tab">Radio</button>
+      <button type="button" data-tab="signal" role="tab">Signal</button>
       <button type="button" data-tab="presets" role="tab">Presets</button>
       <button type="button" data-tab="audio" role="tab">Audio</button>
       <button type="button" data-tab="stream" role="tab">Stream</button>
@@ -492,9 +534,12 @@
 
     <section id="panel-now" class="panel active" role="tabpanel">
       <h2>Now playing</h2>
-      <p class="lede">Live metadata from RDS (FM) or Dynamic Label (DAB).</p>
+      <p class="lede">Live metadata from RDS (FM) or Dynamic Label and DL+ (DAB).</p>
+      <img class="now-slide" id="now-slide" alt="Image sent by the station" hidden>
       <div class="now-title" id="now-title">—</div>
       <div class="now-sub" id="now-sub"></div>
+      <div class="now-label" id="now-label" hidden></div>
+      <div class="meter" aria-hidden="true"><div id="now-meter"></div></div>
       <div class="stat-grid" id="now-stats"></div>
       <div class="row">
         <button type="button" class="action secondary" id="now-refresh">Refresh</button>
@@ -534,6 +579,23 @@
       <input id="scan-name" type="text" maxlength="32" placeholder="es. monte carlo">
       <button type="button" class="action secondary" id="tuner-scan">Cerca stazione</button>
       <p class="msg" id="scan-msg" aria-live="polite"></p>
+    </section>
+
+    <section id="panel-signal" class="panel" role="tabpanel" hidden>
+      <h2>Signal</h2>
+      <p class="lede">Level and CNR/SNR over the last 5 minutes, sampled every 2 s while this tab is open.</p>
+      <div class="stat-grid" id="signal-stats"></div>
+      <canvas class="chart" id="signal-chart" aria-label="Signal history"></canvas>
+      <h3 class="subhead">Band spectrum</h3>
+      <p class="lede">The tuner measures the level on every channel (FM every 100 kHz, DAB channels 5A–13F), then returns to the station. Audio stops during the scan.</p>
+      <label for="spectrum-band">Band</label>
+      <select id="spectrum-band">
+        <option value="fm">FM 87.5–108 MHz</option>
+        <option value="dab">DAB band III</option>
+      </select>
+      <button type="button" class="action" id="spectrum-start">Scan band</button>
+      <canvas class="chart" id="spectrum-chart" aria-label="Band spectrum" hidden></canvas>
+      <p class="msg" id="signal-msg" aria-live="polite"></p>
     </section>
 
     <section id="panel-presets" class="panel" role="tabpanel" hidden>
@@ -790,6 +852,11 @@
       if (name === "stream") {
         loadStreamingConfig();
       }
+      if (name === "signal") {
+        startSignalPolling();
+      } else {
+        stopSignalPolling();
+      }
     }
 
     document.querySelectorAll("nav.tabs button").forEach(function (btn) {
@@ -829,6 +896,10 @@
         };
       }
       if (s.band === "dab" && s.dab) {
+        var dlp = s.dab.dl_plus || {};
+        if (dlp.title) {
+          return { title: dlp.title, sub: dlp.artist || "", label: s.dab.dynamic_label || "" };
+        }
         return {
           title: s.dab.dynamic_label || ("Ensemble " + s.dab.freq_index),
           sub: s.dab.playing_service_id != null
@@ -843,6 +914,10 @@
       var np = nowPlayingFromStatus(s);
       $("now-title").textContent = np.title;
       $("now-sub").textContent = np.sub;
+      $("now-label").textContent = np.label || "";
+      $("now-label").hidden = !np.label;
+      renderSlide(s && s.band === "dab" && s.dab ? s.dab.slide_id : null);
+      $("now-meter").style.width = signalPercent(s) + "%";
       var stats = [];
       if (s && s.booted != null) {
         stats.push(["Band", s.band]);
@@ -866,6 +941,195 @@
           '</span>' + pair[1] + "</div>";
       }).join("");
     }
+
+    var shownSlideId = null;
+
+    function renderSlide(id) {
+      var img = $("now-slide");
+      if (id == null) {
+        img.hidden = true;
+        shownSlideId = null;
+        return;
+      }
+      if (id === shownSlideId) return;
+      shownSlideId = id;
+      img.onload = function () { img.hidden = false; };
+      img.onerror = function () { img.hidden = true; };
+      img.src = "/api/tuner/slide?id=" + encodeURIComponent(id);
+    }
+
+    /** Rough 0-100 bar: DAB from FIC quality, FM from RSSI (0-60 dBuV). */
+    function signalPercent(s) {
+      if (!s || !s.locked) return 0;
+      if (s.dab && s.dab.fic_quality != null) return Math.max(0, Math.min(100, s.dab.fic_quality));
+      if (s.fm && s.fm.rssi_dbuv != null) return Math.max(0, Math.min(100, s.fm.rssi_dbuv * 100 / 60));
+      return 0;
+    }
+
+    function cssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    /** Canvas sized to its CSS box at device pixel ratio. */
+    function prepCanvas(canvas) {
+      var ratio = window.devicePixelRatio || 1;
+      var w = canvas.clientWidth, h = canvas.clientHeight;
+      canvas.width = Math.round(w * ratio);
+      canvas.height = Math.round(h * ratio);
+      var ctx = canvas.getContext("2d");
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      return { ctx: ctx, w: w, h: h };
+    }
+
+    function drawAxisLabel(ctx, text, x, y) {
+      ctx.fillStyle = cssVar("--muted");
+      ctx.font = "11px " + cssVar("--font");
+      ctx.fillText(text, x, y);
+    }
+
+    var signalSamples = [];
+    var signalTimer = null;
+
+    function drawSignalChart() {
+      var c = prepCanvas($("signal-chart"));
+      var pad = 22, n = signalSamples.length;
+      if (n < 2) {
+        drawAxisLabel(c.ctx, "Collecting samples…", 10, c.h / 2);
+        return;
+      }
+      var max = 10;
+      signalSamples.forEach(function (p) { max = Math.max(max, p.level, p.snr); });
+      max = Math.ceil(max / 10) * 10;
+      function line(key, color) {
+        c.ctx.strokeStyle = color;
+        c.ctx.lineWidth = 2;
+        c.ctx.beginPath();
+        signalSamples.forEach(function (p, i) {
+          var x = pad + (c.w - pad - 6) * i / (150 - 1);
+          var y = c.h - 16 - (c.h - 26) * p[key] / max;
+          if (i === 0) c.ctx.moveTo(x, y); else c.ctx.lineTo(x, y);
+        });
+        c.ctx.stroke();
+      }
+      line("level", cssVar("--muted"));
+      line("snr", cssVar("--accent"));
+      drawAxisLabel(c.ctx, max + "", 2, 14);
+      drawAxisLabel(c.ctx, "0", 2, c.h - 16);
+      drawAxisLabel(c.ctx, "— level dBµV", pad, c.h - 3);
+      c.ctx.fillStyle = cssVar("--accent");
+      c.ctx.fillText(signalSamples[n - 1].dab ? "— CNR dB" : "— SNR dB", pad + 100, c.h - 3);
+    }
+
+    function pollSignal() {
+      api("/api/tuner/signal").then(function (res) {
+        if (!res.ok || res.d.level_dbuv == null) return;
+        var d = res.d;
+        signalSamples.push({ level: d.level_dbuv, snr: d.snr_db, dab: d.band === "dab" });
+        if (signalSamples.length > 150) signalSamples.shift();
+        var stats = [
+          ["Quality", d.quality + "% · " + d.grade],
+          ["Level", d.level_dbuv + " dBµV"],
+          [d.band === "dab" ? "CNR" : "SNR", d.snr_db + " dB"]
+        ];
+        if (d.fic_quality != null) stats.push(["FIC", d.fic_quality + "%"]);
+        if (d.fib_errors != null) stats.push(["FIB errors", d.fib_errors]);
+        if (d.ber != null) stats.push(["BER", Number(d.ber).toExponential(1)]);
+        $("signal-stats").innerHTML = stats.map(function (pair) {
+          return '<div class="stat"><span>' + pair[0] + "</span>" + pair[1] + "</div>";
+        }).join("");
+        drawSignalChart();
+      }).catch(function () {});
+    }
+
+    function startSignalPolling() {
+      if (signalTimer) return;
+      pollSignal();
+      signalTimer = setInterval(pollSignal, 2000);
+      loadSpectrum();
+    }
+
+    function stopSignalPolling() {
+      clearInterval(signalTimer);
+      signalTimer = null;
+    }
+
+    function drawSpectrum(sp) {
+      var canvas = $("spectrum-chart");
+      if (!sp.points || !sp.points.length) { canvas.hidden = true; return; }
+      canvas.hidden = false;
+      var c = prepCanvas(canvas);
+      var pts = sp.points, pad = 22, base = c.h - 18;
+      var max = 10;
+      pts.forEach(function (p) { max = Math.max(max, p.rssi_dbuv); });
+      max = Math.ceil(max / 10) * 10;
+      var step = (c.w - pad - 4) / pts.length;
+      var best = pts[0];
+      pts.forEach(function (p, i) {
+        if (p.rssi_dbuv > best.rssi_dbuv) best = p;
+        var h = (base - 8) * Math.max(0, p.rssi_dbuv) / max;
+        var locked = sp.band === "dab" ? p.fic_quality != null : true;
+        c.ctx.fillStyle = locked ? cssVar("--accent") : cssVar("--surface-3");
+        c.ctx.fillRect(pad + i * step, base - h, Math.max(1, step - (sp.band === "dab" ? 2 : 0)), h);
+      });
+      drawAxisLabel(c.ctx, max + "", 2, 14);
+      if (sp.band === "dab") {
+        drawAxisLabel(c.ctx, pts[0].channel || "", pad, c.h - 3);
+        drawAxisLabel(c.ctx, pts[pts.length - 1].channel || "", c.w - 30, c.h - 3);
+      } else {
+        drawAxisLabel(c.ctx, "87.5", pad, c.h - 3);
+        drawAxisLabel(c.ctx, "108 MHz", c.w - 52, c.h - 3);
+      }
+      var where = best.channel || (best.freq_khz / 1000).toFixed(1) + " MHz";
+      showMsg($("signal-msg"), "Strongest: " + where + " at " + best.rssi_dbuv + " dBµV", true);
+    }
+
+    function loadSpectrum() {
+      return api("/api/tuner/spectrum").then(function (res) {
+        if (res.status === 404) {
+          $("spectrum-start").disabled = true;
+          showMsg($("signal-msg"), "Band scan needs firmware 0.12 or later.", false);
+          return null;
+        }
+        if (!res.ok) return null;
+        var sp = res.d;
+        if (sp.state === "running") {
+          showMsg($("signal-msg"), "Scanning… " + (sp.progress || 0) + "%", true);
+        } else {
+          drawSpectrum(sp);
+        }
+        return sp;
+      });
+    }
+
+    $("spectrum-start").addEventListener("click", function () {
+      var btn = $("spectrum-start");
+      btn.disabled = true;
+      api("/api/tuner/spectrum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ band: $("spectrum-band").value })
+      }).then(function (res) {
+        if (!res.ok) {
+          showMsg($("signal-msg"), res.status === 409 ? "A scan is already running." :
+            "Scan failed: " + (res.d.error || res.status), false);
+          btn.disabled = false;
+          return;
+        }
+        signalSamples = [];
+        var timer = setInterval(function () {
+          loadSpectrum().then(function (sp) {
+            if (!sp || sp.state !== "running") {
+              clearInterval(timer);
+              btn.disabled = false;
+            }
+          }).catch(function () { clearInterval(timer); btn.disabled = false; });
+        }, 1000);
+      }).catch(function () {
+        showMsg($("signal-msg"), "Scan request failed.", false);
+        btn.disabled = false;
+      });
+    });
 
     function refreshTunerStatus() {
       return api("/api/tuner/status")
