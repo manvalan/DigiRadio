@@ -1,6 +1,7 @@
 name: Firmware release
 
-# Pushing a tag vX.Y.Z builds the firmware WITHOUT the proprietary Si4684
+# Pushing a tag vX.Y.Z, or pushing a commit to the "firmware-release"
+# branch (the tag is then created from kFirmwareVersion), builds the firmware WITHOUT the proprietary Si4684
 # images (sdkconfig.release) and publishes digiradio.bin as a GitHub
 # release. The radio reads the images from its flash store, filled once by
 # a full build (0.11.1 or later) flashed from a developer machine. The
@@ -9,6 +10,7 @@ name: Firmware release
 on:
   push:
     tags: ["v*"]
+    branches: ["firmware-release"]
 
 permissions:
   contents: write
@@ -24,11 +26,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check the tag matches the firmware version
+      - name: Work out the version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          grep -q "kFirmwareVersion\[\] = \"${version}\"" components/net/src/SetupWebServer.cpp \
-            || { echo "tag ${GITHUB_REF_NAME} != kFirmwareVersion"; exit 1; }
+          version=$(sed -n 's/.*kFirmwareVersion\[\] = "\([^"]*\)".*/\1/p' components/net/src/SetupWebServer.cpp)
+          [ -n "$version" ] || { echo "kFirmwareVersion not found"; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "tag ${GITHUB_REF_NAME} != kFirmwareVersion ${version}"; exit 1
+          fi
+          # Never overwrite a published release: bump kFirmwareVersion instead.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/v${version}")
+          [ "$code" = "404" ] || { echo "release v${version} already exists (HTTP $code)"; exit 1; }
           echo "VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Build without Si4684 images
@@ -58,6 +68,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: Firmware ${{ env.VERSION }}
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           files: |
             release/digiradio.bin
             release/digiradio.bin.sha256
