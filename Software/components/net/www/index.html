@@ -1094,7 +1094,10 @@
         }
         if (!res.ok) return null;
         var sp = res.d;
-        if (sp.state === "running") {
+        if (sp.state === "failed") {
+          drawSpectrum(sp);
+          showMsg($("signal-msg"), "Tuner error during the scan: partial result.", false);
+        } else if (sp.state === "running") {
           showMsg($("signal-msg"), "Scanning… " + (sp.progress || 0) + "%", true);
         } else {
           drawSpectrum(sp);
