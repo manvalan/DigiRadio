@@ -1124,12 +1124,14 @@ esp_err_t afFollowGetHandler(httpd_req_t* req)
 }
 
 /**
- * @brief    afFollowPostHandler — POST /api/tuner/af {"enabled":bool}.
+ * @brief    afFollowPostHandler — POST /api/tuner/af {"enabled":bool,
+ *           "dab_return_min":0-120}, each key optional.
  *
  * @dname    afFollowPostHandler
  * @param    req  HTTP request handle from esp_http_server.
  * @return   ESP_OK on success, or an esp_err_t error code.
- * @pubstate turns RDS AF following on/off (not persisted; default on).
+ * @pubstate turns AF/DAB following on/off and sets the FM→DAB return
+ *           interval (neither persisted).
  *
  * @author   Michele Bigi
  * @date     2026-10-21
@@ -1147,7 +1149,7 @@ esp_err_t afFollowPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
     const auto parsed =
-        core::parseAfFollowEnabledJson(std::string_view(body.data()));
+        core::parseAfFollowSettingsJson(std::string_view(body.data()));
     if (!parsed) {
         const std::string json =
             core::serializeTunerErrorJson(parseErrorToken(parsed.error()));
@@ -1155,7 +1157,12 @@ esp_err_t afFollowPostHandler(httpd_req_t* req)
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
     }
-    ctx->tuner->setAfFollowEnabled(*parsed);
+    if (parsed->enabled) {
+        ctx->tuner->setAfFollowEnabled(*parsed->enabled);
+    }
+    if (parsed->dabReturnMinutes) {
+        ctx->tuner->setDabReturnMinutes(*parsed->dabReturnMinutes);
+    }
     return afFollowGetHandler(req);
 }
 

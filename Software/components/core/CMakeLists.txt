@@ -37,6 +37,7 @@ idf_component_register(
         "src/DabDynamicLabelAccumulator.cpp"
         "src/DlsDecoder.cpp"
         "src/RadioSpectrum.cpp"
+        "src/DabReturnPolicy.cpp"
         "src/DspProgram.cpp"
         "src/RegisterWrite.cpp"
         "src/DspProgramBlob.cpp"

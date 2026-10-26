@@ -512,6 +512,24 @@ void TunerService::recordDabFollow(bool switched)
     }
 }
 
+void TunerService::setDabReturnMinutes(std::uint16_t minutes)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    afStats_.dabReturnMinutes = minutes;
+}
+
+void TunerService::setOnFmFallback(bool active)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    afStats_.onFmFallback = active;
+}
+
+void TunerService::recordDabReturn()
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ++afStats_.dabReturns;
+}
+
 void TunerService::recordAfHunt()
 {
     const std::lock_guard<std::recursive_mutex> lock(mutex_);

@@ -229,22 +229,30 @@ RDS alternate-frequency follow, run on the radio by
 weak the firmware briefly probes the station's AFs and moves to a stronger
 one with the same PI. Off by default (it briefly interrupts audio while
 probing): POST \texttt{\{"enabled":true\}} turns it on; live only, every
-boot starts disabled.
+boot starts disabled. From 0.12.0 POST also takes
+\texttt{"dab\_return\_min"} (0--120, default 10, 0 = never): after DAB
+following moved to the linked FM station, the radio checks the original
+DAB ensemble that often and goes back when it is good again (see
+\texttt{DabReturnPolicy}). Each key is optional; at least one is required.
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
 {"enabled":true,"hunts":3,"switches":2,"last_from_khz":98400,"last_to_khz":87600,
- "dab_hunts":1,"dab_switches":1}
+ "dab_hunts":1,"dab_switches":1,"dab_return_min":10,"on_fm_fallback":true,
+ "dab_returns":0}
 \end{drcode}
 \texttt{hunts} counts AF probes (each one briefly retunes, so it is
 audible); \texttt{last\_from\_khz}/\texttt{last\_to\_khz} appear after the
 first automatic switch. \texttt{dab\_hunts}/\texttt{dab\_switches} count DAB
 service-following attempts and successes (same service on another
 ensemble, or its hard-linked FM frequency); the same switch turns both off.
+\texttt{on\_fm\_fallback} is true while linked FM replaces a lost DAB
+service; \texttt{dab\_returns} counts the returns to DAB.
 \end{drnote}
 
-HTTP status: \textbf{200 OK}; \textbf{400} for a missing or non-boolean
-\texttt{enabled}; \textbf{503} when the tuner service is unavailable.
+HTTP status: \textbf{200 OK}; \textbf{400} when neither key is present,
+\texttt{enabled} is not a boolean or \texttt{dab\_return\_min} is outside
+0--120; \textbf{503} when the tuner service is unavailable.
 
 \apiendpoint{GET}{/api/tuner/services}
 \label{sec:api-tuner-services}

@@ -309,7 +309,9 @@ the full status with the RDS drain (AF list, PI) is read every tenth tick
 On a weak FM signal it holds the \texttt{TunerService} lock, probes up to six
 AFs (250\,ms settle each, plus a few RDS reads to confirm the PI) and stays
 on the best one carrying the same PI, or tunes back. In DAB it runs
-\texttt{core::DabServiceFollower} instead (service following). Works with
+\texttt{core::DabServiceFollower} instead (service following); after a
+move to linked FM, \texttt{core::DabReturnPolicy} decides when to try DAB
+again. It stands aside while \texttt{TunerService::sweepActive()}. Works with
 no app connected; state and on/off switch are at \texttt{/api/tuner/af}
 (Section~\ref{sec:api-tuner-af}).
 
@@ -327,6 +329,19 @@ volume. Each step takes the tuner lock on its own, so status requests are
 still served; progress and points live in a
 \texttt{core::SpectrumSnapshot} behind the service's own mutex and are
 serialised by \texttt{core::serializeSpectrumJson()}. One sweep at a time.
+
+\section{DabReturnPolicy}\label{cls:DabReturnPolicy}
+Pure-core schedule for leaving the FM fallback (0.12.0+). When
+\texttt{AfFollowService} continues a lost DAB service on the hard-linked
+FM station it arms the policy with the ensemble, SId/component and the
+FM PI. Measuring DAB means leaving FM (image reload plus 2.5\,s
+acquisition, so a failed check is a gap of a few seconds), so a return is
+tried only every \texttt{dab\_return\_min} minutes (default 10, 0 = never,
+at most 120). The radio goes back only when the ensemble locks with FIC
+quality $\geq$60, well above the 25 that counts as weak, so it does not
+bounce; otherwise it retunes the FM frequency it was on. The fallback ends
+when the listener moves away: another band, or FM with a different PI
+(AF switches with the same PI keep it).
 
 \section{DabServiceFollower}\label{cls:DabServiceFollower}
 Pure-core DAB service-following policy, the DAB counterpart of

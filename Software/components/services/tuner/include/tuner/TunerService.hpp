@@ -266,6 +266,41 @@ public:
     void recordDabFollow(bool switched);
 
     /**
+     * @brief    setDabReturnMinutes — interval of FM→DAB return attempts.
+     *
+     * @dname    setDabReturnMinutes
+     * @param    minutes  0 (never) to core::kMaxDabReturnMinutes.
+     * @pubstate writes afStats_.dabReturnMinutes (not persisted).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void setDabReturnMinutes(std::uint16_t minutes);
+
+    /**
+     * @brief    setOnFmFallback — note whether linked FM replaces DAB now.
+     *
+     * @dname    setOnFmFallback
+     * @param    active  true after DAB following moved to FM.
+     * @pubstate writes afStats_.onFmFallback.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void setOnFmFallback(bool active);
+
+    /**
+     * @brief    recordDabReturn — note a successful return from FM to DAB.
+     *
+     * @dname    recordDabReturn
+     * @pubstate increments afStats_.dabReturns.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void recordDabReturn();
+
+    /**
      * @brief    tuner — borrow the underlying driver for diagnostics.
      *
      * @dname    tuner

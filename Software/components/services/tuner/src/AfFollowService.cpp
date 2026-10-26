@@ -54,7 +54,9 @@ void AfFollowService::tick(std::uint32_t nowMs)
         return;
     }
     if (status->band == core::TunerBand::Fm) {
-        tickFm(*status, nowMs);
+        if (!tickDabReturn(*status, nowMs)) {
+            tickFm(*status, nowMs);
+        }
     } else {
         tickDab(*status, nowMs);
     }
@@ -94,6 +96,9 @@ void AfFollowService::huntDab(const core::TunerStatus& status,
     for (const auto& candidate : dabFollower_.candidates()) {
         if (tryCandidate(candidate, sid)) {
             switched = true;
+            if (candidate.fm) {
+                armDabReturn(status, candidate, nowMs);
+            }
             break;
         }
     }
@@ -111,6 +116,73 @@ bool AfFollowService::tryCandidate(const core::DabFollowCandidate& candidate,
         return tryFm(*candidate.fmFrequency, candidate.pi);
     }
     return tryEnsemble(candidate.dabFreqIndex, serviceId);
+}
+
+void AfFollowService::armDabReturn(const core::TunerStatus& status,
+                                   const core::DabFollowCandidate& candidate,
+                                   std::uint32_t nowMs)
+{
+    if (!status.dabFreqIndex || !status.dabPlayingServiceId
+        || !status.dabPlayingComponentId) {
+        return;
+    }
+    dabReturn_.arm(core::DabReturnTarget{
+                       .freqIndex = *status.dabFreqIndex,
+                       .serviceId = *status.dabPlayingServiceId,
+                       .componentId = *status.dabPlayingComponentId,
+                       .pi = candidate.pi},
+                   nowMs);
+    tuner_.setOnFmFallback(true);
+}
+
+// On the FM fallback: every dab_return_min minutes, check the original
+// ensemble and go back if DAB is clearly good again. Returns true when
+// this tick retuned (the FM follower must not read that snapshot).
+bool AfFollowService::tickDabReturn(const core::TunerStatus& status,
+                                    std::uint32_t nowMs)
+{
+    if (!dabReturn_.target()) {
+        return false;
+    }
+    if (dabReturn_.isStale(status)) {
+        dabReturn_.cancel();
+        tuner_.setOnFmFallback(false);
+        return false;
+    }
+    dabReturn_.setIntervalMinutes(tuner_.afFollowStats().dabReturnMinutes);
+    if (!dabReturn_.shouldTry(status, nowMs) || !status.fmFrequency) {
+        return false;
+    }
+    dabReturn_.recordAttempt(nowMs);
+    if (returnToDab(*dabReturn_.target())) {
+        dabReturn_.cancel();
+        tuner_.setOnFmFallback(false);
+        tuner_.recordDabReturn();
+        return true;
+    }
+    if (!tuner_.tuneFm(*status.fmFrequency)) {
+        ESP_LOGW(kTag, "could not retune FM %u kHz after DAB check",
+                 static_cast<unsigned>(status.fmFrequency->value()));
+    }
+    return true;
+}
+
+bool AfFollowService::returnToDab(const core::DabReturnTarget& target)
+{
+    if (!tuner_.tuneDab(target.freqIndex)) {
+        return false;
+    }
+    sleep_(kDabAcquireMs);
+    const auto signal = tuner_.refreshSignal();
+    if (!signal || !core::DabReturnPolicy::dabGoodEnough(*signal)) {
+        return false;
+    }
+    const bool played =
+        tuner_.playDabService(target.serviceId, target.componentId)
+            .has_value();
+    ESP_LOGI(kTag, "DAB service 0x%08x %s", static_cast<unsigned>(target.serviceId),
+             played ? "back from FM" : "good but did not start");
+    return played;
 }
 
 bool AfFollowService::tryEnsemble(std::uint8_t freqIndex,
