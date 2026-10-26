@@ -72,8 +72,9 @@ namespace net {
 namespace {
 
 SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
+const AlarmApi* gAlarmApi = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.10.2";
+constexpr char kFirmwareVersion[] = "0.11.0";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -2257,6 +2258,111 @@ esp_err_t stationsReorderPostHandler(httpd_req_t* req)
     return httpd_resp_send(req, "{\"status\":\"reordered\"}", 22);
 }
 
+esp_err_t sendJson(httpd_req_t* req, const std::string& json)
+{
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+esp_err_t sendStatus(httpd_req_t* req, const char* status, const char* json)
+{
+    httpd_resp_set_status(req, status);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, json);
+}
+
+/**
+ * @brief    alarmsGetHandler — GET /api/alarms (table, clock, next alarm).
+ *
+ * @dname    alarmsGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the alarm table through gAlarmApi.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t alarmsGetHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    return sendJson(req, gAlarmApi->statusJson());
+}
+
+/**
+ * @brief    alarmsPutHandler — PUT /api/alarms replaces the whole table.
+ *
+ * @dname    alarmsPutHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes the alarm table (NVS) through gAlarmApi.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t alarmsPutHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    static std::array<char, 2560> body{}; // httpd runs one handler at a time
+    if (!readRequestBody(req, body)) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"empty_body"})");
+    }
+    const auto json = gAlarmApi->replaceTable(std::string_view(body.data()));
+    if (!json) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"invalid_alarms"})");
+    }
+    return sendJson(req, *json);
+}
+
+/**
+ * @brief    sleepGetHandler — GET /api/system/sleep (seconds to standby).
+ *
+ * @dname    sleepGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the sleep timer through gAlarmApi.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t sleepGetHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    return sendJson(req, gAlarmApi->sleepJson());
+}
+
+/**
+ * @brief    sleepPostHandler — POST /api/system/sleep {"minutes":N}.
+ *
+ * @dname    sleepPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate arms (N > 0) or cancels (N = 0) the sleep timer.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t sleepPostHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    std::array<char, 64> body{};
+    if (!readRequestBody(req, body)) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"empty_body"})");
+    }
+    const auto json = gAlarmApi->setSleep(std::string_view(body.data()));
+    if (!json) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"invalid_minutes"})");
+    }
+    return sendJson(req, *json);
+}
+
 esp_err_t stationsTunePostHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -2403,7 +2509,7 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 12288;
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 56; // 54 routes registered below as of 2026-10-21;
+    config.max_uri_handlers = 60; // 58 routes registered below as of 2026-10-26;
                                    // keep headroom so a silent
                                    // httpd_register_uri_handler failure
                                    // ("no slots left") doesn't quietly drop
@@ -2853,6 +2959,8 @@ std::expected<void, NetError> SetupWebServer::start(
     };
     httpd_register_uri_handler(server_, &stationsTuneUri);
 
+    registerAlarmRoutes(routeCtx);
+
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};
 }
@@ -2860,6 +2968,28 @@ std::expected<void, NetError> SetupWebServer::start(
 void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept
 {
     gSystemDiagnostics = provider;
+}
+
+void setAlarmApi(const AlarmApi* api) noexcept
+{
+    gAlarmApi = api;
+}
+
+void SetupWebServer::registerAlarmRoutes(void* routeCtx)
+{
+    const httpd_uri_t routes[] = {
+        {.uri = "/api/alarms", .method = HTTP_GET,
+         .handler = alarmsGetHandler, .user_ctx = routeCtx},
+        {.uri = "/api/alarms", .method = HTTP_PUT,
+         .handler = alarmsPutHandler, .user_ctx = routeCtx},
+        {.uri = "/api/system/sleep", .method = HTTP_GET,
+         .handler = sleepGetHandler, .user_ctx = routeCtx},
+        {.uri = "/api/system/sleep", .method = HTTP_POST,
+         .handler = sleepPostHandler, .user_ctx = routeCtx},
+    };
+    for (const httpd_uri_t& route : routes) {
+        httpd_register_uri_handler(server_, &route);
+    }
 }
 
 } // namespace net

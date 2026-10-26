@@ -11,6 +11,7 @@
  * @date    2026-07-06
  */
 
+#include "alarm_clock.hpp"
 #include "board_pins.hpp"
 #include "hardware_bootstrap.hpp"
 #include "audio/AudioService.hpp"
@@ -338,6 +339,16 @@ extern "C" void app_main()
 
     if (!phone_pcm_server::start()) {
         ESP_LOGW(kTag, "phone PCM server task create failed");
+    }
+
+    static const alarm_clock::Services alarmServices{
+        .audio = hardware::HardwareBootstrap::audioService(),
+        .integration = integration,
+        .webRadio = webRadioService,
+        .bluetooth = bluetoothService,
+    };
+    if (!alarm_clock::start(alarmServices)) {
+        ESP_LOGW(kTag, "alarm task create failed");
     }
 
     // Only now, with every task started, does the probation clock run: an

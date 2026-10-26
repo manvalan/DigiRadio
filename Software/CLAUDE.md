@@ -133,6 +133,8 @@ Served at port 80. Key routes:
 - `GET|POST /api/streaming` — web radio `{"enabled","url"}` plus live status (`state`, `error`, `sample_rate`, `buffer_percent`, `title`…); firmware switches the ADAU source itself
 - TCP port 5005 (`_digiradio-pcm._tcp`) — raw 48 kHz s16le stereo PCM from the phone (replaces chunked `PUT /api/stream/phone`)
 - `GET|POST /api/system/power` — `{"state":"on"|"standby"}` soft standby (master mute)
+- `GET|PUT /api/alarms` — alarm table (0.11.0+, `main/alarm_clock.cpp`): up to 8 rows `{"enabled","action":"on"|"off","hour","minute","days"(bit0=Mon),"source":"preset"|"web","preset","url","volume_db","duration_min"}`; GET adds `time_valid`, `local_time`, `next`. Clock from SNTP, Europe/Rome
+- `GET|POST /api/system/sleep` — sleep timer `{"minutes":N}` (0 cancels) → `{"active","seconds_left"}`
 - `POST /api/dsp/program` — ADAU1701 DRAD blob upload (reboot)
 
 ### Dual OTA & Partitions (`partitions.csv`)

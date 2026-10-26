@@ -59,6 +59,8 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/SignalQuality.cpp"
     "${CORE_SRC_DIR}/PcmResampler.cpp"
     "${CORE_SRC_DIR}/IcyStreamFilter.cpp"
+    "${CORE_SRC_DIR}/AlarmSchedule.cpp"
+    "${CORE_SRC_DIR}/AlarmJson.cpp"
     "${CORE_SRC_DIR}/SystemDiagnostics.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
@@ -197,6 +199,10 @@ add_test(NAME pcm_resampler_test COMMAND pcm_resampler_test)
 add_executable(icy_stream_filter_test icy_stream_filter_test.cpp)
 target_link_libraries(icy_stream_filter_test PRIVATE digiradio_core)
 add_test(NAME icy_stream_filter_test COMMAND icy_stream_filter_test)
+
+add_executable(alarm_schedule_test alarm_schedule_test.cpp)
+target_link_libraries(alarm_schedule_test PRIVATE digiradio_core)
+add_test(NAME alarm_schedule_test COMMAND alarm_schedule_test)
 
 add_executable(system_diagnostics_test system_diagnostics_test.cpp)
 target_link_libraries(system_diagnostics_test PRIVATE digiradio_core)

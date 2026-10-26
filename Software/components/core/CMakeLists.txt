@@ -47,6 +47,8 @@ idf_component_register(
         "src/SignalQuality.cpp"
         "src/PcmResampler.cpp"
         "src/IcyStreamFilter.cpp"
+        "src/AlarmSchedule.cpp"
+        "src/AlarmJson.cpp"
         "src/SystemDiagnostics.cpp"
     INCLUDE_DIRS "include"
 )

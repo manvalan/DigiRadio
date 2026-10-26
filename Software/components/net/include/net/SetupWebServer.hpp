@@ -27,7 +27,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace audio {
 class AudioService;
@@ -247,6 +249,8 @@ public:
         const core::DeviceIdentity& deviceIdentity);
 
 private:
+    void registerAlarmRoutes(void* routeCtx);
+
     httpd_handle_t server_;
     core::ISecureStore* store_;
     NetState netState_;
@@ -275,5 +279,39 @@ using SystemDiagnosticsProvider = std::string (*)();
  * @date     2026-10-26
  */
 void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept;
+
+/**
+ * @brief    AlarmApi — alarm table and sleep timer, owned by main.
+ *
+ * The clock, the NVS copy and the task that fires alarms live in main
+ * (main/alarm_clock.cpp); the web server only moves JSON. A setter
+ * returns the response JSON, or nullopt when the body was rejected (400).
+ *
+ * @dname    AlarmApi
+ * @return   n/a (type)
+ * @pubstate set once at boot by setAlarmApi().
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+struct AlarmApi {
+    std::string (*statusJson)();                       ///< GET /api/alarms.
+    std::optional<std::string> (*replaceTable)(std::string_view body); ///< PUT.
+    std::string (*sleepJson)();                        ///< GET /api/system/sleep.
+    std::optional<std::string> (*setSleep)(std::string_view body); ///< POST.
+};
+
+/**
+ * @brief    setAlarmApi — plug the alarm table and sleep timer into the
+ *           HTTP API (/api/alarms, /api/system/sleep).
+ *
+ * @dname    setAlarmApi
+ * @param    api  Static callbacks, or nullptr (routes answer 503).
+ * @pubstate stores the pointer for later requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setAlarmApi(const AlarmApi* api) noexcept;
 
 } // namespace net

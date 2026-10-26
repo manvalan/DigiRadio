@@ -430,4 +430,17 @@ guards an in-RAM copy so \texttt{setConfig()} from an HTTP handler and
 \texttt{main/web\_radio\_stream.cpp} never race. Exposed on
 \texttt{/api/streaming}.
 
+\section{Alarm table and sleep timer}\label{sec:alarm-clock}
+\texttt{core::AlarmEntry} is one row of the alarm table: action
+(\texttt{TurnOn}/\texttt{TurnOff}), local hour and minute, a weekday mask
+and, for \texttt{TurnOn}, the source (preset index or web radio URL), the
+target master gain and an optional duration. \texttt{dueAlarm()},
+\texttt{nextAlarm()} and \texttt{alarmRampDb()} (the 30\,s wake-up fade)
+are pure core, host-tested together with the JSON in
+\texttt{core/AlarmJson.hpp}. \texttt{main/alarm\_clock.cpp} owns the
+table: it starts SNTP, keeps the table in NVS, checks it once a second in
+the \texttt{alarm} task, runs the fade, the sleep timer and the per-alarm
+duration, and serves \texttt{/api/alarms} and \texttt{/api/system/sleep}
+(Section~\ref{sec:api-alarms}).
+
 % ------------------------------------------------------------------

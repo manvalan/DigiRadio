@@ -528,6 +528,62 @@ POST both answer with the current state. HTTP status: \textbf{200 OK};
 safeload failure (state unchanged); \textbf{503} when the audio service is
 unavailable.
 
+\apiendpoint{GET / PUT}{/api/alarms}
+\label{sec:api-alarms}
+
+Alarm table (firmware 0.11.0+, \texttt{main/alarm\_clock.cpp}). Each row
+either switches the radio \emph{on} (leave standby, play a preset or a web
+radio URL, fade the master gain in from \texttt{-45 dB} to
+\texttt{volume\_db} over 30~s) or \emph{off} (standby and stop the web
+radio). An \texttt{on} row with \texttt{duration\_min} > 0 also switches
+the radio off after that many minutes. Rows fire on the weekdays set in
+\texttt{days} (bit~0 Monday \ldots{} bit~6 Sunday) at local time
+\texttt{hour}:\texttt{minute}; the clock comes from SNTP
+(\texttt{pool.ntp.org}, Europe/Rome with daylight saving), and nothing
+fires until it is set. When the A2DP link to the saved speaker is down an
+\texttt{on} row reconnects it. The table (at most 8 rows) is stored in NVS
+namespace \texttt{alarms}; PUT replaces it whole.
+
+\begin{drnote}[Request / response schema]
+\begin{drcode}[JSON]
+{"time_valid":true,"local_time":"2026-10-27T06:58",
+ "next":{"index":0,"in_min":2},
+ "alarms":[
+  {"enabled":true,"action":"on","hour":7,"minute":0,"days":31,
+   "source":"preset","preset":2,"url":"","volume_db":-20,
+   "duration_min":60},
+  {"enabled":true,"action":"off","hour":23,"minute":30,"days":127}]}
+\end{drcode}
+\end{drnote}
+
+The PUT body is \texttt{\{"alarms":[...]\}}; \texttt{time\_valid},
+\texttt{local\_time} and \texttt{next} are only in responses
+(\texttt{next} is absent when no row is armed). Limits: \texttt{hour}
+0--23, \texttt{minute} 0--59, \texttt{days} 0--127, \texttt{preset} 0--63,
+\texttt{volume\_db} $-60$\ldots$+12$, \texttt{duration\_min} 0--720,
+\texttt{url} \texttt{http(s)://} and at most 200 bytes. HTTP status:
+\textbf{200 OK} with the new status; \textbf{400}
+\texttt{\{"error":"invalid\_alarms"\}} when a row is out of range;
+\textbf{503} before the alarm task starts.
+
+\apiendpoint{GET / POST}{/api/system/sleep}
+\label{sec:api-system-sleep}
+
+Sleep timer: after \texttt{minutes} (1--720) the radio goes to standby and
+the web radio stops; \texttt{0} cancels. Switching to standby by hand
+cancels it too. Live only, not persisted.
+
+\begin{drnote}[Request / response schema]
+\begin{drcode}[JSON]
+POST {"minutes":30}
+  -> {"active":true,"seconds_left":1800}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{400}
+\texttt{\{"error":"invalid\_minutes"\}}; \textbf{503} before the alarm task
+starts.
+
 \apiendpoint{GET}{/api/dsp/params}
 \label{sec:api-dsp-params}
 
