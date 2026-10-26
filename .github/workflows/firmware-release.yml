@@ -16,7 +16,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-24.04
-    container: espressif/idf:v5.5.1
+    container: espressif/idf:v5.3.5  # same ESP-IDF as the Mac builds running on the radio
     defaults:
       run:
         shell: bash

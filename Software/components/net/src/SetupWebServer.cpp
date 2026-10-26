@@ -74,7 +74,7 @@ namespace {
 SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
 const AlarmApi* gAlarmApi = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.11.1";
+constexpr char kFirmwareVersion[] = "0.11.2";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
