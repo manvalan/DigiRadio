@@ -59,6 +59,10 @@ struct TunerStatus {
     std::optional<std::uint8_t> dabFicQuality; ///< FIC quality 0–100 when DAB.
     std::optional<std::int8_t> dabCnrDb;    ///< CNR in dB when DAB.
     std::optional<std::int8_t> dabRssiDbuV; ///< RSSI in dBµV when DAB.
+    /** FIBs that failed CRC since tune (AN649 0xB2 FIB_ERROR_COUNT, wraps
+     *  at 65535). Clients diff successive readings for an error rate. */
+    std::optional<std::uint16_t> dabFibErrors;
+    std::optional<bool> dabFicErrors; ///< FICERR: FIC errors right now.
     std::optional<std::uint32_t> dabPlayingServiceId;    ///< Last played DAB service.
     std::optional<std::uint32_t> dabPlayingComponentId;  ///< Last played DAB component.
     std::optional<FrequencyKHz> fmFrequency; ///< Tuned FM centre frequency.

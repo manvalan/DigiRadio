@@ -151,6 +151,8 @@ std::expected<void, core::TunerError> Si4684Tuner::readSignalInto(
         status.dabRssiDbuV = dig->rssiDbuV;
         status.dabFicQuality = dig->ficQuality;
         status.dabCnrDb = dig->cnrDb;
+        status.dabFibErrors = dig->fibErrorCount;
+        status.dabFicErrors = dig->ficErrors;
         return {};
     }
     auto rsq = driver_.readFmRsq();

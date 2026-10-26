@@ -1154,8 +1154,14 @@ Si4684Driver::readDabDigRadStatus()
     status.snrDb = static_cast<std::int8_t>(raw[8]);
     status.ficQuality = raw[9];
     status.cnrDb = raw[10];
-    // raw[5]=RESP4 (see readFmRds()); ACQINT is RESP4 bit3.
-    status.acquired = (raw[5] & 0x08U) != 0U;
+    // RESP10-11 FIB_ERROR_COUNT: FIBs that failed CRC, 16-bit, counting
+    // since tune or the last FIBERR_ACK (never sent here). The live
+    // response has no BER field: AN649 BER figures need the §8 test mode.
+    status.fibErrorCount = readLe16(raw.data() + 11);
+    // raw[6]=RESP5: FICERR bit3, ACQ bit2 (RESP4 bit3 is ACQINT, the
+    // sticky "acquisition changed" interrupt, not the state).
+    status.ficErrors = (raw[6] & 0x08U) != 0U;
+    status.acquired = (raw[6] & 0x04U) != 0U;
     status.valid = status.ficQuality > 0U;
     return status;
 }

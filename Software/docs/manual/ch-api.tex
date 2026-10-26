@@ -165,7 +165,10 @@ HTTP status: \textbf{200 OK}; \textbf{500} with
 \texttt{\{"status":"error","reason":...\}} on driver failure;
 \textbf{503} when the tuner service is unavailable. FM responses may include
 \texttt{station\_name} and \texttt{radiotext}; DAB responses may include
-\texttt{dynamic\_label} when a programme is playing.
+\texttt{dynamic\_label} when a programme is playing (UTF-8, AN649 prefix
+removed) and, from 0.12.0, \texttt{dl\_plus}
+\texttt{\{"title","artist"\}} with the DL Plus ITEM tags (each key only
+when tagged; object omitted otherwise).
 
 \apiendpoint{GET}{/api/tuner/signal}
 \label{sec:api-tuner-signal}
@@ -179,7 +182,11 @@ Reception level and a goodness score for the band in use, computed by
 \end{drcode}
 \texttt{level\_dbuv} is the RSSI (FM\_RSQ\_STATUS or DAB\_DIGRAD\_STATUS
 RSSI); \texttt{snr\_db} is the FM SNR or the DAB CNR; DAB adds
-\texttt{fic\_quality} (0--100). \texttt{quality} (0--100) is 60\,\% SNR
+\texttt{fic\_quality} (0--100) and, from 0.12.0, \texttt{fib\_errors}
+(FIBs that failed CRC since tune, DAB\_DIGRAD\_STATUS FIB\_ERROR\_COUNT,
+16-bit wrapping: diff successive readings) and \texttt{fic\_errors}
+(FICERR flag). There is no BER: the live DIGRAD response does not carry
+one (AN649 BER needs the \S8 test mode). \texttt{quality} (0--100) is 60\,\% SNR
 (3$\to$25\,dB) + 40\,\% RSSI (5$\to$45\,dB\textmu V) for FM, capped at 20
 without VALID; 70\,\% FIC quality + 30\,\% CNR (5$\to$25\,dB) for DAB, 0
 without lock. \texttt{grade} is \texttt{excellent} ($\geq$75),

@@ -163,6 +163,8 @@ struct Si4684DabDigRadStatus {
     std::int8_t snrDb;       ///< SNR in dB (RESP7).
     std::uint8_t ficQuality; ///< FIC quality 0–100.
     std::uint8_t cnrDb;      ///< CNR in dB.
+    std::uint16_t fibErrorCount; ///< FIBs failing CRC (RESP10-11).
+    bool ficErrors;          ///< FICERR: FIC errors right now (RESP5).
     bool acquired;           ///< Ensemble acquired flag.
     bool valid;              ///< DIGRAD valid flag.
 };
