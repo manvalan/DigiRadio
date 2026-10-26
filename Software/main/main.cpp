@@ -321,7 +321,8 @@ extern "C" void app_main()
     bluetoothService.startupReconnect();
 
     static tuner::AfFollowService afFollow(tunerService, sleepMs);
-    if (xTaskCreate(afFollowTask, "af_follow", 12288, &afFollow, 3, &handle)
+    // 0.10.1 measured 10 KB of 12 KB never used.
+    if (xTaskCreate(afFollowTask, "af_follow", 8192, &afFollow, 3, &handle)
         != pdPASS) {
         ESP_LOGW(kTag, "AF follow task create failed");
     } else {
