@@ -45,10 +45,11 @@ namespace dab_slideshow {
 [[nodiscard]] bool start(tuner::TunerService& tuner);
 
 /**
- * @brief    poll — drain the tuner's DAB data services once.
+ * @brief    poll — drain the tuner's broadcast data once.
  *
- * Empties the GET_DIGITAL_SERVICE_DATA queue: DLS/DL Plus stay in the
- * tuner, MOT data groups go to core::MotSlideAssembler. Skipped during a
+ * DAB: empties the GET_DIGITAL_SERVICE_DATA queue (DLS/DL Plus stay in
+ * the tuner, MOT data groups go to core::MotSlideAssembler). FM: reads the
+ * queued RDS groups (PS, RadioText, RT+) into the tuner. Skipped during a
  * spectrum sweep and while the ESP32 feeds the speaker (web radio, phone
  * audio). Runs every 150 ms from the af_follow task (0.12.1: no task of
  * its own, which saved its 8 KB stack for the web radio).

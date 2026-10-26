@@ -415,7 +415,17 @@ handles scrolling PS); pairs with control codes are dropped; an all-blank
 PS never replaces a name; radiotext is published only when complete (0x0D
 end marker or all segments) and 2B texts are read from block~D only; the
 Si4684's per-block error counts (FM\_RDS\_STATUS RESP11) gate content to
-blocks with at most 1--2 corrected bits.
+blocks with at most 1--2 corrected bits. Since 0.12.2: PS and RT are
+converted from EBU Latin to UTF-8 (\texttt{core::ebuLatinToUtf8()}, shared
+with \texttt{DlsDecoder}), and RadioText Plus is decoded: a group~3A
+carrying AID 0x4BD7 names the RT+ group, whose two tags (content type,
+start, length) cut ITEM.TITLE and ITEM.ARTIST out of the current
+radiotext (\texttt{rtPlus()}, reported as \texttt{fm.rt\_plus}); tags
+are dropped on an RT A/B flip and hidden while the item is not running.
+The groups are drained every 150\,ms by \texttt{ITuner::pollBroadcastData()}
+in the \texttt{af\_follow} task (one short FM\_RDS\_STATUS when the FIFO
+is empty), so the 16 RadioText segments actually complete; a status
+request reads at most 8 more.
 
 \section{PcmResampler}\label{cls:PcmResampler}
 Converts interleaved stereo 16-bit PCM from the decoder's rate (8--96\,kHz)
@@ -451,12 +461,12 @@ returns ITEM.TITLE and ITEM.ARTIST as \texttt{DlPlusItem}, which
 \texttt{GET /api/tuner/status}. Pure core, host-tested.
 
 \section{IDabDataSink}\label{cls:IDabDataSink}
-Receiver of the X-PAD MOT data groups that \texttt{ITuner::pollDabData()}
+Receiver of the X-PAD MOT data groups that \texttt{ITuner::pollBroadcastData()}
 drains from the Si4684 (AN649 \S7.11: data groups forwarded in arrival
 order, assembly left to the host). Implemented in
 \texttt{main/dab\_slideshow.cpp}, which hands the groups to
 \texttt{MotSlideAssembler} only while a client watches the slideshow.
-\texttt{pollDabData()} also keeps DLS/DL Plus inside the tuner: it runs
+\texttt{pollBroadcastData()} also keeps DLS/DL Plus inside the tuner: it runs
 every 150\,ms from the \texttt{af\_follow} task (0.12.1; 0.12.0 had a
 separate 8\,KB \texttt{dab\_data} task whose stack the web radio needed)
 and empties the chip's queue, except during spectrum sweeps and while the

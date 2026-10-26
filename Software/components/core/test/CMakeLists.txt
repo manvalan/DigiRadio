@@ -48,6 +48,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/RdsMetadataAccumulator.cpp"
     "${CORE_SRC_DIR}/DabDynamicLabelAccumulator.cpp"
     "${CORE_SRC_DIR}/DlsDecoder.cpp"
+    "${CORE_SRC_DIR}/EbuLatin.cpp"
     "${CORE_SRC_DIR}/RadioSpectrum.cpp"
     "${CORE_SRC_DIR}/DabReturnPolicy.cpp"
     "${CORE_SRC_DIR}/MscDataGroup.cpp"
@@ -233,3 +234,7 @@ add_test(NAME dab_return_policy_test COMMAND dab_return_policy_test)
 add_executable(mot_slideshow_test mot_slideshow_test.cpp)
 target_link_libraries(mot_slideshow_test PRIVATE digiradio_core)
 add_test(NAME mot_slideshow_test COMMAND mot_slideshow_test)
+
+add_executable(rds_rt_plus_test rds_rt_plus_test.cpp)
+target_link_libraries(rds_rt_plus_test PRIVATE digiradio_core)
+add_test(NAME rds_rt_plus_test COMMAND rds_rt_plus_test)

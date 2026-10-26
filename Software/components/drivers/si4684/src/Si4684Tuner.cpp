@@ -20,6 +20,9 @@ namespace si4684 {
 
 namespace {
 constexpr char kTag[] = "Si4684Tuner";
+/** RDS groups read per status request; the continuous drain
+ *  (pollBroadcastData) does the bulk of the work. */
+constexpr std::size_t kRdsGroupsPerStatus = 8U;
 constexpr std::uint32_t kFmSeekStepKhz = 100U;
 constexpr std::uint32_t kFmBandBottomKhz = 87500U;
 constexpr std::uint32_t kFmBandTopKhz = 107900U;
@@ -188,10 +191,14 @@ void Si4684Tuner::applyDlsSegment(const Si4684DabServiceData& data)
     }
 }
 
-std::expected<void, core::TunerError> Si4684Tuner::pollDabData(
+std::expected<void, core::TunerError> Si4684Tuner::pollBroadcastData(
     core::IDabDataSink& sink, std::size_t maxPackets)
 {
-    if (driver_.loadedBand() != Si4684Band::Dab || !lastDabServiceId_) {
+    if (driver_.loadedBand() == Si4684Band::Fm) {
+        return fmBandReady_ ? drainRds(maxPackets)
+                            : std::expected<void, core::TunerError>{};
+    }
+    if (!lastDabServiceId_) {
         return {};
     }
     for (std::size_t i = 0U; i < maxPackets; ++i) {
@@ -209,6 +216,29 @@ std::expected<void, core::TunerError> Si4684Tuner::pollDabData(
         }
         dispatchDabData(**data, sink);
         if ((*data)->bufferCount == 0U) {
+            return {};
+        }
+    }
+    return {};
+}
+
+std::expected<void, core::TunerError> Si4684Tuner::drainRds(
+    std::size_t maxGroups)
+{
+    // AN649 0x34 FM_RDS_STATUS returns the oldest group and RDSFIFOUSED in
+    // one reply, so an empty FIFO costs a single short command: groups are
+    // only read while the chip reports some.
+    for (std::size_t i = 0U; i < maxGroups; ++i) {
+        auto rds = driver_.readFmRds();
+        if (!rds) {
+            return std::unexpected(mapError(rds.error()));
+        }
+        if (!rds->received) {
+            return {};
+        }
+        rdsMetadata_.applyGroup(rds->blockA, rds->blockB, rds->blockC,
+                                rds->blockD, rds->blockErrors);
+        if (rds->fifoUsed <= 1U) {
             return {};
         }
     }
@@ -248,7 +278,7 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         return std::unexpected(ok.error());
     }
     if (status.band == core::TunerBand::Dab) {
-        // DLS arrives through pollDabData() (the dab_data task), which
+        // DLS arrives through pollBroadcastData() (the dab_data task), which
         // drains every packet; reading one here starved it behind MOT.
         status.dabDynamicLabel = dls_.label();
         const core::DlPlusItem item = dls_.item();
@@ -256,26 +286,14 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         status.dabDlPlusArtist = item.artist;
         return status;
     }
-    for (int attempt = 0; attempt < 8; ++attempt) {
-        auto rds = driver_.readFmRds();
-        if (!rds) {
-            ESP_LOGW(kTag, "FM RDS read failed (attempt %d)", attempt);
-            break;
-        }
-        if (!rds->received) {
-            break;
-        }
-        rdsMetadata_.applyGroup(rds->blockA,
-                                rds->blockB,
-                                rds->blockC,
-                                rds->blockD,
-                                rds->blockErrors);
-        if (rds->fifoUsed <= 1U) {
-            break;
-        }
+    if (auto drained = drainRds(kRdsGroupsPerStatus); !drained) {
+        ESP_LOGW(kTag, "FM RDS read failed");
     }
     status.fmStationName = rdsMetadata_.programName();
     status.fmRadiotext = rdsMetadata_.radiotext();
+    const core::DlPlusItem item = rdsMetadata_.rtPlus();
+    status.fmRtPlusTitle = item.title;
+    status.fmRtPlusArtist = item.artist;
     status.fmProgramId = rdsMetadata_.programIdentification();
     status.fmAlternateFrequencies.clear();
     for (const std::uint32_t khz : rdsMetadata_.alternateFrequenciesKhz()) {

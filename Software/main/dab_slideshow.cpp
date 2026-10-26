@@ -260,7 +260,7 @@ void poll()
     if (gTuner == nullptr || gTuner->sweepActive() || esp32_i2s_sink::inUse()) {
         return;
     }
-    if (auto ok = gTuner->pollDabData(sink, kPacketsPerPoll); !ok) {
+    if (auto ok = gTuner->pollBroadcastData(sink, kPacketsPerPoll); !ok) {
         ESP_LOGD(kTag, "DSRV poll failed (%d)", static_cast<int>(ok.error()));
     }
 }

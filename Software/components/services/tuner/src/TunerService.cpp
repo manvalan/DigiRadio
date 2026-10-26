@@ -475,11 +475,11 @@ void TunerService::setAfFollowEnabled(bool enabled)
     afStats_.enabled = enabled;
 }
 
-std::expected<void, core::TunerError> TunerService::pollDabData(
+std::expected<void, core::TunerError> TunerService::pollBroadcastData(
     core::IDabDataSink& sink, std::size_t maxPackets)
 {
     const std::lock_guard<std::recursive_mutex> lock(mutex_);
-    return tuner_.pollDabData(sink, maxPackets);
+    return tuner_.pollBroadcastData(sink, maxPackets);
 }
 
 void TunerService::setSweepActive(bool active) noexcept

@@ -354,19 +354,19 @@ public:
     void setSweepActive(bool active) noexcept;
 
     /**
-     * @brief    pollDabData — drain the DAB data services under the lock.
+     * @brief    pollBroadcastData — drain the DAB data services under the lock.
      *
-     * @dname    pollDabData
+     * @dname    pollBroadcastData
      * @param    sink        Receiver of MOT data groups.
      * @param    maxPackets  Packets read at most.
      * @return   Ok, or the tuner error.
-     * @pubstate holds mutex_; ITuner::pollDabData() (updates the DLS kept
+     * @pubstate holds mutex_; ITuner::pollBroadcastData() (updates the DLS kept
      *           by the tuner).
      *
      * @author   Michele Bigi
      * @date     2026-10-26
      */
-    [[nodiscard]] std::expected<void, core::TunerError> pollDabData(
+    [[nodiscard]] std::expected<void, core::TunerError> pollBroadcastData(
         core::IDabDataSink& sink, std::size_t maxPackets);
 
     /**

@@ -168,7 +168,9 @@ HTTP status: \textbf{200 OK}; \textbf{500} with
 \texttt{dynamic\_label} when a programme is playing (UTF-8, AN649 prefix
 removed) and, from 0.12.0, \texttt{dl\_plus}
 \texttt{\{"title","artist"\}} with the DL Plus ITEM tags (each key only
-when tagged; object omitted otherwise).
+when tagged; object omitted otherwise). From 0.12.2 FM responses add
+\texttt{rt\_plus} \texttt{\{"title","artist"\}} from RadioText Plus with
+the same rules, and \texttt{station\_name}/\texttt{radiotext} are UTF-8.
 
 \apiendpoint{GET}{/api/tuner/signal}
 \label{sec:api-tuner-signal}

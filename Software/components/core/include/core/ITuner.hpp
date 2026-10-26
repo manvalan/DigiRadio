@@ -218,10 +218,10 @@ public:
     }
 
     /**
-     * @brief    pollDabData — drain the DAB data services of the playing
+     * @brief    pollBroadcastData — drain the DAB data services of the playing
      *           programme (DLS/DL Plus kept by the tuner, MOT to sink).
      *
-     * @dname    pollDabData
+     * @dname    pollBroadcastData
      * @param    sink        Receiver of MOT data groups.
      * @param    maxPackets  Upper bound of packets read in this call.
      * @return   Ok (also when not in DAB, or nothing is pending), or a
@@ -234,7 +234,7 @@ public:
      * @author   Michele Bigi
      * @date     2026-10-26
      */
-    [[nodiscard]] virtual std::expected<void, TunerError> pollDabData(
+    [[nodiscard]] virtual std::expected<void, TunerError> pollBroadcastData(
         IDabDataSink& sink, std::size_t maxPackets)
     {
         (void)sink;

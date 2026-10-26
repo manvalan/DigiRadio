@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/BroadcastLabel.hpp"
+#include "core/DlsDecoder.hpp"
 
 #include <array>
 #include <cstdint>
@@ -103,6 +104,21 @@ public:
     [[nodiscard]] std::optional<BroadcastLabel> radiotext() const;
 
     /**
+     * @brief    rtPlus — RadioText Plus title/artist for the current RT.
+     *
+     * @dname    rtPlus
+     * @return   ITEM.TITLE / ITEM.ARTIST cut from the radiotext, each only
+     *           when tagged; empty while the item is not running, before
+     *           the RT+ ODA (AID 0x4BD7) was announced in group 3A, or
+     *           while a new RT (A/B flip) is still incomplete.
+     * @pubstate reads rtPublished_, rtPublishedCurrent_ and the RT+ tags.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] DlPlusItem rtPlus() const;
+
+    /**
      * @brief    alternateFrequenciesKhz — FM AF codes decoded from group 0A.
      *
      * @dname    alternateFrequenciesKhz
@@ -140,6 +156,18 @@ private:
                         std::uint16_t blockD,
                         std::uint8_t blockErrors) noexcept;
     void startRadiotext(bool abFlag, bool versionB) noexcept;
+    void applyOdaAnnouncement(std::uint16_t blockB, std::uint16_t blockD,
+                              std::uint8_t blockErrors) noexcept;
+    void applyRtPlus(std::uint16_t blockB, std::uint16_t blockC,
+                     std::uint16_t blockD, std::uint8_t blockErrors) noexcept;
+    [[nodiscard]] std::optional<BroadcastLabel> rtPlusTagged(
+        std::uint8_t contentType) const;
+
+    struct RtPlusTag {
+        std::uint8_t contentType{0U};
+        std::uint8_t start{0U};
+        std::uint8_t length{0U};
+    };
     void publishRadiotextIfComplete() noexcept;
 
     std::array<char, 8> psCandidate_{};
@@ -153,6 +181,11 @@ private:
     bool rtVersionB_{false};
     bool rtAbInitialized_{false};
     std::optional<std::string> rtPublished_;
+    bool rtPublishedCurrent_{false};
+    std::optional<std::uint8_t> rtPlusGroup_;
+    std::array<RtPlusTag, 2> rtPlusTags_{};
+    bool rtPlusValid_{false};
+    bool rtPlusRunning_{false};
     std::array<std::uint32_t, kMaxAf> afKhz_{};
     std::uint8_t afCount_{0};
     std::optional<std::uint16_t> piCandidate_;

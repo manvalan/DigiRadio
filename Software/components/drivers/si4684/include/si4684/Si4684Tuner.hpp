@@ -179,9 +179,9 @@ public:
     readDabLinkage(std::uint32_t serviceId) override;
 
     /**
-     * @brief    pollDabData — drain GET_DIGITAL_SERVICE_DATA (DLS, MOT).
+     * @brief    pollBroadcastData — drain GET_DIGITAL_SERVICE_DATA (DLS, MOT).
      *
-     * @dname    pollDabData
+     * @dname    pollBroadcastData
      * @param    sink        Receiver of X-PAD MOT data groups.
      * @param    maxPackets  Packets read at most in this call.
      * @return   Ok (also outside DAB or with no service playing), or the
@@ -192,7 +192,7 @@ public:
      * @author   Michele Bigi
      * @date     2026-10-26
      */
-    [[nodiscard]] std::expected<void, core::TunerError> pollDabData(
+    [[nodiscard]] std::expected<void, core::TunerError> pollBroadcastData(
         core::IDabDataSink& sink, std::size_t maxPackets) override;
 
     /**
@@ -305,6 +305,21 @@ private:
      */
     void dispatchDabData(const Si4684DabServiceData& data,
                          core::IDabDataSink& sink);
+
+    /**
+     * @brief    drainRds — read queued RDS groups into rdsMetadata_.
+     *
+     * @dname    drainRds
+     * @param    maxGroups  Groups read at most.
+     * @return   Ok when the FIFO is empty or the bound is reached; the
+     *           mapped driver error otherwise.
+     * @pubstate writes rdsMetadata_ (PS, RT, RT+, AF, PI).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] std::expected<void, core::TunerError> drainRds(
+        std::size_t maxGroups);
     bool fmBandReady_;
     core::RdsMetadataAccumulator rdsMetadata_;
     core::DabDynamicLabelAccumulator dabDynamicLabel_;

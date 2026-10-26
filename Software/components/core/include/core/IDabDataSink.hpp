@@ -29,7 +29,7 @@ namespace core {
  * @param    none
  * @return   n/a (interface)
  * @pubstate Public interface: onMotDataGroup(). Implemented by the
- *           slideshow; ITuner::pollDabData() calls it.
+ *           slideshow; ITuner::pollBroadcastData() calls it.
  *
  * @author   Michele Bigi
  * @date     2026-10-26

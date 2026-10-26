@@ -18,6 +18,8 @@
 
 #include "core/DlsDecoder.hpp"
 
+#include "core/EbuLatin.hpp"
+
 #include <array>
 
 namespace core {
@@ -41,39 +43,6 @@ constexpr std::uint8_t kItemTitle = 1U;
 constexpr std::uint8_t kItemArtist = 4U;
 
 constexpr char32_t kReplacement = U'�';
-
-// EBU Latin (ETSI TS 101 756 Annex C, same as the RDS set of EN 62106
-// Annex E) rows 0x80-0x9F and 0xC0-0xDF; other high bytes are rare in
-// labels and decode as U+FFFD.
-constexpr std::array<char32_t, 32> kEbuRow8 = {
-    U'á', U'à', U'é', U'è', U'í', U'ì', U'ó', U'ò',
-    U'ú', U'ù', U'Ñ', U'Ç', U'Ş', U'ß', U'¡', U'Ĳ',
-    U'â', U'ä', U'ê', U'ë', U'î', U'ï', U'ô', U'ö',
-    U'û', U'ü', U'ñ', U'ç', U'ş', U'ğ', U'ı', U'ĳ'};
-constexpr std::array<char32_t, 32> kEbuRowC = {
-    U'Á', U'À', U'É', U'È', U'Í', U'Ì', U'Ó', U'Ò',
-    U'Ú', U'Ù', U'Ř', U'Č', U'Š', U'Ž', U'Đ', U'Ŀ',
-    U'Â', U'Ä', U'Ê', U'Ë', U'Î', U'Ï', U'Ô', U'Ö',
-    U'Û', U'Ü', U'ř', U'č', U'š', U'ž', U'đ', U'ŀ'};
-
-// Control codes (0x0A line break, 0x0B end of headline, 0x1F soft
-// hyphen...) become spaces so DL Plus character positions stay aligned.
-[[nodiscard]] char32_t decodeEbuByte(std::uint8_t byte) noexcept
-{
-    if (byte < 0x20U) {
-        return U' ';
-    }
-    if (byte < 0x80U) {
-        return byte;
-    }
-    if (byte < 0xA0U) {
-        return kEbuRow8[byte - 0x80U];
-    }
-    if (byte >= 0xC0U && byte < 0xE0U) {
-        return kEbuRowC[byte - 0xC0U];
-    }
-    return kReplacement;
-}
 
 [[nodiscard]] std::size_t utf8SequenceLength(std::uint8_t lead) noexcept
 {
@@ -125,30 +94,11 @@ constexpr std::array<char32_t, 32> kEbuRowC = {
         }
         const std::uint8_t byte = bytes[i++];
         const bool ascii = byte < 0x80U;
-        out.push_back(charset == kCharsetEbuLatin ? decodeEbuByte(byte)
+        out.push_back(charset == kCharsetEbuLatin ? decodeEbuLatin(byte)
                       : ascii                     ? char32_t{byte}
                                                   : kReplacement);
     }
     return out;
-}
-
-void appendUtf8(std::string& out, char32_t cp)
-{
-    if (cp < 0x80U) {
-        out.push_back(static_cast<char>(cp));
-    } else if (cp < 0x800U) {
-        out.push_back(static_cast<char>(0xC0U | (cp >> 6U)));
-        out.push_back(static_cast<char>(0x80U | (cp & 0x3FU)));
-    } else if (cp < 0x10000U) {
-        out.push_back(static_cast<char>(0xE0U | (cp >> 12U)));
-        out.push_back(static_cast<char>(0x80U | ((cp >> 6U) & 0x3FU)));
-        out.push_back(static_cast<char>(0x80U | (cp & 0x3FU)));
-    } else {
-        out.push_back(static_cast<char>(0xF0U | (cp >> 18U)));
-        out.push_back(static_cast<char>(0x80U | ((cp >> 12U) & 0x3FU)));
-        out.push_back(static_cast<char>(0x80U | ((cp >> 6U) & 0x3FU)));
-        out.push_back(static_cast<char>(0x80U | (cp & 0x3FU)));
-    }
 }
 
 // UTF-8 of text, cut at a code point boundary within the label limit.
