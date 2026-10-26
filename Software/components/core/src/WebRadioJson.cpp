@@ -13,6 +13,8 @@
 
 #include "core/WebRadioJson.hpp"
 
+#include "core/JsonText.hpp"
+
 #include <sstream>
 
 namespace core {
@@ -86,14 +88,14 @@ std::expected<WebRadioConfig, ParseError> parseWebRadioConfigJson(
         return std::unexpected(ParseError::MissingField);
     }
 
-    const std::string_view url = extractJsonString(json, "url");
+    const std::string url = unescapeJsonString(extractJsonString(json, "url"));
     const bool isHttp = url.substr(0, kHttpPrefix.size()) == kHttpPrefix;
     const bool isHttps = url.substr(0, kHttpsPrefix.size()) == kHttpsPrefix;
     if (url.empty() || url.size() > kMaxUrlLength || !(isHttp || isHttps)) {
         return std::unexpected(ParseError::InvalidJson);
     }
 
-    return WebRadioConfig{.enabled = enabled, .url = std::string(url)};
+    return WebRadioConfig{.enabled = enabled, .url = url};
 }
 
 std::string serializeWebRadioConfigJson(const WebRadioConfig& config)

@@ -18,6 +18,10 @@
 
 #include "core/WifiProvisionJson.hpp"
 
+#include "core/JsonText.hpp"
+
+#include <utility>
+
 namespace core {
 
 namespace {
@@ -68,7 +72,8 @@ parseWifiProvisionJson(std::string_view json)
         return std::unexpected(ParseError::InvalidJson);
     }
 
-    const std::string_view ssidRaw = extractJsonString(json, "ssid");
+    const std::string ssidRaw =
+        unescapeJsonString(extractJsonString(json, "ssid"));
     if (ssidRaw.empty() && json.find("\"ssid\"") == std::string_view::npos) {
         return std::unexpected(ParseError::MissingField);
     }
@@ -76,15 +81,15 @@ parseWifiProvisionJson(std::string_view json)
         return std::unexpected(ParseError::InvalidSsid);
     }
 
-    std::string_view passwordRaw;
+    std::string passwordRaw;
     if (json.find("\"password\"") != std::string_view::npos) {
-        passwordRaw = extractJsonString(json, "password");
+        passwordRaw = unescapeJsonString(extractJsonString(json, "password"));
     }
     if (!WifiCredentials::isPasswordValid(passwordRaw)) {
         return std::unexpected(ParseError::InvalidPassword);
     }
 
-    return WifiCredentials(WifiSsid(ssidRaw), Secret(std::string(passwordRaw)));
+    return WifiCredentials(WifiSsid(ssidRaw), Secret(std::move(passwordRaw)));
 }
 
 std::string serializeWifiProvisionSavedJson(unsigned rebootInSec)

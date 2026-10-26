@@ -37,6 +37,7 @@ idf_component_register(
         "src/DabDynamicLabelAccumulator.cpp"
         "src/DlsDecoder.cpp"
         "src/EbuLatin.cpp"
+        "src/JsonText.cpp"
         "src/RadioSpectrum.cpp"
         "src/DabReturnPolicy.cpp"
         "src/MscDataGroup.cpp"

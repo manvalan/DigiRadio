@@ -13,6 +13,8 @@
 
 #include "core/AlarmJson.hpp"
 
+#include "core/JsonText.hpp"
+
 #include <charconv>
 #include <cstdio>
 #include <sstream>
@@ -137,7 +139,7 @@ constexpr std::uint16_t kMaxMinutes = 720U;
     if (source == "web") {
         const auto url = stringOf(object, "url");
         entry.source = AlarmSource::WebRadio;
-        entry.url = url ? std::string(*url) : std::string();
+        entry.url = url ? unescapeJsonString(*url) : std::string();
         return plainUrl(entry.url);
     }
     const auto preset = numberOf(object, "preset");
