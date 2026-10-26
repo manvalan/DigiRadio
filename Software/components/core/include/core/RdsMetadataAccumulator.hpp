@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 
 namespace core {
 
@@ -55,7 +56,13 @@ public:
      *                   group 0A; ignored for group 0B).
      * @param    blockD  RDS block D (PS text for group 0; RT text for
      *                   group 2, per ETSI EN 62106 §3.1.5/§3.1.5.3).
-     * @pubstate updates PS/RT buffers for group types 0A and 2A, and the
+     * @param    blockErrors  AN649 FM_RDS_STATUS RESP11: BLEA[7:6],
+     *                   BLEB[5:4], BLEC[3:2], BLED[1:0], each 0 = no
+     *                   errors, 1 = 1–2 corrected, 2 = 3–5 corrected,
+     *                   3 = uncorrectable. Text, PI and AF are only taken
+     *                   from blocks at 0 or 1; a group whose block B is
+     *                   uncorrectable is dropped. Default 0 = trusted.
+     * @pubstate updates PS/RT buffers for group types 0 and 2, and the
      *           AF list for group 0A.
      *
      * @author   Michele Bigi
@@ -64,14 +71,17 @@ public:
     void applyGroup(std::uint16_t blockA,
                     std::uint16_t blockB,
                     std::uint16_t blockC,
-                    std::uint16_t blockD) noexcept;
+                    std::uint16_t blockD,
+                    std::uint8_t blockErrors = 0U) noexcept;
 
     /**
      * @brief    programName — read the accumulated 8-character PS name.
      *
      * @dname    programName
-     * @return   Trimmed PS label when all four segments were received.
-     * @pubstate reads psBuffer_.
+     * @return   Trimmed PS label once all four segments were each received
+     *           twice alike; the last such name stays while the next is
+     *           assembled, and an all-blank PS never replaces it.
+     * @pubstate reads psPublished_.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -82,8 +92,10 @@ public:
      * @brief    radiotext — read the accumulated 64-character RT string.
      *
      * @dname    radiotext
-     * @return   Trimmed radiotext when at least one RT segment was received.
-     * @pubstate reads rtBuffer_.
+     * @return   Trimmed radiotext once complete (up to the 0x0D end
+     *           marker, or all segments); the previous text stays while a
+     *           new one (A/B flag flip) is assembled.
+     * @pubstate reads rtPublished_.
      *
      * @author   Michele Bigi
      * @date     2026-07-06
@@ -119,13 +131,28 @@ private:
     static constexpr std::size_t kMaxAf = 25U;
 
     void ingestAfCode(std::uint8_t code) noexcept;
+    void applyProgramService(std::uint16_t blockB, std::uint16_t blockC,
+                             std::uint16_t blockD,
+                             std::uint8_t blockErrors) noexcept;
+    void feedProgramService(std::size_t segment, char first,
+                            char second) noexcept;
+    void applyRadiotext(std::uint16_t blockB, std::uint16_t blockC,
+                        std::uint16_t blockD,
+                        std::uint8_t blockErrors) noexcept;
+    void startRadiotext(bool abFlag, bool versionB) noexcept;
+    void publishRadiotextIfComplete() noexcept;
 
+    std::array<char, 8> psCandidate_{};
+    std::uint8_t psCandidateMask_{0U};
     std::array<char, 8> psBuffer_{};
-    std::array<bool, kPsSegments> psSegmentValid_{};
+    std::uint8_t psConfirmedMask_{0U};
+    std::optional<std::array<char, 8>> psPublished_;
     std::array<char, 64> rtBuffer_{};
     std::array<bool, kRtSegments> rtSegmentValid_{};
     bool rtAbFlag_{false};
+    bool rtVersionB_{false};
     bool rtAbInitialized_{false};
+    std::optional<std::string> rtPublished_;
     std::array<std::uint32_t, kMaxAf> afKhz_{};
     std::uint8_t afCount_{0};
     std::optional<std::uint16_t> piCandidate_;

@@ -70,8 +70,10 @@
 namespace net {
 
 namespace {
+
+SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.9.7";
+constexpr char kFirmwareVersion[] = "0.10.0";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -339,8 +341,13 @@ esp_err_t healthGetHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
 
+    std::string body(json, static_cast<std::size_t>(jsonLen));
+    if (gSystemDiagnostics != nullptr) {
+        body.pop_back(); // reopen the top-level object
+        body += R"(,"system":)" + gSystemDiagnostics() + "}";
+    }
     httpd_resp_set_type(req, "application/json");
-    return httpd_resp_send(req, json, static_cast<std::size_t>(jsonLen));
+    return httpd_resp_send(req, body.c_str(), body.size());
 }
 
 /**
@@ -1352,7 +1359,8 @@ esp_err_t streamingGetHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
     const std::string json =
-        core::serializeWebRadioConfigJson(ctx->webRadio->config());
+        core::serializeWebRadioJson(ctx->webRadio->config(),
+                                    ctx->webRadio->status());
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -1401,7 +1409,8 @@ esp_err_t streamingPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, json.c_str(), json.size());
     }
 
-    const std::string json = core::serializeWebRadioConfigJson(*parsed);
+    const std::string json =
+        core::serializeWebRadioJson(*parsed, ctx->webRadio->status());
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -2846,6 +2855,11 @@ std::expected<void, NetError> SetupWebServer::start(
 
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};
+}
+
+void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept
+{
+    gSystemDiagnostics = provider;
 }
 
 } // namespace net

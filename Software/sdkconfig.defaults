@@ -35,3 +35,13 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # stack this firmware needs is a single GATT peripheral role for provisioning.
 CONFIG_BT_ENABLED=y
 CONFIG_BT_NIMBLE_ENABLED=y
+
+# Web radio (fw 0.10.0): the network task reads the socket into a 40 KB
+# ring while the player drains it at 48 kHz, so a wider TCP window lets a
+# distant server keep the ring topped up between round trips. jRadio
+# measured 16 KB windows as too small for high-bitrate streams; 32 KB is
+# what it settled on. The mailbox must hold the window in MSS segments
+# (32768 / 1440 = 22.8). NOTE: an existing local sdkconfig keeps its old
+# values; run `idf.py menuconfig` or delete sdkconfig to pick these up.
+CONFIG_LWIP_TCP_WND_DEFAULT=32768
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=24

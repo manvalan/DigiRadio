@@ -358,7 +358,28 @@ Built by \texttt{BroadcastLabel::tryFromChipBytes()} in the pure core.
 Stateful RDS decoder assembling program service name and radiotext from
 raw block~A--D snapshots returned by the Si4684 driver. Also collects the
 group~0A AF list and the PI code (block~A), trusted only after two
-consecutive groups agree.
+consecutive groups agree. Since 0.10.0: each PS segment is accepted only
+when it arrives twice alike (a changed segment restarts the name, which
+handles scrolling PS); pairs with control codes are dropped; an all-blank
+PS never replaces a name; radiotext is published only when complete (0x0D
+end marker or all segments) and 2B texts are read from block~D only; the
+Si4684's per-block error counts (FM\_RDS\_STATUS RESP11) gate content to
+blocks with at most 1--2 corrected bits.
+
+\section{PcmResampler}\label{cls:PcmResampler}
+Converts interleaved stereo 16-bit PCM from the decoder's rate (8--96\,kHz)
+to the ADAU1701's fixed 48\,kHz, block by block with cubic Hermite
+interpolation and a three-frame history so block edges are seamless. A
+trim of up to $\pm$1000\,ppm (\texttt{driftTrimPpm()} maps the web radio
+ring fill to $\pm$300\,ppm) absorbs the drift between the server's clock
+and the ADAU crystal. Pure core, host-tested.
+
+\section{IcyStreamFilter}\label{cls:IcyStreamFilter}
+Removes Shoutcast/Icecast in-band metadata (\texttt{icy-metaint}) from the
+web radio byte stream in place, across arbitrary read boundaries, and keeps
+the latest \texttt{StreamTitle} as valid UTF-8 (ISO-8859-1 titles are
+converted). The same header provides \texttt{extractPlaylistStreamUrl()}
+for M3U/PLS links and \texttt{isHlsPlaylist()}. Pure core, host-tested.
 
 \section{DabDynamicLabelAccumulator}\label{cls:DabDynamicLabelAccumulator}
 Reassembles segmented DAB DLS payloads into one dynamic label for

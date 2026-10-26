@@ -123,6 +123,9 @@ struct Si4684FmRdsStatus {
     std::uint16_t blockD; ///< RDS block D.
     bool received;        ///< Group received flag.
     std::uint8_t fifoUsed; ///< Remaining groups in the RDS FIFO.
+    /** AN649 FM_RDS_STATUS RESP11: BLEA[7:6] BLEB[5:4] BLEC[3:2]
+     *  BLED[1:0] block-error counts for the group above. */
+    std::uint8_t blockErrors;
 };
 
 /**

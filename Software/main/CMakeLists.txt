@@ -3,6 +3,10 @@ idf_component_register(
         "main.cpp"
         "hardware_bootstrap.cpp"
         "web_radio_stream.cpp"
+        "web_radio_fetch.cpp"
+        "audio_routing.cpp"
+        "phone_pcm_server.cpp"
+        "system_diag.cpp"
         "esp32_i2s_sink.cpp"
         "phone_stream.cpp"
         "antenna_calibration.cpp"
@@ -11,7 +15,7 @@ idf_component_register(
         "$<$<BOOL:${CONFIG_ESP32_I2S_TEST_TONE}>:esp32_i2s_test_tone.cpp>"
     INCLUDE_DIRS "."
     REQUIRES core net secure_store adau1701 si4684 tuner audio bt1035 bluetooth station integration ota eeprom24aa webradio driver
-    PRIV_REQUIRES esp_timer esp_http_client mbedtls
+    PRIV_REQUIRES esp_timer esp_http_client mbedtls app_update lwip mdns
 )
 
 if(CONFIG_TEST_FIRMWARE)

@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <string>
 
 namespace audio {
 class AudioService;
@@ -255,5 +256,24 @@ private:
     station::StationService* stations_;
     integration::IntegrationService* integration_;
 };
+
+/** Builds the JSON object reported as "system" in GET /api/health. */
+using SystemDiagnosticsProvider = std::string (*)();
+
+/**
+ * @brief    setSystemDiagnosticsProvider — plug runtime diagnostics into
+ *           GET /api/health.
+ *
+ * The figures (reset reason, heap, task stacks) are owned by main, which
+ * knows the task handles; the web server only embeds the JSON.
+ *
+ * @dname    setSystemDiagnosticsProvider
+ * @param    provider  Function returning a JSON object, or nullptr.
+ * @pubstate stores the pointer for later health requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept;
 
 } // namespace net

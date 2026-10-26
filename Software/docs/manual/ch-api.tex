@@ -48,8 +48,25 @@ Returns a health-check DTO serialised by
         \texttt{unknown} when the 24AA025E48 read fails.
   \item \texttt{chips} --- companion-chip boot flags after
         \texttt{HardwareBootstrap::boot()} (Slice~8 integration).
+  \item \texttt{system} (0.10.0+) --- runtime diagnostics from
+        \texttt{core::serializeSystemDiagnosticsJson()}:
+        \texttt{reset\_reason} (\texttt{power\_on}, \texttt{software},
+        \texttt{panic}, \texttt{task\_watchdog}, \texttt{brownout},
+        \ldots), \texttt{uptime\_s}, internal heap \texttt{heap\_free},
+        \texttt{heap\_min\_free} (lowest since boot) and
+        \texttt{heap\_largest\_block}, the running OTA \texttt{partition},
+        \texttt{ota\_pending\_verify} (true during the 60\,s probation
+        after an OTA, see below) and \texttt{stack\_min\_free}, the least
+        free stack ever seen per watched task (httpd, heartbeat,
+        af\_follow, web\_radio, phone\_pcm).
 \end{itemize}
 \end{drnote}
+
+\textbf{OTA probation (0.10.0+).} A freshly installed image is confirmed
+only after it has run for 60\,s with every task started. A reset before
+that --- a crash, or simply a power cycle --- makes the bootloader return
+to the previous image. Earlier firmware confirmed before the af\_follow and
+web radio tasks started, so a crash in them (0.9.6) was never rolled back.
 
 HTTP status: \textbf{200 OK} on success.
 
@@ -552,8 +569,25 @@ Success response: \texttt{\{"status":"saved"\}}. HTTP status:
 \texttt{name} is not in the compiled program's cell table; \textbf{500}
 on safeload failure; \textbf{503} when the audio service is unavailable.
 
+\apiendpoint{TCP}{port 5005 (phone audio, 0.10.0+)}
+\label{sec:api-phone-pcm}
+
+Phone audio now goes over a plain TCP connection to port 5005, advertised
+over mDNS as \texttt{\_digiradio-pcm.\_tcp}. The client sends raw
+interleaved 16-bit little-endian stereo PCM at 48\,kHz and closes the
+socket to stop; there is no header and no reply. On connect the firmware
+takes the shared I2S sink (waiting up to 3\,s for the web radio to let go),
+switches the ADAU1701 to the ESP32 input, and restores the previous source
+when the client disconnects or sends nothing for 5\,s. One client at a
+time. This replaces \texttt{PUT /api/stream/phone} below for the app:
+\texttt{esp\_http\_server} does not decode chunked request bodies, and a
+long upload held the server's only worker, stalling every other API call.
+
 \apiendpoint{PUT}{/api/stream/phone}
 \label{sec:api-stream-phone}
+
+\textbf{Deprecated (0.10.0):} kept for clients that send a
+\texttt{Content-Length} body; use TCP port 5005 instead.
 
 Accepts a live audio push from a phone app and writes it straight to the
 shared I2S sink for as long as the connection stays open --- the same
@@ -574,13 +608,32 @@ sink fails mid-stream.
 \apiendpoint{GET}{/api/streaming}
 \label{sec:api-streaming-get}
 
-Returns the current internet radio streaming configuration
-(\texttt{webradio::WebRadioService::config()}).
+Returns the internet radio configuration
+(\texttt{webradio::WebRadioService::config()}) plus, since 0.10.0, the
+live player status (\texttt{core::serializeWebRadioJson()}).
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"enabled":true,"url":"http://stream.example.com/radio.mp3"}
+{"enabled":true,"url":"http://stream.example.com/radio.mp3",
+ "state":"playing","codec":"mp3","sample_rate":44100,"channels":2,
+ "bitrate_kbps":128,"buffer_percent":52,"underruns":0,"reconnects":0,
+ "title":"Artist - Song"}
 \end{drcode}
+\begin{itemize}
+  \item \texttt{state} --- \texttt{idle}, \texttt{connecting},
+        \texttt{buffering}, \texttt{playing} or \texttt{error}.
+  \item \texttt{error} (only in \texttt{error}) ---
+        \texttt{connect\_failed}, \texttt{http\_status} (with
+        \texttt{http\_status}), \texttt{not\_audio} (a web page),
+        \texttt{unsupported\_format} (\texttt{codec} says which:
+        \texttt{aac}, \texttt{hls}, \texttt{ogg/flac}),
+        \texttt{decode}, \texttt{out\_of\_memory},
+        \texttt{audio\_output} (I2S timed out: no clock from the ADAU).
+  \item \texttt{sample\_rate} is the stream's own rate; the player
+        resamples to the ADAU1701's 48\,kHz (\texttt{core::PcmResampler}).
+  \item \texttt{title} --- ICY \texttt{StreamTitle}, UTF-8, when the
+        station sends one.
+\end{itemize}
 \end{drnote}
 
 HTTP status: \textbf{200 OK}; \textbf{503} when the web radio service is
@@ -591,14 +644,19 @@ unavailable.
 
 Sets the internet radio stream URL and enables/disables playback. Applied
 immediately to the live streaming task and persisted to NVS --- no reboot
-required. The stream is MP3 over HTTP, decoded on-device via libhelix and
-written to the same shared I2S sink as \texttt{PUT /api/stream/phone}.
+required; a new URL restarts the stream at once. The stream is MP3 over
+HTTP(S), decoded on-device via libhelix, resampled to 48\,kHz and written
+to the shared I2S sink. Since 0.10.0 the firmware itself switches the
+ADAU1701 to the ESP32 input while the stream plays and restores the
+previous source when it is disabled. M3U/PLS playlist links are resolved
+to their first stream; redirects are followed.
 
 \begin{drnote}[Request schema]
 \begin{drcode}[JSON]
 {"enabled":true,"url":"http://stream.example.com/radio.mp3"}
 \end{drcode}
-\texttt{url} must be \texttt{http://}, non-empty, and at most 200 bytes.
+\texttt{url} must be \texttt{http://} or \texttt{https://}, non-empty,
+and at most 200 bytes.
 \end{drnote}
 
 On success, returns the same shape as \texttt{GET /api/streaming}. HTTP

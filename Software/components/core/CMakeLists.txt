@@ -45,6 +45,9 @@ idf_component_register(
         "src/DabLinkage.cpp"
         "src/DabServiceFollower.cpp"
         "src/SignalQuality.cpp"
+        "src/PcmResampler.cpp"
+        "src/IcyStreamFilter.cpp"
+        "src/SystemDiagnostics.cpp"
     INCLUDE_DIRS "include"
 )
 

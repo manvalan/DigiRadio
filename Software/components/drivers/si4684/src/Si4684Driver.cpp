@@ -1010,6 +1010,10 @@ std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
     Si4684FmRdsStatus rds = {};
     rds.received = (raw[5] & 0x01U) != 0U;
     rds.fifoUsed = raw[11];
+    // RESP11 = BLEA/BLEB/BLEC/BLED, two bits each, for the blocks below.
+    // Read since 0.10.0: until then the decoder trusted every block the
+    // chip's BLETH thresholds (FM_RDS_CONFIG 0x3C02) let through.
+    rds.blockErrors = raw[12];
     rds.blockA = readLe16(raw.data() + 13U);
     rds.blockB = readLe16(raw.data() + 15U);
     rds.blockC = readLe16(raw.data() + 17U);

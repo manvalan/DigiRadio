@@ -216,7 +216,8 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         rdsMetadata_.applyGroup(rds->blockA,
                                 rds->blockB,
                                 rds->blockC,
-                                rds->blockD);
+                                rds->blockD,
+                                rds->blockErrors);
         if (rds->fifoUsed <= 1U) {
             break;
         }

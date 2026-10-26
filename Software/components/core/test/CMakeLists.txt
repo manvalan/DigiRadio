@@ -57,6 +57,9 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/DabLinkage.cpp"
     "${CORE_SRC_DIR}/DabServiceFollower.cpp"
     "${CORE_SRC_DIR}/SignalQuality.cpp"
+    "${CORE_SRC_DIR}/PcmResampler.cpp"
+    "${CORE_SRC_DIR}/IcyStreamFilter.cpp"
+    "${CORE_SRC_DIR}/SystemDiagnostics.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -186,3 +189,15 @@ add_test(NAME dab_follower_test COMMAND dab_follower_test)
 add_executable(signal_quality_test signal_quality_test.cpp)
 target_link_libraries(signal_quality_test PRIVATE digiradio_core)
 add_test(NAME signal_quality_test COMMAND signal_quality_test)
+
+add_executable(pcm_resampler_test pcm_resampler_test.cpp)
+target_link_libraries(pcm_resampler_test PRIVATE digiradio_core)
+add_test(NAME pcm_resampler_test COMMAND pcm_resampler_test)
+
+add_executable(icy_stream_filter_test icy_stream_filter_test.cpp)
+target_link_libraries(icy_stream_filter_test PRIVATE digiradio_core)
+add_test(NAME icy_stream_filter_test COMMAND icy_stream_filter_test)
+
+add_executable(system_diagnostics_test system_diagnostics_test.cpp)
+target_link_libraries(system_diagnostics_test PRIVATE digiradio_core)
+add_test(NAME system_diagnostics_test COMMAND system_diagnostics_test)

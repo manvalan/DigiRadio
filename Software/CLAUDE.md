@@ -118,7 +118,7 @@ All fallible operations return `std::expected<T, ErrorType>`. Core error types: 
 ### HTTP REST API
 
 Served at port 80. Key routes:
-- `GET /api/health` — chip status + serial number
+- `GET /api/health` — chip status + serial number; `system` object (0.10.0+): reset reason, heap, task stack low-water marks, OTA probation flag
 - `POST /api/tuner/tune` — `{"band":"fm","frequency":100900}`
 - `POST /api/tuner/seek` — `{"direction":"up"/"down"}`
 - `GET /api/tuner/signal` — level (dBµV), SNR/CNR, quality 0–100 and grade for FM or DAB
@@ -129,7 +129,9 @@ Served at port 80. Key routes:
 - `GET|POST /api/stations`, `POST /api/stations/tune`
 - `POST /api/wifi` — STA provisioning (triggers reboot)
 - `POST /api/wifi/reset` — forget Wi-Fi credentials, reboot into setup SoftAP (reachable at `<hostname>.local`, default AP IP 192.168.4.1)
-- `POST /api/system/ota` — firmware image upload (reboot)
+- `POST /api/system/ota` — firmware image upload (reboot); the new image is confirmed only after 60 s of running (`main/system_diag.cpp`), a reset before that rolls back
+- `GET|POST /api/streaming` — web radio `{"enabled","url"}` plus live status (`state`, `error`, `sample_rate`, `buffer_percent`, `title`…); firmware switches the ADAU source itself
+- TCP port 5005 (`_digiradio-pcm._tcp`) — raw 48 kHz s16le stereo PCM from the phone (replaces chunked `PUT /api/stream/phone`)
 - `GET|POST /api/system/power` — `{"state":"on"|"standby"}` soft standby (master mute)
 - `POST /api/dsp/program` — ADAU1701 DRAD blob upload (reboot)
 
