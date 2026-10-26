@@ -23,6 +23,7 @@
 
 #include "core/PcmResampler.hpp"
 
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -40,9 +41,11 @@ namespace web_radio_stream {
 namespace {
 
 constexpr char kTag[] = "web_radio";
-/** About 2.5 s at 128 kbit/s. Internal RAM (no PSRAM on this module). */
-constexpr std::size_t kRingBytes = 40U * 1024U;
-constexpr std::size_t kRingFallbackBytes = 20U * 1024U;
+/** About 2.5 s at 128 kbit/s. Internal RAM (no PSRAM on this module), so
+ *  it exists only while streaming is on; smaller sizes are tried when the
+ *  heap is fragmented. */
+constexpr std::array<std::size_t, 3> kRingSizes{40U * 1024U, 24U * 1024U,
+                                                16U * 1024U};
 constexpr unsigned kStartFillPercent = 50U;
 /** Low-bitrate streams fill slowly: start anyway after this long. */
 constexpr std::int64_t kPrefillTimeoutUs = 6000000;
@@ -53,6 +56,7 @@ constexpr std::size_t kResampleOutFrames = 2400U; // 384 frames at 8 kHz
 constexpr std::size_t kI2sChunkFrames = 480U;
 constexpr TickType_t kIdlePollDelay = pdMS_TO_TICKS(500);
 constexpr TickType_t kSinkBusyRetryDelay = pdMS_TO_TICKS(1000);
+constexpr TickType_t kInitRetryDelay = pdMS_TO_TICKS(5000);
 constexpr TickType_t kRingReadTimeout = pdMS_TO_TICKS(100);
 constexpr std::int64_t kPublishPeriodUs = 500000;
 constexpr int kTrimEveryFrames = 32;
@@ -352,7 +356,7 @@ void playSession(Player& p, const std::string& url, std::uint32_t generation)
 
 [[nodiscard]] bool createRing(Session& s)
 {
-    for (const std::size_t bytes : {kRingBytes, kRingFallbackBytes}) {
+    for (const std::size_t bytes : kRingSizes) {
         s.ring = xStreamBufferCreate(bytes, 1U);
         if (s.ring != nullptr) {
             s.ringBytes = bytes;
@@ -360,15 +364,39 @@ void playSession(Player& p, const std::string& url, std::uint32_t generation)
             return true;
         }
     }
+    ESP_LOGE(kTag, "no heap for the ring buffer (largest block %u)",
+             static_cast<unsigned>(
+                 heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
     return false;
 }
 
+void deleteRing(Session& s)
+{
+    vStreamBufferDelete(s.ring);
+    s.ring = nullptr;
+    s.ringBytes = 0U;
+}
+
+/** I2S channel and session semaphores; retried, never fatal: the task
+ *  must stay alive because system_diag keeps its handle. */
 [[nodiscard]] bool initPlayer(Player& p)
 {
-    p.session.done = xSemaphoreCreateBinary();
-    p.session.lock = xSemaphoreCreateMutex();
-    return p.session.done != nullptr && p.session.lock != nullptr
-           && createRing(p.session);
+    if (p.session.done == nullptr) {
+        p.session.done = xSemaphoreCreateBinary();
+    }
+    if (p.session.lock == nullptr) {
+        p.session.lock = xSemaphoreCreateMutex();
+    }
+    return esp32_i2s_sink::open() && p.session.done != nullptr
+           && p.session.lock != nullptr;
+}
+
+void publishFault(Player& p, core::WebRadioFault fault)
+{
+    core::WebRadioStatus status;
+    status.state = core::WebRadioState::Error;
+    status.fault = fault;
+    p.service->publishStatus(status);
 }
 
 void publishIdle(Player& p)
@@ -386,6 +414,12 @@ void streamWhileEnabled(Player& p)
         vTaskDelay(kSinkBusyRetryDelay); // the phone stream has the sink
         return;
     }
+    if (!createRing(p.session)) {
+        esp32_i2s_sink::release();
+        publishFault(p, core::WebRadioFault::OutOfMemory);
+        vTaskDelay(kInitRetryDelay);
+        return;
+    }
     if (!audio_routing::claimEsp32Input()) {
         ESP_LOGW(kTag, "ADAU source switch failed; stream may be inaudible");
     }
@@ -395,6 +429,11 @@ void streamWhileEnabled(Player& p)
     }
     audio_routing::restorePreviousSource();
     esp32_i2s_sink::release();
+    deleteRing(p.session);
+    if (p.decoder != nullptr) {
+        MP3FreeDecoder(p.decoder); // give the heap back while idle
+        p.decoder = nullptr;
+    }
     publishIdle(p);
 }
 
@@ -404,14 +443,10 @@ void run(void* arg)
 {
     static Player player;
     player.service = static_cast<webradio::WebRadioService*>(arg);
-    if (!esp32_i2s_sink::open() || !initPlayer(player)) {
-        ESP_LOGE(kTag, "web radio unavailable (I2S or memory)");
-        core::WebRadioStatus status;
-        status.state = core::WebRadioState::Error;
-        status.fault = core::WebRadioFault::OutOfMemory;
-        player.service->publishStatus(status);
-        vTaskDelete(nullptr);
-        return;
+    while (!initPlayer(player)) {
+        ESP_LOGE(kTag, "web radio unavailable (I2S or memory), retrying");
+        publishFault(player, core::WebRadioFault::AudioOutput);
+        vTaskDelay(kInitRetryDelay);
     }
     while (true) {
         if (player.service->config().enabled) {

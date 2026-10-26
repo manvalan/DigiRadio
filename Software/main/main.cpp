@@ -310,7 +310,8 @@ extern "C" void app_main()
     system_diag::watchTask("httpd", xTaskGetHandle("httpd"));
 
     TaskHandle_t handle = nullptr;
-    if (xTaskCreate(heartbeatTask, "heartbeat", 4096, nullptr, 5, &handle)
+    // 0.10.0 measured 1.9 KB left of 4 KB once logSummary() ran.
+    if (xTaskCreate(heartbeatTask, "heartbeat", 6144, nullptr, 5, &handle)
         != pdPASS) {
         ESP_LOGE(kTag, "heartbeat task create failed");
         return;

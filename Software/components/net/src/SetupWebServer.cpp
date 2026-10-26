@@ -73,7 +73,7 @@ namespace {
 
 SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.10.0";
+constexpr char kFirmwareVersion[] = "0.10.1";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(

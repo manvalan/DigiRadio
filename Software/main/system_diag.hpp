@@ -25,7 +25,9 @@ namespace system_diag {
  *
  * @dname    watchTask
  * @param    name    Short name for the JSON key (static storage).
- * @param    handle  Task handle; nullptr is ignored.
+ * @param    handle  Task handle; nullptr is ignored. The task must never
+ *                   delete itself: reports read its stack through the
+ *                   handle, and a freed one crashes the reader.
  * @pubstate appends to a fixed-size registry (silently full at 12).
  *
  * @author   Michele Bigi
