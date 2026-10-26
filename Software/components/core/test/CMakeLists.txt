@@ -23,6 +23,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/WifiProvisionJson.cpp"
     "${CORE_SRC_DIR}/WifiScanJson.cpp"
     "${CORE_SRC_DIR}/EmbeddedBlobReader.cpp"
+    "${CORE_SRC_DIR}/BlobStore.cpp"
     "${CORE_SRC_DIR}/TunerJson.cpp"
     "${CORE_SRC_DIR}/DspParamJson.cpp"
     "${CORE_SRC_DIR}/FrequencyKHz.cpp"
@@ -207,3 +208,7 @@ add_test(NAME alarm_schedule_test COMMAND alarm_schedule_test)
 add_executable(system_diagnostics_test system_diagnostics_test.cpp)
 target_link_libraries(system_diagnostics_test PRIVATE digiradio_core)
 add_test(NAME system_diagnostics_test COMMAND system_diagnostics_test)
+
+add_executable(blob_store_test blob_store_test.cpp)
+target_link_libraries(blob_store_test PRIVATE digiradio_core)
+add_test(NAME blob_store_test COMMAND blob_store_test)

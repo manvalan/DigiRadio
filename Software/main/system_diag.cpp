@@ -14,6 +14,9 @@
 
 #include "system_diag.hpp"
 
+#include "hardware_bootstrap.hpp"
+#include "sdkconfig.h"
+
 #include "core/SystemDiagnostics.hpp"
 #include "ota/OtaService.hpp"
 
@@ -83,6 +86,12 @@ std::atomic<std::size_t> gTaskCount{0U};
         heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
     diag.runningPartition = running != nullptr ? running->label : "unknown";
     diag.otaPendingVerify = pendingVerify(running);
+    diag.si4684Store = hardware::HardwareBootstrap::imageStoreState();
+#if CONFIG_SI4684_EMBEDDED_IMAGES
+    diag.si4684ImagesEmbedded = true;
+#else
+    diag.si4684ImagesEmbedded = false;
+#endif
     const std::size_t count = gTaskCount.load();
     for (std::size_t i = 0U; i < count; ++i) {
         diag.tasks.push_back(core::TaskStackReport{

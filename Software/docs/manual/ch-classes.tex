@@ -155,6 +155,27 @@ Owns \texttt{EmbeddedBlobReader} views over \texttt{rom\_patch\_016.bin},
 passed to \texttt{Si4684Driver}. \texttt{applicationImage(Si4684Band)} selects
 DAB or FM.
 
+\section{FlashBlobReader}\label{cls:FlashBlobReader}
+\texttt{IFirmwareBlobReader} over one image in the Si4684 image store,
+read with \texttt{esp\_partition\_read()}. Reports size 0 until
+\texttt{Si4684ImageStore} binds it to a verified entry.
+
+\section{Si4684ImageStore}\label{cls:Si4684ImageStore}
+Keeps the three Si4684 images in flash that the partition table leaves
+unused (0x860000, 2\,MB after the \texttt{dsp} partition), registered at
+runtime with \texttt{esp\_partition\_register\_external()}: no table change,
+no wired flash. The first sector holds a header (magic, entries, CRC-32;
+\texttt{core/BlobStore.hpp}, host-tested); \texttt{open()} verifies the
+header and every image CRC. A build with
+\texttt{CONFIG\_SI4684\_EMBEDDED\_IMAGES=y} (the default, 0.11.1+) copies
+its embedded images in once, from the low-priority \texttt{si\_store}
+task, rewriting only when they differ and writing the header last. A
+build with \texttt{=n} (\texttt{sdkconfig.release}, used by the GitHub
+release workflow) contains no proprietary code and reads the images from
+the store; when the store is missing it does not start the tuner and, if
+still in OTA probation, rolls back to the previous image. State is
+reported as \texttt{system.si4684\_store} in \texttt{GET /api/health}.
+
 \section{Si4684Driver}\label{cls:Si4684Driver}
 Full SPI driver for the Si4684 DAB+/FM tuner (Chapter~\ref{ch:si4684}).
 

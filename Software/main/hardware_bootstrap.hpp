@@ -217,6 +217,22 @@ public:
     [[nodiscard]] static bool saveXtalCalibration(std::uint8_t ibias,
                                                   std::uint8_t ctun,
                                                   std::uint32_t xtalFreqHz);
+
+    /**
+     * @brief    imageStoreState — Si4684 image store status for diagnostics.
+     *
+     * A build that embeds the Si4684 images fills the store in the
+     * background after boot; a build without them refuses to start the
+     * tuner (and rolls back an unconfirmed OTA image) while it is missing.
+     *
+     * @dname    imageStoreState
+     * @return   "ready", "missing", "writing" or "unknown".
+     * @pubstate reads the store state.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] static const char* imageStoreState() noexcept;
 };
 
 } // namespace hardware

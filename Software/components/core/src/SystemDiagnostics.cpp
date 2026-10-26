@@ -45,7 +45,10 @@ std::string serializeSystemDiagnosticsJson(const SystemDiagnostics& diag)
         << R"(,"heap_largest_block":)" << diag.heapLargestBlockBytes
         << R"(,"partition":")" << diag.runningPartition << '"'
         << R"(,"ota_pending_verify":)"
-        << (diag.otaPendingVerify ? "true" : "false");
+        << (diag.otaPendingVerify ? "true" : "false")
+        << R"(,"si4684_store":")" << diag.si4684Store << '"'
+        << R"(,"si4684_embedded":)"
+        << (diag.si4684ImagesEmbedded ? "true" : "false");
     appendTasks(out, diag.tasks);
     out << '}';
     return out.str();

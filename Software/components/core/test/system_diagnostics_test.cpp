@@ -26,12 +26,15 @@ int main()
     diag.heapLargestBlockBytes = 60000U;
     diag.runningPartition = "ota_1";
     diag.otaPendingVerify = true;
+    diag.si4684Store = "ready";
+    diag.si4684ImagesEmbedded = false;
     diag.tasks = {{"af_follow", 5120U}, {"web_radio", 3000U}};
     const std::string json = core::serializeSystemDiagnosticsJson(diag);
     const std::string expected =
         R"({"reset_reason":"panic","uptime_s":61,"heap_free":120000,)"
         R"("heap_min_free":90000,"heap_largest_block":60000,)"
         R"("partition":"ota_1","ota_pending_verify":true,)"
+        R"("si4684_store":"ready","si4684_embedded":false,)"
         R"("stack_min_free":{"af_follow":5120,"web_radio":3000}})";
     if (json != expected) {
         std::cerr << "got " << json << '\n';

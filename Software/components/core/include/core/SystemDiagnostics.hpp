@@ -54,6 +54,8 @@ struct SystemDiagnostics {
     std::uint32_t heapLargestBlockBytes{0U}; ///< Largest internal block.
     std::string_view runningPartition; ///< "ota_0" / "ota_1".
     bool otaPendingVerify{false};      ///< New image not yet confirmed.
+    std::string_view si4684Store{"unknown"}; ///< Si4684ImageStore state token.
+    bool si4684ImagesEmbedded{true};   ///< This build links the images in.
     std::vector<TaskStackReport> tasks; ///< Watched tasks' stacks.
 };
 

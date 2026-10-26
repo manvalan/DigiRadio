@@ -129,7 +129,7 @@ Served at port 80. Key routes:
 - `GET|POST /api/stations`, `POST /api/stations/tune`
 - `POST /api/wifi` — STA provisioning (triggers reboot)
 - `POST /api/wifi/reset` — forget Wi-Fi credentials, reboot into setup SoftAP (reachable at `<hostname>.local`, default AP IP 192.168.4.1)
-- `POST /api/system/ota` — firmware image upload (reboot); the new image is confirmed only after 60 s of running (`main/system_diag.cpp`), a reset before that rolls back
+- `POST /api/system/ota` — firmware image upload (reboot); the new image is confirmed only after 60 s of running (`main/system_diag.cpp`), a reset before that rolls back. Tag `vX.Y.Z` → `.github/workflows/firmware-release.yml` publishes a build without Si4684 images (`sdkconfig.release`, `CONFIG_SI4684_EMBEDDED_IMAGES=n`); the radio reads them from the flash store at 0x860000 (`Si4684ImageStore`) that a full build (0.11.1+) fills once; health reports `system.si4684_store`
 - `GET|POST /api/streaming` — web radio `{"enabled","url"}` plus live status (`state`, `error`, `sample_rate`, `buffer_percent`, `title`…); firmware switches the ADAU source itself
 - TCP port 5005 (`_digiradio-pcm._tcp`) — raw 48 kHz s16le stereo PCM from the phone (replaces chunked `PUT /api/stream/phone`)
 - `GET|POST /api/system/power` — `{"state":"on"|"standby"}` soft standby (master mute)

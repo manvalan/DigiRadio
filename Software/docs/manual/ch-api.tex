@@ -58,7 +58,14 @@ Returns a health-check DTO serialised by
         \texttt{ota\_pending\_verify} (true during the 60\,s probation
         after an OTA, see below) and \texttt{stack\_min\_free}, the least
         free stack ever seen per watched task (httpd, heartbeat,
-        af\_follow, web\_radio, phone\_pcm).
+        af\_follow, web\_radio, phone\_pcm, alarm).
+        From 0.11.1 also \texttt{si4684\_store} (\texttt{ready},
+        \texttt{missing}, \texttt{writing}, \texttt{unknown}: whether the
+        Si4684 images are in the flash image store,
+        Section~\ref{cls:Si4684ImageStore}) and \texttt{si4684\_embedded}
+        (this build links the images in). The app installs a published
+        release, which carries no images, only when
+        \texttt{si4684\_store} is \texttt{ready}.
 \end{itemize}
 \end{drnote}
 
