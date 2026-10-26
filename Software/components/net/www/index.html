@@ -534,7 +534,7 @@
 
     <section id="panel-now" class="panel active" role="tabpanel">
       <h2>Now playing</h2>
-      <p class="lede">Live metadata from RDS (FM) or Dynamic Label and DL+ (DAB).</p>
+      <p class="lede">Live metadata from RDS RadioText and RT+ (FM) or Dynamic Label and DL+ (DAB).</p>
       <img class="now-slide" id="now-slide" alt="Image sent by the station" hidden>
       <div class="now-title" id="now-title">—</div>
       <div class="now-sub" id="now-sub"></div>
@@ -890,6 +890,10 @@
         return { title: "Tuner not ready", sub: "" };
       }
       if (s.band === "fm" && s.fm) {
+        var rtp = s.fm.rt_plus || {};
+        if (rtp.title) {
+          return { title: rtp.title, sub: rtp.artist || "", label: s.fm.radiotext || "" };
+        }
         return {
           title: s.fm.station_name || (s.fm.frequency_khz + " kHz"),
           sub: s.fm.radiotext || ""
