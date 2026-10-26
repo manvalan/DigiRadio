@@ -53,6 +53,7 @@ class OtaService;
 
 namespace tuner {
 class TunerService;
+class SpectrumScanService;
 } // namespace tuner
 
 namespace webradio {
@@ -250,6 +251,7 @@ public:
 
 private:
     void registerAlarmRoutes(void* routeCtx);
+    void registerSpectrumRoutes(void* routeCtx);
 
     httpd_handle_t server_;
     core::ISecureStore* store_;
@@ -313,5 +315,19 @@ struct AlarmApi {
  * @date     2026-10-26
  */
 void setAlarmApi(const AlarmApi* api) noexcept;
+
+/**
+ * @brief    setSpectrumScanService — plug the RF band sweep into
+ *           GET/POST /api/tuner/spectrum.
+ *
+ * @dname    setSpectrumScanService
+ * @param    service  Sweep service with static lifetime, or nullptr
+ *                    (routes answer 503).
+ * @pubstate stores the pointer for later requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept;
 
 } // namespace net

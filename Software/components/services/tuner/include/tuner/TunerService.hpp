@@ -20,6 +20,7 @@
 #include "core/TunerJson.hpp"
 #include "core/TunerStatus.hpp"
 
+#include <atomic>
 #include <cstdint>
 #include <expected>
 #include <mutex>
@@ -302,6 +303,34 @@ public:
     void setAfFollowEnabled(bool enabled);
 
     /**
+     * @brief    setSweepActive — mark a long tuner sweep (spectrum) running.
+     *
+     * @dname    setSweepActive
+     * @param    active  true while a sweep owns the tuner.
+     * @pubstate writes sweepActive_ (atomic, no lock).
+     *
+     * Background followers check sweepActive() and stand aside, so they
+     * neither retune mid-sweep nor read the swept noise as a fading
+     * station.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void setSweepActive(bool active) noexcept;
+
+    /**
+     * @brief    sweepActive — whether a spectrum sweep owns the tuner.
+     *
+     * @dname    sweepActive
+     * @return   true between setSweepActive(true) and (false).
+     * @pubstate reads sweepActive_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] bool sweepActive() const noexcept;
+
+    /**
      * @brief    recordAfHunt — note that the AF task probed alternates.
      *
      * @dname    recordAfHunt
@@ -348,6 +377,7 @@ private:
     std::optional<std::uint32_t> lastPlayedComponentId_;
     core::AfFollowStats afStats_{};
     std::recursive_mutex mutex_;
+    std::atomic<bool> sweepActive_{false};
 };
 
 } // namespace tuner

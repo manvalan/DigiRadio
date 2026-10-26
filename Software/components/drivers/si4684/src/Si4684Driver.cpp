@@ -13,6 +13,8 @@
 
 #include "si4684/Si4684Driver.hpp"
 
+#include "core/RadioSpectrum.hpp"
+
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_log.h"
@@ -1080,6 +1082,13 @@ Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
     data.payload = std::move(body);
     return data;
 }
+
+// The spectrum sweep labels DAB freq indexes with the core Band III plan.
+static_assert(std::equal(kDefaultDabFrequencyKhz.begin(),
+                         kDefaultDabFrequencyKhz.end(),
+                         core::kDabBand3FrequenciesKhz.begin(),
+                         core::kDabBand3FrequenciesKhz.end()),
+              "DAB_SET_FREQ_LIST plan must match core::kDabBand3FrequenciesKhz");
 
 std::expected<void, Si4684Error> Si4684Driver::installDefaultDabFrequencyPlan()
 {

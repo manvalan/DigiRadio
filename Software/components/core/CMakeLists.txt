@@ -36,6 +36,7 @@ idf_component_register(
         "src/RdsMetadataAccumulator.cpp"
         "src/DabDynamicLabelAccumulator.cpp"
         "src/DlsDecoder.cpp"
+        "src/RadioSpectrum.cpp"
         "src/DspProgram.cpp"
         "src/RegisterWrite.cpp"
         "src/DspProgramBlob.cpp"

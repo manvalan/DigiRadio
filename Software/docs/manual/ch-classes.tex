@@ -313,6 +313,21 @@ on the best one carrying the same PI, or tunes back. In DAB it runs
 no app connected; state and on/off switch are at \texttt{/api/tuner/af}
 (Section~\ref{sec:api-tuner-af}).
 
+\section{SpectrumScanService}\label{cls:SpectrumScanService}
+RF band sweep behind \texttt{/api/tuner/spectrum}
+(Section~\ref{sec:api-tuner-spectrum}). The single Si4684 front end
+means a sweep takes the station off air: \texttt{start(band)} spawns a
+short-lived \texttt{spectrum} task (8\,KB stack, freed at the end) that
+mutes the tuner, sets \texttt{TunerService::setSweepActive()} so
+\texttt{AfFollowService} stands aside, measures every FM step
+(87.5--108\,MHz, 100\,kHz, 120\,ms settle: RSSI and SNR) or every Band~III
+channel 5A--13F (600\,ms settle: RSSI, plus CNR and FIC quality when an
+ensemble locks), then retunes the previous station, DAB service and
+volume. Each step takes the tuner lock on its own, so status requests are
+still served; progress and points live in a
+\texttt{core::SpectrumSnapshot} behind the service's own mutex and are
+serialised by \texttt{core::serializeSpectrumJson()}. One sweep at a time.
+
 \section{DabServiceFollower}\label{cls:DabServiceFollower}
 Pure-core DAB service-following policy, the DAB counterpart of
 \texttt{AlternateFrequencyFollower}. While the playing service has a good

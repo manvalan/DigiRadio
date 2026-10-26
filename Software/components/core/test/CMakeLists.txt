@@ -48,6 +48,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/RdsMetadataAccumulator.cpp"
     "${CORE_SRC_DIR}/DabDynamicLabelAccumulator.cpp"
     "${CORE_SRC_DIR}/DlsDecoder.cpp"
+    "${CORE_SRC_DIR}/RadioSpectrum.cpp"
     "${CORE_SRC_DIR}/DspProgram.cpp"
     "${CORE_SRC_DIR}/RegisterWrite.cpp"
     "${CORE_SRC_DIR}/DspProgramBlob.cpp"
@@ -217,3 +218,7 @@ add_test(NAME blob_store_test COMMAND blob_store_test)
 add_executable(dls_decoder_test dls_decoder_test.cpp)
 target_link_libraries(dls_decoder_test PRIVATE digiradio_core)
 add_test(NAME dls_decoder_test COMMAND dls_decoder_test)
+
+add_executable(radio_spectrum_test radio_spectrum_test.cpp)
+target_link_libraries(radio_spectrum_test PRIVATE digiradio_core)
+add_test(NAME radio_spectrum_test COMMAND radio_spectrum_test)

@@ -37,6 +37,7 @@
 #include "core/WifiProvisionJson.hpp"
 #include "core/WifiScanJson.hpp"
 #include "net/WifiScanner.hpp"
+#include "tuner/SpectrumScanService.hpp"
 #include "tuner/TunerService.hpp"
 #include "audio/AudioService.hpp"
 #include "bluetooth/BluetoothService.hpp"
@@ -73,6 +74,7 @@ namespace {
 
 SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
 const AlarmApi* gAlarmApi = nullptr;
+tuner::SpectrumScanService* gSpectrum = nullptr;
 constexpr char kTag[] = "SetupWebServer";
 constexpr char kFirmwareVersion[] = "0.12.0";
 constexpr unsigned kRebootDelaySec = 3;
@@ -2291,6 +2293,60 @@ esp_err_t alarmsGetHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    spectrumGetHandler — GET /api/tuner/spectrum (sweep progress).
+ *
+ * @dname    spectrumGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the sweep snapshot through gSpectrum (no tuner lock).
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t spectrumGetHandler(httpd_req_t* req)
+{
+    if (gSpectrum == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    return sendJson(req, gSpectrum->json());
+}
+
+/**
+ * @brief    spectrumPostHandler — POST /api/tuner/spectrum starts a sweep.
+ *
+ * @dname    spectrumPostHandler
+ * @param    req  HTTP request handle; body {"band":"fm"|"dab"}.
+ * @return   ESP_OK on success, or an esp_err_t error code. HTTP 202 when
+ *           started, 400 bad body, 409 already running, 500 no task.
+ * @pubstate starts the sweep task through gSpectrum.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t spectrumPostHandler(httpd_req_t* req)
+{
+    if (gSpectrum == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    std::array<char, 64> body{};
+    if (!readRequestBody(req, body)) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"empty_body"})");
+    }
+    const auto band = core::parseSpectrumRequestJson(body.data());
+    if (!band) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"invalid_band"})");
+    }
+    const auto started = gSpectrum->start(*band);
+    if (!started) {
+        return started.error() == core::SpectrumStartError::Busy
+                   ? sendStatus(req, "409 Conflict", R"({"error":"busy"})")
+                   : sendStatus(req, "500 Internal Server Error",
+                                R"({"error":"no_resource"})");
+    }
+    return sendStatus(req, "202 Accepted", R"({"status":"started"})");
+}
+
+/**
  * @brief    alarmsPutHandler — PUT /api/alarms replaces the whole table.
  *
  * @dname    alarmsPutHandler
@@ -2509,7 +2565,7 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 14336; // +2 KB: 4980 B min free on 0.11.2
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 60; // 58 routes registered below as of 2026-10-26;
+    config.max_uri_handlers = 64; // 61 routes registered below as of 0.12.0;
                                    // keep headroom so a silent
                                    // httpd_register_uri_handler failure
                                    // ("no slots left") doesn't quietly drop
@@ -2960,6 +3016,7 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_register_uri_handler(server_, &stationsTuneUri);
 
     registerAlarmRoutes(routeCtx);
+    registerSpectrumRoutes(routeCtx);
 
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};
@@ -2973,6 +3030,24 @@ void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept
 void setAlarmApi(const AlarmApi* api) noexcept
 {
     gAlarmApi = api;
+}
+
+void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept
+{
+    gSpectrum = service;
+}
+
+void SetupWebServer::registerSpectrumRoutes(void* routeCtx)
+{
+    const httpd_uri_t routes[] = {
+        {.uri = "/api/tuner/spectrum", .method = HTTP_GET,
+         .handler = spectrumGetHandler, .user_ctx = routeCtx},
+        {.uri = "/api/tuner/spectrum", .method = HTTP_POST,
+         .handler = spectrumPostHandler, .user_ctx = routeCtx},
+    };
+    for (const httpd_uri_t& route : routes) {
+        httpd_register_uri_handler(server_, &route);
+    }
 }
 
 void SetupWebServer::registerAlarmRoutes(void* routeCtx)

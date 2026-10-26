@@ -475,6 +475,16 @@ void TunerService::setAfFollowEnabled(bool enabled)
     afStats_.enabled = enabled;
 }
 
+void TunerService::setSweepActive(bool active) noexcept
+{
+    sweepActive_.store(active);
+}
+
+bool TunerService::sweepActive() const noexcept
+{
+    return sweepActive_.load();
+}
+
 std::expected<core::TunerStatus, core::TunerError> TunerService::refreshSignal()
 {
     const std::lock_guard<std::recursive_mutex> lock(mutex_);

@@ -25,6 +25,7 @@
 #include "si4684/Si4684Tuner.hpp"
 #include "station/StationService.hpp"
 #include "tuner/AfFollowService.hpp"
+#include "tuner/SpectrumScanService.hpp"
 #include "tuner/TunerService.hpp"
 #include "antenna_calibration.hpp"
 #include "audio_routing.hpp"
@@ -322,6 +323,8 @@ extern "C" void app_main()
     bluetoothService.startupReconnect();
 
     static tuner::AfFollowService afFollow(tunerService, sleepMs);
+    static tuner::SpectrumScanService spectrum(tunerService);
+    net::setSpectrumScanService(&spectrum);
     // 0.10.1 measured 10 KB of 12 KB never used.
     if (xTaskCreate(afFollowTask, "af_follow", 8192, &afFollow, 3, &handle)
         != pdPASS) {

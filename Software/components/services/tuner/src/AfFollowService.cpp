@@ -43,7 +43,7 @@ AfFollowService::AfFollowService(TunerService& tuner, SleepFn sleep)
 void AfFollowService::tick(std::uint32_t nowMs)
 {
     const std::lock_guard<std::recursive_mutex> lock(tuner_.mutex());
-    if (!tuner_.afFollowStats().enabled) {
+    if (!tuner_.afFollowStats().enabled || tuner_.sweepActive()) {
         return;
     }
     // Signal metrics every tick; RDS (AF list, PI) only every

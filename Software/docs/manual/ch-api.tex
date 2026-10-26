@@ -198,6 +198,29 @@ HTTP status: \textbf{200 OK}; \textbf{500} on driver failure;
 \textbf{503} when the tuner service is unavailable. The DAB object of
 \texttt{/api/tuner/status} also carries \texttt{rssi\_dbuv}.
 
+\apiendpoint{GET / POST}{/api/tuner/spectrum}
+\label{sec:api-tuner-spectrum}
+
+RF spectrum of the FM band or DAB Band~III, measured by
+\texttt{tuner::SpectrumScanService} (0.12.0+). \texttt{POST} with
+\texttt{\{"band":"fm"\}} or \texttt{\{"band":"dab"\}} starts a sweep:
+\textbf{202} when started, \textbf{400} on a bad body, \textbf{409} while
+one is running, \textbf{500} if the task cannot be created. The station
+goes off air (muted) for the sweep, about 35\,s for FM (206 steps) or
+45\,s for DAB (38 channels), and is retuned at the end. \texttt{GET}
+returns the progress at any time:
+
+\begin{drcode}[JSON]
+{"state":"running","band":"dab","progress":50,"points":[
+ {"freq_khz":223936,"channel":"12A","rssi_dbuv":40,"cnr_db":18,"fic_quality":97},
+ {"freq_khz":225648,"channel":"12B","rssi_dbuv":5}]}
+\end{drcode}
+\texttt{state} is \texttt{idle}, \texttt{running}, \texttt{done} or
+\texttt{failed} (tuner error; points partial). FM points carry
+\texttt{freq\_khz}, \texttt{rssi\_dbuv}, \texttt{snr\_db}; DAB points
+\texttt{channel} and \texttt{rssi\_dbuv}, plus \texttt{cnr\_db} and
+\texttt{fic\_quality} when an ensemble locked.
+
 \apiendpoint{GET / POST}{/api/tuner/af}
 \label{sec:api-tuner-af}
 

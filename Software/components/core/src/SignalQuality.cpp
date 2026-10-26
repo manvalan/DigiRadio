@@ -62,6 +62,9 @@ SignalQuality computeSignalQuality(const TunerStatus& status)
                              .locked = status.locked,
                              .levelDbuV = status.fmRssiDbuV,
                              .snrDb = status.fmSnrDb,
+                             .ficQuality = std::nullopt,
+                             .fibErrors = std::nullopt,
+                             .ficErrors = std::nullopt,
                              .quality = fmScore(status)};
     }
     return SignalQuality{.band = status.band,
