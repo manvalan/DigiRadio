@@ -41,6 +41,12 @@ enum class AlarmSource {
 /** Upper bound on rows, so the table fits one small NVS blob. */
 inline constexpr std::size_t kMaxAlarms = 8U;
 
+/** Wake-up fade-in length when a row does not set one (pre-0.12 rows). */
+inline constexpr std::uint16_t kDefaultAlarmFadeInSeconds = 30U;
+
+/** Longest accepted wake-up fade-in. */
+inline constexpr std::uint16_t kMaxAlarmFadeInSeconds = 300U;
+
 /** Weekday bits of AlarmEntry::days: bit 0 Monday … bit 6 Sunday. */
 inline constexpr std::uint8_t kAllWeekdays = 0x7FU;
 
@@ -56,6 +62,8 @@ struct AlarmEntry {
     std::string url;                      ///< Stream URL (WebRadio source).
     float volumeDb{-20.0F};               ///< Master gain reached by the ramp.
     std::uint16_t durationMinutes{0U};    ///< TurnOn: standby after this; 0 = stay on.
+    /** TurnOn: seconds to ramp up to volumeDb; 0 = straight to it. */
+    std::uint16_t fadeInSeconds{kDefaultAlarmFadeInSeconds};
 };
 
 /** Wall-clock fields the scheduler needs, already in local time. */
@@ -134,12 +142,12 @@ struct NextAlarm {
  * @brief    alarmRampDb — master gain during the wake-up fade-in.
  *
  * Linear in dB from kAlarmRampStartDb to `targetDb` over `rampSeconds`;
- * a target below the start is reached at once.
+ * a target below the start, or a zero-length ramp, is reached at once.
  *
  * @dname    alarmRampDb
  * @param    targetDb     Final gain.
  * @param    elapsedSec   Seconds since the alarm fired.
- * @param    rampSeconds  Ramp length (> 0).
+ * @param    rampSeconds  Ramp length (0 = no ramp).
  * @return   Gain to apply now, in dB.
  * @pubstate none
  *

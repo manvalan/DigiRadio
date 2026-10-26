@@ -112,6 +112,30 @@ namespace {
            && expect(!missing, "missing alarms rejected");
 }
 
+[[nodiscard]] bool fadeInTest()
+{
+    const auto legacy = core::parseAlarmTableJson(
+        R"({"alarms":[{"action":"on","hour":7,"minute":0,"days":1}]})");
+    const auto none = core::parseAlarmTableJson(
+        R"({"alarms":[{"action":"on","hour":7,"minute":0,"days":1,)"
+        R"("fade_in_s":0}]})");
+    const auto tooLong = core::parseAlarmTableJson(
+        R"({"alarms":[{"action":"on","hour":7,"minute":0,"days":1,)"
+        R"("fade_in_s":301}]})");
+    auto entry = weekdayAlarm();
+    entry.fadeInSeconds = 120U;
+    const std::vector<core::AlarmEntry> table{entry};
+    const std::string json = core::serializeAlarmTableJson(table);
+    return expect(legacy && (*legacy)[0].fadeInSeconds == 30U,
+                  "fade_in_s defaults to 30")
+           && expect(none && (*none)[0].fadeInSeconds == 0U, "fade_in_s 0")
+           && expect(!tooLong, "fade_in_s > 300 rejected")
+           && expect(json.find(R"("fade_in_s":120)") != std::string::npos,
+                     "fade_in_s serialized")
+           && expect(core::alarmRampDb(-10.0F, 0U, 0U) == -10.0F,
+                     "zero ramp jumps to target");
+}
+
 [[nodiscard]] bool statusAndSleepTest()
 {
     const std::vector<core::AlarmEntry> table{weekdayAlarm()};
@@ -138,7 +162,7 @@ int main()
 {
     const bool ok = scheduleTest() && disabledTest() && rampTest()
                     && jsonRoundTripTest() && jsonRejectsTest()
-                    && statusAndSleepTest();
+                    && fadeInTest() && statusAndSleepTest();
     if (!ok) {
         return EXIT_FAILURE;
     }

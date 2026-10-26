@@ -151,12 +151,16 @@ constexpr std::uint16_t kMaxMinutes = 720U;
 {
     const float volume = floatOf(object, "volume_db").value_or(-20.0F);
     const auto duration = numberOf(object, "duration_min").value_or(0);
+    const auto fade = numberOf(object, "fade_in_s")
+                          .value_or(kDefaultAlarmFadeInSeconds);
     if (volume < kMinVolumeDb || volume > kMaxVolumeDb
-        || !inRange(duration, kMaxMinutes)) {
+        || !inRange(duration, kMaxMinutes)
+        || !inRange(fade, kMaxAlarmFadeInSeconds)) {
         return false;
     }
     entry.volumeDb = volume;
     entry.durationMinutes = static_cast<std::uint16_t>(duration);
+    entry.fadeInSeconds = static_cast<std::uint16_t>(fade);
     return parseSource(object, entry);
 }
 
@@ -219,7 +223,8 @@ void writeEntry(std::ostringstream& out, const AlarmEntry& e)
             << R"(,"preset":)" << static_cast<int>(e.preset)
             << R"(,"url":")" << (web ? e.url : std::string()) << '"'
             << R"(,"volume_db":)" << e.volumeDb
-            << R"(,"duration_min":)" << e.durationMinutes;
+            << R"(,"duration_min":)" << e.durationMinutes
+            << R"(,"fade_in_s":)" << e.fadeInSeconds;
     }
     out << '}';
 }

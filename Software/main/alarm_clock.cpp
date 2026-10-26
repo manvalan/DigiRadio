@@ -48,7 +48,6 @@ constexpr char kTag[] = "alarm";
 constexpr char kNvsNamespace[] = "alarms";
 constexpr char kNvsKey[] = "table";
 constexpr char kTimeZone[] = "CET-1CEST,M3.5.0,M10.5.0/3"; // Europe/Rome
-constexpr std::uint32_t kRampSeconds = 30U;
 constexpr std::int64_t kUsPerSecond = 1000000;
 /** Earliest plausible SNTP time (2024-01-01): before it the clock is unset. */
 constexpr std::time_t kValidEpoch = 1704067200;
@@ -58,6 +57,7 @@ constexpr float kUserMoveDb = 0.5F;
 /** Wake-up fade-in in progress. */
 struct Ramp {
     std::int64_t startUs{0};
+    std::uint32_t seconds{0U};
     float targetDb{0.0F};
     float lastDb{0.0F};
 };
@@ -207,13 +207,17 @@ void turnOn(const core::AlarmEntry& entry)
 {
     // recallPreset loads the preset's audio profile, so the gain comes after.
     startSource(entry);
-    const float startDb = core::alarmRampDb(entry.volumeDb, 0U, kRampSeconds);
+    const float startDb =
+        core::alarmRampDb(entry.volumeDb, 0U, entry.fadeInSeconds);
     setMaster(startDb);
     (void)gServices->audio.setPowerState(core::PowerState::On);
     wakeSpeaker();
     const std::int64_t now = nowUs();
     const std::lock_guard lock(gMutex);
-    gRamp = Ramp{.startUs = now, .targetDb = entry.volumeDb, .lastDb = startDb};
+    gRamp = Ramp{.startUs = now,
+                 .seconds = entry.fadeInSeconds,
+                 .targetDb = entry.volumeDb,
+                 .lastDb = startDb};
     gAlarmOffDeadlineUs =
         entry.durationMinutes == 0U
             ? 0
@@ -243,8 +247,8 @@ void stepRamp()
     const auto elapsed =
         static_cast<std::uint32_t>((nowUs() - ramp->startUs) / kUsPerSecond);
     const bool moved = userMovedVolume(ramp->lastDb);
-    const bool done = elapsed >= kRampSeconds || moved;
-    const float db = core::alarmRampDb(ramp->targetDb, elapsed, kRampSeconds);
+    const bool done = elapsed >= ramp->seconds || moved;
+    const float db = core::alarmRampDb(ramp->targetDb, elapsed, ramp->seconds);
     if (!moved) {
         setMaster(db);
     }

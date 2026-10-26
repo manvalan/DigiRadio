@@ -571,7 +571,8 @@ unavailable.
 Alarm table (firmware 0.11.0+, \texttt{main/alarm\_clock.cpp}). Each row
 either switches the radio \emph{on} (leave standby, play a preset or a web
 radio URL, fade the master gain in from \texttt{-45 dB} to
-\texttt{volume\_db} over 30~s) or \emph{off} (standby and stop the web
+\texttt{volume\_db} over \texttt{fade\_in\_s} seconds, default 30, 0 =
+straight to the volume; 0.12.0+) or \emph{off} (standby and stop the web
 radio). An \texttt{on} row with \texttt{duration\_min} > 0 also switches
 the radio off after that many minutes. Rows fire on the weekdays set in
 \texttt{days} (bit~0 Monday \ldots{} bit~6 Sunday) at local time
@@ -588,7 +589,7 @@ namespace \texttt{alarms}; PUT replaces it whole.
  "alarms":[
   {"enabled":true,"action":"on","hour":7,"minute":0,"days":31,
    "source":"preset","preset":2,"url":"","volume_db":-20,
-   "duration_min":60},
+   "duration_min":60,"fade_in_s":30},
   {"enabled":true,"action":"off","hour":23,"minute":30,"days":127}]}
 \end{drcode}
 \end{drnote}
@@ -598,6 +599,8 @@ The PUT body is \texttt{\{"alarms":[...]\}}; \texttt{time\_valid},
 (\texttt{next} is absent when no row is armed). Limits: \texttt{hour}
 0--23, \texttt{minute} 0--59, \texttt{days} 0--127, \texttt{preset} 0--63,
 \texttt{volume\_db} $-60$\ldots$+12$, \texttt{duration\_min} 0--720,
+\texttt{fade\_in\_s} 0--300 (absent: 30, so pre-0.12 tables keep the old
+ramp),
 \texttt{url} \texttt{http(s)://} and at most 200 bytes. HTTP status:
 \textbf{200 OK} with the new status; \textbf{400}
 \texttt{\{"error":"invalid\_alarms"\}} when a row is out of range;

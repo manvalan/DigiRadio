@@ -70,8 +70,8 @@ struct AlarmClockInfo {
  * @brief    parseAlarmTableJson — PUT /api/alarms body (or the NVS copy).
  *
  * Rows are validated: hour < 24, minute < 60, days ≤ 0x7F, volume
- * −60…+12 dB, duration ≤ 720 min, web radio URL http(s) and ≤ 200 bytes,
- * at most kMaxAlarms rows.
+ * −60…+12 dB, duration ≤ 720 min, fade_in_s ≤ 300 (absent: 30), web
+ * radio URL http(s) and ≤ 200 bytes, at most kMaxAlarms rows.
  *
  * @dname    parseAlarmTableJson
  * @param    json  `{"alarms":[…]}`.
