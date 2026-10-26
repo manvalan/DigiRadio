@@ -1033,7 +1033,8 @@
           [d.band === "dab" ? "CNR" : "SNR", d.snr_db + " dB"]
         ];
         if (d.fic_quality != null) stats.push(["FIC", d.fic_quality + "%"]);
-        if (d.fib_errors != null) stats.push(["FIB errors", d.fib_errors]);
+        if (d.fib_errors != null) stats.push(["FIB errors since tune", d.fib_errors]);
+        if (d.fic_errors) stats.push(["FIC", "errors now"]);
         if (d.ber != null) stats.push(["BER", Number(d.ber).toExponential(1)]);
         $("signal-stats").innerHTML = stats.map(function (pair) {
           return '<div class="stat"><span>' + pair[0] + "</span>" + pair[1] + "</div>";
