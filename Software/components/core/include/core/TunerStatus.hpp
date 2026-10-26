@@ -82,6 +82,9 @@ struct TunerStatus {
     std::optional<BroadcastLabel> dabDynamicLabel; ///< DAB DLS now-playing label.
     std::optional<BroadcastLabel> dabDlPlusTitle;  ///< DL Plus ITEM.TITLE.
     std::optional<BroadcastLabel> dabDlPlusArtist; ///< DL Plus ITEM.ARTIST.
+    /** Id of the current MOT slideshow image (GET /api/tuner/slide);
+     *  changes with each new slide. Filled by the HTTP layer. */
+    std::optional<std::uint32_t> dabSlideId;
 };
 
 } // namespace core

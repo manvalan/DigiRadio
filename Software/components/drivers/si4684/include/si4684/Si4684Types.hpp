@@ -141,7 +141,9 @@ struct Si4684FmRdsStatus {
 struct Si4684DabServiceData {
     std::uint32_t serviceId;    ///< Associated DAB service identifier.
     std::uint32_t componentId;  ///< Associated component identifier.
+    std::uint8_t bufferCount;   ///< BUFF_COUNT: packets still queued (RESP5).
     std::uint8_t dataSrc;       ///< Payload source (2 = DLS PAD).
+    std::uint8_t dataType;      ///< TYPE[5:0] (DSCTy; 60 = MOT, AN649 Table 20).
     std::uint16_t byteCount;    ///< Payload byte count.
     std::uint16_t segmentIndex; ///< Zero-based segment index.
     std::uint16_t segmentCount; ///< Total segments for this label object.

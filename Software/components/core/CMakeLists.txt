@@ -38,6 +38,8 @@ idf_component_register(
         "src/DlsDecoder.cpp"
         "src/RadioSpectrum.cpp"
         "src/DabReturnPolicy.cpp"
+        "src/MscDataGroup.cpp"
+        "src/MotSlideAssembler.cpp"
         "src/DspProgram.cpp"
         "src/RegisterWrite.cpp"
         "src/DspProgramBlob.cpp"

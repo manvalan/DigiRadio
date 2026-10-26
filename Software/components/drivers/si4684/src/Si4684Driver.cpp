@@ -33,6 +33,10 @@ namespace {
 
 constexpr char kTag[] = "Si4684";
 constexpr std::size_t kSpiBufferSize = 4096U;
+/** Longest reply read: a GET_DIGITAL_SERVICE_DATA frame with a full MSC
+ *  data group (AN649 §7.10: "up to 8191 bytes") behind its 25 header
+ *  bytes. Command writes stay within kSpiBufferSize. */
+constexpr std::size_t kMaxReplyBytes = 8224U;
 constexpr int kCtsPollMs = 2;
 constexpr int kCtsRetries = 5000;
 constexpr int kStcRetries = 250;
@@ -300,7 +304,7 @@ std::expected<void, Si4684Error> Si4684Driver::sendCommand(
 std::expected<void, Si4684Error> Si4684Driver::readRaw(
     std::span<std::uint8_t> buffer)
 {
-    if (buffer.empty() || buffer.size() > kSpiBufferSize) {
+    if (buffer.empty() || buffer.size() > kMaxReplyBytes) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
     std::fill(buffer.begin(), buffer.end(), 0U);
@@ -677,7 +681,7 @@ std::expected<void, Si4684Error> Si4684Driver::boot(
         busCfg.sclk_io_num = pins_.sclkGpio;
         busCfg.quadwp_io_num = -1;
         busCfg.quadhd_io_num = -1;
-        busCfg.max_transfer_sz = static_cast<int>(kSpiBufferSize);
+        busCfg.max_transfer_sz = static_cast<int>(kMaxReplyBytes);
 
         if (spi_bus_initialize(static_cast<spi_host_device_t>(pins_.spiHost),
                                &busCfg, SPI_DMA_CH_AUTO) != ESP_OK) {
@@ -1061,25 +1065,31 @@ Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
     if (byteCount == 0U) {
         return std::optional<Si4684DabServiceData>{};
     }
-    if (byteCount + 25U > kSpiBufferSize) {
+    if (byteCount + header.size() > kMaxReplyBytes) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
 
-    std::vector<std::uint8_t> body(byteCount, 0U);
-    if (byteCount > 0U) {
-        if (auto rd = readRaw(body); !rd) {
-            return std::unexpected(rd.error());
-        }
+    // Every RD_REPLY returns the reply from its first byte (see
+    // fetchDabServiceList()), so the payload is read as the tail of one
+    // full frame: the 25 header bytes again, then BYTE_COUNT data bytes.
+    // (Reading byteCount bytes on their own returned the header, not the
+    // payload.)
+    std::vector<std::uint8_t> frame(header.size() + byteCount, 0U);
+    if (auto rd = readRaw(frame); !rd) {
+        return std::unexpected(rd.error());
     }
 
     Si4684DabServiceData data = {};
+    data.bufferCount = header[6];
     data.dataSrc = static_cast<std::uint8_t>((header[8] >> 6U) & 0x03U);
+    data.dataType = static_cast<std::uint8_t>(header[8] & 0x3FU);
     data.serviceId = readLe32(header.data() + 9);
     data.componentId = readLe32(header.data() + 13);
     data.byteCount = byteCount;
     data.segmentIndex = readLe16(header.data() + 21);
     data.segmentCount = readLe16(header.data() + 23);
-    data.payload = std::move(body);
+    data.payload.assign(frame.begin() + static_cast<std::ptrdiff_t>(header.size()),
+                        frame.end());
     return data;
 }
 

@@ -24,6 +24,7 @@
 #include "secure_store/NvsSecureStore.hpp"
 #include "si4684/Si4684Tuner.hpp"
 #include "station/StationService.hpp"
+#include "dab_slideshow.hpp"
 #include "tuner/AfFollowService.hpp"
 #include "tuner/SpectrumScanService.hpp"
 #include "tuner/TunerService.hpp"
@@ -325,6 +326,13 @@ extern "C" void app_main()
     static tuner::AfFollowService afFollow(tunerService, sleepMs);
     static tuner::SpectrumScanService spectrum(tunerService);
     net::setSpectrumScanService(&spectrum);
+
+    if (TaskHandle_t dabData = dab_slideshow::start(tunerService);
+        dabData == nullptr) {
+        ESP_LOGW(kTag, "DAB data task create failed: no DLS/slideshow");
+    } else {
+        system_diag::watchTask("dab_data", dabData);
+    }
     // 0.10.1 measured 10 KB of 12 KB never used.
     if (xTaskCreate(afFollowTask, "af_follow", 8192, &afFollow, 3, &handle)
         != pdPASS) {

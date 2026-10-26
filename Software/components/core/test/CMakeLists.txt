@@ -50,6 +50,8 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/DlsDecoder.cpp"
     "${CORE_SRC_DIR}/RadioSpectrum.cpp"
     "${CORE_SRC_DIR}/DabReturnPolicy.cpp"
+    "${CORE_SRC_DIR}/MscDataGroup.cpp"
+    "${CORE_SRC_DIR}/MotSlideAssembler.cpp"
     "${CORE_SRC_DIR}/DspProgram.cpp"
     "${CORE_SRC_DIR}/RegisterWrite.cpp"
     "${CORE_SRC_DIR}/DspProgramBlob.cpp"
@@ -227,3 +229,7 @@ add_test(NAME radio_spectrum_test COMMAND radio_spectrum_test)
 add_executable(dab_return_policy_test dab_return_policy_test.cpp)
 target_link_libraries(dab_return_policy_test PRIVATE digiradio_core)
 add_test(NAME dab_return_policy_test COMMAND dab_return_policy_test)
+
+add_executable(mot_slideshow_test mot_slideshow_test.cpp)
+target_link_libraries(mot_slideshow_test PRIVATE digiradio_core)
+add_test(NAME mot_slideshow_test COMMAND mot_slideshow_test)

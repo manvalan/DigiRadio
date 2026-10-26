@@ -75,6 +75,7 @@ namespace {
 SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
 const AlarmApi* gAlarmApi = nullptr;
 tuner::SpectrumScanService* gSpectrum = nullptr;
+const SlideApi* gSlideApi = nullptr;
 constexpr char kTag[] = "SetupWebServer";
 constexpr char kFirmwareVersion[] = "0.12.0";
 constexpr unsigned kRebootDelaySec = 3;
@@ -378,6 +379,12 @@ esp_err_t tunerStatusGetHandler(httpd_req_t* req)
         httpd_resp_set_status(req, "500 Internal Server Error");
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    if (gSlideApi != nullptr && status->band == core::TunerBand::Dab) {
+        gSlideApi->touch();
+        if (const auto slide = gSlideApi->current(); slide) {
+            status->dabSlideId = slide->id;
+        }
     }
     const std::string json = core::serializeTunerStatusJson(*status);
     httpd_resp_set_type(req, "application/json");
@@ -2300,6 +2307,45 @@ esp_err_t alarmsGetHandler(httpd_req_t* req)
 }
 
 /**
+ * @brief    slideGetHandler — GET /api/tuner/slide: current slideshow image.
+ *
+ * @dname    slideGetHandler
+ * @param    req  HTTP request handle (any query string, e.g. ?id=N used by
+ *                clients to bust caches, is ignored).
+ * @return   ESP_OK on success, or an esp_err_t error code. 404 without a
+ *           slide.
+ * @pubstate streams the slide from flash through gSlideApi in 2 KB chunks.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t slideGetHandler(httpd_req_t* req)
+{
+    const auto slide =
+        gSlideApi != nullptr ? gSlideApi->current() : std::nullopt;
+    if (!slide) {
+        return sendStatus(req, "404 Not Found", R"({"error":"no_slide"})");
+    }
+    gSlideApi->touch();
+    httpd_resp_set_type(req, slide->mime == core::SlideMime::Png ? "image/png"
+                                                                 : "image/jpeg");
+    std::array<std::uint8_t, 2048> chunk{};
+    for (std::uint32_t offset = 0U; offset < slide->size;) {
+        const std::size_t got = gSlideApi->read(offset, chunk);
+        if (got == 0U) {
+            break;
+        }
+        if (httpd_resp_send_chunk(req, reinterpret_cast<const char*>(chunk.data()),
+                                  static_cast<ssize_t>(got))
+            != ESP_OK) {
+            return ESP_FAIL;
+        }
+        offset += static_cast<std::uint32_t>(got);
+    }
+    return httpd_resp_send_chunk(req, nullptr, 0);
+}
+
+/**
  * @brief    spectrumGetHandler — GET /api/tuner/spectrum (sweep progress).
  *
  * @dname    spectrumGetHandler
@@ -3044,6 +3090,11 @@ void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept
     gSpectrum = service;
 }
 
+void setSlideApi(const SlideApi* api) noexcept
+{
+    gSlideApi = api;
+}
+
 void SetupWebServer::registerSpectrumRoutes(void* routeCtx)
 {
     const httpd_uri_t routes[] = {
@@ -3051,6 +3102,8 @@ void SetupWebServer::registerSpectrumRoutes(void* routeCtx)
          .handler = spectrumGetHandler, .user_ctx = routeCtx},
         {.uri = "/api/tuner/spectrum", .method = HTTP_POST,
          .handler = spectrumPostHandler, .user_ctx = routeCtx},
+        {.uri = "/api/tuner/slide", .method = HTTP_GET,
+         .handler = slideGetHandler, .user_ctx = routeCtx},
     };
     for (const httpd_uri_t& route : routes) {
         httpd_register_uri_handler(server_, &route);

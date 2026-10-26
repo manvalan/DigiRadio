@@ -43,7 +43,7 @@ struct Services {
  * GET/POST /api/system/sleep into the web server and spawns the "alarm"
  * task, which checks the table once a second. A TurnOn row leaves standby,
  * plays its preset or web radio URL and fades the master gain in over
- * 30 s; a TurnOff row, the sleep timer and a TurnOn row's duration put the
+ * the row's fade_in_s (default 30 s); a TurnOff row, the sleep timer and a TurnOn row's duration put the
  * radio in standby and stop the web radio.
  *
  * Call once, after the network is up.

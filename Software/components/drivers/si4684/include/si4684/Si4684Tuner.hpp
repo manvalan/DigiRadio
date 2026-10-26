@@ -179,6 +179,23 @@ public:
     readDabLinkage(std::uint32_t serviceId) override;
 
     /**
+     * @brief    pollDabData — drain GET_DIGITAL_SERVICE_DATA (DLS, MOT).
+     *
+     * @dname    pollDabData
+     * @param    sink        Receiver of X-PAD MOT data groups.
+     * @param    maxPackets  Packets read at most in this call.
+     * @return   Ok (also outside DAB or with no service playing), or the
+     *           mapped driver error.
+     * @pubstate reads/acknowledges the chip's DSRV queue until BUFF_COUNT
+     *           is 0; updates dls_ for DLS blocks.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] std::expected<void, core::TunerError> pollDabData(
+        core::IDabDataSink& sink, std::size_t maxPackets) override;
+
+    /**
      * @brief    playDabService — start DAB audio output.
      *
      * @dname    playDabService
@@ -273,6 +290,21 @@ private:
      * @date     2026-10-26
      */
     void applyDlsSegment(const Si4684DabServiceData& data);
+
+    /**
+     * @brief    dispatchDabData — route one DSRV block (DLS or MOT).
+     *
+     * @dname    dispatchDabData
+     * @param    data  Block from GET_DIGITAL_SERVICE_DATA.
+     * @param    sink  Receiver of MOT data groups.
+     * @pubstate DLS updates dls_ (applyDlsSegment); MOT goes to sink;
+     *           other data services are dropped.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void dispatchDabData(const Si4684DabServiceData& data,
+                         core::IDabDataSink& sink);
     bool fmBandReady_;
     core::RdsMetadataAccumulator rdsMetadata_;
     core::DabDynamicLabelAccumulator dabDynamicLabel_;

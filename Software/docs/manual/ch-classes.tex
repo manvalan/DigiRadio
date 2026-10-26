@@ -450,6 +450,42 @@ returns ITEM.TITLE and ITEM.ARTIST as \texttt{DlPlusItem}, which
 \texttt{TunerJson} emits as \texttt{dab.dl\_plus} in
 \texttt{GET /api/tuner/status}. Pure core, host-tested.
 
+\section{IDabDataSink}\label{cls:IDabDataSink}
+Receiver of the X-PAD MOT data groups that \texttt{ITuner::pollDabData()}
+drains from the Si4684 (AN649 \S7.11: data groups forwarded in arrival
+order, assembly left to the host). Implemented in
+\texttt{main/dab\_slideshow.cpp}, which hands the groups to
+\texttt{MotSlideAssembler} only while a client watches the slideshow.
+\texttt{pollDabData()} also keeps DLS/DL Plus inside the tuner: it runs
+from the \texttt{dab\_data} task every 150\,ms and empties the chip's
+queue, where the previous one-packet-per-status read let MOT traffic
+starve the dynamic label. The payload is now read as the tail of one full
+reply frame (every RD\_REPLY restarts at the status bytes).
+
+\section{ISlideWriter}\label{cls:ISlideWriter}
+Storage interface for slideshow images: \texttt{beginSlide()},
+\texttt{writeSlide(offset, bytes)} in any order, \texttt{commitSlide()}
+to publish, \texttt{clearSlides()} on a service change. The device
+implementation writes sixteen 64\,KB flash slots outside the partition
+table (0xA60000, after the Si4684 image store), erasing a 4\,KB sector
+only when a write first touches it and rotating slots so neither carousel
+repetitions nor incomplete slides wear one area; the committed slot is
+never the one being written, so \texttt{GET /api/tuner/slide} can stream
+it while the next slide arrives.
+
+\section{MotSlideAssembler}\label{cls:MotSlideAssembler}
+Pure-core MOT decoder for the DAB slideshow (EN 301 234 over X-PAD).
+\texttt{parseMscDataGroup()} checks the data group CRC (CRC-16 CCITT,
+EN 300 401 \S5.3.3.4) and extracts type, segment number, Last flag and
+transport id. A header group (type 3) gives the MOT header core
+(BodySize, ContentType, ContentSubType); only JPEG (2/1) and PNG (2/3)
+images up to the store's size are assembled. Body segments (type 4) are
+written as they arrive at segment $\times$ segment size (the last at
+BodySize minus its length); when every segment up to the last is in, the
+slide is committed with a new id, which \texttt{GET /api/tuner/status}
+reports as \texttt{dab.slide\_id}. A transport id already on show is
+ignored (carousel repetitions), and a new service id clears the slide.
+
 \section{PresetSlot}\label{cls:PresetSlot}
 Optional hardware preset button index (1--20). Validated by
 \texttt{PresetSlot::tryFrom()}.

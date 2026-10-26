@@ -188,6 +188,50 @@ void Si4684Tuner::applyDlsSegment(const Si4684DabServiceData& data)
     }
 }
 
+std::expected<void, core::TunerError> Si4684Tuner::pollDabData(
+    core::IDabDataSink& sink, std::size_t maxPackets)
+{
+    if (driver_.loadedBand() != Si4684Band::Dab || !lastDabServiceId_) {
+        return {};
+    }
+    for (std::size_t i = 0U; i < maxPackets; ++i) {
+        auto data = driver_.readDabServiceData(false, true);
+        if (!data) {
+            // An oversized frame is skipped (already acknowledged); any
+            // other failure is an SPI/chip problem for the caller.
+            if (data.error() == Si4684Error::ReplyTooShort) {
+                continue;
+            }
+            return std::unexpected(mapError(data.error()));
+        }
+        if (!*data) {
+            return {};
+        }
+        dispatchDabData(**data, sink);
+        if ((*data)->bufferCount == 0U) {
+            return {};
+        }
+    }
+    return {};
+}
+
+void Si4684Tuner::dispatchDabData(const Si4684DabServiceData& data,
+                                  core::IDabDataSink& sink)
+{
+    // AN649 Table 20: Data/PAD/Audio 10 = DLS/DL+, 01 = X-PAD data with
+    // TYPE = DSCTy (60 = MOT). MOT groups are never DSRV-segmented in
+    // practice; a segmented one is dropped rather than misread.
+    constexpr std::uint8_t kSrcPadData = 1U;
+    constexpr std::uint8_t kSrcDls = 2U;
+    constexpr std::uint8_t kDsctyMot = 60U;
+    if (data.dataSrc == kSrcDls) {
+        applyDlsSegment(data);
+    } else if (data.dataSrc == kSrcPadData && data.dataType == kDsctyMot
+               && data.segmentCount <= 1U) {
+        sink.onMotDataGroup(data.serviceId, data.payload);
+    }
+}
+
 std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readSignal()
 {
     core::TunerStatus status = {};
@@ -204,15 +248,8 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         return std::unexpected(ok.error());
     }
     if (status.band == core::TunerBand::Dab) {
-        if (lastDabServiceId_) {
-            if (auto data = driver_.readDabServiceData(false, true); data) {
-                if (*data && (*data)->dataSrc == 2U) {
-                    applyDlsSegment(**data);
-                }
-            } else {
-                return std::unexpected(mapError(data.error()));
-            }
-        }
+        // DLS arrives through pollDabData() (the dab_data task), which
+        // drains every packet; reading one here starved it behind MOT.
         status.dabDynamicLabel = dls_.label();
         const core::DlPlusItem item = dls_.item();
         status.dabDlPlusTitle = item.title;

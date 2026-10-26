@@ -168,6 +168,9 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         }
         appendOptionalLabel(out, "dynamic_label", status.dabDynamicLabel);
         appendDlPlus(out, status);
+        if (status.dabSlideId) {
+            out << ",\"slide_id\":" << *status.dabSlideId;
+        }
         out << "},\"fm\":null";
     } else {
         out << ",\"fm\":{";

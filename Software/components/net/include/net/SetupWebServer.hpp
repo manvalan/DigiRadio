@@ -20,6 +20,7 @@
 #include "core/CompanionChipStatus.hpp"
 #include "core/DeviceIdentity.hpp"
 #include "core/ISecureStore.hpp"
+#include "core/ISlideWriter.hpp"
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
 
@@ -28,6 +29,7 @@
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -329,5 +331,40 @@ void setAlarmApi(const AlarmApi* api) noexcept;
  * @date     2026-10-26
  */
 void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept;
+
+/**
+ * @brief    SlideApi — the DAB slideshow image, owned by main.
+ *
+ * Slides are assembled into flash by main/dab_slideshow.cpp; the web
+ * server streams the current one and reports its id in the status.
+ *
+ * @dname    SlideApi
+ * @return   n/a (type)
+ * @pubstate set once at boot by setSlideApi().
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+struct SlideApi {
+    /** Current slide, or nullopt. */
+    std::optional<core::SlideInfo> (*current)();
+    /** Copy slide bytes from offset; returns bytes copied (0 at the end). */
+    std::size_t (*read)(std::uint32_t offset, std::span<std::uint8_t> out);
+    /** A client looked at the slideshow: keep assembling slides. */
+    void (*touch)();
+};
+
+/**
+ * @brief    setSlideApi — plug the slideshow into GET /api/tuner/slide and
+ *           the "slide_id" of GET /api/tuner/status.
+ *
+ * @dname    setSlideApi
+ * @param    api  Static callbacks, or nullptr (404, no slide_id).
+ * @pubstate stores the pointer for later requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setSlideApi(const SlideApi* api) noexcept;
 
 } // namespace net

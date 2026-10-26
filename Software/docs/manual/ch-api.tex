@@ -198,6 +198,19 @@ HTTP status: \textbf{200 OK}; \textbf{500} on driver failure;
 \textbf{503} when the tuner service is unavailable. The DAB object of
 \texttt{/api/tuner/status} also carries \texttt{rssi\_dbuv}.
 
+\apiendpoint{GET}{/api/tuner/slide}
+\label{sec:api-tuner-slide}
+
+Current DAB slideshow image (MOT SLS, 0.12.0+), streamed from flash with
+\texttt{Content-Type: image/jpeg} or \texttt{image/png};
+\textbf{404} \texttt{\{"error":"no\_slide"\}} when there is none. A query
+string (e.g.\ \texttt{?id=12}, used to bust caches) is ignored. The DAB
+object of \texttt{GET /api/tuner/status} carries \texttt{"slide\_id"}
+while a slide exists; it changes with every new image. Slides are only
+assembled while a client has read the DAB status or the slide in the last
+five minutes (flash wear), so the first one can take a slideshow cycle to
+appear.
+
 \apiendpoint{GET / POST}{/api/tuner/spectrum}
 \label{sec:api-tuner-spectrum}
 
