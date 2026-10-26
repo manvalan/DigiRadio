@@ -28,9 +28,11 @@ inline constexpr std::array<std::size_t, 3> kWebRadioRingSizes{
     24U * 1024U, 16U * 1024U, 12U * 1024U};
 
 /** Heap that must stay free after the ring for an http stream: MP3
- *  decoder (~25 KB), web_radio_net stack (10 KB), HTTP client (2 KB) and
- *  Wi-Fi/lwIP receive buffers for the stream. */
-inline constexpr std::size_t kWebRadioHttpHeadroom = 40U * 1024U;
+ *  decoder (~23 KB in eight blocks), web_radio_net stack (10 KB), HTTP
+ *  client and socket (~3 KB), Wi-Fi RX buffers in flight (~10 KB with a
+ *  5760 B TCP window) and ~6 KB for HTTP requests and other tasks. In
+ *  0.12.3 a start with ~49 KB left after the ring ended at 1.6 KB. */
+inline constexpr std::size_t kWebRadioHttpHeadroom = 56U * 1024U;
 
 /** Extra headroom for https: mbedTLS records and handshake. */
 inline constexpr std::size_t kWebRadioTlsHeadroom = 16U * 1024U;
