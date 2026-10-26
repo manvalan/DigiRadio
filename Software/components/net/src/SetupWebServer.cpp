@@ -74,7 +74,7 @@ namespace {
 SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
 const AlarmApi* gAlarmApi = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.11.2";
+constexpr char kFirmwareVersion[] = "0.12.0";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -2507,7 +2507,7 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext.deviceIdentity = deviceIdentity;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.stack_size = 12288;
+    config.stack_size = 14336; // +2 KB: 4980 B min free on 0.11.2
     config.max_open_sockets = 3;
     config.max_uri_handlers = 60; // 58 routes registered below as of 2026-10-26;
                                    // keep headroom so a silent

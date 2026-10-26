@@ -76,6 +76,8 @@ struct TunerStatus {
     std::vector<FrequencyKHz> fmAlternateFrequencies; ///< RDS AF list (group 0A).
     std::optional<std::uint16_t> fmProgramId;    ///< Confirmed RDS PI code.
     std::optional<BroadcastLabel> dabDynamicLabel; ///< DAB DLS now-playing label.
+    std::optional<BroadcastLabel> dabDlPlusTitle;  ///< DL Plus ITEM.TITLE.
+    std::optional<BroadcastLabel> dabDlPlusArtist; ///< DL Plus ITEM.ARTIST.
 };
 
 } // namespace core

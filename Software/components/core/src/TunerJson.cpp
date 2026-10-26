@@ -70,7 +70,13 @@ namespace {
 void appendJsonString(std::ostringstream& out, std::string_view value)
 {
     out << '"';
+    static constexpr char kHex[] = "0123456789abcdef";
     for (char c : value) {
+        const auto byte = static_cast<unsigned char>(c);
+        if (byte < 0x20U) {
+            out << "\\u00" << kHex[byte >> 4U] << kHex[byte & 0x0FU];
+            continue;
+        }
         if (c == '"' || c == '\\') {
             out << '\\';
         }
@@ -88,6 +94,25 @@ void appendOptionalLabel(std::ostringstream& out,
     }
     out << ",\"" << key << "\":";
     appendJsonString(out, label->value());
+}
+
+// "dl_plus":{"title","artist"}: each key only when tagged, object only
+// when at least one is.
+void appendDlPlus(std::ostringstream& out, const TunerStatus& status)
+{
+    if (!status.dabDlPlusTitle && !status.dabDlPlusArtist) {
+        return;
+    }
+    out << ",\"dl_plus\":{";
+    if (status.dabDlPlusTitle) {
+        out << "\"title\":";
+        appendJsonString(out, status.dabDlPlusTitle->value());
+    }
+    if (status.dabDlPlusArtist) {
+        out << (status.dabDlPlusTitle ? ",\"artist\":" : "\"artist\":");
+        appendJsonString(out, status.dabDlPlusArtist->value());
+    }
+    out << '}';
 }
 
 void appendAfList(std::ostringstream& out,
@@ -142,6 +167,7 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
                 << *status.dabPlayingComponentId;
         }
         appendOptionalLabel(out, "dynamic_label", status.dabDynamicLabel);
+        appendDlPlus(out, status);
         out << "},\"fm\":null";
     } else {
         out << ",\"fm\":{";

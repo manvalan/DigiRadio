@@ -102,6 +102,7 @@ std::expected<void, core::TunerError> Si4684Tuner::ensureBandLoaded(
         lastDabServiceId_.reset();
         lastDabComponentId_.reset();
         dabDynamicLabel_.reset();
+        dls_.reset();
     }
 
     if (auto loaded = boot(band); !loaded) {
@@ -123,6 +124,7 @@ std::expected<void, core::TunerError> Si4684Tuner::ensureBandLoaded(
     } else {
         fmBandReady_ = false;
         dabDynamicLabel_.reset();
+        dls_.reset();
         lastDabServiceId_.reset();
         lastDabComponentId_.reset();
     }
@@ -174,6 +176,16 @@ std::expected<void, core::TunerError> Si4684Tuner::readSignalInto(
     return {};
 }
 
+void Si4684Tuner::applyDlsSegment(const Si4684DabServiceData& data)
+{
+    dabDynamicLabel_.applySegment(data.segmentIndex, data.segmentCount,
+                                  data.payload);
+    if (const auto payload = dabDynamicLabel_.payload(); payload) {
+        dls_.apply(*payload);
+        dabDynamicLabel_.reset();
+    }
+}
+
 std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readSignal()
 {
     core::TunerStatus status = {};
@@ -193,15 +205,16 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         if (lastDabServiceId_) {
             if (auto data = driver_.readDabServiceData(false, true); data) {
                 if (*data && (*data)->dataSrc == 2U) {
-                    dabDynamicLabel_.applySegment((*data)->segmentIndex,
-                                                  (*data)->segmentCount,
-                                                  (*data)->payload);
-                    status.dabDynamicLabel = dabDynamicLabel_.label();
+                    applyDlsSegment(**data);
                 }
             } else {
                 return std::unexpected(mapError(data.error()));
             }
         }
+        status.dabDynamicLabel = dls_.label();
+        const core::DlPlusItem item = dls_.item();
+        status.dabDlPlusTitle = item.title;
+        status.dabDlPlusArtist = item.artist;
         return status;
     }
     for (int attempt = 0; attempt < 8; ++attempt) {
@@ -245,6 +258,7 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
     }
     dabIndex_ = freqIndex;
     dabDynamicLabel_.reset();
+    dls_.reset();
     lastDabServiceId_.reset();
     lastDabComponentId_.reset();
     return {};
@@ -378,6 +392,7 @@ std::expected<void, core::TunerError> Si4684Tuner::playDabService(
     lastDabServiceId_ = serviceId;
     lastDabComponentId_ = componentId;
     dabDynamicLabel_.reset();
+    dls_.reset();
     return {};
 }
 

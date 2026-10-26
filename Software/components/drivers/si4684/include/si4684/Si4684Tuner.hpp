@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/DabDynamicLabelAccumulator.hpp"
+#include "core/DlsDecoder.hpp"
 #include "core/FrequencyKHz.hpp"
 #include "core/ITuner.hpp"
 #include "core/RdsMetadataAccumulator.hpp"
@@ -259,9 +260,23 @@ private:
 
     [[nodiscard]] std::expected<void, core::TunerError> readSignalInto(
         core::TunerStatus& status);
+
+    /**
+     * @brief    applyDlsSegment — feed one DLS DSRV block to the decoder.
+     *
+     * @dname    applyDlsSegment
+     * @param    data  GET_DIGITAL_SERVICE_DATA block with DATA_SRC = DLS.
+     * @pubstate writes dabDynamicLabel_ (segment join) and dls_ (decode
+     *           once the payload is complete).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void applyDlsSegment(const Si4684DabServiceData& data);
     bool fmBandReady_;
     core::RdsMetadataAccumulator rdsMetadata_;
     core::DabDynamicLabelAccumulator dabDynamicLabel_;
+    core::DlsDecoder dls_;
     std::optional<std::uint32_t> lastDabServiceId_;
     std::optional<std::uint32_t> lastDabComponentId_;
 };

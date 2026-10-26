@@ -403,8 +403,22 @@ converted). The same header provides \texttt{extractPlaylistStreamUrl()}
 for M3U/PLS links and \texttt{isHlsPlaylist()}. Pure core, host-tested.
 
 \section{DabDynamicLabelAccumulator}\label{cls:DabDynamicLabelAccumulator}
-Reassembles segmented DAB DLS payloads into one dynamic label for
-\texttt{TunerStatus}.
+Joins the \texttt{SEG\_NUM}/\texttt{NUM\_SEGS} segments of one
+\texttt{GET\_DIGITAL\_SERVICE\_DATA} DLS block into its raw payload. The
+Si468x already reassembles DLS messages (AN649 \S7.14.2), so most blocks
+are single-segment; the bytes still carry the AN649 prefix and are handed
+to \texttt{DlsDecoder}. Out-of-order segments discard the payload.
+
+\section{DlsDecoder}\label{cls:DlsDecoder}
+Decodes one reassembled DLS payload: the two-byte AN649 Table~21 prefix
+selects a DL message (charset EBU Latin or UTF-8, converted to UTF-8) or
+a command (remove label, or DL Plus tags per ETSI TS~102~980). The prefix
+never reaches the label. DL Plus markers are character positions, so the
+message is kept as code points; tags apply only while their Link bit
+equals the message Toggle bit and the item is running. \texttt{item()}
+returns ITEM.TITLE and ITEM.ARTIST as \texttt{DlPlusItem}, which
+\texttt{TunerJson} emits as \texttt{dab.dl\_plus} in
+\texttt{GET /api/tuner/status}. Pure core, host-tested.
 
 \section{PresetSlot}\label{cls:PresetSlot}
 Optional hardware preset button index (1--20). Validated by

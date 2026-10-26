@@ -15,6 +15,7 @@
 #include "core/DabDynamicLabelAccumulator.hpp"
 #include "core/RdsMetadataAccumulator.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <string_view>
@@ -74,9 +75,10 @@ namespace {
     const std::vector<std::uint8_t> payload = {'L', 'i', 'v', 'e', ' ', 'D', 'J'};
     acc.applySegment(0U, 1U, payload);
 
-    const auto label = acc.label();
-    if (!label || label->value() != "Live DJ") {
-        std::cerr << "DLS single-segment parse failed\n";
+    const auto bytes = acc.payload();
+    if (!bytes || !std::equal(bytes->begin(), bytes->end(), payload.begin(),
+                              payload.end())) {
+        std::cerr << "DLS single-segment join failed\n";
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
@@ -88,11 +90,17 @@ namespace {
     const std::vector<std::uint8_t> part1 = {'A', 'B', 'C'};
     const std::vector<std::uint8_t> part2 = {'D', 'E', 'F'};
     acc.applySegment(0U, 2U, part1);
+    if (acc.payload()) {
+        std::cerr << "DLS payload reported before the last segment\n";
+        return EXIT_FAILURE;
+    }
     acc.applySegment(1U, 2U, part2);
 
-    const auto label = acc.label();
-    if (!label || label->value() != "ABCDEF") {
-        std::cerr << "DLS multi-segment parse failed\n";
+    const std::vector<std::uint8_t> joined = {'A', 'B', 'C', 'D', 'E', 'F'};
+    const auto bytes = acc.payload();
+    if (!bytes || !std::equal(bytes->begin(), bytes->end(), joined.begin(),
+                              joined.end())) {
+        std::cerr << "DLS multi-segment join failed\n";
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
