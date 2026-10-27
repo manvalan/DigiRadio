@@ -184,6 +184,10 @@ std::string serializeWebRadioJson(const WebRadioConfig& config,
     out << R"(,"buffer_percent":)" << static_cast<unsigned>(status.bufferPercent)
         << R"(,"underruns":)" << status.underruns
         << R"(,"reconnects":)" << status.reconnects;
+    if (status.ringBytes > 0U) {
+        out << R"(,"ring_bytes":)" << status.ringBytes
+            << R"(,"heap_min":)" << status.heapMinBytes;
+    }
     if (status.title) {
         out << R"(,"title":)";
         appendJsonString(out, *status.title);

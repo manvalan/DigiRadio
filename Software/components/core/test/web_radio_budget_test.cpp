@@ -39,12 +39,15 @@ int main()
     // hung; that start must now be refused.
     expect(core::chooseWebRadioRing(65U * kKb, 31U * kKb, false) == std::nullopt,
            "0.12.3 heap (65 KB): refused");
-    expect(core::chooseWebRadioRing(75U * kKb, 31U * kKb, false) == 16U * kKb,
-           "75 KB free, http: 16 KB ring leaves 59 KB");
-    expect(core::chooseWebRadioRing(82U * kKb, 31U * kKb, false) == 24U * kKb,
-           "82 KB free, http: 24 KB ring");
-    expect(core::chooseWebRadioRing(80U * kKb, 31U * kKb, true) == std::nullopt,
-           "80 KB free, https: refused (needs 72 KB + ring)");
+    // 0.12.4 measured ~76 KB free before the ring: 12 KB ring at 64 KB.
+    expect(core::chooseWebRadioRing(76U * kKb, 31U * kKb, false) == 12U * kKb,
+           "76 KB free, http: 12 KB ring leaves 64 KB");
+    expect(core::chooseWebRadioRing(80U * kKb, 31U * kKb, false) == 16U * kKb,
+           "80 KB free, http: 16 KB ring");
+    expect(core::chooseWebRadioRing(88U * kKb, 31U * kKb, false) == 24U * kKb,
+           "88 KB free, http: 24 KB ring");
+    expect(core::chooseWebRadioRing(90U * kKb, 31U * kKb, true) == std::nullopt,
+           "90 KB free, https: refused (needs 80 KB + ring)");
     expect(core::chooseWebRadioRing(90U * kKb, 14U * kKb, false) == 12U * kKb,
            "fragmented heap: smallest ring that fits one block");
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

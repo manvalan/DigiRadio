@@ -44,6 +44,8 @@ namespace {
 
 constexpr char kTag[] = "web_radio";
 constexpr unsigned kStartFillPercent = 50U;
+/** Lets the idle task free a deleted network task's stack. */
+constexpr TickType_t kTaskReapDelay = pdMS_TO_TICKS(100);
 /** Low-bitrate streams fill slowly: start anyway after this long. */
 constexpr std::int64_t kPrefillTimeoutUs = 6000000;
 constexpr std::size_t kMinStartBytes = 4096U;
@@ -80,6 +82,10 @@ struct PlayerStats {
     std::uint32_t underruns{0U};
     std::int64_t lastPublishUs{0};
 };
+
+/** Lowest free heap seen while streaming is on (reset when it is turned
+ *  on): what GET /api/streaming reports as heap_min. */
+std::size_t gStreamHeapMin = 0U;
 
 struct Player {
     webradio::WebRadioService* service{nullptr};
@@ -120,6 +126,10 @@ void publish(Player& p, bool force = false)
     status.bitrateKbps = p.stats.bitrateKbps;
     status.bufferPercent = static_cast<std::uint8_t>(fillPercent(s));
     status.underruns = p.stats.underruns;
+    gStreamHeapMin = std::min(gStreamHeapMin,
+                              heap_caps_get_free_size(MALLOC_CAP_8BIT));
+    status.ringBytes = static_cast<std::uint32_t>(s.ringBytes);
+    status.heapMinBytes = static_cast<std::uint32_t>(gStreamHeapMin);
     p.service->publishStatus(status);
 }
 
@@ -349,6 +359,16 @@ void playSession(Player& p, const std::string& url, std::uint32_t generation)
         }
     }
     stopFetch(p);
+    // The network task frees its 10 KB stack only when the idle task reaps
+    // it after vTaskDelete; and the MP3 decoder is rebuilt for the next
+    // station. Release both before the next connect so two network stacks
+    // and two decoders never coexist (0.12.4 dipped to 1.7 KB right at
+    // station changes).
+    if (p.decoder != nullptr) {
+        MP3FreeDecoder(p.decoder);
+        p.decoder = nullptr;
+    }
+    vTaskDelay(kTaskReapDelay);
 }
 
 /** Ring sized from the free heap (core::chooseWebRadioRing): the MP3
@@ -421,6 +441,7 @@ void streamWhileEnabled(Player& p)
         return;
     }
     const bool https = p.service->config().url.starts_with("https://");
+    gStreamHeapMin = heap_caps_get_free_size(MALLOC_CAP_8BIT);
     if (!createRing(p.session, https)) {
         esp32_i2s_sink::release();
         publishFault(p, core::WebRadioFault::OutOfMemory);

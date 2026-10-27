@@ -15,6 +15,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string>
 
 namespace {
 
@@ -113,8 +114,30 @@ namespace {
 
 } // namespace
 
+[[nodiscard]] int runHeapFieldsTest()
+{
+    core::WebRadioConfig config{.enabled = true, .url = "http://a.it/s.mp3"};
+    core::WebRadioStatus status;
+    status.state = core::WebRadioState::Playing;
+    const std::string idle = core::serializeWebRadioJson(config, status);
+    status.ringBytes = 12288U;
+    status.heapMinBytes = 15000U;
+    const std::string live = core::serializeWebRadioJson(config, status);
+    if (idle.find("ring_bytes") != std::string::npos
+        || live.find(R"("ring_bytes":12288,"heap_min":15000)")
+               == std::string::npos) {
+        std::cerr << "ring_bytes/heap_min only while streaming: " << live
+                  << '\n';
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 int main()
 {
+    if (runHeapFieldsTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
     if (runStatusTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }

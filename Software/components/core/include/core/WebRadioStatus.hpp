@@ -67,6 +67,10 @@ struct WebRadioStatus {
     std::uint32_t underruns{0U};     ///< Times the buffer ran dry.
     std::uint32_t reconnects{0U};    ///< Reconnections since enable.
     std::optional<std::string> title; ///< ICY StreamTitle (UTF-8).
+    std::uint32_t ringBytes{0U};     ///< Ring buffer size; 0 when idle.
+    /** Lowest free heap sampled since the stream was switched on (bytes);
+     *  0 when idle. */
+    std::uint32_t heapMinBytes{0U};
 };
 
 /**

@@ -744,7 +744,7 @@ live player status (\texttt{core::serializeWebRadioJson()}).
 {"enabled":true,"url":"http://stream.example.com/radio.mp3",
  "state":"playing","codec":"mp3","sample_rate":44100,"channels":2,
  "bitrate_kbps":128,"buffer_percent":52,"underruns":0,"reconnects":0,
- "title":"Artist - Song"}
+ "ring_bytes":12288,"heap_min":15800,"title":"Artist - Song"}
 \end{drcode}
 \begin{itemize}
   \item \texttt{state} --- \texttt{idle}, \texttt{connecting},
@@ -756,6 +756,11 @@ live player status (\texttt{core::serializeWebRadioJson()}).
         \texttt{aac}, \texttt{hls}, \texttt{ogg/flac}),
         \texttt{decode}, \texttt{out\_of\_memory},
         \texttt{audio\_output} (I2S timed out: no clock from the ADAU).
+  \item \texttt{ring\_bytes} and \texttt{heap\_min} (0.12.5+, only
+        while the ring exists): ring size picked by
+        \texttt{core::chooseWebRadioRing()} (12--24\,KB; 64\,KB of heap
+        must stay free after it for http, 80\,KB for https) and the lowest
+        free heap sampled since streaming was switched on.
   \item \texttt{sample\_rate} is the stream's own rate; the player
         resamples to the ADAU1701's 48\,kHz (\texttt{core::PcmResampler}).
   \item \texttt{title} --- ICY \texttt{StreamTitle}, UTF-8, when the
