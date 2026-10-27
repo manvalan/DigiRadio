@@ -613,6 +613,25 @@
     <section id="panel-audio" class="panel" role="tabpanel" hidden>
       <h2>Audio</h2>
       <p class="lede">ADAU1701 mixer, six-band EQ, and enhancement overlays.</p>
+      <h2 style="font-size: var(--text-base);">Sound presets</h2>
+      <label for="sp-select">Preset (EQ, bass, stereo; volume is kept)</label>
+      <select id="sp-select"></select>
+      <div class="row">
+        <button type="button" class="action" id="sp-apply">Apply</button>
+        <button type="button" class="action secondary" id="sp-delete">Delete</button>
+      </div>
+      <label for="sp-slot">Save current sound as</label>
+      <div class="row">
+        <select id="sp-slot"></select>
+        <input id="sp-name" maxlength="15" placeholder="Name">
+      </div>
+      <button type="button" class="action" id="sp-save">Save preset</button>
+      <label for="sp-radio">Recall automatically on radio (FM/DAB)</label>
+      <select id="sp-radio"></select>
+      <label for="sp-stream">Recall automatically on web radio / phone</label>
+      <select id="sp-stream"></select>
+      <button type="button" class="action secondary" id="sp-defaults">Save automatic presets</button>
+      <p class="msg" id="sp-msg" aria-live="polite"></p>
       <div class="slider-row">
         <label for="master-db">Master (dB)</label>
         <output id="master-db-out">0</output>
@@ -1598,6 +1617,7 @@
       .then(function () { return refreshBluetooth(); })
       .then(function () { return loadPresets(); })
       .then(function () { return loadAudioProfile(); })
+      .then(function () { return loadSoundPresets(); })
       .then(function () { return loadStreamingConfig(); });
 
     setInterval(refreshHealth, 5000);
@@ -1838,6 +1858,98 @@
           showMsg($("tuner-msg"), res.d.services.length + " service(s).", true);
         })
         .catch(function () { showMsg($("tuner-msg"), "Services failed.", false); });
+    });
+
+    var soundPresets = null;
+
+    function presetOption(value, label, selected) {
+      var o = document.createElement("option");
+      o.value = value;
+      o.textContent = label;
+      o.selected = selected;
+      return o;
+    }
+
+    function renderSoundPresets(d) {
+      soundPresets = d;
+      var all = [];
+      d.factory.forEach(function (p) { all.push({ id: p.id, label: p.name }); });
+      d.user.forEach(function (p) {
+        if (p) { all.push({ id: p.id, label: "★ " + p.name }); }
+      });
+      [["sp-select", false], ["sp-radio", true], ["sp-stream", true]].forEach(function (cfg) {
+        var sel = $(cfg[0]);
+        var current = cfg[0] === "sp-select" ? d.last
+          : d.defaults[cfg[0] === "sp-radio" ? "radio" : "stream"];
+        sel.innerHTML = "";
+        if (cfg[1]) { sel.appendChild(presetOption("", "— keep sound —", current === null)); }
+        all.forEach(function (p) { sel.appendChild(presetOption(p.id, p.label, p.id === current)); });
+      });
+      var slot = $("sp-slot");
+      slot.innerHTML = "";
+      d.user.forEach(function (p, i) {
+        slot.appendChild(presetOption(i, (i + 1) + ". " + (p ? p.name : "(empty)"), false));
+      });
+    }
+
+    function loadSoundPresets() {
+      return api("/api/audio/presets")
+        .then(function (res) {
+          if (res.ok) { renderSoundPresets(res.d); }
+          else { showMsg($("sp-msg"), "Presets unavailable.", false); }
+        })
+        .catch(function () { showMsg($("sp-msg"), "Presets unavailable.", false); });
+    }
+
+    function postPreset(path, body, okText, reload) {
+      return api("/api/audio/presets/" + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+        .then(function (res) {
+          if (!res.ok) {
+            showMsg($("sp-msg"), "Failed: " + (res.d.reason || res.status), false);
+            return;
+          }
+          renderSoundPresets(res.d);
+          showMsg($("sp-msg"), okText, true);
+          if (reload) { loadAudioProfile(); }
+        })
+        .catch(function () { showMsg($("sp-msg"), "Request failed.", false); });
+    }
+
+    $("sp-apply").addEventListener("click", function () {
+      var id = parseInt($("sp-select").value, 10);
+      postPreset("apply", { id: id }, "Preset applied.", true);
+    });
+
+    $("sp-delete").addEventListener("click", function () {
+      var id = parseInt($("sp-select").value, 10);
+      if (id < 10) {
+        showMsg($("sp-msg"), "Factory presets cannot be deleted.", false);
+        return;
+      }
+      postPreset("delete", { slot: id - 10 }, "Preset deleted.", false);
+    });
+
+    $("sp-save").addEventListener("click", function () {
+      var name = $("sp-name").value.trim();
+      if (!name) {
+        showMsg($("sp-msg"), "Enter a name.", false);
+        return;
+      }
+      postPreset("save", { slot: parseInt($("sp-slot").value, 10), name: name },
+        "Preset saved.", false);
+    });
+
+    $("sp-defaults").addEventListener("click", function () {
+      function pick(id) {
+        var v = $(id).value;
+        return v === "" ? null : parseInt(v, 10);
+      }
+      postPreset("defaults", { radio: pick("sp-radio"), stream: pick("sp-stream") },
+        "Automatic presets saved.", false);
     });
 
     $("save-audio").addEventListener("click", function () {

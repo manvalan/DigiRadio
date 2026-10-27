@@ -24,7 +24,7 @@ namespace core {
  * Each field is in dBFS, read live from the ADAU1701 Data Capture Register
  * (address 2074, MAC_out tap) at the program-step index SigmaStudio's
  * compiler assigned to that 1×RTA cell (see
- * Firmware/ADAU1701-Firmware/IC 1_DigiRadioFinale/net_list_out2/trap.dat).
+ * Firmware/ADAU1701-Firmware/trap.dat, DigiRadioFinale-v2).
  * Captured only when requested by an API call -- no background polling.
  *
  * @author   Michele Bigi

@@ -337,6 +337,7 @@ extern "C" void app_main()
     static tuner::AfFollowService afFollow(tunerService, sleepMs);
     static tuner::SpectrumScanService spectrum(tunerService);
     net::setSpectrumScanService(&spectrum);
+    net::setPresetService(hardware::HardwareBootstrap::presetService());
 
     if (!dab_slideshow::start(tunerService)) {
         ESP_LOGW(kTag, "slide flash unavailable: DLS only, no slideshow");

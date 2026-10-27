@@ -281,41 +281,11 @@ namespace adau1701
         //     }
         // }
 
-        // Limiter1/Limiter2 threshold override, 2026-08-24: compiled
-        // program ships both at 0x00800000 = 1.0 linear = 0 dBFS (an
-        // RMS-detecting limiter, per Analog Devices' own SigmaStudio
-        // Limiter cell docs), with zero headroom anywhere upstream (every
-        // mixer/EQ/master-volume gain in the compiled program is unity).
-        // A quiet synthetic test tone (well under 0 dBFS RMS) never
-        // engaged it and sounded clean; real loudness-normalized FM/DAB/
-        // streamed program content sits close to 0 dBFS RMS routinely,
-        // triggering continuous gain-reduction ("pumping" per ADI's own
-        // docs) heard as exactly the hiss/unintelligible-speech symptom
-        // under investigation. Pulling both thresholds down to -6 dBFS
-        // gives real margin without being so conservative it can't be
-        // heard whether this was the mechanism.
-        {
-            constexpr float kLimiterThresholdDb = -6.0F;
-            constexpr float kLimiterThresholdLinear = 0.50118723F; // 10^(-6/20)
-            const std::int32_t thresholdFixpoint =
-                core::floatToFixpoint823(kLimiterThresholdLinear);
-            if (auto lim1 = safeloadFixpoint(
-                    static_cast<unsigned>(ADDR_LIMITER1_THRESHOLD),
-                    thresholdFixpoint);
-                !lim1)
-            {
-                ESP_LOGW(kTag, "Limiter1 threshold override failed");
-            }
-            if (auto lim2 = safeloadFixpoint(
-                    static_cast<unsigned>(ADDR_LIMITER2_THRESHOLD),
-                    thresholdFixpoint);
-                !lim2)
-            {
-                ESP_LOGW(kTag, "Limiter2 threshold override failed");
-            }
-            ESP_LOGI(kTag, "Limiter1/2 threshold set to %.1f dBFS",
-                     static_cast<double>(kLimiterThresholdDb));
-        }
+        // Limiter thresholds: the 2026-08-24 runtime override to -6 dBFS
+        // is gone. Since DigiRadioFinale-v2 (2026-10-27) the program itself
+        // has the headroom it lacked (-6 dB after the EQ, a compressor with
+        // +4 dB make-up) and both limiters at -1 dBFS as peak catchers, so
+        // the exported values are the intended ones.
 
         booted_ = true;
         ESP_LOGI(kTag, "SigmaStudio program loaded");
@@ -367,7 +337,8 @@ namespace adau1701
         {
             return ready;
         }
-        // MX1 (DCinputmux_stereo) reads DC1 as a raw 32-bit integer pair
+        // MX1 (DCinputmux_stereo) reads its selector cell (DC1 until the
+        // 2026-08-25 export, "InputSelectot" since DigiRadioFinale-v2) as a raw 32-bit integer pair
         // index (0/1/2), NOT the 5.23 fixpoint conversion its compiled
         // TYPE_DC1/VALUE_DC1 macros would suggest -- confirmed live
         // 2026-08-25 (a 5.23-encoded write left the source unchanged; the
@@ -375,7 +346,7 @@ namespace adau1701
         // 1=Bluetooth (ESP32), 2=Beep, per paramSourceIndex().
         const auto index =
             static_cast<std::int32_t>(paramSourceIndex(source));
-        return safeloadFixpoint(static_cast<unsigned>(ADDR_DC1), index);
+        return safeloadFixpoint(static_cast<unsigned>(ADDR_INPUTSELECTOT), index);
     }
 
     std::expected<void, Adau1701Error> Adau1701Driver::setMasterVolume(
@@ -457,8 +428,8 @@ namespace adau1701
     namespace
     {
         // Compiled SigmaStudio defaults for Bass Boost1's crossover filter
-        // and 33-point compander curve (DigiRadioFinale_IC_1_PARAM.h,
-        // 2026-08-25 export). setBassBoostLevel() interpolates from these
+        // and 33-point compander curve (DigiRadio_IC_1_PARAM.h,
+        // DigiRadioFinale-v2 export of 2026-10-27: max boost about +5.9 dB). setBassBoostLevel() interpolates from these
         // toward an identity/unity bypass as level goes from 100 to 0 --
         // ADI's Dynamic Bass Boost algorithm internals aren't documented,
         // so this is a linear blend of the known-good compiled curve, not
@@ -469,17 +440,17 @@ namespace adau1701
         constexpr float kBassBoostA1 = 1.98148576456209F;
         constexpr float kBassBoostA2 = -0.981655537799498F;
         constexpr float kBassBoostTable[33] = {
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.319153785510076F, 0.319153785510076F, 0.319153785510076F,
-            0.322849412171264F, 0.334195040026114F, 0.345939377826122F,
-            0.358096437102636F, 0.370680721782576F, 0.383707245492279F,
-            0.39719154946944F,  0.411149721104522F, 0.425598413133743F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.505824662003114F, 0.505824662003114F, 0.505824662003114F,
+            0.511681835540308F, 0.529663443891658F, 0.548276964920854F,
+            0.567544605408547F, 0.587489352529777F, 0.608135001278718F,
+            0.629506182857198F, 0.651628394060843F, 0.674528027697922F,
         };
 
         constexpr float kSpreadSpread1 = 0.0629093159447337F;
@@ -571,8 +542,8 @@ namespace adau1701
         // 24-bit two's-complement 5.19 value (5.23 with the 4 LSBs
         // truncated, per the datasheet). The per-meter (progCount, regSel)
         // pairs below are read verbatim from SigmaStudio's own compiler
-        // output (Firmware/ADAU1701-Firmware/IC 1_DigiRadioFinale/
-        // net_list_out2/trap.dat), not invented.
+        // output (Firmware/ADAU1701-Firmware/trap.dat, DigiRadioFinale-v2
+        // export of 2026-10-27), not invented.
         constexpr unsigned kDataCaptureAddr = 0x081AU;
         constexpr unsigned kRegSelMacOut = 2U; // "mult_out" in trap.dat
 
@@ -581,12 +552,12 @@ namespace adau1701
             unsigned progCount;
         };
 
-        constexpr MeterPoint kRadioInLeft{221};      // SingleBandLevelDet1
-        constexpr MeterPoint kRadioInRight{254};     // SingleBandLevelDet2
-        constexpr MeterPoint kBluetoothInLeft{155};  // SingleBandLevelDet3
-        constexpr MeterPoint kBluetoothInRight{188}; // SingleBandLevelDet4
-        constexpr MeterPoint kOutputLeft{717};       // SingleBandLevelDet5
-        constexpr MeterPoint kOutputRight{684};      // SingleBandLevelDet6
+        constexpr MeterPoint kRadioInLeft{94};      // SingleBandLevelDet1
+        constexpr MeterPoint kRadioInRight{127};     // SingleBandLevelDet2
+        constexpr MeterPoint kBluetoothInLeft{160};  // SingleBandLevelDet3
+        constexpr MeterPoint kBluetoothInRight{193}; // SingleBandLevelDet4
+        constexpr MeterPoint kOutputLeft{834};       // SingleBandLevelDet5
+        constexpr MeterPoint kOutputRight{867};      // SingleBandLevelDet6
     } // namespace
 
     std::expected<float, Adau1701Error> Adau1701Driver::readCaptureDb(

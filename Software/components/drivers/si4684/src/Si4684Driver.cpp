@@ -37,6 +37,12 @@ constexpr std::size_t kSpiBufferSize = 4096U;
  *  data group (AN649 §7.10: "up to 8191 bytes") behind its 25 header
  *  bytes. Command writes stay within kSpiBufferSize. */
 constexpr std::size_t kMaxReplyBytes = 8224U;
+/** Largest command writeCommand() builds: opcode + ARG1 + the longest
+ *  argument list (START_DIGITAL_SERVICE, 10 bytes) with margin. Kept small
+ *  because the buffer lives on the caller's stack: the old 4 KB one
+ *  overflowed the 6 KB alarm task when the 07:00 alarm tuned DAB
+ *  (0.12.5 panic, 2026-10-27). HOST_LOAD uses its own heap buffer. */
+constexpr std::size_t kMaxCommandBytes = 64U;
 constexpr int kCtsPollMs = 2;
 constexpr int kCtsRetries = 5000;
 constexpr int kStcRetries = 250;
@@ -323,10 +329,10 @@ std::expected<void, Si4684Error> Si4684Driver::writeCommand(
     Command cmd, const std::uint8_t* payload, std::size_t length,
     std::uint8_t arg1)
 {
-    if (length + 2U > kSpiBufferSize) {
+    if (length + 2U > kMaxCommandBytes) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
-    std::array<std::uint8_t, kSpiBufferSize> buffer = {};
+    std::array<std::uint8_t, kMaxCommandBytes> buffer = {};
     buffer[0] = static_cast<std::uint8_t>(cmd);
     buffer[1] = arg1;
     if (payload != nullptr && length > 0U) {

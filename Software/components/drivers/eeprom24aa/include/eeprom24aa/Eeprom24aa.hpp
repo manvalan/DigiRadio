@@ -12,6 +12,7 @@
  */
 #pragma once
 
+#include "core/AudioPresetCodec.hpp"
 #include "core/IDeviceIdentitySource.hpp"
 #include "core/IdentityError.hpp"
 
@@ -197,6 +198,37 @@ public:
      */
     [[nodiscard]] std::expected<void, core::IdentityError>
     writeXtalCalibration(const XtalCalibration& calibration);
+
+    /**
+     * @brief    readPresetImage — read the audio preset backup region.
+     *
+     * @dname    readPresetImage
+     * @return   The raw core::PresetEepromImage (word addresses
+     *           core::kPresetEepromBase..+111), or IdentityError on an I2C
+     *           failure. Decoding is left to core::decodePresetEepromImage().
+     * @pubstate performs one sequential I2C read of 112 bytes.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-27
+     */
+    [[nodiscard]] std::expected<core::PresetEepromImage, core::IdentityError>
+    readPresetImage();
+
+    /**
+     * @brief    writePresetImage — persist the audio preset backup region.
+     *
+     * @dname    writePresetImage
+     * @param    image  Bytes from core::encodePresetEepromImage().
+     * @return   Ok on success, or IdentityError::I2cFailed.
+     * @pubstate reads the region first and page-writes (16 bytes) only the
+     *           pages that differ, to spare write cycles; blocks for the
+     *           write-cycle time after each page.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-27
+     */
+    [[nodiscard]] std::expected<void, core::IdentityError>
+    writePresetImage(const core::PresetEepromImage& image);
 
 private:
     i2c_master_bus_handle_t bus_;

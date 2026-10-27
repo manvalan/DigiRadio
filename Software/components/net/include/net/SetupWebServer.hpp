@@ -35,6 +35,7 @@
 
 namespace audio {
 class AudioService;
+class PresetService;
 } // namespace audio
 
 namespace bluetooth {
@@ -254,6 +255,7 @@ public:
 private:
     void registerAlarmRoutes(void* routeCtx);
     void registerSpectrumRoutes(void* routeCtx);
+    void registerPresetRoutes(void* routeCtx);
 
     httpd_handle_t server_;
     core::ISecureStore* store_;
@@ -331,6 +333,20 @@ void setAlarmApi(const AlarmApi* api) noexcept;
  * @date     2026-10-26
  */
 void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept;
+
+/**
+ * @brief    setPresetService — plug the audio presets into
+ *           /api/audio/presets (list, apply, save, delete, defaults).
+ *
+ * @dname    setPresetService
+ * @param    service  Preset service with static lifetime, or nullptr
+ *                    (routes answer 503).
+ * @pubstate stores the pointer for later requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-27
+ */
+void setPresetService(audio::PresetService* service) noexcept;
 
 /**
  * @brief    SlideApi — the DAB slideshow image, owned by main.
