@@ -1,0 +1,5 @@
+# Published release builds (GitHub Actions): no proprietary Si4684 images in
+# the app image; the radio reads them from the flash store that an earlier
+# full build filled (components/drivers/si4684/Si4684ImageStore).
+# Build: idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release" build
+CONFIG_SI4684_EMBEDDED_IMAGES=n

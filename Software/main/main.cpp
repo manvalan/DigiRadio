@@ -11,27 +11,35 @@
  * @date    2026-07-06
  */
 
+#include "alarm_clock.hpp"
 #include "board_pins.hpp"
 #include "hardware_bootstrap.hpp"
 #include "audio/AudioService.hpp"
 #include "bluetooth/BluetoothService.hpp"
 #include "integration/IntegrationService.hpp"
 #include "net/NetBootstrap.hpp"
+#include "net/SetupWebServer.hpp"
 #include "secure_store/NvsPlatformInit.hpp"
 #include "ota/OtaService.hpp"
 #include "secure_store/NvsSecureStore.hpp"
 #include "si4684/Si4684Tuner.hpp"
 #include "station/StationService.hpp"
+#include "dab_slideshow.hpp"
 #include "tuner/AfFollowService.hpp"
+#include "tuner/SpectrumScanService.hpp"
 #include "tuner/TunerService.hpp"
 #include "antenna_calibration.hpp"
+#include "audio_routing.hpp"
 #include "esp32_i2s_sink.hpp"
+#include "phone_pcm_server.hpp"
 #include "phone_stream.hpp"
+#include "system_diag.hpp"
 #include "web_radio_stream.hpp"
 #include "webradio/WebRadioService.hpp"
 
 #include "driver/pulse_cnt.h"
 #include "esp_log.h"
+#include "esp_bt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -53,9 +61,12 @@
 namespace {
 
 constexpr char kTag[] = "digiradio";
-constexpr TickType_t kHeartbeatPeriod = pdMS_TO_TICKS(5000);
+constexpr TickType_t kHeartbeatPeriod = pdMS_TO_TICKS(60000);
 /** RDS AF follow poll period (the iOS app used to poll every 3-4 s). */
-constexpr TickType_t kAfFollowPeriod = pdMS_TO_TICKS(3000);
+/** DAB data drain period; the tuner's DSRV queue is small. */
+constexpr TickType_t kDabDataPeriod = pdMS_TO_TICKS(150);
+/** AF follow tick: every 20 drains, i.e. every 3 s as before. */
+constexpr unsigned kDrainsPerAfTick = 20U;
 
 /**
  * @brief    logGpioClockFrequency — one-shot edge-count frequency probe.
@@ -135,7 +146,9 @@ void heartbeatTask(void* arg)
 {
     (void)arg;
     while (true) {
-        ESP_LOGI(kTag, "heartbeat");
+        // Heap and stack low-water marks once a minute: the resources that
+        // run out quietly (see also GET /api/health "system").
+        system_diag::logSummary();
         vTaskDelay(kHeartbeatPeriod);
     }
 }
@@ -146,11 +159,14 @@ void sleepMs(std::uint32_t ms)
 }
 
 /**
- * @brief    afFollowTask — follow the FM station to a stronger RDS AF.
+ * @brief    afFollowTask — drain DAB data every 150 ms and run AF/DAB
+ *           following every 3 s.
  *
  * @dname    afFollowTask
  * @param    arg  tuner::AfFollowService* (static lifetime).
- * @pubstate polls the tuner every kAfFollowPeriod, with or without an app.
+ * @pubstate dab_slideshow::poll() every kDabDataPeriod and
+ *           AfFollowService::tick() every kDrainsPerAfTick drains, with or
+ *           without an app.
  *
  * @author   Michele Bigi
  * @date     2026-10-21
@@ -159,8 +175,12 @@ void sleepMs(std::uint32_t ms)
 {
     auto* follow = static_cast<tuner::AfFollowService*>(arg);
     UBaseType_t lowWater = ~0U;
-    while (true) {
-        follow->tick(static_cast<std::uint32_t>(esp_timer_get_time() / 1000));
+    for (unsigned n = 0U;; ++n) {
+        dab_slideshow::poll();
+        if (n % kDrainsPerAfTick == 0U) {
+            follow->tick(
+                static_cast<std::uint32_t>(esp_timer_get_time() / 1000));
+        }
         // TunerStatus copies, RDS buffers and hunts are stack-heavy: an
         // undersized stack overflowed here in 0.9.6. Log new lows.
         const UBaseType_t free = uxTaskGetStackHighWaterMark(nullptr);
@@ -169,7 +189,7 @@ void sleepMs(std::uint32_t ms)
             ESP_LOGI(kTag, "af_follow stack free low-water: %u bytes",
                      static_cast<unsigned>(free));
         }
-        vTaskDelay(kAfFollowPeriod);
+        vTaskDelay(kDabDataPeriod);
     }
 }
 
@@ -259,6 +279,8 @@ extern "C" void app_main()
         ESP_LOGW(kTag, "integration startup failed — continuing without recall");
     }
 
+    audio_routing::init(hardware::HardwareBootstrap::audioService());
+
     static bluetooth::BluetoothService bluetoothService(
         hardware::HardwareBootstrap::bt1035Driver(), store);
 
@@ -298,30 +320,71 @@ extern "C" void app_main()
 
     static net::NetBootstrap net = std::move(netResult.value());
 
-    if (auto confirmed = ota::OtaService::confirmBoot(); !confirmed) {
-        ESP_LOGW(kTag, "OTA rollback confirm failed");
-    }
+    net::setSystemDiagnosticsProvider(&system_diag::json);
+    system_diag::watchTask("httpd", xTaskGetHandle("httpd"));
 
-    if (xTaskCreate(heartbeatTask, "heartbeat", 4096, nullptr, 5, nullptr)
+    TaskHandle_t handle = nullptr;
+    // 0.10.0 measured 1.9 KB left of 4 KB once logSummary() ran.
+    if (xTaskCreate(heartbeatTask, "heartbeat", 6144, nullptr, 5, &handle)
         != pdPASS) {
         ESP_LOGE(kTag, "heartbeat task create failed");
         return;
     }
+    system_diag::watchTask("heartbeat", handle);
 
     bluetoothService.startupReconnect();
 
     static tuner::AfFollowService afFollow(tunerService, sleepMs);
-    if (xTaskCreate(afFollowTask, "af_follow", 12288, &afFollow, 3, nullptr)
+    static tuner::SpectrumScanService spectrum(tunerService);
+    net::setSpectrumScanService(&spectrum);
+
+    if (!dab_slideshow::start(tunerService)) {
+        ESP_LOGW(kTag, "slide flash unavailable: DLS only, no slideshow");
+    }
+    // AF follow plus the DAB data drain (0.12.1: one task instead of two).
+    // The drain peaked at 5.8 KB in 0.12.0's own 8 KB task, AF at ~2 KB;
+    // they run one after the other, so 10 KB keeps a 4 KB margin.
+    if (xTaskCreate(afFollowTask, "af_follow", 10240, &afFollow, 3, &handle)
         != pdPASS) {
         ESP_LOGW(kTag, "AF follow task create failed");
+    } else {
+        system_diag::watchTask("af_follow", handle);
     }
 
-    if (xTaskCreate(web_radio_stream::run, "web_radio", 16384,
-                    &webRadioService, 4, nullptr) != pdPASS) {
+    // 0.12.3 measured 14 KB of 16 KB never used: the decoder state is on
+    // the heap, not on this stack.
+    if (xTaskCreate(web_radio_stream::run, "web_radio", 8192,
+                    &webRadioService, 4, &handle) != pdPASS) {
         ESP_LOGW(kTag, "web radio stream task create failed");
+    } else {
+        system_diag::watchTask("web_radio", handle);
     }
+
+    if (!phone_pcm_server::start()) {
+        ESP_LOGW(kTag, "phone PCM server task create failed");
+    }
+
+    static const alarm_clock::Services alarmServices{
+        .audio = hardware::HardwareBootstrap::audioService(),
+        .integration = integration,
+        .webRadio = webRadioService,
+        .bluetooth = bluetoothService,
+    };
+    if (!alarm_clock::start(alarmServices)) {
+        ESP_LOGW(kTag, "alarm task create failed");
+    }
+
+    // Only now, with every task started, does the probation clock run: an
+    // image that crashes in any of them is rolled back by the bootloader.
+    system_diag::confirmOtaAfterProbation();
 
     if (net.state() == net::NetState::StaConnected) {
+        // BLE is only used for Wi-Fi provisioning, which runs in setup mode
+        // (a fresh boot); in STA mode give its controller and NimBLE
+        // memory to the heap for the web radio (fw 0.12.4).
+        if (esp_bt_mem_release(ESP_BT_MODE_BLE) != ESP_OK) {
+            ESP_LOGW(kTag, "BLE memory not released");
+        }
         const auto& identity = hardware::HardwareBootstrap::deviceIdentity();
         ESP_LOGI(kTag,
                  "running in STA mode — open http://%.*s.local/ "

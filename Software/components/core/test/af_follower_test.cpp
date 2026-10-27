@@ -184,23 +184,34 @@ constexpr std::uint16_t kPi = 0x5201U;
         || fail("tuning outside the AF set must start a new station");
 }
 
-/* POST {"enabled":bool} parsing and the GET response shape. */
+/* POST settings parsing and the GET response shape. */
 [[nodiscard]] bool jsonTest()
 {
-    if (core::parseAfFollowEnabledJson(R"({"enabled": false})") != false
-        || core::parseAfFollowEnabledJson(R"({"enabled":true})") != true) {
-        return fail("enabled flag must parse");
+    const auto off = core::parseAfFollowSettingsJson(R"({"enabled": false})");
+    const auto both = core::parseAfFollowSettingsJson(
+        R"({"enabled":true,"dab_return_min":15})");
+    const auto minutesOnly =
+        core::parseAfFollowSettingsJson(R"({"dab_return_min":0})");
+    if (!off || off->enabled != false || off->dabReturnMinutes
+        || !both || both->enabled != true || both->dabReturnMinutes != 15U
+        || !minutesOnly || minutesOnly->enabled
+        || minutesOnly->dabReturnMinutes != 0U) {
+        return fail("settings must parse");
     }
-    if (core::parseAfFollowEnabledJson("{}").error()
+    if (core::parseAfFollowSettingsJson("{}").error()
             != core::ParseError::MissingField
-        || core::parseAfFollowEnabledJson(R"({"enabled":1})").error()
+        || core::parseAfFollowSettingsJson(R"({"enabled":1})").error()
+               != core::ParseError::InvalidJson
+        || core::parseAfFollowSettingsJson(R"({"dab_return_min":121})")
+                   .error()
                != core::ParseError::InvalidJson) {
-        return fail("missing / non-bool enabled must be rejected");
+        return fail("missing / bad settings must be rejected");
     }
     core::AfFollowStats stats;
     if (core::serializeAfFollowJson(stats)
         != R"({"enabled":false,"hunts":0,"switches":0,)"
-           R"("dab_hunts":0,"dab_switches":0})") {
+           R"("dab_hunts":0,"dab_switches":0,"dab_return_min":10,)"
+           R"("on_fm_fallback":false,"dab_returns":0})") {
         return fail("default stats JSON mismatch");
     }
     stats.enabled = true;
@@ -209,7 +220,8 @@ constexpr std::uint16_t kPi = 0x5201U;
     stats.lastTo = khz(87600U);
     return core::serializeAfFollowJson(stats)
                == R"({"enabled":true,"hunts":0,"switches":2,"last_from_khz":98400,)"
-                  R"("last_to_khz":87600,"dab_hunts":0,"dab_switches":0})"
+                  R"("last_to_khz":87600,"dab_hunts":0,"dab_switches":0,)"
+                  R"("dab_return_min":10,"on_fm_fallback":false,"dab_returns":0})"
         || fail("switch stats JSON mismatch");
 }
 

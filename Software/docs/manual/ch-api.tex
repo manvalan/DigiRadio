@@ -48,8 +48,33 @@ Returns a health-check DTO serialised by
         \texttt{unknown} when the 24AA025E48 read fails.
   \item \texttt{chips} --- companion-chip boot flags after
         \texttt{HardwareBootstrap::boot()} (Slice~8 integration).
+  \item \texttt{system} (0.10.0+) --- runtime diagnostics from
+        \texttt{core::serializeSystemDiagnosticsJson()}:
+        \texttt{reset\_reason} (\texttt{power\_on}, \texttt{software},
+        \texttt{panic}, \texttt{task\_watchdog}, \texttt{brownout},
+        \ldots), \texttt{uptime\_s}, internal heap \texttt{heap\_free},
+        \texttt{heap\_min\_free} (lowest since boot) and
+        \texttt{heap\_largest\_block}, the running OTA \texttt{partition},
+        \texttt{ota\_pending\_verify} (true during the probation after an
+        OTA: at least 60\,s and until a client reads this endpoint, see
+        below) and \texttt{stack\_min\_free}, the least
+        free stack ever seen per watched task (httpd, heartbeat,
+        af\_follow, web\_radio, phone\_pcm, alarm).
+        From 0.11.1 also \texttt{si4684\_store} (\texttt{ready},
+        \texttt{missing}, \texttt{writing}, \texttt{unknown}: whether the
+        Si4684 images are in the flash image store,
+        Section~\ref{cls:Si4684ImageStore}) and \texttt{si4684\_embedded}
+        (this build links the images in). The app installs a published
+        release, which carries no images, only when
+        \texttt{si4684\_store} is \texttt{ready}.
 \end{itemize}
 \end{drnote}
+
+\textbf{OTA probation (0.10.0+).} A freshly installed image is confirmed
+only after it has run for 60\,s with every task started. A reset before
+that --- a crash, or simply a power cycle --- makes the bootloader return
+to the previous image. Earlier firmware confirmed before the af\_follow and
+web radio tasks started, so a crash in them (0.9.6) was never rolled back.
 
 HTTP status: \textbf{200 OK} on success.
 
@@ -141,7 +166,12 @@ HTTP status: \textbf{200 OK}; \textbf{500} with
 \texttt{\{"status":"error","reason":...\}} on driver failure;
 \textbf{503} when the tuner service is unavailable. FM responses may include
 \texttt{station\_name} and \texttt{radiotext}; DAB responses may include
-\texttt{dynamic\_label} when a programme is playing.
+\texttt{dynamic\_label} when a programme is playing (UTF-8, AN649 prefix
+removed) and, from 0.12.0, \texttt{dl\_plus}
+\texttt{\{"title","artist"\}} with the DL Plus ITEM tags (each key only
+when tagged; object omitted otherwise). From 0.12.2 FM responses add
+\texttt{rt\_plus} \texttt{\{"title","artist"\}} from RadioText Plus with
+the same rules, and \texttt{station\_name}/\texttt{radiotext} are UTF-8.
 
 \apiendpoint{GET}{/api/tuner/signal}
 \label{sec:api-tuner-signal}
@@ -155,7 +185,11 @@ Reception level and a goodness score for the band in use, computed by
 \end{drcode}
 \texttt{level\_dbuv} is the RSSI (FM\_RSQ\_STATUS or DAB\_DIGRAD\_STATUS
 RSSI); \texttt{snr\_db} is the FM SNR or the DAB CNR; DAB adds
-\texttt{fic\_quality} (0--100). \texttt{quality} (0--100) is 60\,\% SNR
+\texttt{fic\_quality} (0--100) and, from 0.12.0, \texttt{fib\_errors}
+(FIBs that failed CRC since tune, DAB\_DIGRAD\_STATUS FIB\_ERROR\_COUNT,
+16-bit wrapping: diff successive readings) and \texttt{fic\_errors}
+(FICERR flag). There is no BER: the live DIGRAD response does not carry
+one (AN649 BER needs the \S8 test mode). \texttt{quality} (0--100) is 60\,\% SNR
 (3$\to$25\,dB) + 40\,\% RSSI (5$\to$45\,dB\textmu V) for FM, capped at 20
 without VALID; 70\,\% FIC quality + 30\,\% CNR (5$\to$25\,dB) for DAB, 0
 without lock. \texttt{grade} is \texttt{excellent} ($\geq$75),
@@ -167,6 +201,42 @@ HTTP status: \textbf{200 OK}; \textbf{500} on driver failure;
 \textbf{503} when the tuner service is unavailable. The DAB object of
 \texttt{/api/tuner/status} also carries \texttt{rssi\_dbuv}.
 
+\apiendpoint{GET}{/api/tuner/slide}
+\label{sec:api-tuner-slide}
+
+Current DAB slideshow image (MOT SLS, 0.12.0+), streamed from flash with
+\texttt{Content-Type: image/jpeg} or \texttt{image/png};
+\textbf{404} \texttt{\{"error":"no\_slide"\}} when there is none. A query
+string (e.g.\ \texttt{?id=12}, used to bust caches) is ignored. The DAB
+object of \texttt{GET /api/tuner/status} carries \texttt{"slide\_id"}
+while a slide exists; it changes with every new image. Slides are only
+assembled while a client has read the DAB status or the slide in the last
+five minutes (flash wear), so the first one can take a slideshow cycle to
+appear.
+
+\apiendpoint{GET / POST}{/api/tuner/spectrum}
+\label{sec:api-tuner-spectrum}
+
+RF spectrum of the FM band or DAB Band~III, measured by
+\texttt{tuner::SpectrumScanService} (0.12.0+). \texttt{POST} with
+\texttt{\{"band":"fm"\}} or \texttt{\{"band":"dab"\}} starts a sweep:
+\textbf{202} when started, \textbf{400} on a bad body, \textbf{409} while
+one is running, \textbf{500} if the task cannot be created. The station
+goes off air (muted) for the sweep, about 35\,s for FM (206 steps) or
+45\,s for DAB (38 channels), and is retuned at the end. \texttt{GET}
+returns the progress at any time:
+
+\begin{drcode}[JSON]
+{"state":"running","band":"dab","progress":50,"points":[
+ {"freq_khz":223936,"channel":"12A","rssi_dbuv":40,"cnr_db":18,"fic_quality":97},
+ {"freq_khz":225648,"channel":"12B","rssi_dbuv":5}]}
+\end{drcode}
+\texttt{state} is \texttt{idle}, \texttt{running}, \texttt{done} or
+\texttt{failed} (tuner error; points partial). FM points carry
+\texttt{freq\_khz}, \texttt{rssi\_dbuv}, \texttt{snr\_db}; DAB points
+\texttt{channel} and \texttt{rssi\_dbuv}, plus \texttt{cnr\_db} and
+\texttt{fic\_quality} when an ensemble locked.
+
 \apiendpoint{GET / POST}{/api/tuner/af}
 \label{sec:api-tuner-af}
 
@@ -175,22 +245,30 @@ RDS alternate-frequency follow, run on the radio by
 weak the firmware briefly probes the station's AFs and moves to a stronger
 one with the same PI. Off by default (it briefly interrupts audio while
 probing): POST \texttt{\{"enabled":true\}} turns it on; live only, every
-boot starts disabled.
+boot starts disabled. From 0.12.0 POST also takes
+\texttt{"dab\_return\_min"} (0--120, default 10, 0 = never): after DAB
+following moved to the linked FM station, the radio checks the original
+DAB ensemble that often and goes back when it is good again (see
+\texttt{DabReturnPolicy}). Each key is optional; at least one is required.
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
 {"enabled":true,"hunts":3,"switches":2,"last_from_khz":98400,"last_to_khz":87600,
- "dab_hunts":1,"dab_switches":1}
+ "dab_hunts":1,"dab_switches":1,"dab_return_min":10,"on_fm_fallback":true,
+ "dab_returns":0}
 \end{drcode}
 \texttt{hunts} counts AF probes (each one briefly retunes, so it is
 audible); \texttt{last\_from\_khz}/\texttt{last\_to\_khz} appear after the
 first automatic switch. \texttt{dab\_hunts}/\texttt{dab\_switches} count DAB
 service-following attempts and successes (same service on another
 ensemble, or its hard-linked FM frequency); the same switch turns both off.
+\texttt{on\_fm\_fallback} is true while linked FM replaces a lost DAB
+service; \texttt{dab\_returns} counts the returns to DAB.
 \end{drnote}
 
-HTTP status: \textbf{200 OK}; \textbf{400} for a missing or non-boolean
-\texttt{enabled}; \textbf{503} when the tuner service is unavailable.
+HTTP status: \textbf{200 OK}; \textbf{400} when neither key is present,
+\texttt{enabled} is not a boolean or \texttt{dab\_return\_min} is outside
+0--120; \textbf{503} when the tuner service is unavailable.
 
 \apiendpoint{GET}{/api/tuner/services}
 \label{sec:api-tuner-services}
@@ -419,9 +497,16 @@ Streams a raw ESP-IDF application \texttt{.bin} into the inactive OTA slot
 (\texttt{ota\_0}/\texttt{ota\_1}). The body is raw bytes; the server validates
 the embedded \texttt{esp\_app\_desc\_t} at offset~0x20 (magic and
 \texttt{project\_name == "digiradio"}) while streaming. On success the new
-slot is selected and the device reboots; the first healthy boot after Wi-Fi
-and HTTP are up calls
-\texttt{ota::OtaService::confirmBoot()} to cancel rollback.
+slot is selected and the device reboots. The new image is confirmed
+(\texttt{ota::OtaService::confirmBoot()}) only after 60\,s of running AND
+once a client has read \texttt{GET /api/health} after that, with
+\texttt{heap\_min\_free} never below 4\,KB (0.12.4+; before, a plain 60\,s
+timer confirmed 0.12.3 although it had locked up out of memory). Until
+then any reset, including a task-watchdog panic, rolls back to the previous
+image, and a web radio left on is not resumed (it also waits 20\,s after
+every boot). A stream start is refused with \texttt{out\_of\_memory} when
+the free heap cannot hold the ring plus decoder, network task and Wi-Fi
+headroom (\texttt{core::chooseWebRadioRing()}).
 
 \begin{drnote}[Success response]
 \begin{drcode}[JSON]
@@ -511,6 +596,65 @@ POST both answer with the current state. HTTP status: \textbf{200 OK};
 safeload failure (state unchanged); \textbf{503} when the audio service is
 unavailable.
 
+\apiendpoint{GET / PUT}{/api/alarms}
+\label{sec:api-alarms}
+
+Alarm table (firmware 0.11.0+, \texttt{main/alarm\_clock.cpp}). Each row
+either switches the radio \emph{on} (leave standby, play a preset or a web
+radio URL, fade the master gain in from \texttt{-45 dB} to
+\texttt{volume\_db} over \texttt{fade\_in\_s} seconds, default 30, 0 =
+straight to the volume; 0.12.0+) or \emph{off} (standby and stop the web
+radio). An \texttt{on} row with \texttt{duration\_min} > 0 also switches
+the radio off after that many minutes. Rows fire on the weekdays set in
+\texttt{days} (bit~0 Monday \ldots{} bit~6 Sunday) at local time
+\texttt{hour}:\texttt{minute}; the clock comes from SNTP
+(\texttt{pool.ntp.org}, Europe/Rome with daylight saving), and nothing
+fires until it is set. When the A2DP link to the saved speaker is down an
+\texttt{on} row reconnects it. The table (at most 8 rows) is stored in NVS
+namespace \texttt{alarms}; PUT replaces it whole.
+
+\begin{drnote}[Request / response schema]
+\begin{drcode}[JSON]
+{"time_valid":true,"local_time":"2026-10-27T06:58",
+ "next":{"index":0,"in_min":2},
+ "alarms":[
+  {"enabled":true,"action":"on","hour":7,"minute":0,"days":31,
+   "source":"preset","preset":2,"url":"","volume_db":-20,
+   "duration_min":60,"fade_in_s":30},
+  {"enabled":true,"action":"off","hour":23,"minute":30,"days":127}]}
+\end{drcode}
+\end{drnote}
+
+The PUT body is \texttt{\{"alarms":[...]\}}; \texttt{time\_valid},
+\texttt{local\_time} and \texttt{next} are only in responses
+(\texttt{next} is absent when no row is armed). Limits: \texttt{hour}
+0--23, \texttt{minute} 0--59, \texttt{days} 0--127, \texttt{preset} 0--63,
+\texttt{volume\_db} $-60$\ldots$+12$, \texttt{duration\_min} 0--720,
+\texttt{fade\_in\_s} 0--300 (absent: 30, so pre-0.12 tables keep the old
+ramp),
+\texttt{url} \texttt{http(s)://} and at most 200 bytes. HTTP status:
+\textbf{200 OK} with the new status; \textbf{400}
+\texttt{\{"error":"invalid\_alarms"\}} when a row is out of range;
+\textbf{503} before the alarm task starts.
+
+\apiendpoint{GET / POST}{/api/system/sleep}
+\label{sec:api-system-sleep}
+
+Sleep timer: after \texttt{minutes} (1--720) the radio goes to standby and
+the web radio stops; \texttt{0} cancels. Switching to standby by hand
+cancels it too. Live only, not persisted.
+
+\begin{drnote}[Request / response schema]
+\begin{drcode}[JSON]
+POST {"minutes":30}
+  -> {"active":true,"seconds_left":1800}
+\end{drcode}
+\end{drnote}
+
+HTTP status: \textbf{200 OK}; \textbf{400}
+\texttt{\{"error":"invalid\_minutes"\}}; \textbf{503} before the alarm task
+starts.
+
 \apiendpoint{GET}{/api/dsp/params}
 \label{sec:api-dsp-params}
 
@@ -552,8 +696,25 @@ Success response: \texttt{\{"status":"saved"\}}. HTTP status:
 \texttt{name} is not in the compiled program's cell table; \textbf{500}
 on safeload failure; \textbf{503} when the audio service is unavailable.
 
+\apiendpoint{TCP}{port 5005 (phone audio, 0.10.0+)}
+\label{sec:api-phone-pcm}
+
+Phone audio now goes over a plain TCP connection to port 5005, advertised
+over mDNS as \texttt{\_digiradio-pcm.\_tcp}. The client sends raw
+interleaved 16-bit little-endian stereo PCM at 48\,kHz and closes the
+socket to stop; there is no header and no reply. On connect the firmware
+takes the shared I2S sink (waiting up to 3\,s for the web radio to let go),
+switches the ADAU1701 to the ESP32 input, and restores the previous source
+when the client disconnects or sends nothing for 5\,s. One client at a
+time. This replaces \texttt{PUT /api/stream/phone} below for the app:
+\texttt{esp\_http\_server} does not decode chunked request bodies, and a
+long upload held the server's only worker, stalling every other API call.
+
 \apiendpoint{PUT}{/api/stream/phone}
 \label{sec:api-stream-phone}
+
+\textbf{Deprecated (0.10.0):} kept for clients that send a
+\texttt{Content-Length} body; use TCP port 5005 instead.
 
 Accepts a live audio push from a phone app and writes it straight to the
 shared I2S sink for as long as the connection stays open --- the same
@@ -574,13 +735,37 @@ sink fails mid-stream.
 \apiendpoint{GET}{/api/streaming}
 \label{sec:api-streaming-get}
 
-Returns the current internet radio streaming configuration
-(\texttt{webradio::WebRadioService::config()}).
+Returns the internet radio configuration
+(\texttt{webradio::WebRadioService::config()}) plus, since 0.10.0, the
+live player status (\texttt{core::serializeWebRadioJson()}).
 
 \begin{drnote}[Response schema]
 \begin{drcode}[JSON]
-{"enabled":true,"url":"http://stream.example.com/radio.mp3"}
+{"enabled":true,"url":"http://stream.example.com/radio.mp3",
+ "state":"playing","codec":"mp3","sample_rate":44100,"channels":2,
+ "bitrate_kbps":128,"buffer_percent":52,"underruns":0,"reconnects":0,
+ "ring_bytes":12288,"heap_min":15800,"title":"Artist - Song"}
 \end{drcode}
+\begin{itemize}
+  \item \texttt{state} --- \texttt{idle}, \texttt{connecting},
+        \texttt{buffering}, \texttt{playing} or \texttt{error}.
+  \item \texttt{error} (only in \texttt{error}) ---
+        \texttt{connect\_failed}, \texttt{http\_status} (with
+        \texttt{http\_status}), \texttt{not\_audio} (a web page),
+        \texttt{unsupported\_format} (\texttt{codec} says which:
+        \texttt{aac}, \texttt{hls}, \texttt{ogg/flac}),
+        \texttt{decode}, \texttt{out\_of\_memory},
+        \texttt{audio\_output} (I2S timed out: no clock from the ADAU).
+  \item \texttt{ring\_bytes} and \texttt{heap\_min} (0.12.5+, only
+        while the ring exists): ring size picked by
+        \texttt{core::chooseWebRadioRing()} (12--24\,KB; 64\,KB of heap
+        must stay free after it for http, 80\,KB for https) and the lowest
+        free heap sampled since streaming was switched on.
+  \item \texttt{sample\_rate} is the stream's own rate; the player
+        resamples to the ADAU1701's 48\,kHz (\texttt{core::PcmResampler}).
+  \item \texttt{title} --- ICY \texttt{StreamTitle}, UTF-8, when the
+        station sends one.
+\end{itemize}
 \end{drnote}
 
 HTTP status: \textbf{200 OK}; \textbf{503} when the web radio service is
@@ -591,14 +776,19 @@ unavailable.
 
 Sets the internet radio stream URL and enables/disables playback. Applied
 immediately to the live streaming task and persisted to NVS --- no reboot
-required. The stream is MP3 over HTTP, decoded on-device via libhelix and
-written to the same shared I2S sink as \texttt{PUT /api/stream/phone}.
+required; a new URL restarts the stream at once. The stream is MP3 over
+HTTP(S), decoded on-device via libhelix, resampled to 48\,kHz and written
+to the shared I2S sink. Since 0.10.0 the firmware itself switches the
+ADAU1701 to the ESP32 input while the stream plays and restores the
+previous source when it is disabled. M3U/PLS playlist links are resolved
+to their first stream; redirects are followed.
 
 \begin{drnote}[Request schema]
 \begin{drcode}[JSON]
 {"enabled":true,"url":"http://stream.example.com/radio.mp3"}
 \end{drcode}
-\texttt{url} must be \texttt{http://}, non-empty, and at most 200 bytes.
+\texttt{url} must be \texttt{http://} or \texttt{https://}, non-empty,
+and at most 200 bytes.
 \end{drnote}
 
 On success, returns the same shape as \texttt{GET /api/streaming}. HTTP

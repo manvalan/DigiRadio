@@ -37,6 +37,7 @@
 #include "core/WifiProvisionJson.hpp"
 #include "core/WifiScanJson.hpp"
 #include "net/WifiScanner.hpp"
+#include "tuner/SpectrumScanService.hpp"
 #include "tuner/TunerService.hpp"
 #include "audio/AudioService.hpp"
 #include "bluetooth/BluetoothService.hpp"
@@ -70,8 +71,13 @@
 namespace net {
 
 namespace {
+
+SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
+const AlarmApi* gAlarmApi = nullptr;
+tuner::SpectrumScanService* gSpectrum = nullptr;
+const SlideApi* gSlideApi = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.9.7";
+constexpr char kFirmwareVersion[] = "0.12.5";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -339,8 +345,13 @@ esp_err_t healthGetHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
 
+    std::string body(json, static_cast<std::size_t>(jsonLen));
+    if (gSystemDiagnostics != nullptr) {
+        body.pop_back(); // reopen the top-level object
+        body += R"(,"system":)" + gSystemDiagnostics() + "}";
+    }
     httpd_resp_set_type(req, "application/json");
-    return httpd_resp_send(req, json, static_cast<std::size_t>(jsonLen));
+    return httpd_resp_send(req, body.c_str(), body.size());
 }
 
 /**
@@ -368,6 +379,12 @@ esp_err_t tunerStatusGetHandler(httpd_req_t* req)
         httpd_resp_set_status(req, "500 Internal Server Error");
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
+    }
+    if (gSlideApi != nullptr && status->band == core::TunerBand::Dab) {
+        gSlideApi->touch();
+        if (const auto slide = gSlideApi->current(); slide) {
+            status->dabSlideId = slide->id;
+        }
     }
     const std::string json = core::serializeTunerStatusJson(*status);
     httpd_resp_set_type(req, "application/json");
@@ -1114,12 +1131,14 @@ esp_err_t afFollowGetHandler(httpd_req_t* req)
 }
 
 /**
- * @brief    afFollowPostHandler — POST /api/tuner/af {"enabled":bool}.
+ * @brief    afFollowPostHandler — POST /api/tuner/af {"enabled":bool,
+ *           "dab_return_min":0-120}, each key optional.
  *
  * @dname    afFollowPostHandler
  * @param    req  HTTP request handle from esp_http_server.
  * @return   ESP_OK on success, or an esp_err_t error code.
- * @pubstate turns RDS AF following on/off (not persisted; default on).
+ * @pubstate turns AF/DAB following on/off and sets the FM→DAB return
+ *           interval (neither persisted).
  *
  * @author   Michele Bigi
  * @date     2026-10-21
@@ -1137,7 +1156,7 @@ esp_err_t afFollowPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
     const auto parsed =
-        core::parseAfFollowEnabledJson(std::string_view(body.data()));
+        core::parseAfFollowSettingsJson(std::string_view(body.data()));
     if (!parsed) {
         const std::string json =
             core::serializeTunerErrorJson(parseErrorToken(parsed.error()));
@@ -1145,7 +1164,12 @@ esp_err_t afFollowPostHandler(httpd_req_t* req)
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
     }
-    ctx->tuner->setAfFollowEnabled(*parsed);
+    if (parsed->enabled) {
+        ctx->tuner->setAfFollowEnabled(*parsed->enabled);
+    }
+    if (parsed->dabReturnMinutes) {
+        ctx->tuner->setDabReturnMinutes(*parsed->dabReturnMinutes);
+    }
     return afFollowGetHandler(req);
 }
 
@@ -1352,7 +1376,8 @@ esp_err_t streamingGetHandler(httpd_req_t* req)
         return httpd_resp_send(req, nullptr, 0);
     }
     const std::string json =
-        core::serializeWebRadioConfigJson(ctx->webRadio->config());
+        core::serializeWebRadioJson(ctx->webRadio->config(),
+                                    ctx->webRadio->status());
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -1401,7 +1426,8 @@ esp_err_t streamingPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, json.c_str(), json.size());
     }
 
-    const std::string json = core::serializeWebRadioConfigJson(*parsed);
+    const std::string json =
+        core::serializeWebRadioJson(*parsed, ctx->webRadio->status());
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -2248,6 +2274,204 @@ esp_err_t stationsReorderPostHandler(httpd_req_t* req)
     return httpd_resp_send(req, "{\"status\":\"reordered\"}", 22);
 }
 
+esp_err_t sendJson(httpd_req_t* req, const std::string& json)
+{
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+esp_err_t sendStatus(httpd_req_t* req, const char* status, const char* json)
+{
+    httpd_resp_set_status(req, status);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, json);
+}
+
+/**
+ * @brief    alarmsGetHandler — GET /api/alarms (table, clock, next alarm).
+ *
+ * @dname    alarmsGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the alarm table through gAlarmApi.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t alarmsGetHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    return sendJson(req, gAlarmApi->statusJson());
+}
+
+/**
+ * @brief    slideGetHandler — GET /api/tuner/slide: current slideshow image.
+ *
+ * @dname    slideGetHandler
+ * @param    req  HTTP request handle (any query string, e.g. ?id=N used by
+ *                clients to bust caches, is ignored).
+ * @return   ESP_OK on success, or an esp_err_t error code. 404 without a
+ *           slide.
+ * @pubstate streams the slide from flash through gSlideApi in 2 KB chunks.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t slideGetHandler(httpd_req_t* req)
+{
+    const auto slide =
+        gSlideApi != nullptr ? gSlideApi->current() : std::nullopt;
+    if (!slide) {
+        return sendStatus(req, "404 Not Found", R"({"error":"no_slide"})");
+    }
+    gSlideApi->touch();
+    httpd_resp_set_type(req, slide->mime == core::SlideMime::Png ? "image/png"
+                                                                 : "image/jpeg");
+    std::array<std::uint8_t, 2048> chunk{};
+    for (std::uint32_t offset = 0U; offset < slide->size;) {
+        const std::size_t got = gSlideApi->read(offset, chunk);
+        if (got == 0U) {
+            break;
+        }
+        if (httpd_resp_send_chunk(req, reinterpret_cast<const char*>(chunk.data()),
+                                  static_cast<ssize_t>(got))
+            != ESP_OK) {
+            return ESP_FAIL;
+        }
+        offset += static_cast<std::uint32_t>(got);
+    }
+    return httpd_resp_send_chunk(req, nullptr, 0);
+}
+
+/**
+ * @brief    spectrumGetHandler — GET /api/tuner/spectrum (sweep progress).
+ *
+ * @dname    spectrumGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the sweep snapshot through gSpectrum (no tuner lock).
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t spectrumGetHandler(httpd_req_t* req)
+{
+    if (gSpectrum == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    return sendJson(req, gSpectrum->json());
+}
+
+/**
+ * @brief    spectrumPostHandler — POST /api/tuner/spectrum starts a sweep.
+ *
+ * @dname    spectrumPostHandler
+ * @param    req  HTTP request handle; body {"band":"fm"|"dab"}.
+ * @return   ESP_OK on success, or an esp_err_t error code. HTTP 202 when
+ *           started, 400 bad body, 409 already running, 500 no task.
+ * @pubstate starts the sweep task through gSpectrum.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t spectrumPostHandler(httpd_req_t* req)
+{
+    if (gSpectrum == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    std::array<char, 64> body{};
+    if (!readRequestBody(req, body)) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"empty_body"})");
+    }
+    const auto band = core::parseSpectrumRequestJson(body.data());
+    if (!band) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"invalid_band"})");
+    }
+    const auto started = gSpectrum->start(*band);
+    if (!started) {
+        return started.error() == core::SpectrumStartError::Busy
+                   ? sendStatus(req, "409 Conflict", R"({"error":"busy"})")
+                   : sendStatus(req, "500 Internal Server Error",
+                                R"({"error":"no_resource"})");
+    }
+    return sendStatus(req, "202 Accepted", R"({"status":"started"})");
+}
+
+/**
+ * @brief    alarmsPutHandler — PUT /api/alarms replaces the whole table.
+ *
+ * @dname    alarmsPutHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes the alarm table (NVS) through gAlarmApi.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t alarmsPutHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    static std::array<char, 2560> body{}; // httpd runs one handler at a time
+    if (!readRequestBody(req, body)) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"empty_body"})");
+    }
+    const auto json = gAlarmApi->replaceTable(std::string_view(body.data()));
+    if (!json) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"invalid_alarms"})");
+    }
+    return sendJson(req, *json);
+}
+
+/**
+ * @brief    sleepGetHandler — GET /api/system/sleep (seconds to standby).
+ *
+ * @dname    sleepGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the sleep timer through gAlarmApi.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t sleepGetHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    return sendJson(req, gAlarmApi->sleepJson());
+}
+
+/**
+ * @brief    sleepPostHandler — POST /api/system/sleep {"minutes":N}.
+ *
+ * @dname    sleepPostHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate arms (N > 0) or cancels (N = 0) the sleep timer.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+esp_err_t sleepPostHandler(httpd_req_t* req)
+{
+    if (gAlarmApi == nullptr) {
+        return sendStatus(req, "503 Service Unavailable", "{}");
+    }
+    std::array<char, 64> body{};
+    if (!readRequestBody(req, body)) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"empty_body"})");
+    }
+    const auto json = gAlarmApi->setSleep(std::string_view(body.data()));
+    if (!json) {
+        return sendStatus(req, "400 Bad Request", R"({"error":"invalid_minutes"})");
+    }
+    return sendJson(req, *json);
+}
+
 esp_err_t stationsTunePostHandler(httpd_req_t* req)
 {
     auto* ctx = routeContextFrom(req);
@@ -2392,9 +2616,9 @@ std::expected<void, NetError> SetupWebServer::start(
     routeContext.deviceIdentity = deviceIdentity;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.stack_size = 12288;
+    config.stack_size = 14336; // +2 KB: 4980 B min free on 0.11.2
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 56; // 54 routes registered below as of 2026-10-21;
+    config.max_uri_handlers = 64; // 61 routes registered below as of 0.12.0;
                                    // keep headroom so a silent
                                    // httpd_register_uri_handler failure
                                    // ("no slots left") doesn't quietly drop
@@ -2844,8 +3068,63 @@ std::expected<void, NetError> SetupWebServer::start(
     };
     httpd_register_uri_handler(server_, &stationsTuneUri);
 
+    registerAlarmRoutes(routeCtx);
+    registerSpectrumRoutes(routeCtx);
+
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};
+}
+
+void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept
+{
+    gSystemDiagnostics = provider;
+}
+
+void setAlarmApi(const AlarmApi* api) noexcept
+{
+    gAlarmApi = api;
+}
+
+void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept
+{
+    gSpectrum = service;
+}
+
+void setSlideApi(const SlideApi* api) noexcept
+{
+    gSlideApi = api;
+}
+
+void SetupWebServer::registerSpectrumRoutes(void* routeCtx)
+{
+    const httpd_uri_t routes[] = {
+        {.uri = "/api/tuner/spectrum", .method = HTTP_GET,
+         .handler = spectrumGetHandler, .user_ctx = routeCtx},
+        {.uri = "/api/tuner/spectrum", .method = HTTP_POST,
+         .handler = spectrumPostHandler, .user_ctx = routeCtx},
+        {.uri = "/api/tuner/slide", .method = HTTP_GET,
+         .handler = slideGetHandler, .user_ctx = routeCtx},
+    };
+    for (const httpd_uri_t& route : routes) {
+        httpd_register_uri_handler(server_, &route);
+    }
+}
+
+void SetupWebServer::registerAlarmRoutes(void* routeCtx)
+{
+    const httpd_uri_t routes[] = {
+        {.uri = "/api/alarms", .method = HTTP_GET,
+         .handler = alarmsGetHandler, .user_ctx = routeCtx},
+        {.uri = "/api/alarms", .method = HTTP_PUT,
+         .handler = alarmsPutHandler, .user_ctx = routeCtx},
+        {.uri = "/api/system/sleep", .method = HTTP_GET,
+         .handler = sleepGetHandler, .user_ctx = routeCtx},
+        {.uri = "/api/system/sleep", .method = HTTP_POST,
+         .handler = sleepPostHandler, .user_ctx = routeCtx},
+    };
+    for (const httpd_uri_t& route : routes) {
+        httpd_register_uri_handler(server_, &route);
+    }
 }
 
 } // namespace net

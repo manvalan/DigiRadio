@@ -20,6 +20,9 @@ namespace si4684 {
 
 namespace {
 constexpr char kTag[] = "Si4684Tuner";
+/** RDS groups read per status request; the continuous drain
+ *  (pollBroadcastData) does the bulk of the work. */
+constexpr std::size_t kRdsGroupsPerStatus = 8U;
 constexpr std::uint32_t kFmSeekStepKhz = 100U;
 constexpr std::uint32_t kFmBandBottomKhz = 87500U;
 constexpr std::uint32_t kFmBandTopKhz = 107900U;
@@ -102,6 +105,7 @@ std::expected<void, core::TunerError> Si4684Tuner::ensureBandLoaded(
         lastDabServiceId_.reset();
         lastDabComponentId_.reset();
         dabDynamicLabel_.reset();
+        dls_.reset();
     }
 
     if (auto loaded = boot(band); !loaded) {
@@ -123,6 +127,7 @@ std::expected<void, core::TunerError> Si4684Tuner::ensureBandLoaded(
     } else {
         fmBandReady_ = false;
         dabDynamicLabel_.reset();
+        dls_.reset();
         lastDabServiceId_.reset();
         lastDabComponentId_.reset();
     }
@@ -149,6 +154,8 @@ std::expected<void, core::TunerError> Si4684Tuner::readSignalInto(
         status.dabRssiDbuV = dig->rssiDbuV;
         status.dabFicQuality = dig->ficQuality;
         status.dabCnrDb = dig->cnrDb;
+        status.dabFibErrors = dig->fibErrorCount;
+        status.dabFicErrors = dig->ficErrors;
         return {};
     }
     auto rsq = driver_.readFmRsq();
@@ -174,6 +181,87 @@ std::expected<void, core::TunerError> Si4684Tuner::readSignalInto(
     return {};
 }
 
+void Si4684Tuner::applyDlsSegment(const Si4684DabServiceData& data)
+{
+    dabDynamicLabel_.applySegment(data.segmentIndex, data.segmentCount,
+                                  data.payload);
+    if (const auto payload = dabDynamicLabel_.payload(); payload) {
+        dls_.apply(*payload);
+        dabDynamicLabel_.reset();
+    }
+}
+
+std::expected<void, core::TunerError> Si4684Tuner::pollBroadcastData(
+    core::IDabDataSink& sink, std::size_t maxPackets)
+{
+    if (driver_.loadedBand() == Si4684Band::Fm) {
+        return fmBandReady_ ? drainRds(maxPackets)
+                            : std::expected<void, core::TunerError>{};
+    }
+    if (!lastDabServiceId_) {
+        return {};
+    }
+    for (std::size_t i = 0U; i < maxPackets; ++i) {
+        auto data = driver_.readDabServiceData(false, true);
+        if (!data) {
+            // An oversized frame is skipped (already acknowledged); any
+            // other failure is an SPI/chip problem for the caller.
+            if (data.error() == Si4684Error::ReplyTooShort) {
+                continue;
+            }
+            return std::unexpected(mapError(data.error()));
+        }
+        if (!*data) {
+            return {};
+        }
+        dispatchDabData(**data, sink);
+        if ((*data)->bufferCount == 0U) {
+            return {};
+        }
+    }
+    return {};
+}
+
+std::expected<void, core::TunerError> Si4684Tuner::drainRds(
+    std::size_t maxGroups)
+{
+    // AN649 0x34 FM_RDS_STATUS returns the oldest group and RDSFIFOUSED in
+    // one reply, so an empty FIFO costs a single short command: groups are
+    // only read while the chip reports some.
+    for (std::size_t i = 0U; i < maxGroups; ++i) {
+        auto rds = driver_.readFmRds();
+        if (!rds) {
+            return std::unexpected(mapError(rds.error()));
+        }
+        if (!rds->received) {
+            return {};
+        }
+        rdsMetadata_.applyGroup(rds->blockA, rds->blockB, rds->blockC,
+                                rds->blockD, rds->blockErrors);
+        if (rds->fifoUsed <= 1U) {
+            return {};
+        }
+    }
+    return {};
+}
+
+void Si4684Tuner::dispatchDabData(const Si4684DabServiceData& data,
+                                  core::IDabDataSink& sink)
+{
+    // AN649 Table 20: Data/PAD/Audio 10 = DLS/DL+, 01 = X-PAD data with
+    // TYPE = DSCTy (60 = MOT). MOT groups are never DSRV-segmented in
+    // practice; a segmented one is dropped rather than misread.
+    constexpr std::uint8_t kSrcPadData = 1U;
+    constexpr std::uint8_t kSrcDls = 2U;
+    constexpr std::uint8_t kDsctyMot = 60U;
+    if (data.dataSrc == kSrcDls) {
+        applyDlsSegment(data);
+    } else if (data.dataSrc == kSrcPadData && data.dataType == kDsctyMot
+               && data.segmentCount <= 1U) {
+        sink.onMotDataGroup(data.serviceId, data.payload);
+    }
+}
+
 std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readSignal()
 {
     core::TunerStatus status = {};
@@ -190,39 +278,22 @@ std::expected<core::TunerStatus, core::TunerError> Si4684Tuner::readStatus()
         return std::unexpected(ok.error());
     }
     if (status.band == core::TunerBand::Dab) {
-        if (lastDabServiceId_) {
-            if (auto data = driver_.readDabServiceData(false, true); data) {
-                if (*data && (*data)->dataSrc == 2U) {
-                    dabDynamicLabel_.applySegment((*data)->segmentIndex,
-                                                  (*data)->segmentCount,
-                                                  (*data)->payload);
-                    status.dabDynamicLabel = dabDynamicLabel_.label();
-                }
-            } else {
-                return std::unexpected(mapError(data.error()));
-            }
-        }
+        // DLS arrives through pollBroadcastData() (the dab_data task), which
+        // drains every packet; reading one here starved it behind MOT.
+        status.dabDynamicLabel = dls_.label();
+        const core::DlPlusItem item = dls_.item();
+        status.dabDlPlusTitle = item.title;
+        status.dabDlPlusArtist = item.artist;
         return status;
     }
-    for (int attempt = 0; attempt < 8; ++attempt) {
-        auto rds = driver_.readFmRds();
-        if (!rds) {
-            ESP_LOGW(kTag, "FM RDS read failed (attempt %d)", attempt);
-            break;
-        }
-        if (!rds->received) {
-            break;
-        }
-        rdsMetadata_.applyGroup(rds->blockA,
-                                rds->blockB,
-                                rds->blockC,
-                                rds->blockD);
-        if (rds->fifoUsed <= 1U) {
-            break;
-        }
+    if (auto drained = drainRds(kRdsGroupsPerStatus); !drained) {
+        ESP_LOGW(kTag, "FM RDS read failed");
     }
     status.fmStationName = rdsMetadata_.programName();
     status.fmRadiotext = rdsMetadata_.radiotext();
+    const core::DlPlusItem item = rdsMetadata_.rtPlus();
+    status.fmRtPlusTitle = item.title;
+    status.fmRtPlusArtist = item.artist;
     status.fmProgramId = rdsMetadata_.programIdentification();
     status.fmAlternateFrequencies.clear();
     for (const std::uint32_t khz : rdsMetadata_.alternateFrequenciesKhz()) {
@@ -244,6 +315,7 @@ std::expected<void, core::TunerError> Si4684Tuner::tuneDab(
     }
     dabIndex_ = freqIndex;
     dabDynamicLabel_.reset();
+    dls_.reset();
     lastDabServiceId_.reset();
     lastDabComponentId_.reset();
     return {};
@@ -377,6 +449,7 @@ std::expected<void, core::TunerError> Si4684Tuner::playDabService(
     lastDabServiceId_ = serviceId;
     lastDabComponentId_ = componentId;
     dabDynamicLabel_.reset();
+    dls_.reset();
     return {};
 }
 

@@ -20,6 +20,7 @@
 #include "core/TunerJson.hpp"
 #include "core/TunerStatus.hpp"
 
+#include <atomic>
 #include <cstdint>
 #include <expected>
 #include <mutex>
@@ -265,6 +266,41 @@ public:
     void recordDabFollow(bool switched);
 
     /**
+     * @brief    setDabReturnMinutes — interval of FM→DAB return attempts.
+     *
+     * @dname    setDabReturnMinutes
+     * @param    minutes  0 (never) to core::kMaxDabReturnMinutes.
+     * @pubstate writes afStats_.dabReturnMinutes (not persisted).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void setDabReturnMinutes(std::uint16_t minutes);
+
+    /**
+     * @brief    setOnFmFallback — note whether linked FM replaces DAB now.
+     *
+     * @dname    setOnFmFallback
+     * @param    active  true after DAB following moved to FM.
+     * @pubstate writes afStats_.onFmFallback.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void setOnFmFallback(bool active);
+
+    /**
+     * @brief    recordDabReturn — note a successful return from FM to DAB.
+     *
+     * @dname    recordDabReturn
+     * @pubstate increments afStats_.dabReturns.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void recordDabReturn();
+
+    /**
      * @brief    tuner — borrow the underlying driver for diagnostics.
      *
      * @dname    tuner
@@ -300,6 +336,50 @@ public:
      * @date     2026-10-21
      */
     void setAfFollowEnabled(bool enabled);
+
+    /**
+     * @brief    setSweepActive — mark a long tuner sweep (spectrum) running.
+     *
+     * @dname    setSweepActive
+     * @param    active  true while a sweep owns the tuner.
+     * @pubstate writes sweepActive_ (atomic, no lock).
+     *
+     * Background followers check sweepActive() and stand aside, so they
+     * neither retune mid-sweep nor read the swept noise as a fading
+     * station.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void setSweepActive(bool active) noexcept;
+
+    /**
+     * @brief    pollBroadcastData — drain the DAB data services under the lock.
+     *
+     * @dname    pollBroadcastData
+     * @param    sink        Receiver of MOT data groups.
+     * @param    maxPackets  Packets read at most.
+     * @return   Ok, or the tuner error.
+     * @pubstate holds mutex_; ITuner::pollBroadcastData() (updates the DLS kept
+     *           by the tuner).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] std::expected<void, core::TunerError> pollBroadcastData(
+        core::IDabDataSink& sink, std::size_t maxPackets);
+
+    /**
+     * @brief    sweepActive — whether a spectrum sweep owns the tuner.
+     *
+     * @dname    sweepActive
+     * @return   true between setSweepActive(true) and (false).
+     * @pubstate reads sweepActive_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] bool sweepActive() const noexcept;
 
     /**
      * @brief    recordAfHunt — note that the AF task probed alternates.
@@ -348,6 +428,7 @@ private:
     std::optional<std::uint32_t> lastPlayedComponentId_;
     core::AfFollowStats afStats_{};
     std::recursive_mutex mutex_;
+    std::atomic<bool> sweepActive_{false};
 };
 
 } // namespace tuner

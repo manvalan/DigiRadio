@@ -13,6 +13,8 @@
 
 #include "core/StationListJson.hpp"
 
+#include "core/JsonText.hpp"
+
 #include <cstdlib>
 #include <sstream>
 
@@ -83,7 +85,8 @@ parseBandField(std::string_view json)
 [[nodiscard]] std::expected<Station, ParseError>
 parseStationObject(std::string_view json)
 {
-    const std::string_view nameRaw = extractJsonString(json, "name");
+    const std::string nameRaw =
+        unescapeJsonString(extractJsonString(json, "name"));
     auto name = StationName::tryFrom(nameRaw);
     if (!name) {
         return std::unexpected(ParseError::MissingField);

@@ -13,58 +13,41 @@
 
 #include "core/DabDynamicLabelAccumulator.hpp"
 
-#include <algorithm>
-#include <cstring>
-
 namespace core {
 
 void DabDynamicLabelAccumulator::reset() noexcept
 {
-    buffer_.fill('\0');
-    segmentValid_.fill(false);
+    bytes_.clear();
+    nextSegment_ = 0U;
     expectedSegments_ = 0U;
 }
 
 void DabDynamicLabelAccumulator::applySegment(
     std::uint16_t segmentIndex,
     std::uint16_t segmentCount,
-    std::span<const std::uint8_t> payload) noexcept
+    std::span<const std::uint8_t> payload)
 {
-    if (segmentCount == 0U || segmentCount > kMaxSegments) {
-        return;
-    }
-    if (segmentIndex >= segmentCount) {
-        return;
-    }
-    if (expectedSegments_ != segmentCount) {
+    const std::uint16_t count = segmentCount == 0U ? 1U : segmentCount;
+    if (segmentIndex == 0U) {
         reset();
-        expectedSegments_ = segmentCount;
+        expectedSegments_ = count;
     }
-
-    const std::size_t offset =
-        static_cast<std::size_t>(segmentIndex)
-        * static_cast<std::size_t>(payload.size());
-    if (offset >= buffer_.size()) {
+    if (count != expectedSegments_ || segmentIndex != nextSegment_
+        || bytes_.size() + payload.size() > kMaxBytes) {
+        reset();
         return;
     }
-    const std::size_t copyLen =
-        std::min(payload.size(), buffer_.size() - offset);
-    std::memcpy(buffer_.data() + offset, payload.data(), copyLen);
-    segmentValid_[segmentIndex] = true;
+    bytes_.insert(bytes_.end(), payload.begin(), payload.end());
+    ++nextSegment_;
 }
 
-std::optional<BroadcastLabel> DabDynamicLabelAccumulator::label() const
+std::optional<std::span<const std::uint8_t>>
+DabDynamicLabelAccumulator::payload() const noexcept
 {
-    if (expectedSegments_ == 0U) {
+    if (expectedSegments_ == 0U || nextSegment_ != expectedSegments_) {
         return std::nullopt;
     }
-    for (std::uint16_t i = 0U; i < expectedSegments_; ++i) {
-        if (!segmentValid_[i]) {
-            return std::nullopt;
-        }
-    }
-    return BroadcastLabel::tryFromChipBytes(
-        std::string_view(buffer_.data(), buffer_.size()));
+    return std::span<const std::uint8_t>(bytes_);
 }
 
 } // namespace core

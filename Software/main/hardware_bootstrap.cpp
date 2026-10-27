@@ -28,10 +28,13 @@
 #include "si4684/Si4684Band.hpp"
 #include "si4684/Si4684Driver.hpp"
 #include "si4684/Si4684EmbeddedImages.hpp"
+#include "si4684/Si4684ImageStore.hpp"
 #include "si4684/Si4684Tuner.hpp"
 
 #include "driver/spi_master.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -40,7 +43,13 @@ namespace hardware {
 namespace {
 constexpr char kTag[] = "hw_boot";
 
+si4684::Si4684ImageStore gImageStore;
+#if CONFIG_SI4684_EMBEDDED_IMAGES
 si4684::Si4684EmbeddedImages gImages;
+#else
+// Release builds carry no Si4684 code: the driver reads the flash store.
+si4684::Si4684ImageStore& gImages = gImageStore;
+#endif
 si4684::Si4684Driver gSi4684(
     si4684::Si4684Pins{
         .spiHost = SPI2_HOST,
@@ -139,6 +148,50 @@ void applyBt1035PostBootSetup()
  * @author   Michele Bigi
  * @date     2026-08-21
  */
+#if CONFIG_SI4684_EMBEDDED_IMAGES
+/**
+ * @brief    imageStoreTask — copy the embedded Si4684 images into the
+ *           flash store once, so later builds can leave them out.
+ *
+ * @dname    imageStoreTask
+ * @pubstate erases/writes the store region only when it differs; exits.
+ *           Not watched by system_diag, so it may delete itself.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void imageStoreTask(void* /*arg*/)
+{
+    if (!gImageStore.fillFrom(gImages.romPatch(), gImages.dabFirmware(),
+                              gImages.fmFirmware())) {
+        ESP_LOGE(kTag, "Si4684 image store not written");
+    }
+    vTaskDelete(nullptr);
+}
+#else
+/**
+ * @brief    rollBackIfUnconfirmed — an OTA image that cannot find the
+ *           Si4684 images gives the radio back to the previous one.
+ *
+ * @dname    rollBackIfUnconfirmed
+ * @pubstate reboots into the previous slot when the running image is still
+ *           in OTA probation; otherwise returns.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void rollBackIfUnconfirmed()
+{
+    esp_ota_img_states_t state = ESP_OTA_IMG_UNDEFINED;
+    if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &state)
+            == ESP_OK
+        && state == ESP_OTA_IMG_PENDING_VERIFY) {
+        ESP_LOGE(kTag, "no Si4684 images in flash: rolling back");
+        esp_ota_mark_app_invalid_rollback_and_reboot();
+    }
+}
+#endif
+
 void bt1035RetryTask(void* /*arg*/)
 {
     ESP_LOGW(kTag, "BT1035 background retry started");
@@ -209,6 +262,14 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         ESP_LOGW(kTag, "Xtal calibration read failed — using compiled-in "
                        "defaults");
     }
+
+#if !CONFIG_SI4684_EMBEDDED_IMAGES
+    if (!gImageStore.open()) {
+        rollBackIfUnconfirmed();
+        ESP_LOGE(kTag, "Si4684 images missing from flash: run a full build once");
+        return std::unexpected(HardwareBootError::Si4684BootFailed);
+    }
+#endif
 
     if (auto tunerResult = gSi4684.boot(si4684::Si4684Band::Dab, xtalIbias,
                                         xtalCtun, xtalFreqHz);
@@ -284,9 +345,22 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         ESP_LOGW(kTag, "BT1035 boot deferred to background");
     }
 
+#if CONFIG_SI4684_EMBEDDED_IMAGES
+    // Low priority: the copy erases ~1 MB once and must not delay audio.
+    if (xTaskCreate(imageStoreTask, "si_store", 4096, nullptr, 1, nullptr)
+        != pdPASS) {
+        ESP_LOGW(kTag, "Si4684 image store task create failed");
+    }
+#endif
+
     gReady = true;
     ESP_LOGI(kTag, "companion chips ready");
     return {};
+}
+
+const char* HardwareBootstrap::imageStoreState() noexcept
+{
+    return gImageStore.stateToken();
 }
 
 si4684::Si4684Tuner& HardwareBootstrap::si4684Tuner()

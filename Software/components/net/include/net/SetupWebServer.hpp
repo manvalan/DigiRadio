@@ -20,6 +20,7 @@
 #include "core/CompanionChipStatus.hpp"
 #include "core/DeviceIdentity.hpp"
 #include "core/ISecureStore.hpp"
+#include "core/ISlideWriter.hpp"
 #include "net/NetError.hpp"
 #include "net/NetState.hpp"
 
@@ -27,6 +28,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
 
 namespace audio {
 class AudioService;
@@ -50,6 +55,7 @@ class OtaService;
 
 namespace tuner {
 class TunerService;
+class SpectrumScanService;
 } // namespace tuner
 
 namespace webradio {
@@ -246,6 +252,9 @@ public:
         const core::DeviceIdentity& deviceIdentity);
 
 private:
+    void registerAlarmRoutes(void* routeCtx);
+    void registerSpectrumRoutes(void* routeCtx);
+
     httpd_handle_t server_;
     core::ISecureStore* store_;
     NetState netState_;
@@ -255,5 +264,107 @@ private:
     station::StationService* stations_;
     integration::IntegrationService* integration_;
 };
+
+/** Builds the JSON object reported as "system" in GET /api/health. */
+using SystemDiagnosticsProvider = std::string (*)();
+
+/**
+ * @brief    setSystemDiagnosticsProvider — plug runtime diagnostics into
+ *           GET /api/health.
+ *
+ * The figures (reset reason, heap, task stacks) are owned by main, which
+ * knows the task handles; the web server only embeds the JSON.
+ *
+ * @dname    setSystemDiagnosticsProvider
+ * @param    provider  Function returning a JSON object, or nullptr.
+ * @pubstate stores the pointer for later health requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept;
+
+/**
+ * @brief    AlarmApi — alarm table and sleep timer, owned by main.
+ *
+ * The clock, the NVS copy and the task that fires alarms live in main
+ * (main/alarm_clock.cpp); the web server only moves JSON. A setter
+ * returns the response JSON, or nullopt when the body was rejected (400).
+ *
+ * @dname    AlarmApi
+ * @return   n/a (type)
+ * @pubstate set once at boot by setAlarmApi().
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+struct AlarmApi {
+    std::string (*statusJson)();                       ///< GET /api/alarms.
+    std::optional<std::string> (*replaceTable)(std::string_view body); ///< PUT.
+    std::string (*sleepJson)();                        ///< GET /api/system/sleep.
+    std::optional<std::string> (*setSleep)(std::string_view body); ///< POST.
+};
+
+/**
+ * @brief    setAlarmApi — plug the alarm table and sleep timer into the
+ *           HTTP API (/api/alarms, /api/system/sleep).
+ *
+ * @dname    setAlarmApi
+ * @param    api  Static callbacks, or nullptr (routes answer 503).
+ * @pubstate stores the pointer for later requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setAlarmApi(const AlarmApi* api) noexcept;
+
+/**
+ * @brief    setSpectrumScanService — plug the RF band sweep into
+ *           GET/POST /api/tuner/spectrum.
+ *
+ * @dname    setSpectrumScanService
+ * @param    service  Sweep service with static lifetime, or nullptr
+ *                    (routes answer 503).
+ * @pubstate stores the pointer for later requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept;
+
+/**
+ * @brief    SlideApi — the DAB slideshow image, owned by main.
+ *
+ * Slides are assembled into flash by main/dab_slideshow.cpp; the web
+ * server streams the current one and reports its id in the status.
+ *
+ * @dname    SlideApi
+ * @return   n/a (type)
+ * @pubstate set once at boot by setSlideApi().
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+struct SlideApi {
+    /** Current slide, or nullopt. */
+    std::optional<core::SlideInfo> (*current)();
+    /** Copy slide bytes from offset; returns bytes copied (0 at the end). */
+    std::size_t (*read)(std::uint32_t offset, std::span<std::uint8_t> out);
+    /** A client looked at the slideshow: keep assembling slides. */
+    void (*touch)();
+};
+
+/**
+ * @brief    setSlideApi — plug the slideshow into GET /api/tuner/slide and
+ *           the "slide_id" of GET /api/tuner/status.
+ *
+ * @dname    setSlideApi
+ * @param    api  Static callbacks, or nullptr (404, no slide_id).
+ * @pubstate stores the pointer for later requests.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+void setSlideApi(const SlideApi* api) noexcept;
 
 } // namespace net

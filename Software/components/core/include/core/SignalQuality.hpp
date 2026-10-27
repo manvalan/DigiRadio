@@ -37,6 +37,8 @@ struct SignalQuality {
     std::optional<std::int8_t> levelDbuV; ///< RSSI in dBµV.
     std::optional<std::int8_t> snrDb;   ///< FM SNR or DAB CNR in dB.
     std::optional<std::uint8_t> ficQuality; ///< DAB FIC quality 0–100.
+    std::optional<std::uint16_t> fibErrors; ///< DAB FIB CRC errors (count).
+    std::optional<bool> ficErrors;      ///< DAB FICERR flag.
     std::uint8_t quality;               ///< Goodness 0 (none) – 100.
 };
 

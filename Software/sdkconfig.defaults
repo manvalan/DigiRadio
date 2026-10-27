@@ -35,3 +35,35 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # stack this firmware needs is a single GATT peripheral role for provisioning.
 CONFIG_BT_ENABLED=y
 CONFIG_BT_NIMBLE_ENABLED=y
+
+# Internal RAM is the bottleneck (no PSRAM): 0.10.1 ran with 39 KB free and
+# an 8.7 KB largest block. Code that IDF places in IRAM by default for
+# throughput is moved to flash, which returns that DIRAM to the heap;
+# 128 kbit/s audio does not need the extra Wi-Fi speed. (0.10.0 also
+# widened the TCP window to 32 KB; reverted, since lwIP holds that window in
+# heap pbufs.) NOTE: an existing local sdkconfig keeps its old values;
+# delete sdkconfig to pick these up.
+CONFIG_ESP_WIFI_IRAM_OPT=n
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
+CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH=y
+
+# Web radio over HTTPS (fw 0.12.1): with static buffers mbedTLS holds a
+# 16 KB input + 4 KB output record buffer for the whole connection, and
+# 0.12.0 left too little heap for them next to the ring and the MP3
+# decoder. Dynamic buffers size each record buffer to the record and free
+# the CA chain and config data once the handshake is done.
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
+
+# fw 0.12.4: Wi-Fi may hold up to this many dynamic RX buffers (~1.6 KB
+# each). The default 32 let a 256 kbit/s stream take the last 10 KB of
+# heap in 0.12.3, after which Wi-Fi itself could not allocate. TCP window
+# is 5760 B (4 segments), so 12 still covers it and the AMPDU window (6).
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=12
+
+# fw 0.12.4: a task-watchdog timeout (idle task starved for 5 s) resets
+# the chip. With the health-gated OTA confirm, an image that locks up is
+# then rolled back instead of staying hung until a power cycle.
+CONFIG_ESP_TASK_WDT_PANIC=y
