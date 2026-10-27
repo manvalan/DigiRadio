@@ -388,6 +388,62 @@ standby every master write is replaced by the mute floor while the
 profile keeps the user's levels, so \texttt{setPowerState(On)} restores
 them exactly (\texttt{/api/system/power},
 Section~\ref{sec:api-system-power}).
+Since 0.13.0 a change of input is click-free: the master ramps down in
+three steps, MX1 switches, the \texttt{IAudioSourceListener} runs, then
+the master ramps back (about 60\,ms). \texttt{applyPreset()} recalls a
+preset's EQ and enhancements without touching volume or input.
+
+\section{PresetId}\label{cls:PresetId}
+Strong type naming an audio preset: 0--5 are the factory presets
+(Neutro, Voce, Bassi, Brillante, Loudness, Notte), 10--19 the ten user
+slots. Built by \texttt{PresetId::tryFromValue()} or
+\texttt{PresetId::user(slot)}.
+
+\section{PresetName}\label{cls:PresetName}
+Strong type for a preset label (1--15 bytes, no quotes, backslashes or
+control characters, so it can be written into JSON without escaping).
+
+\section{AudioPresetBank}\label{cls:AudioPresetBank}
+Everything the preset feature persists: the ten user slots, the preset
+recalled automatically per input (radio, ESP32 stream) and the last preset
+recalled. Factory presets are not stored; \texttt{find()} resolves them.
+Codecs in \texttt{core/AudioPresetCodec.hpp} write the full NVS blob and the
+compact EEPROM image (slots 0--5, 7-character names, 0.5\,dB steps, one
+CRC-8 per 16-byte page so a torn write only drops that slot).
+Host-tested in \texttt{audio\_preset\_test}.
+
+\section{IAudioPresetStore}\label{cls:IAudioPresetStore}
+Load/save interface for an \texttt{AudioPresetBank}. Implemented by
+\texttt{NvsAudioPresetStore} (primary) and \texttt{EepromAudioPresetStore}
+(backup).
+
+\section{NvsAudioPresetStore}\label{cls:NvsAudioPresetStore}
+\texttt{IAudioPresetStore} keeping the full bank as a blob under NVS key
+\texttt{audio\_presets} (namespace \texttt{digiradio}).
+
+\section{EepromAudioPresetStore}\label{cls:EepromAudioPresetStore}
+\texttt{IAudioPresetStore} keeping the compact preset image in the
+24AA025E48 at word addresses 0x10--0x7F (below the calibration bytes'
+neighbours and the factory EUI-48). It survives an NVS erase or a full
+flash erase of the ESP32. \texttt{Eeprom24aa::writePresetImage()} reads the
+region first and rewrites only the 16-byte pages that changed.
+
+\section{IAudioSourceListener}\label{cls:IAudioSourceListener}
+Callback that \texttt{AudioService} runs after MX1 changed input while the
+master is still faded down, so a listener can change the EQ without an
+audible jump.
+
+\section{PresetService}\label{cls:PresetService}
+Owns the \texttt{AudioPresetBank} and drives \texttt{AudioService}:
+\texttt{apply()} recalls a preset's EQ, bass and stereo levels (volume and
+input are never part of a preset), \texttt{saveCurrent()} stores the live
+sound in a user slot, \texttt{erase()} and \texttt{setDefaults()} manage
+slots and per-input defaults. At boot \texttt{load()} reads NVS and falls
+back to the EEPROM copy, writing it back to NVS. As the
+\texttt{IAudioSourceListener} it recalls the input's default preset on
+every input change. Exposed on \texttt{/api/audio/presets}
+(Section~\ref{sec:api-audio-presets}) and the web UI Audio section.
+Host-tested in \texttt{preset\_service\_test}.
 
 \section{EnhanceLevel}\label{cls:EnhanceLevel}
 Strong type for 0--100 enhancement intensity (stereo depth and bass boost).

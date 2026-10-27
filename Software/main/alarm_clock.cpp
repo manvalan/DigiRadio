@@ -421,7 +421,9 @@ bool start(const Services& services)
     loadTable();
     net::setAlarmApi(&kAlarmApi);
     TaskHandle_t handle = nullptr;
-    if (xTaskCreate(alarmTask, "alarm", 6144, nullptr, 3, &handle) != pdPASS) {
+    // turnOn() runs the whole tune + audio + BT reconnect path in this task;
+    // 8 KB leaves room for it (0.12.5 overflowed 6 KB at the 07:00 alarm).
+    if (xTaskCreate(alarmTask, "alarm", 8192, nullptr, 3, &handle) != pdPASS) {
         return false;
     }
     system_diag::watchTask("alarm", handle);

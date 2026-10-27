@@ -18,6 +18,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include <algorithm>
 #include <array>
 
 namespace eeprom24aa {
@@ -41,6 +42,15 @@ constexpr int kI2cTimeoutMs = 100;
 /** DS20001191 §"Page Write"/"Byte Write": max write cycle time after STOP
  *  before the chip acknowledges further I2C traffic. */
 constexpr int kI2cWriteCycleMs = 5;
+/** 24AA025E48 page size: a page write must not cross a 16-byte boundary. */
+constexpr std::size_t kPageSize = 16U;
+static_assert(core::kPresetEepromBase % kPageSize == 0U,
+              "preset image must start on a page boundary");
+static_assert(core::kPresetEepromImageSize % kPageSize == 0U,
+              "preset image must be whole pages");
+static_assert(core::kPresetEepromBase + core::kPresetEepromImageSize
+                  <= kEui48WordAddress,
+              "preset image must stay below the EUI-48 block");
 
 } // namespace
 
@@ -312,6 +322,89 @@ Eeprom24aa::writeXtalCalibration(const XtalCalibration& calibration)
     }
 
     vTaskDelay(pdMS_TO_TICKS(kI2cWriteCycleMs));
+    return {};
+}
+
+std::expected<core::PresetEepromImage, core::IdentityError>
+Eeprom24aa::readPresetImage()
+{
+    if (bus_ == nullptr) {
+        return std::unexpected(core::IdentityError::I2cFailed);
+    }
+
+    i2c_device_config_t devCfg = {};
+    devCfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+    devCfg.device_address = addr7_;
+    devCfg.scl_speed_hz = 100000;
+
+    i2c_master_dev_handle_t dev = nullptr;
+    if (i2c_master_bus_add_device(bus_, &devCfg, &dev) != ESP_OK) {
+        ESP_LOGW(kTag, "i2c_master_bus_add_device failed");
+        return std::unexpected(core::IdentityError::I2cFailed);
+    }
+
+    const std::uint8_t wordAddress = core::kPresetEepromBase;
+    core::PresetEepromImage image{};
+    const esp_err_t err = i2c_master_transmit_receive(
+        dev, &wordAddress, 1U, image.data(), image.size(), kI2cTimeoutMs);
+
+    i2c_master_bus_rm_device(dev);
+
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "preset image read failed (err=0x%x)",
+                 static_cast<unsigned>(err));
+        return std::unexpected(core::IdentityError::ReadFailed);
+    }
+    return image;
+}
+
+std::expected<void, core::IdentityError>
+Eeprom24aa::writePresetImage(const core::PresetEepromImage& image)
+{
+    const auto current = readPresetImage();
+    if (!current) {
+        return std::unexpected(core::IdentityError::I2cFailed);
+    }
+
+    i2c_device_config_t devCfg = {};
+    devCfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+    devCfg.device_address = addr7_;
+    devCfg.scl_speed_hz = 100000;
+
+    i2c_master_dev_handle_t dev = nullptr;
+    if (i2c_master_bus_add_device(bus_, &devCfg, &dev) != ESP_OK) {
+        ESP_LOGW(kTag, "i2c_master_bus_add_device failed");
+        return std::unexpected(core::IdentityError::I2cFailed);
+    }
+
+    esp_err_t err = ESP_OK;
+    unsigned pagesWritten = 0;
+    for (std::size_t offset = 0; offset < image.size(); offset += kPageSize) {
+        if (std::equal(image.begin() + offset,
+                       image.begin() + offset + kPageSize,
+                       current->begin() + offset)) {
+            continue;
+        }
+        std::array<std::uint8_t, kPageSize + 1U> payload = {};
+        payload[0] = static_cast<std::uint8_t>(core::kPresetEepromBase + offset);
+        std::copy_n(image.begin() + offset, kPageSize, payload.begin() + 1);
+        err = i2c_master_transmit(dev, payload.data(), payload.size(),
+                                  kI2cTimeoutMs);
+        if (err != ESP_OK) {
+            break;
+        }
+        ++pagesWritten;
+        vTaskDelay(pdMS_TO_TICKS(kI2cWriteCycleMs));
+    }
+
+    i2c_master_bus_rm_device(dev);
+
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "preset image write failed (err=0x%x)",
+                 static_cast<unsigned>(err));
+        return std::unexpected(core::IdentityError::I2cFailed);
+    }
+    ESP_LOGI(kTag, "preset image: %u page(s) written", pagesWritten);
     return {};
 }
 

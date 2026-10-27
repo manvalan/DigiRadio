@@ -19,11 +19,14 @@
 #include "adau1701/FallbackDspProgramSource.hpp"
 #include "adau1701/FlashDspProgramSource.hpp"
 #include "audio/AudioService.hpp"
+#include "audio/PresetService.hpp"
 #include "board_pins.hpp"
 #include "bt1035/Bt1035Driver.hpp"
 #include "core/DeviceIdentity.hpp"
 #include "driver/i2c_master.h"
 #include "eeprom24aa/Eeprom24aa.hpp"
+#include "eeprom24aa/EepromAudioPresetStore.hpp"
+#include "secure_store/NvsAudioPresetStore.hpp"
 #include "secure_store/NvsAudioProfileStore.hpp"
 #include "si4684/Si4684Band.hpp"
 #include "si4684/Si4684Driver.hpp"
@@ -37,6 +40,8 @@
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#include <optional>
 
 namespace hardware {
 
@@ -81,6 +86,11 @@ adau1701::Adau1701Driver gAdau1701(
 adau1701::Adau1701Dsp gAdau1701Dsp(gAdau1701);
 secure_store::NvsAudioProfileStore gAudioStore;
 audio::AudioService gAudioService(gAdau1701Dsp, &gAudioStore);
+// Presets need the EEPROM, whose I2C bus only exists once ADAU1701 booted.
+secure_store::NvsAudioPresetStore gPresetNvs;
+std::optional<eeprom24aa::Eeprom24aa> gPresetEeprom;
+std::optional<eeprom24aa::EepromAudioPresetStore> gPresetBackup;
+std::optional<audio::PresetService> gPresets;
 
 bt1035::Bt1035Driver gBt1035(
     bt1035::Bt1035Pins{
@@ -332,6 +342,14 @@ std::expected<void, HardwareBootError> HardwareBootstrap::boot()
         }
     }
 
+    if (!gPresets) {
+        gPresetEeprom.emplace(makeEeprom());
+        gPresetBackup.emplace(*gPresetEeprom);
+        gPresets.emplace(gAudioService, &gPresetNvs, &*gPresetBackup);
+        (void)gPresets->load();
+        gAudioService.setSourceListener(&*gPresets);
+    }
+
     // Do not block Wi-Fi/HTTP on BT1035 UART bring-up (~25 s per attempt,
     // intermittent silence). The retry task owns boot(); SoftAP setup must
     // not call setEnabled() on the net thread before the web server starts.
@@ -371,6 +389,11 @@ si4684::Si4684Tuner& HardwareBootstrap::si4684Tuner()
 audio::AudioService& HardwareBootstrap::audioService()
 {
     return gAudioService;
+}
+
+audio::PresetService* HardwareBootstrap::presetService() noexcept
+{
+    return gPresets ? &*gPresets : nullptr;
 }
 
 core::CompanionChipStatus HardwareBootstrap::companionChipStatus() noexcept

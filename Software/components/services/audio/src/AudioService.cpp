@@ -14,6 +14,10 @@
 #include "audio/AudioService.hpp"
 
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#include <array>
 
 namespace audio {
 
@@ -27,6 +31,17 @@ constexpr char kTag[] = "AudioService";
 [[nodiscard]] core::GainDb muteGain()
 {
     return *core::GainDb::tryFromDb(core::GainDb::kMinDb);
+}
+
+/** Attenuation steps of the source-switch fade (dB below the user level). */
+constexpr std::array<float, 3> kFadeStepsDb{-8.0F, -20.0F, -40.0F};
+
+[[nodiscard]] core::GainDb attenuated(core::GainDb level, float stepDb)
+{
+    const float db = level.value() + stepDb;
+    return *core::GainDb::tryFromDb(db < core::GainDb::kMinDb
+                                        ? core::GainDb::kMinDb
+                                        : db);
 }
 
 } // namespace
@@ -96,10 +111,14 @@ std::expected<void, core::StoreError> AudioService::applyProfileToDsp(
 std::expected<void, core::StoreError> AudioService::applyProfile(
     const core::AudioProfile& profile, bool persist)
 {
-    if (auto applied = applyProfileToDsp(profile); !applied) {
-        return applied;
+    if (profile.activeSource == profile_.activeSource) {
+        if (auto applied = applyProfileToDsp(profile); !applied) {
+            return applied;
+        }
+        profile_ = profile;
+    } else if (auto switched = applySwitchingProfile(profile); !switched) {
+        return switched;
     }
-    profile_ = profile;
     if (persist) {
         return persistProfile();
     }
@@ -109,14 +128,87 @@ std::expected<void, core::StoreError> AudioService::applyProfile(
 std::expected<void, core::StoreError> AudioService::selectSource(
     core::ActiveSource source, bool persist)
 {
-    if (auto applied = dsp_.selectSource(source); !applied) {
+    if (auto applied = switchInput(source); !applied) {
         return std::unexpected(core::StoreError::IoFailed);
     }
-    profile_.activeSource = source;
     if (persist) {
         return persistProfile();
     }
     return {};
+}
+
+std::expected<void, core::StoreError> AudioService::applySwitchingProfile(
+    const core::AudioProfile& profile)
+{
+    fadeMaster(true);
+    core::AudioProfile muted = profile;
+    muted.masterLeft = muteGain();
+    muted.masterRight = muteGain();
+    auto applied = applyProfileToDsp(muted);
+    if (applied) {
+        profile_ = profile;
+    }
+    fadeMaster(false);
+    return applied;
+}
+
+std::expected<void, core::StoreError> AudioService::applyPreset(
+    const core::AudioPreset& preset, bool persist)
+{
+    const bool ok = dsp_.applyEq(preset.eq)
+                    && dsp_.setBassBoostLevel(preset.enhancements.bass)
+                    && dsp_.setStereoSpreadLevel(preset.enhancements.stereo);
+    if (!ok) {
+        return std::unexpected(core::StoreError::IoFailed);
+    }
+    profile_.eq = preset.eq;
+    profile_.enhancements = preset.enhancements;
+    if (persist) {
+        return persistProfile();
+    }
+    return {};
+}
+
+void AudioService::setSourceListener(
+    core::IAudioSourceListener* listener) noexcept
+{
+    listener_ = listener;
+}
+
+std::expected<void, core::DspError> AudioService::switchInput(
+    core::ActiveSource source)
+{
+    if (source == profile_.activeSource) {
+        return dsp_.selectSource(source); // re-assert, nothing to fade
+    }
+    fadeMaster(true);
+    auto applied = dsp_.selectSource(source);
+    if (applied) {
+        profile_.activeSource = source;
+        if (listener_ != nullptr) {
+            listener_->onSourceSelected(source);
+        }
+    }
+    fadeMaster(false);
+    return applied;
+}
+
+void AudioService::fadeMaster(bool down)
+{
+    if (powerState_ == core::PowerState::Standby) {
+        return; // already muted
+    }
+    for (std::size_t i = 0; i < kFadeStepsDb.size(); ++i) {
+        const float step =
+            kFadeStepsDb[down ? i : kFadeStepsDb.size() - 1U - i];
+        // Best effort: a failed step only makes the switch less smooth.
+        (void)dsp_.setMasterVolume(attenuated(profile_.masterLeft, step),
+                                   attenuated(profile_.masterRight, step));
+        vTaskDelay(1);
+    }
+    if (!down) {
+        (void)writeMaster(profile_.masterLeft, profile_.masterRight);
+    }
 }
 
 std::expected<void, core::StoreError> AudioService::setMasterVolume(

@@ -23,6 +23,7 @@
 
 namespace audio {
 class AudioService;
+class PresetService;
 } // namespace audio
 
 namespace si4684 {
@@ -101,6 +102,19 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static audio::AudioService& audioService();
+
+    /**
+     * @brief    presetService — borrow the audio preset service after boot.
+     *
+     * @dname    presetService
+     * @return   The static PresetService, or nullptr before a successful
+     *           boot().
+     * @pubstate reads static storage initialised by boot().
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-27
+     */
+    [[nodiscard]] static audio::PresetService* presetService() noexcept;
 
     /**
      * @brief    companionChipStatus — snapshot of companion-chip boot flags.

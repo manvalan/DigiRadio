@@ -554,6 +554,36 @@ Adjusts bass emphasis via a PEQ overlay on bands 1--2 (100\,Hz /
 400\,Hz). Request and response schema match
 \texttt{POST /api/audio/stereo-enhance} (Section~\ref{sec:api-audio-stereo-enhance}).
 
+\apiendpoint{GET / POST}{/api/audio/presets}
+\label{sec:api-audio-presets}
+
+Sound presets (\texttt{PresetService}, Section~\ref{cls:PresetService}). A
+preset holds the six EQ bands plus the stereo and bass levels; master
+volume and input are never changed by a preset. Ids 0--5 are factory
+presets, 10--19 the user slots 0--9.
+
+\texttt{GET /api/audio/presets} returns:
+\begin{drcode}[JSON]
+{"factory":[{"id":0,"name":"Neutro","eq":[0.0,...],
+             "stereo_level":0,"bass_level":0}, ...],
+ "user":[null,{"slot":1,"id":11,"name":"Jazz",...},null, ...],
+ "defaults":{"radio":null,"stream":11},"last":11}
+\end{drcode}
+
+\begin{tabular}{@{}ll@{}}
+\texttt{POST .../apply} & \texttt{\{"id":N\}} recall live, profile saved \\
+\texttt{POST .../save} & \texttt{\{"slot":0..9,"name":"..."\}} store the live sound \\
+\texttt{POST .../delete} & \texttt{\{"slot":0..9\}} empty a slot \\
+\texttt{POST .../defaults} & \texttt{\{"radio":N|null,"stream":N|null\}} \\
+\end{tabular}
+
+Each POST answers with the updated list (same schema as GET). HTTP status:
+\textbf{200 OK}; \textbf{400} for a bad body (\texttt{reason} as for the
+other audio routes); \textbf{404} \texttt{empty\_slot} when the id or a
+default names an empty slot; \textbf{500} \texttt{store\_failed};
+\textbf{503} before the presets are loaded. Saves, deletes and defaults
+also update the EEPROM backup (slots 0--5); \texttt{apply} writes NVS only.
+
 \apiendpoint{POST}{/api/audio/beep}
 \label{sec:api-audio-beep}
 
