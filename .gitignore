@@ -29,3 +29,6 @@ Software/sdkconfig 2
 Software/sdkconfig 3
 Software/sdkconfig 4
 .DS_Store
+
+# iOS app: moved to a private repository (manvalan/igiRadio)
+Software/APP/
