@@ -71,6 +71,10 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/AlarmSchedule.cpp"
     "${CORE_SRC_DIR}/AlarmJson.cpp"
     "${CORE_SRC_DIR}/SystemDiagnostics.cpp"
+    "${CORE_SRC_DIR}/AudioPreset.cpp"
+    "${CORE_SRC_DIR}/AudioPresetBank.cpp"
+    "${CORE_SRC_DIR}/AudioPresetCodec.cpp"
+    "${CORE_SRC_DIR}/AudioPresetJson.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -248,3 +252,19 @@ add_test(NAME json_text_test COMMAND json_text_test)
 add_executable(web_radio_budget_test web_radio_budget_test.cpp)
 target_link_libraries(web_radio_budget_test PRIVATE digiradio_core)
 add_test(NAME web_radio_budget_test COMMAND web_radio_budget_test)
+
+add_executable(audio_preset_test audio_preset_test.cpp)
+target_link_libraries(audio_preset_test PRIVATE digiradio_core)
+add_test(NAME audio_preset_test COMMAND audio_preset_test)
+
+add_executable(preset_service_test preset_service_test.cpp)
+target_include_directories(preset_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/host_stubs"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/include"
+)
+target_sources(preset_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/src/AudioService.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/src/PresetService.cpp"
+)
+target_link_libraries(preset_service_test PRIVATE digiradio_core)
+add_test(NAME preset_service_test COMMAND preset_service_test)

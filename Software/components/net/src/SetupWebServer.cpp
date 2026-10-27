@@ -40,6 +40,8 @@
 #include "tuner/SpectrumScanService.hpp"
 #include "tuner/TunerService.hpp"
 #include "audio/AudioService.hpp"
+#include "audio/PresetService.hpp"
+#include "core/AudioPresetJson.hpp"
 #include "bluetooth/BluetoothService.hpp"
 #include "station/StationService.hpp"
 #include "integration/IntegrationService.hpp"
@@ -76,8 +78,9 @@ SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
 const AlarmApi* gAlarmApi = nullptr;
 tuner::SpectrumScanService* gSpectrum = nullptr;
 const SlideApi* gSlideApi = nullptr;
+audio::PresetService* gPresets = nullptr;
 constexpr char kTag[] = "SetupWebServer";
-constexpr char kFirmwareVersion[] = "0.12.5";
+constexpr char kFirmwareVersion[] = "0.13.0";
 constexpr unsigned kRebootDelaySec = 3;
 
 extern const uint8_t index_html_gz_start[] asm(
@@ -2280,6 +2283,165 @@ esp_err_t sendJson(httpd_req_t* req, const std::string& json)
     return httpd_resp_send(req, json.c_str(), json.size());
 }
 
+/** Shared reply for preset writes: 200 + the new list, or an error. */
+esp_err_t sendPresetResult(httpd_req_t* req,
+                           const std::expected<void, core::StoreError>& result)
+{
+    if (!result) {
+        const bool missing = result.error() == core::StoreError::NotFound;
+        httpd_resp_set_status(req, missing ? "404 Not Found"
+                                           : "500 Internal Server Error");
+        return sendJson(req, core::serializeAudioErrorJson(
+                                 missing ? "empty_slot" : "store_failed"));
+    }
+    return sendJson(req, core::serializePresetListJson(gPresets->bank()));
+}
+
+/** 503 when presets are not wired, 400 + reason for a bad body. */
+esp_err_t sendPresetUnavailable(httpd_req_t* req)
+{
+    httpd_resp_set_status(req, "503 Service Unavailable");
+    return httpd_resp_send(req, nullptr, 0);
+}
+
+esp_err_t sendPresetBadRequest(httpd_req_t* req, core::ParseError error)
+{
+    httpd_resp_set_status(req, "400 Bad Request");
+    return sendJson(req, core::serializeAudioErrorJson(parseErrorToken(error)));
+}
+
+/**
+ * @brief    presetsGetHandler — GET /api/audio/presets.
+ *
+ * @dname    presetsGetHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate reads the preset bank through gPresets.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-27
+ */
+esp_err_t presetsGetHandler(httpd_req_t* req)
+{
+    if (gPresets == nullptr) {
+        return sendPresetUnavailable(req);
+    }
+    return sendJson(req, core::serializePresetListJson(gPresets->bank()));
+}
+
+/**
+ * @brief    presetsApplyHandler — POST /api/audio/presets/apply {"id":N}.
+ *
+ * @dname    presetsApplyHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate recalls the preset live and persists the profile.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-27
+ */
+esp_err_t presetsApplyHandler(httpd_req_t* req)
+{
+    if (gPresets == nullptr) {
+        return sendPresetUnavailable(req);
+    }
+    std::array<char, 256> body{};
+    if (!readRequestBody(req, body)) {
+        return sendPresetBadRequest(req, core::ParseError::MissingField);
+    }
+    const auto id = core::parsePresetIdJson(std::string_view(body.data()));
+    if (!id) {
+        return sendPresetBadRequest(req, id.error());
+    }
+    return sendPresetResult(req, gPresets->apply(*id));
+}
+
+/**
+ * @brief    presetsSaveHandler — POST /api/audio/presets/save
+ *           {"slot":N,"name":"..."}: store the live sound in a user slot.
+ *
+ * @dname    presetsSaveHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes the slot to NVS and the EEPROM backup.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-27
+ */
+esp_err_t presetsSaveHandler(httpd_req_t* req)
+{
+    if (gPresets == nullptr) {
+        return sendPresetUnavailable(req);
+    }
+    std::array<char, 256> body{};
+    if (!readRequestBody(req, body)) {
+        return sendPresetBadRequest(req, core::ParseError::MissingField);
+    }
+    auto parsed = core::parsePresetSaveJson(std::string_view(body.data()));
+    if (!parsed) {
+        return sendPresetBadRequest(req, parsed.error());
+    }
+    return sendPresetResult(
+        req, gPresets->saveCurrent(parsed->slot, std::move(parsed->name)));
+}
+
+/**
+ * @brief    presetsDeleteHandler — POST /api/audio/presets/delete {"slot":N}.
+ *
+ * @dname    presetsDeleteHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate empties the slot in NVS and the EEPROM backup.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-27
+ */
+esp_err_t presetsDeleteHandler(httpd_req_t* req)
+{
+    if (gPresets == nullptr) {
+        return sendPresetUnavailable(req);
+    }
+    std::array<char, 256> body{};
+    if (!readRequestBody(req, body)) {
+        return sendPresetBadRequest(req, core::ParseError::MissingField);
+    }
+    const auto slot = core::parsePresetSlotJson(std::string_view(body.data()));
+    if (!slot) {
+        return sendPresetBadRequest(req, slot.error());
+    }
+    return sendPresetResult(req, gPresets->erase(*slot));
+}
+
+/**
+ * @brief    presetsDefaultsHandler — POST /api/audio/presets/defaults
+ *           {"radio":N|null,"stream":N|null}.
+ *
+ * @dname    presetsDefaultsHandler
+ * @param    req  HTTP request handle from esp_http_server.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes the per-input defaults to NVS and the EEPROM backup.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-27
+ */
+esp_err_t presetsDefaultsHandler(httpd_req_t* req)
+{
+    if (gPresets == nullptr) {
+        return sendPresetUnavailable(req);
+    }
+    std::array<char, 256> body{};
+    if (!readRequestBody(req, body)) {
+        return sendPresetBadRequest(req, core::ParseError::MissingField);
+    }
+    const auto parsed =
+        core::parsePresetDefaultsJson(std::string_view(body.data()));
+    if (!parsed) {
+        return sendPresetBadRequest(req, parsed.error());
+    }
+    return sendPresetResult(req,
+                            gPresets->setDefaults(parsed->radio, parsed->stream));
+}
+
 esp_err_t sendStatus(httpd_req_t* req, const char* status, const char* json)
 {
     httpd_resp_set_status(req, status);
@@ -2618,7 +2780,7 @@ std::expected<void, NetError> SetupWebServer::start(
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 14336; // +2 KB: 4980 B min free on 0.11.2
     config.max_open_sockets = 3;
-    config.max_uri_handlers = 64; // 61 routes registered below as of 0.12.0;
+    config.max_uri_handlers = 80; // 69 routes registered below as of 0.13.0;
                                    // keep headroom so a silent
                                    // httpd_register_uri_handler failure
                                    // ("no slots left") doesn't quietly drop
@@ -3070,6 +3232,7 @@ std::expected<void, NetError> SetupWebServer::start(
 
     registerAlarmRoutes(routeCtx);
     registerSpectrumRoutes(routeCtx);
+    registerPresetRoutes(routeCtx);
 
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};
@@ -3083,6 +3246,11 @@ void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept
 void setAlarmApi(const AlarmApi* api) noexcept
 {
     gAlarmApi = api;
+}
+
+void setPresetService(audio::PresetService* service) noexcept
+{
+    gPresets = service;
 }
 
 void setSpectrumScanService(tuner::SpectrumScanService* service) noexcept
@@ -3104,6 +3272,25 @@ void SetupWebServer::registerSpectrumRoutes(void* routeCtx)
          .handler = spectrumPostHandler, .user_ctx = routeCtx},
         {.uri = "/api/tuner/slide", .method = HTTP_GET,
          .handler = slideGetHandler, .user_ctx = routeCtx},
+    };
+    for (const httpd_uri_t& route : routes) {
+        httpd_register_uri_handler(server_, &route);
+    }
+}
+
+void SetupWebServer::registerPresetRoutes(void* routeCtx)
+{
+    const httpd_uri_t routes[] = {
+        {.uri = "/api/audio/presets", .method = HTTP_GET,
+         .handler = presetsGetHandler, .user_ctx = routeCtx},
+        {.uri = "/api/audio/presets/apply", .method = HTTP_POST,
+         .handler = presetsApplyHandler, .user_ctx = routeCtx},
+        {.uri = "/api/audio/presets/save", .method = HTTP_POST,
+         .handler = presetsSaveHandler, .user_ctx = routeCtx},
+        {.uri = "/api/audio/presets/delete", .method = HTTP_POST,
+         .handler = presetsDeleteHandler, .user_ctx = routeCtx},
+        {.uri = "/api/audio/presets/defaults", .method = HTTP_POST,
+         .handler = presetsDefaultsHandler, .user_ctx = routeCtx},
     };
     for (const httpd_uri_t& route : routes) {
         httpd_register_uri_handler(server_, &route);

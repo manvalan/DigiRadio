@@ -1,7 +1,13 @@
 # ADAU1701 SigmaStudio export
 
-SigmaStudio project **DigiRadio**, IC1 = ADAU1701. Shipped with DigiRadio firmware
-**0.8.3**.
+SigmaStudio project **DigiRadioFinale-v2** (`Software/Sigmastudio/DigiRadioFinale-v2.dspproj`),
+IC1 = ADAU1701, exported 2026-10-27 with SigmaStudio 4.7 and renamed to the
+`DigiRadio_*` file names the build expects. Shipped with DigiRadio firmware
+**0.13.0**. `trap.dat` gives the level-meter program counts used by
+`Adau1701Driver::readLevels()`.
+
+Gain2 (address 90, right channel after the EQ) is -6 dB like Gain1: the first
+v2 export had it at +24 dB by mistake and was corrected before integration.
 
 ## Key files
 
