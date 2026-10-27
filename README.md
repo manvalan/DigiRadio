@@ -191,6 +191,16 @@ Schemas, error tokens, and boot flow: [`Software/docs/manual/ch-api.tex`](Softwa
 
 ---
 
+## iOS App (igiRadio)
+
+The companion iOS app **igiRadio** (tuning, presets, web radio, firmware
+updates over Wi-Fi) is not part of this repository. It is currently
+available as a beta on **TestFlight**: if you would like to try it,
+contact the author (for example by opening an
+[issue](https://github.com/manvalan/DigiRadio/issues)) to receive an invite.
+
+---
+
 ## HTTP API (summary)
 
 | Method | Path | Purpose |
