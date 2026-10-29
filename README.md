@@ -241,7 +241,7 @@ Generated C++ API reference: run `doxygen Doxyfile` → `Software/docs/api/html/
 | **Schematic** | Complete and reviewed |
 | **PCB layout** | 6-layer, DRC clean, plane continuity verified |
 | **BOM** | Finalised (manufacturable / sourced) |
-| **Prototype** | In fabrication (PCBWay) |
+| **Prototype** | Fabricated and assembled by PCBWay, working |
 | **Firmware** | **0.8.5** on `main` — BT1035 I2S boot init, dual OTA, encrypted NVS, full Web UI |
 | **Web UI** | Tabbed SPA covering every REST endpoint |
 | **HIL** | Device validation pending PCB (`Software/docs/security-flash-nvs.md`) |
@@ -249,11 +249,17 @@ Generated C++ API reference: run `doxygen Doxyfile` → `Software/docs/api/html/
 
 ---
 
-## Manufacturing
+## Manufacturing: fabrication and assembly by PCBWay
 
-The board is manufactured with **PCBWay** as a 6-layer, impedance-controlled PCB
-with turnkey assembly. The FSC-BT1035 Bluetooth module is sourced from Feasycom
-(the footprint uses a BT806-compatible, pin-identical land pattern). Component
+The DigiRadio board was fabricated and assembled by [PCBWay](https://www.pcbway.com/), who sponsored part of the cost ($100).
+
+It's not an easy board to build by hand: 6 layers with impedance control, a QFN tuner (Si4684), an LQFP DSP, two 2.4 GHz modules and a USB-C connector. PCBWay handled fabrication and turnkey assembly, and the lead times were the normal technical ones for this kind of job. The only part they don't stock is the Feasycom FSC-BT1035, which I soldered by hand.
+
+The part I want to highlight is the support. During bring-up I couldn't get the Si4684 tuner to work, and with a board like this it's hard to tell whether the problem is in the hardware or in the firmware. PCBWay's support team helped me check the board and the assembly, and that was essential: it let me rule out hardware problems and find the real cause. Without their help I would have spent much longer chasing the wrong issue.
+
+The board is shared as a [project on PCBWay](https://www.pcbway.com/project/shareproject/DigiRadio_Open_Source_Hi_Fi_DAB_FM_Receiver_with_DSP_and_aptX_Adaptive_Blueto_a1952812.html), so you can order it directly. Disclosure: PCBWay gives me a small percentage of those orders as store credit.
+
+**Technical notes.** The FSC-BT1035 footprint uses a BT806-compatible, pin-identical land pattern. Component
 datasheets for design review live in
 [`Hardware/DATASHEET/`](Hardware/DATASHEET/) (Si4684-A10, AN851, ADAU1701, FSC-BT1035).
 See the [Technical Manual](Software/docs/manual/manual.tex) hardware chapter
