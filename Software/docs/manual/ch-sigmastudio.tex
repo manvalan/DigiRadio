@@ -288,27 +288,26 @@ DigiRadio's own TCP:8086 SigmaStudio bridge (Section~\ref{sec:adau1701-sigmastud
 when connecting live to a running board.
 \end{drnote}
 
-\section{Next revision: DigiRadioFinale}
+\section{Current program: DigiRadioFinale-v2}
 \label{sec:ss-digiradiofinale}
 
-\begin{drcaution}[Not yet integrated into firmware]
-This section documents a SigmaStudio export (\texttt{DigiRadioFinale}) captured
-2026-08-25 that is not yet the program the firmware replays at boot. It expands
-the parameter RAM from 74 to 224 words with several new dedicated blocks,
-replacing two of the EQ-overlay workarounds in
-Section~\ref{sec:ss-enhancements} with real ADI algorithm modules. Driver,
-safeload API, and this manual's runtime tables will be updated once the
-program is finalised.
-\end{drcaution}
+Since firmware 0.13.0 the program replayed at boot (embedded export in
+\texttt{Firmware/ADAU1701-Firmware}, project
+\texttt{Software/Sigmastudio/DigiRadioFinale-v2.dspproj}) is
+\texttt{DigiRadioFinale-v2}, exported 2026-10-27 from SigmaStudio~4.7. It
+uses 869 of 1024 program instructions and 221 parameter words. Compared with
+the August \texttt{DigiRadioFinale} capture: the unconfigured general filter
+is gone, a $-6$\,dB headroom gain follows the EQ on each channel, the RMS
+compressor has a hand-drawn curve with $+4$\,dB make-up gain, both limiters
+sit at $-1$\,dBFS (the firmware no longer overrides them at boot), the bass
+boost peaks at about $+5.9$\,dB, and the six level detectors were re-added
+(trap.dat program counts 94, 127, 160, 193, 834, 867).
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=\linewidth]{sigmastudiofinale.png}
-  \caption{DigiRadioFinale signal chain: per-channel DC blockers and RMS
-    compressor, four input-side level meters, the 6-leg Param EQ, the
-    SuperPhat spatializer, an unconfigured general filter, master volume,
-    the Dynamic Bass Boost algorithm, two output-side level meters, and the
-    L/R limiters.}
+  \caption{DigiRadioFinale signal chain (August capture; v2 drops the general
+    filter and adds the post-EQ gains).}
   \label{fig:ss-digiradiofinale}
 \end{figure}
 
@@ -318,30 +317,28 @@ program is finalised.
   \begin{tabular}{@{}L{2.6cm}L{2.2cm}L{7.6cm}@{}}
     \drhead Addresses & Block & Role \\
     \midrule
-    0--2    & Beep1        & test tone (unchanged) \\
-    3       & DC1          & input trim \\
+    0--2    & Beep1        & test tone \\
+    3       & InputSelectot & MX1 input index (0 radio, 1 ESP32, 2 beep;
+                               raw integer, not 5.23) \\
     4--7    & DCB1--4      & DC blocker, one per channel \\
-    8       & S Splitter1  & control fan-out (unchanged) \\
-    9--46   & Compressor1  & RMS compander, 34-point curve \\
-    47--58  & 1×RTA3,4,1,2 & 4 input-side level meters (readback) \\
+    8       & S Splitter1  & control fan-out \\
+    9--20   & 1×RTA1--4    & 4 input-side level meters (readback) \\
+    21--58  & Compressor1  & RMS compander, 34-point curve, post gain at 56 \\
     59--88  & Param EQ1    & 6 stereo legs (ST0--ST5) $\times$ 5 coefficients \\
-    89--140 & SPhat1       & SuperPhat spatializer (dedicated algorithm,
-                              replaces the stereo-enhance EQ overlay) \\
-    141--145& Gen Filter1  & general 2nd-order filter, currently flat/bypassed
-                              --- reserved, not yet configured (candidate slot
-                              for Voice Clarifier) \\
-    146--147& Multiple1    & master volume L/R (unchanged) \\
-    148--187& Bass Boost1  & Dynamic Bass Boost algorithm (dedicated,
-                              replaces the bass-enhance EQ overlay) \\
-    188--193& 1×RTA2\_2,1\_2 & 2 output-side level meters (readback) \\
-    194--223& Limiter2, Limiter1 & unchanged \\
+    89--90  & Gain1, Gain2 & $-6$\,dB headroom, left and right \\
+    91--142 & SPhat1       & SuperPhat spatializer (stereo depth) \\
+    143--144& Multiple1    & master volume L/R \\
+    145--184& Bass Boost1  & Dynamic Bass Boost (bass enhance) \\
+    185--214& Limiter1, Limiter2 & $-1$\,dBFS peak limiters \\
+    215--220& 1×RTA1\_2, 2\_2 & 2 output-side level meters (readback) \\
     \bottomrule
   \end{tabular}
-  \caption{DigiRadioFinale parameter RAM map, by address.}
+  \caption{DigiRadioFinale-v2 parameter RAM map, by address.}
   \label{tab:ss-digiradiofinale-map}
 \end{table}
 
-No dedicated mute cell exists yet in this export, and Gen Filter1 (the
-Voice Clarifier candidate) is still an identity filter (b0=1, all other
-coefficients zero). Both are pending further SigmaStudio work before this
-program replaces the one described earlier in this chapter.
+After a new export, copy the files into \texttt{Firmware/ADAU1701-Firmware}
+under the \texttt{DigiRadio\_*} names, regenerate
+\texttt{Adau1701ParamTable.hpp} from \texttt{DigiRadio\_IC\_1\_PARAM.h},
+take the level-meter program counts from \texttt{trap.dat} and the bass boost
+curve from the \texttt{BASSBOOST1} cells.

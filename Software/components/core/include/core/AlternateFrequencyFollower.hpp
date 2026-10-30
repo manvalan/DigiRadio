@@ -77,6 +77,11 @@ struct AfFollowStats {
     std::optional<FrequencyKHz> lastTo;   ///< AF switched to last time.
     std::uint32_t dabHunts = 0U;          ///< DAB service-following tries.
     std::uint32_t dabSwitches = 0U;       ///< DAB services found elsewhere.
+    /** Minutes between FM→DAB return tries; 0 = never (default 10, see
+     *  kDefaultDabReturnMinutes). Not persisted. */
+    std::uint16_t dabReturnMinutes = 10U;
+    bool onFmFallback = false;            ///< Playing linked FM after DAB loss.
+    std::uint32_t dabReturns = 0U;        ///< Successful returns to DAB.
 };
 
 /**

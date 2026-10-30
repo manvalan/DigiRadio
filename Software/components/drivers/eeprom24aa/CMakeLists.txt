@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "src/Eeprom24aa.cpp"
+    SRCS "src/Eeprom24aa.cpp" "src/EepromAudioPresetStore.cpp"
     INCLUDE_DIRS "include"
     REQUIRES core driver esp_driver_i2c freertos
 )

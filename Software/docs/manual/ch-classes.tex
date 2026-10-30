@@ -155,6 +155,27 @@ Owns \texttt{EmbeddedBlobReader} views over \texttt{rom\_patch\_016.bin},
 passed to \texttt{Si4684Driver}. \texttt{applicationImage(Si4684Band)} selects
 DAB or FM.
 
+\section{FlashBlobReader}\label{cls:FlashBlobReader}
+\texttt{IFirmwareBlobReader} over one image in the Si4684 image store,
+read with \texttt{esp\_partition\_read()}. Reports size 0 until
+\texttt{Si4684ImageStore} binds it to a verified entry.
+
+\section{Si4684ImageStore}\label{cls:Si4684ImageStore}
+Keeps the three Si4684 images in flash that the partition table leaves
+unused (0x860000, 2\,MB after the \texttt{dsp} partition), registered at
+runtime with \texttt{esp\_partition\_register\_external()}: no table change,
+no wired flash. The first sector holds a header (magic, entries, CRC-32;
+\texttt{core/BlobStore.hpp}, host-tested); \texttt{open()} verifies the
+header and every image CRC. A build with
+\texttt{CONFIG\_SI4684\_EMBEDDED\_IMAGES=y} (the default, 0.11.1+) copies
+its embedded images in once, from the low-priority \texttt{si\_store}
+task, rewriting only when they differ and writing the header last. A
+build with \texttt{=n} (\texttt{sdkconfig.release}, used by the GitHub
+release workflow) contains no proprietary code and reads the images from
+the store; when the store is missing it does not start the tuner and, if
+still in OTA probation, rolls back to the previous image. State is
+reported as \texttt{system.si4684\_store} in \texttt{GET /api/health}.
+
 \section{Si4684Driver}\label{cls:Si4684Driver}
 Full SPI driver for the Si4684 DAB+/FM tuner (Chapter~\ref{ch:si4684}).
 
@@ -288,9 +309,39 @@ the full status with the RDS drain (AF list, PI) is read every tenth tick
 On a weak FM signal it holds the \texttt{TunerService} lock, probes up to six
 AFs (250\,ms settle each, plus a few RDS reads to confirm the PI) and stays
 on the best one carrying the same PI, or tunes back. In DAB it runs
-\texttt{core::DabServiceFollower} instead (service following). Works with
+\texttt{core::DabServiceFollower} instead (service following); after a
+move to linked FM, \texttt{core::DabReturnPolicy} decides when to try DAB
+again. It stands aside while \texttt{TunerService::sweepActive()}. Works with
 no app connected; state and on/off switch are at \texttt{/api/tuner/af}
 (Section~\ref{sec:api-tuner-af}).
+
+\section{SpectrumScanService}\label{cls:SpectrumScanService}
+RF band sweep behind \texttt{/api/tuner/spectrum}
+(Section~\ref{sec:api-tuner-spectrum}). The single Si4684 front end
+means a sweep takes the station off air: \texttt{start(band)} spawns a
+short-lived \texttt{spectrum} task (8\,KB stack, freed at the end) that
+mutes the tuner, sets \texttt{TunerService::setSweepActive()} so
+\texttt{AfFollowService} stands aside, measures every FM step
+(87.5--108\,MHz, 100\,kHz, 120\,ms settle: RSSI and SNR) or every Band~III
+channel 5A--13F (600\,ms settle: RSSI, plus CNR and FIC quality when an
+ensemble locks), then retunes the previous station, DAB service and
+volume. Each step takes the tuner lock on its own, so status requests are
+still served; progress and points live in a
+\texttt{core::SpectrumSnapshot} behind the service's own mutex and are
+serialised by \texttt{core::serializeSpectrumJson()}. One sweep at a time.
+
+\section{DabReturnPolicy}\label{cls:DabReturnPolicy}
+Pure-core schedule for leaving the FM fallback (0.12.0+). When
+\texttt{AfFollowService} continues a lost DAB service on the hard-linked
+FM station it arms the policy with the ensemble, SId/component and the
+FM PI. Measuring DAB means leaving FM (image reload plus 2.5\,s
+acquisition, so a failed check is a gap of a few seconds), so a return is
+tried only every \texttt{dab\_return\_min} minutes (default 10, 0 = never,
+at most 120). The radio goes back only when the ensemble locks with FIC
+quality $\geq$60, well above the 25 that counts as weak, so it does not
+bounce; otherwise it retunes the FM frequency it was on. The fallback ends
+when the listener moves away: another band, or FM with a different PI
+(AF switches with the same PI keep it).
 
 \section{DabServiceFollower}\label{cls:DabServiceFollower}
 Pure-core DAB service-following policy, the DAB counterpart of
@@ -337,6 +388,62 @@ standby every master write is replaced by the mute floor while the
 profile keeps the user's levels, so \texttt{setPowerState(On)} restores
 them exactly (\texttt{/api/system/power},
 Section~\ref{sec:api-system-power}).
+Since 0.13.0 a change of input is click-free: the master ramps down in
+three steps, MX1 switches, the \texttt{IAudioSourceListener} runs, then
+the master ramps back (about 60\,ms). \texttt{applyPreset()} recalls a
+preset's EQ and enhancements without touching volume or input.
+
+\section{PresetId}\label{cls:PresetId}
+Strong type naming an audio preset: 0--5 are the factory presets
+(Neutro, Voce, Bassi, Brillante, Loudness, Notte), 10--19 the ten user
+slots. Built by \texttt{PresetId::tryFromValue()} or
+\texttt{PresetId::user(slot)}.
+
+\section{PresetName}\label{cls:PresetName}
+Strong type for a preset label (1--15 bytes, no quotes, backslashes or
+control characters, so it can be written into JSON without escaping).
+
+\section{AudioPresetBank}\label{cls:AudioPresetBank}
+Everything the preset feature persists: the ten user slots, the preset
+recalled automatically per input (radio, ESP32 stream) and the last preset
+recalled. Factory presets are not stored; \texttt{find()} resolves them.
+Codecs in \texttt{core/AudioPresetCodec.hpp} write the full NVS blob and the
+compact EEPROM image (slots 0--5, 7-character names, 0.5\,dB steps, one
+CRC-8 per 16-byte page so a torn write only drops that slot).
+Host-tested in \texttt{audio\_preset\_test}.
+
+\section{IAudioPresetStore}\label{cls:IAudioPresetStore}
+Load/save interface for an \texttt{AudioPresetBank}. Implemented by
+\texttt{NvsAudioPresetStore} (primary) and \texttt{EepromAudioPresetStore}
+(backup).
+
+\section{NvsAudioPresetStore}\label{cls:NvsAudioPresetStore}
+\texttt{IAudioPresetStore} keeping the full bank as a blob under NVS key
+\texttt{audio\_presets} (namespace \texttt{digiradio}).
+
+\section{EepromAudioPresetStore}\label{cls:EepromAudioPresetStore}
+\texttt{IAudioPresetStore} keeping the compact preset image in the
+24AA025E48 at word addresses 0x10--0x7F (below the calibration bytes'
+neighbours and the factory EUI-48). It survives an NVS erase or a full
+flash erase of the ESP32. \texttt{Eeprom24aa::writePresetImage()} reads the
+region first and rewrites only the 16-byte pages that changed.
+
+\section{IAudioSourceListener}\label{cls:IAudioSourceListener}
+Callback that \texttt{AudioService} runs after MX1 changed input while the
+master is still faded down, so a listener can change the EQ without an
+audible jump.
+
+\section{PresetService}\label{cls:PresetService}
+Owns the \texttt{AudioPresetBank} and drives \texttt{AudioService}:
+\texttt{apply()} recalls a preset's EQ, bass and stereo levels (volume and
+input are never part of a preset), \texttt{saveCurrent()} stores the live
+sound in a user slot, \texttt{erase()} and \texttt{setDefaults()} manage
+slots and per-input defaults. At boot \texttt{load()} reads NVS and falls
+back to the EEPROM copy, writing it back to NVS. As the
+\texttt{IAudioSourceListener} it recalls the input's default preset on
+every input change. Exposed on \texttt{/api/audio/presets}
+(Section~\ref{sec:api-audio-presets}) and the web UI Audio section.
+Host-tested in \texttt{preset\_service\_test}.
 
 \section{EnhanceLevel}\label{cls:EnhanceLevel}
 Strong type for 0--100 enhancement intensity (stereo depth and bass boost).
@@ -358,11 +465,94 @@ Built by \texttt{BroadcastLabel::tryFromChipBytes()} in the pure core.
 Stateful RDS decoder assembling program service name and radiotext from
 raw block~A--D snapshots returned by the Si4684 driver. Also collects the
 group~0A AF list and the PI code (block~A), trusted only after two
-consecutive groups agree.
+consecutive groups agree. Since 0.10.0: each PS segment is accepted only
+when it arrives twice alike (a changed segment restarts the name, which
+handles scrolling PS); pairs with control codes are dropped; an all-blank
+PS never replaces a name; radiotext is published only when complete (0x0D
+end marker or all segments) and 2B texts are read from block~D only; the
+Si4684's per-block error counts (FM\_RDS\_STATUS RESP11) gate content to
+blocks with at most 1--2 corrected bits. Since 0.12.2: PS and RT are
+converted from EBU Latin to UTF-8 (\texttt{core::ebuLatinToUtf8()}, shared
+with \texttt{DlsDecoder}), and RadioText Plus is decoded: a group~3A
+carrying AID 0x4BD7 names the RT+ group, whose two tags (content type,
+start, length) cut ITEM.TITLE and ITEM.ARTIST out of the current
+radiotext (\texttt{rtPlus()}, reported as \texttt{fm.rt\_plus}); tags
+are dropped on an RT A/B flip and hidden while the item is not running.
+The groups are drained every 150\,ms by \texttt{ITuner::pollBroadcastData()}
+in the \texttt{af\_follow} task (one short FM\_RDS\_STATUS when the FIFO
+is empty), so the 16 RadioText segments actually complete; a status
+request reads at most 8 more.
+
+\section{PcmResampler}\label{cls:PcmResampler}
+Converts interleaved stereo 16-bit PCM from the decoder's rate (8--96\,kHz)
+to the ADAU1701's fixed 48\,kHz, block by block with cubic Hermite
+interpolation and a three-frame history so block edges are seamless. A
+trim of up to $\pm$1000\,ppm (\texttt{driftTrimPpm()} maps the web radio
+ring fill to $\pm$300\,ppm) absorbs the drift between the server's clock
+and the ADAU crystal. Pure core, host-tested.
+
+\section{IcyStreamFilter}\label{cls:IcyStreamFilter}
+Removes Shoutcast/Icecast in-band metadata (\texttt{icy-metaint}) from the
+web radio byte stream in place, across arbitrary read boundaries, and keeps
+the latest \texttt{StreamTitle} as valid UTF-8 (ISO-8859-1 titles are
+converted). The same header provides \texttt{extractPlaylistStreamUrl()}
+for M3U/PLS links and \texttt{isHlsPlaylist()}. Pure core, host-tested.
 
 \section{DabDynamicLabelAccumulator}\label{cls:DabDynamicLabelAccumulator}
-Reassembles segmented DAB DLS payloads into one dynamic label for
-\texttt{TunerStatus}.
+Joins the \texttt{SEG\_NUM}/\texttt{NUM\_SEGS} segments of one
+\texttt{GET\_DIGITAL\_SERVICE\_DATA} DLS block into its raw payload. The
+Si468x already reassembles DLS messages (AN649 \S7.14.2), so most blocks
+are single-segment; the bytes still carry the AN649 prefix and are handed
+to \texttt{DlsDecoder}. Out-of-order segments discard the payload.
+
+\section{DlsDecoder}\label{cls:DlsDecoder}
+Decodes one reassembled DLS payload: the two-byte AN649 Table~21 prefix
+selects a DL message (charset EBU Latin or UTF-8, converted to UTF-8) or
+a command (remove label, or DL Plus tags per ETSI TS~102~980). The prefix
+never reaches the label. DL Plus markers are character positions, so the
+message is kept as code points; tags apply only while their Link bit
+equals the message Toggle bit and the item is running. \texttt{item()}
+returns ITEM.TITLE and ITEM.ARTIST as \texttt{DlPlusItem}, which
+\texttt{TunerJson} emits as \texttt{dab.dl\_plus} in
+\texttt{GET /api/tuner/status}. Pure core, host-tested.
+
+\section{IDabDataSink}\label{cls:IDabDataSink}
+Receiver of the X-PAD MOT data groups that \texttt{ITuner::pollBroadcastData()}
+drains from the Si4684 (AN649 \S7.11: data groups forwarded in arrival
+order, assembly left to the host). Implemented in
+\texttt{main/dab\_slideshow.cpp}, which hands the groups to
+\texttt{MotSlideAssembler} only while a client watches the slideshow.
+\texttt{pollBroadcastData()} also keeps DLS/DL Plus inside the tuner: it runs
+every 150\,ms from the \texttt{af\_follow} task (0.12.1; 0.12.0 had a
+separate 8\,KB \texttt{dab\_data} task whose stack the web radio needed)
+and empties the chip's queue, except during spectrum sweeps and while the
+ESP32 feeds the speaker (web radio, phone audio). The previous one-packet-per-status read let MOT traffic
+starve the dynamic label. The payload is now read as the tail of one full
+reply frame (every RD\_REPLY restarts at the status bytes).
+
+\section{ISlideWriter}\label{cls:ISlideWriter}
+Storage interface for slideshow images: \texttt{beginSlide()},
+\texttt{writeSlide(offset, bytes)} in any order, \texttt{commitSlide()}
+to publish, \texttt{clearSlides()} on a service change. The device
+implementation writes sixteen 64\,KB flash slots outside the partition
+table (0xA60000, after the Si4684 image store), erasing a 4\,KB sector
+only when a write first touches it and rotating slots so neither carousel
+repetitions nor incomplete slides wear one area; the committed slot is
+never the one being written, so \texttt{GET /api/tuner/slide} can stream
+it while the next slide arrives.
+
+\section{MotSlideAssembler}\label{cls:MotSlideAssembler}
+Pure-core MOT decoder for the DAB slideshow (EN 301 234 over X-PAD).
+\texttt{parseMscDataGroup()} checks the data group CRC (CRC-16 CCITT,
+EN 300 401 \S5.3.3.4) and extracts type, segment number, Last flag and
+transport id. A header group (type 3) gives the MOT header core
+(BodySize, ContentType, ContentSubType); only JPEG (2/1) and PNG (2/3)
+images up to the store's size are assembled. Body segments (type 4) are
+written as they arrive at segment $\times$ segment size (the last at
+BodySize minus its length); when every segment up to the last is in, the
+slide is committed with a new id, which \texttt{GET /api/tuner/status}
+reports as \texttt{dab.slide\_id}. A transport id already on show is
+ignored (carousel repetitions), and a new service id clears the slide.
 
 \section{PresetSlot}\label{cls:PresetSlot}
 Optional hardware preset button index (1--20). Validated by
@@ -408,5 +598,18 @@ guards an in-RAM copy so \texttt{setConfig()} from an HTTP handler and
 \texttt{config()} polled by the streaming task in
 \texttt{main/web\_radio\_stream.cpp} never race. Exposed on
 \texttt{/api/streaming}.
+
+\section{Alarm table and sleep timer}\label{sec:alarm-clock}
+\texttt{core::AlarmEntry} is one row of the alarm table: action
+(\texttt{TurnOn}/\texttt{TurnOff}), local hour and minute, a weekday mask
+and, for \texttt{TurnOn}, the source (preset index or web radio URL), the
+target master gain and an optional duration. \texttt{dueAlarm()},
+\texttt{nextAlarm()} and \texttt{alarmRampDb()} (the 30\,s wake-up fade)
+are pure core, host-tested together with the JSON in
+\texttt{core/AlarmJson.hpp}. \texttt{main/alarm\_clock.cpp} owns the
+table: it starts SNTP, keeps the table in NVS, checks it once a second in
+the \texttt{alarm} task, runs the fade, the sleep timer and the per-alarm
+duration, and serves \texttt{/api/alarms} and \texttt{/api/system/sleep}
+(Section~\ref{sec:api-alarms}).
 
 % ------------------------------------------------------------------

@@ -1,0 +1,14 @@
+menu "Si4684 tuner"
+
+config SI4684_EMBEDDED_IMAGES
+    bool "Embed the Si4684 firmware images in the app image"
+    default y
+    help
+        Yes: the images in Firmware/Si4684-Firmware are linked into the app
+        and copied once into the flash image store (Si4684ImageStore).
+        No: the app reads them from that store only, so it contains no
+        proprietary code and can be published (GitHub release builds).
+        A radio must have run an embedding build once before it can run
+        one without the images.
+
+endmenu

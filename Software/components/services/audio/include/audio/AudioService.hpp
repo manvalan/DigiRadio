@@ -14,6 +14,7 @@
 
 #include "core/ActiveSource.hpp"
 #include "core/AudioLevels.hpp"
+#include "core/AudioPreset.hpp"
 #include "core/AudioProfile.hpp"
 #include "core/DspError.hpp"
 #include "core/EnhanceLevel.hpp"
@@ -21,6 +22,7 @@
 #include "core/FrequencyHz.hpp"
 #include "core/GainDb.hpp"
 #include "core/IAudioProfileStore.hpp"
+#include "core/IAudioSourceListener.hpp"
 #include "core/IDsp.hpp"
 #include "core/PowerState.hpp"
 #include "core/StoreError.hpp"
@@ -113,6 +115,10 @@ public:
     /**
      * @brief    selectSource — switch MX1's active input pair and apply live.
      *
+     * A real change of input is click-free: the master is ramped down in a
+     * few steps, MX1 switches, the source listener runs, then the master
+     * ramps back to the user's level (about 60 ms in total).
+     *
      * @dname    selectSource
      * @param    source  Which stereo pair MX1 should pass through.
      * @param    persist When true and store is set, write NVS.
@@ -124,6 +130,36 @@ public:
      */
     [[nodiscard]] std::expected<void, core::StoreError> selectSource(
         core::ActiveSource source, bool persist);
+
+    /**
+     * @brief    applyPreset — recall a preset's EQ and enhancements live.
+     *
+     * Volume and input are left untouched.
+     *
+     * @dname    applyPreset
+     * @param    preset   Preset to recall.
+     * @param    persist  When true and store is set, write NVS.
+     * @return   Ok on success, or StoreError::IoFailed.
+     * @pubstate updates profile_.eq and profile_.enhancements; safeloads.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-27
+     */
+    [[nodiscard]] std::expected<void, core::StoreError> applyPreset(
+        const core::AudioPreset& preset, bool persist);
+
+    /**
+     * @brief    setSourceListener — register the input-change callback.
+     *
+     * @dname    setSourceListener
+     * @param    listener  Called by selectSource() while the output is
+     *                     faded down; nullptr removes it. Must outlive this.
+     * @pubstate writes listener_.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-27
+     */
+    void setSourceListener(core::IAudioSourceListener* listener) noexcept;
 
     /**
      * @brief    setMasterVolume — update master output and apply live.
@@ -286,10 +322,19 @@ private:
     [[nodiscard]] std::expected<void, core::DspError> writeMaster(
         core::GainDb left, core::GainDb right);
 
+    void fadeMaster(bool down);
+
+    [[nodiscard]] std::expected<void, core::StoreError> applySwitchingProfile(
+        const core::AudioProfile& profile);
+
+    [[nodiscard]] std::expected<void, core::DspError> switchInput(
+        core::ActiveSource source);
+
     core::IDsp& dsp_;
     core::IAudioProfileStore* store_;
     core::AudioProfile profile_;
     core::PowerState powerState_;
+    core::IAudioSourceListener* listener_{nullptr};
 };
 
 } // namespace audio

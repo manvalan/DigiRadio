@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/DabDynamicLabelAccumulator.hpp"
+#include "core/DlsDecoder.hpp"
 #include "core/FrequencyKHz.hpp"
 #include "core/ITuner.hpp"
 #include "core/RdsMetadataAccumulator.hpp"
@@ -178,6 +179,23 @@ public:
     readDabLinkage(std::uint32_t serviceId) override;
 
     /**
+     * @brief    pollBroadcastData — drain GET_DIGITAL_SERVICE_DATA (DLS, MOT).
+     *
+     * @dname    pollBroadcastData
+     * @param    sink        Receiver of X-PAD MOT data groups.
+     * @param    maxPackets  Packets read at most in this call.
+     * @return   Ok (also outside DAB or with no service playing), or the
+     *           mapped driver error.
+     * @pubstate reads/acknowledges the chip's DSRV queue until BUFF_COUNT
+     *           is 0; updates dls_ for DLS blocks.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] std::expected<void, core::TunerError> pollBroadcastData(
+        core::IDabDataSink& sink, std::size_t maxPackets) override;
+
+    /**
      * @brief    playDabService — start DAB audio output.
      *
      * @dname    playDabService
@@ -259,9 +277,53 @@ private:
 
     [[nodiscard]] std::expected<void, core::TunerError> readSignalInto(
         core::TunerStatus& status);
+
+    /**
+     * @brief    applyDlsSegment — feed one DLS DSRV block to the decoder.
+     *
+     * @dname    applyDlsSegment
+     * @param    data  GET_DIGITAL_SERVICE_DATA block with DATA_SRC = DLS.
+     * @pubstate writes dabDynamicLabel_ (segment join) and dls_ (decode
+     *           once the payload is complete).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void applyDlsSegment(const Si4684DabServiceData& data);
+
+    /**
+     * @brief    dispatchDabData — route one DSRV block (DLS or MOT).
+     *
+     * @dname    dispatchDabData
+     * @param    data  Block from GET_DIGITAL_SERVICE_DATA.
+     * @param    sink  Receiver of MOT data groups.
+     * @pubstate DLS updates dls_ (applyDlsSegment); MOT goes to sink;
+     *           other data services are dropped.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void dispatchDabData(const Si4684DabServiceData& data,
+                         core::IDabDataSink& sink);
+
+    /**
+     * @brief    drainRds — read queued RDS groups into rdsMetadata_.
+     *
+     * @dname    drainRds
+     * @param    maxGroups  Groups read at most.
+     * @return   Ok when the FIFO is empty or the bound is reached; the
+     *           mapped driver error otherwise.
+     * @pubstate writes rdsMetadata_ (PS, RT, RT+, AF, PI).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] std::expected<void, core::TunerError> drainRds(
+        std::size_t maxGroups);
     bool fmBandReady_;
     core::RdsMetadataAccumulator rdsMetadata_;
     core::DabDynamicLabelAccumulator dabDynamicLabel_;
+    core::DlsDecoder dls_;
     std::optional<std::uint32_t> lastDabServiceId_;
     std::optional<std::uint32_t> lastDabComponentId_;
 };

@@ -44,6 +44,8 @@ namespace {
         {3U, '0', '1'},
     };
 
+    // Each segment is only trusted once it has arrived twice alike.
+    for (int pass = 0; pass < 2; ++pass)
     for (const auto &seg : segments) {
         const std::uint16_t blockB =
             static_cast<std::uint16_t>(0x0800U | seg.segment);
@@ -96,10 +98,16 @@ namespace {
     const std::uint16_t blockD =
         (static_cast<std::uint16_t>('s') << 8) | static_cast<std::uint16_t>('t');
     acc.applyGroup(0x1234U, blockB, blockC, blockD);
+    if (acc.radiotext()) {
+        std::cerr << "radiotext must wait for its end marker\n";
+        return EXIT_FAILURE;
+    }
+    // Segment 1 carries the 0x0D end marker: the text is now complete.
+    acc.applyGroup(0x1234U, 0x2001U, 0x0D20U, 0x2020U);
 
     const auto rt = acc.radiotext();
     if (!rt) {
-        std::cerr << "expected radiotext after one 2A segment\n";
+        std::cerr << "expected radiotext once the end marker arrived\n";
         return EXIT_FAILURE;
     }
     if (rt->value() != "Test") {
@@ -170,10 +178,122 @@ namespace {
     return EXIT_SUCCESS;
 }
 
+void feedPs(core::RdsMetadataAccumulator& acc, const char* text,
+            std::uint8_t blockErrors = 0U)
+{
+    for (std::uint16_t seg = 0U; seg < 4U; ++seg) {
+        const auto d = static_cast<std::uint16_t>(
+            (static_cast<std::uint16_t>(text[seg * 2U]) << 8)
+            | static_cast<std::uint8_t>(text[seg * 2U + 1U]));
+        acc.applyGroup(0x1234U, static_cast<std::uint16_t>(0x0800U | seg),
+                       0x1234U, d, blockErrors);
+    }
+}
+
+/*
+ * A station that scrolls its PS ("RADIO 1 ", then "  NEWS  ") must not
+ * come out as a mix of the two, and the old name stays up while the next
+ * one is confirmed. An all-blank PS never replaces a real one.
+ */
+[[nodiscard]] int runScrollingPsTest()
+{
+    core::RdsMetadataAccumulator acc;
+    feedPs(acc, "RADIO 1 ");
+    if (acc.programName()) {
+        std::cerr << "PS must not be published after one pass\n";
+        return EXIT_FAILURE;
+    }
+    feedPs(acc, "RADIO 1 ");
+    feedPs(acc, "  NEWS  ");
+    if (!acc.programName() || acc.programName()->value() != "RADIO 1") {
+        std::cerr << "old PS must stay while the next is assembled\n";
+        return EXIT_FAILURE;
+    }
+    feedPs(acc, "  NEWS  ");
+    if (!acc.programName() || acc.programName()->value() != "NEWS") {
+        std::cerr << "scrolled PS mismatch\n";
+        return EXIT_FAILURE;
+    }
+    feedPs(acc, "        ");
+    feedPs(acc, "        ");
+    if (!acc.programName() || acc.programName()->value() != "NEWS") {
+        std::cerr << "blank PS must not replace the name\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+/*
+ * Groups with errors the chip could only correct with 3+ bits flipped
+ * (BLE = 2) or not at all (3) carry no text; control characters are
+ * never taken as PS.
+ */
+[[nodiscard]] int runBlockErrorTest()
+{
+    core::RdsMetadataAccumulator acc;
+    feedPs(acc, "BADNAME!", 0x02U); // BLED = 2
+    feedPs(acc, "BADNAME!", 0x02U);
+    if (acc.programName()) {
+        std::cerr << "PS from BLED=2 blocks must be ignored\n";
+        return EXIT_FAILURE;
+    }
+    feedPs(acc, "BADNAME!", 0x30U); // BLEB = 3: whole group dropped
+    feedPs(acc, "BADNAME!", 0x30U);
+    if (acc.programName()) {
+        std::cerr << "groups with uncorrectable block B must be dropped\n";
+        return EXIT_FAILURE;
+    }
+    feedPs(acc, "AB\x01" "DEFGH");
+    feedPs(acc, "AB\x01" "DEFGH");
+    if (acc.programName()) {
+        std::cerr << "PS with a control code must be ignored\n";
+        return EXIT_FAILURE;
+    }
+    feedPs(acc, "GOODNAME", 0x55U); // all blocks 1-2 bits corrected
+    feedPs(acc, "GOODNAME", 0x55U);
+    if (!acc.programName() || acc.programName()->value() != "GOODNAME") {
+        std::cerr << "PS from BLE=1 blocks must be accepted\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+/*
+ * 2B radiotext: two characters per segment, in block D only (block C
+ * repeats the PI). A new text (A/B flip) replaces the old one only once
+ * it is complete.
+ */
+[[nodiscard]] int runRadiotextVersionBTest()
+{
+    core::RdsMetadataAccumulator acc;
+    acc.applyGroup(0x1234U, 0x2800U, 0x1234U, 0x4869U);  // seg 0 "Hi"
+    acc.applyGroup(0x1234U, 0x2801U, 0x1234U, 0x0D00U);  // seg 1 end
+    if (!acc.radiotext() || acc.radiotext()->value() != "Hi") {
+        std::cerr << "2B radiotext mismatch\n";
+        return EXIT_FAILURE;
+    }
+    acc.applyGroup(0x1234U, 0x2810U, 0x1234U, 0x596FU);  // B flag, "Yo"
+    if (!acc.radiotext() || acc.radiotext()->value() != "Hi") {
+        std::cerr << "old RT must stay until the new one is complete\n";
+        return EXIT_FAILURE;
+    }
+    acc.applyGroup(0x1234U, 0x2811U, 0x1234U, 0x0D00U);
+    if (!acc.radiotext() || acc.radiotext()->value() != "Yo") {
+        std::cerr << "new RT expected after A/B flip completed\n";
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int main()
 {
+    if (runScrollingPsTest() != EXIT_SUCCESS
+        || runBlockErrorTest() != EXIT_SUCCESS
+        || runRadiotextVersionBTest() != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
     if (runProgramServiceNameTest() != EXIT_SUCCESS) {
         return EXIT_FAILURE;
     }

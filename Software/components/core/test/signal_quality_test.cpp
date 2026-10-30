@@ -73,9 +73,25 @@ namespace {
         || fail("DAB without lock scores 0");
 }
 
+[[nodiscard]] bool dabErrorCountersTest()
+{
+    core::TunerStatus s{};
+    s.band = core::TunerBand::Dab;
+    s.locked = true;
+    s.dabFicQuality = 100U;
+    s.dabFibErrors = 42U;
+    s.dabFicErrors = false;
+    const std::string json =
+        core::serializeSignalQualityJson(core::computeSignalQuality(s));
+    return json.find(R"("fib_errors":42,"fic_errors":false)")
+               != std::string::npos
+        || fail("DAB JSON carries fib_errors and fic_errors");
+}
+
 } // namespace
 
 int main()
 {
-    return fmTest() && dabTest() ? EXIT_SUCCESS : EXIT_FAILURE;
+    return fmTest() && dabTest() && dabErrorCountersTest() ? EXIT_SUCCESS
+                                                         : EXIT_FAILURE;
 }

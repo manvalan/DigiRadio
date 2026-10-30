@@ -15,10 +15,12 @@
 #include "core/ISecureStore.hpp"
 #include "core/StoreError.hpp"
 #include "core/WebRadioConfig.hpp"
+#include "core/WebRadioStatus.hpp"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
+#include <cstdint>
 #include <expected>
 
 namespace webradio {
@@ -82,10 +84,52 @@ public:
     [[nodiscard]] std::expected<void, core::StoreError> setConfig(
         const core::WebRadioConfig& config);
 
+    /**
+     * @brief    generation — counter bumped by every setConfig().
+     *
+     * The player compares it with the value it started from, so a new
+     * URL (or a re-sent one) restarts the stream at once instead of only
+     * after the old connection drops.
+     *
+     * @dname    generation
+     * @return   Current generation.
+     * @pubstate locks mutex_ for the read.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] std::uint32_t generation() const;
+
+    /**
+     * @brief    status — latest snapshot published by the player task.
+     *
+     * @dname    status
+     * @return   Copy of the live WebRadioStatus.
+     * @pubstate locks mutex_ for the copy.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] core::WebRadioStatus status() const;
+
+    /**
+     * @brief    publishStatus — replace the live status (player task only).
+     *
+     * @dname    publishStatus
+     * @param    status  New snapshot.
+     * @pubstate locks mutex_ for the copy.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    void publishStatus(const core::WebRadioStatus& status);
+
 private:
     core::ISecureStore& store_;
     SemaphoreHandle_t mutex_;
     core::WebRadioConfig config_;
+    core::WebRadioStatus status_;
+    std::uint32_t generation_{0U};
 };
 
 } // namespace webradio

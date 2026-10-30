@@ -23,6 +23,7 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/WifiProvisionJson.cpp"
     "${CORE_SRC_DIR}/WifiScanJson.cpp"
     "${CORE_SRC_DIR}/EmbeddedBlobReader.cpp"
+    "${CORE_SRC_DIR}/BlobStore.cpp"
     "${CORE_SRC_DIR}/TunerJson.cpp"
     "${CORE_SRC_DIR}/DspParamJson.cpp"
     "${CORE_SRC_DIR}/FrequencyKHz.cpp"
@@ -46,6 +47,14 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/BroadcastLabel.cpp"
     "${CORE_SRC_DIR}/RdsMetadataAccumulator.cpp"
     "${CORE_SRC_DIR}/DabDynamicLabelAccumulator.cpp"
+    "${CORE_SRC_DIR}/DlsDecoder.cpp"
+    "${CORE_SRC_DIR}/EbuLatin.cpp"
+    "${CORE_SRC_DIR}/JsonText.cpp"
+    "${CORE_SRC_DIR}/WebRadioBudget.cpp"
+    "${CORE_SRC_DIR}/RadioSpectrum.cpp"
+    "${CORE_SRC_DIR}/DabReturnPolicy.cpp"
+    "${CORE_SRC_DIR}/MscDataGroup.cpp"
+    "${CORE_SRC_DIR}/MotSlideAssembler.cpp"
     "${CORE_SRC_DIR}/DspProgram.cpp"
     "${CORE_SRC_DIR}/RegisterWrite.cpp"
     "${CORE_SRC_DIR}/DspProgramBlob.cpp"
@@ -57,6 +66,15 @@ add_library(digiradio_core STATIC
     "${CORE_SRC_DIR}/DabLinkage.cpp"
     "${CORE_SRC_DIR}/DabServiceFollower.cpp"
     "${CORE_SRC_DIR}/SignalQuality.cpp"
+    "${CORE_SRC_DIR}/PcmResampler.cpp"
+    "${CORE_SRC_DIR}/IcyStreamFilter.cpp"
+    "${CORE_SRC_DIR}/AlarmSchedule.cpp"
+    "${CORE_SRC_DIR}/AlarmJson.cpp"
+    "${CORE_SRC_DIR}/SystemDiagnostics.cpp"
+    "${CORE_SRC_DIR}/AudioPreset.cpp"
+    "${CORE_SRC_DIR}/AudioPresetBank.cpp"
+    "${CORE_SRC_DIR}/AudioPresetCodec.cpp"
+    "${CORE_SRC_DIR}/AudioPresetJson.cpp"
 )
 target_include_directories(digiradio_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../include"
@@ -186,3 +204,67 @@ add_test(NAME dab_follower_test COMMAND dab_follower_test)
 add_executable(signal_quality_test signal_quality_test.cpp)
 target_link_libraries(signal_quality_test PRIVATE digiradio_core)
 add_test(NAME signal_quality_test COMMAND signal_quality_test)
+
+add_executable(pcm_resampler_test pcm_resampler_test.cpp)
+target_link_libraries(pcm_resampler_test PRIVATE digiradio_core)
+add_test(NAME pcm_resampler_test COMMAND pcm_resampler_test)
+
+add_executable(icy_stream_filter_test icy_stream_filter_test.cpp)
+target_link_libraries(icy_stream_filter_test PRIVATE digiradio_core)
+add_test(NAME icy_stream_filter_test COMMAND icy_stream_filter_test)
+
+add_executable(alarm_schedule_test alarm_schedule_test.cpp)
+target_link_libraries(alarm_schedule_test PRIVATE digiradio_core)
+add_test(NAME alarm_schedule_test COMMAND alarm_schedule_test)
+
+add_executable(system_diagnostics_test system_diagnostics_test.cpp)
+target_link_libraries(system_diagnostics_test PRIVATE digiradio_core)
+add_test(NAME system_diagnostics_test COMMAND system_diagnostics_test)
+
+add_executable(blob_store_test blob_store_test.cpp)
+target_link_libraries(blob_store_test PRIVATE digiradio_core)
+add_test(NAME blob_store_test COMMAND blob_store_test)
+
+add_executable(dls_decoder_test dls_decoder_test.cpp)
+target_link_libraries(dls_decoder_test PRIVATE digiradio_core)
+add_test(NAME dls_decoder_test COMMAND dls_decoder_test)
+
+add_executable(radio_spectrum_test radio_spectrum_test.cpp)
+target_link_libraries(radio_spectrum_test PRIVATE digiradio_core)
+add_test(NAME radio_spectrum_test COMMAND radio_spectrum_test)
+
+add_executable(dab_return_policy_test dab_return_policy_test.cpp)
+target_link_libraries(dab_return_policy_test PRIVATE digiradio_core)
+add_test(NAME dab_return_policy_test COMMAND dab_return_policy_test)
+
+add_executable(mot_slideshow_test mot_slideshow_test.cpp)
+target_link_libraries(mot_slideshow_test PRIVATE digiradio_core)
+add_test(NAME mot_slideshow_test COMMAND mot_slideshow_test)
+
+add_executable(rds_rt_plus_test rds_rt_plus_test.cpp)
+target_link_libraries(rds_rt_plus_test PRIVATE digiradio_core)
+add_test(NAME rds_rt_plus_test COMMAND rds_rt_plus_test)
+
+add_executable(json_text_test json_text_test.cpp)
+target_link_libraries(json_text_test PRIVATE digiradio_core)
+add_test(NAME json_text_test COMMAND json_text_test)
+
+add_executable(web_radio_budget_test web_radio_budget_test.cpp)
+target_link_libraries(web_radio_budget_test PRIVATE digiradio_core)
+add_test(NAME web_radio_budget_test COMMAND web_radio_budget_test)
+
+add_executable(audio_preset_test audio_preset_test.cpp)
+target_link_libraries(audio_preset_test PRIVATE digiradio_core)
+add_test(NAME audio_preset_test COMMAND audio_preset_test)
+
+add_executable(preset_service_test preset_service_test.cpp)
+target_include_directories(preset_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/host_stubs"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/include"
+)
+target_sources(preset_service_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/src/AudioService.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../services/audio/src/PresetService.cpp"
+)
+target_link_libraries(preset_service_test PRIVATE digiradio_core)
+add_test(NAME preset_service_test COMMAND preset_service_test)

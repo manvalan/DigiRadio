@@ -475,6 +475,23 @@ void TunerService::setAfFollowEnabled(bool enabled)
     afStats_.enabled = enabled;
 }
 
+std::expected<void, core::TunerError> TunerService::pollBroadcastData(
+    core::IDabDataSink& sink, std::size_t maxPackets)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return tuner_.pollBroadcastData(sink, maxPackets);
+}
+
+void TunerService::setSweepActive(bool active) noexcept
+{
+    sweepActive_.store(active);
+}
+
+bool TunerService::sweepActive() const noexcept
+{
+    return sweepActive_.load();
+}
+
 std::expected<core::TunerStatus, core::TunerError> TunerService::refreshSignal()
 {
     const std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -500,6 +517,24 @@ void TunerService::recordDabFollow(bool switched)
     if (switched) {
         ++afStats_.dabSwitches;
     }
+}
+
+void TunerService::setDabReturnMinutes(std::uint16_t minutes)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    afStats_.dabReturnMinutes = minutes;
+}
+
+void TunerService::setOnFmFallback(bool active)
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    afStats_.onFmFallback = active;
+}
+
+void TunerService::recordDabReturn()
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    ++afStats_.dabReturns;
 }
 
 void TunerService::recordAfHunt()
