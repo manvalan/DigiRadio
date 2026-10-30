@@ -11,7 +11,7 @@ COVER PHOTO
 cover-4x3.png
 
 PROJECT STORY
-DigiRadio is an open-source portable digital radio designed in KiCad 10: DAB, DAB+ and FM reception, a SigmaDSP audio hub, Bluetooth audio, an optical S/PDIF output and a Li-ion battery that charges from USB-C. Everything sits on one 6-layer board of 89 × 187 mm.
+DigiRadio is an open-source portable digital radio designed in KiCad 10: DAB, DAB+ and FM reception, a SigmaDSP audio hub, Bluetooth audio, an optical S/PDIF output and a Li-ion battery that charges from USB-C. Everything sits on one 6-layer board of 60 × 80 mm.
 
 How it works
 - Radio: a Silicon Labs Si4684 receives DAB/DAB+ and FM from an SMA antenna jack, with its own 19.2 MHz crystal and SPI flash for its firmware.
