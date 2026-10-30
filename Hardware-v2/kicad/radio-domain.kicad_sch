@@ -4907,7 +4907,7 @@
 				)
 			)
 		)
-		(property "Description" "12pF X7R ±10% 50V 0603 Ceramic Capacitors RoHS"
+		(property "Description" "CAP CER 12pF 50V NP0 0603"
 			(at 138.43 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -4918,7 +4918,7 @@
 				)
 			)
 		)
-		(property "PNM" "C0603C120K5RACTU"
+		(property "PNM" "CC0603JRNPO9BN120"
 			(at 138.43 68.58 90)
 			(hide yes)
 			(show_name no)
@@ -6494,7 +6494,7 @@
 				)
 			)
 		)
-		(property "Description" "12pF X7R ±10% 50V 0603 Ceramic Capacitors RoHS"
+		(property "Description" "CAP CER 12pF 50V NP0 0603"
 			(at 138.43 86.36 0)
 			(hide yes)
 			(show_name no)
@@ -6505,7 +6505,7 @@
 				)
 			)
 		)
-		(property "PNM" "C0603C120K5RACTU"
+		(property "PNM" "CC0603JRNPO9BN120"
 			(at 138.43 86.36 90)
 			(hide yes)
 			(show_name no)

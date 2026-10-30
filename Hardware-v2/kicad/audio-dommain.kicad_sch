@@ -2907,6 +2907,12 @@
 		(uuid "63505343-c8dd-4123-9a31-83a73c3e370a")
 	)
 	(junction
+		(at 250.19 19.05)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "69f08b47-f182-49b1-91d8-e35c1a1d1b41")
+	)
+	(junction
 		(at 219.71 26.67)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3019,6 +3025,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "fcb86f7b-58b5-46a9-85c1-da3c14a42bfa")
+	)
+	(junction
+		(at 242.57 26.67)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "fd84b5a9-5c15-4da7-b7f7-c42900bf26a6")
 	)
 	(junction
 		(at 218.44 123.19)
@@ -3493,6 +3505,16 @@
 			(type default)
 		)
 		(uuid "4795b878-d90a-41f8-a5ae-7ac88ceaef84")
+	)
+	(wire
+		(pts
+			(xy 242.57 26.67) (xy 250.19 26.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "47c3e62d-bd20-48ca-89de-78aaf2c04eea")
 	)
 	(wire
 		(pts
@@ -5033,6 +5055,176 @@
 			(justify right)
 		)
 		(uuid "fc488f9c-95ae-4456-aefa-af0b2e34c971")
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 250.19 22.86 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "003cb851-7824-422a-9de4-7adeb4f6e9f8")
+		(property "Reference" "C6"
+			(at 254 21.5899 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 254 24.1299 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+			(at 251.1552 26.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "CAP CER 1uF 50V X7R 0603"
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PNM" "CL10B105KB8NQNC"
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "DIGIKEY-PURCHASE-URL" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MFANUFACTURER" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MOUSER-PURCHASE-URL" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "TEXAS_INSTRUMENTS-PURCHASE-URL" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "KLC_S3.3" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "KLC_S4.1" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "SNAPEDA_PN" ""
+			(at 250.19 22.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "acd8f8f6-cc29-4c0a-bb0d-117128ec697b")
+		)
+		(pin "1"
+			(uuid "ea8a6805-b7a0-40d5-8f22-1a4fdf138e1f")
+		)
+		(instances
+			(project "digiradio-batch2"
+				(path "/b433c945-2781-4d63-86b0-19b6ee138fd9/031d3380-a811-4887-9d07-65b6d0d08041"
+					(reference "C6")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "Device:R")
@@ -9298,7 +9490,7 @@
 				)
 			)
 		)
-		(property "Value" "25AA1024-I_SM"
+		(property "Value" "25AA1024-I/SM"
 			(at 246.38 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9308,7 +9500,7 @@
 				)
 			)
 		)
-		(property "Footprint" "MIKILAB_25AA1024:SOIC127P600X175-8N"
+		(property "Footprint" "Package_SO:SOIC-8_5.3x5.3mm_P1.27mm"
 			(at 246.38 130.81 0)
 			(hide yes)
 			(show_name no)
@@ -9427,7 +9619,7 @@
 				(justify bottom)
 			)
 		)
-		(property "PNM" "25AA1024-I_SM"
+		(property "PNM" "25AA1024-I/SM"
 			(at 246.38 130.81 0)
 			(hide yes)
 			(show_name no)
@@ -11475,7 +11667,7 @@
 				)
 			)
 		)
-		(property "Value" "12pF"
+		(property "Value" "15pF"
 			(at 27.178 170.942 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11507,7 +11699,7 @@
 				)
 			)
 		)
-		(property "Description" "12pF X7R ±10% 50V 0603 Ceramic Capacitors RoHS"
+		(property "Description" "CAP CER 15pF 50V NP0 0603"
 			(at 24.13 171.45 0)
 			(hide yes)
 			(show_name no)
@@ -11518,7 +11710,7 @@
 				)
 			)
 		)
-		(property "PNM" "C0603C120K5RACTU"
+		(property "PNM" "CC0603JRNPO9BN150"
 			(at 24.13 171.45 90)
 			(hide yes)
 			(show_name no)
@@ -13790,7 +13982,7 @@
 				)
 			)
 		)
-		(property "Value" "12pF"
+		(property "Value" "15pF"
 			(at 53.848 169.672 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13822,7 +14014,7 @@
 				)
 			)
 		)
-		(property "Description" "12pF X7R ±10% 50V 0603 Ceramic Capacitors RoHS"
+		(property "Description" "CAP CER 15pF 50V NP0 0603"
 			(at 50.8 170.18 0)
 			(hide yes)
 			(show_name no)
@@ -13833,7 +14025,7 @@
 				)
 			)
 		)
-		(property "PNM" "C0603C120K5RACTU"
+		(property "PNM" "CC0603JRNPO9BN150"
 			(at 50.8 170.18 90)
 			(hide yes)
 			(show_name no)
