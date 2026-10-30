@@ -1,258 +1,494 @@
 /**
  * @file    web_radio_stream.cpp
- * @brief   HTTP MP3 stream -> libhelix decode -> ADAU1701 I2S.
+ * @brief   Web radio player task: ring buffer -> libhelix MP3 decode ->
+ *          resample to 48 kHz -> ADAU1701 I2S.
  *
  * DigiRadio firmware — https://github.com/manvalan/DigiRadio
  *
  * Copyright 2026 Michele Bigi
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * 0.10.0 rewrite. Until then one task read 4 KB from the socket, decoded
+ * a frame and wrote it to I2S without converting the sample rate: the
+ * ADAU1701 clocks 48 kHz, nearly every MP3 station sends 44.1 kHz, so the
+ * audio played 9 % fast and ran the socket dry every few frames.
  */
 
 #include "web_radio_stream.hpp"
 
+#include "audio_routing.hpp"
 #include "esp32_i2s_sink.hpp"
+#include "system_diag.hpp"
+#include "web_radio_session.hpp"
 #include "webradio/WebRadioService.hpp"
 
-#include "esp_crt_bundle.h"
-#include "esp_http_client.h"
+#include "core/PcmResampler.hpp"
+#include "core/WebRadioBudget.hpp"
+
+#include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "mp3dec.h"
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstring>
-#include <string>
+#include <span>
 
 namespace web_radio_stream {
 
 namespace {
 
 constexpr char kTag[] = "web_radio";
-constexpr int kSampleRateHz = 48000;
+constexpr unsigned kStartFillPercent = 50U;
+/** Lets the idle task free a deleted network task's stack. */
+constexpr TickType_t kTaskReapDelay = pdMS_TO_TICKS(100);
+/** Low-bitrate streams fill slowly: start anyway after this long. */
+constexpr std::int64_t kPrefillTimeoutUs = 6000000;
+constexpr std::size_t kMinStartBytes = 4096U;
 constexpr std::size_t kInputBufSize = 4096U; // >= 2x MAINBUF_SIZE (1940)
-constexpr int kHttpTimeoutMs = 10000;
-constexpr TickType_t kIdlePollDelay = pdMS_TO_TICKS(1000);
-constexpr TickType_t kReconnectDelay = pdMS_TO_TICKS(5000);
-/** How often to retry when a phone PCM stream currently owns the I2S sink. */
-constexpr TickType_t kSinkBusyRetryDelay = pdMS_TO_TICKS(2000);
+constexpr std::size_t kResampleBlockFrames = 384U;
+constexpr std::size_t kResampleOutFrames = 2400U; // 384 frames at 8 kHz
+constexpr std::size_t kI2sChunkFrames = 480U;
+constexpr TickType_t kIdlePollDelay = pdMS_TO_TICKS(500);
+constexpr TickType_t kSinkBusyRetryDelay = pdMS_TO_TICKS(1000);
+constexpr TickType_t kInitRetryDelay = pdMS_TO_TICKS(5000);
+constexpr TickType_t kRingReadTimeout = pdMS_TO_TICKS(100);
+constexpr std::int64_t kPublishPeriodUs = 500000;
+constexpr int kTrimEveryFrames = 32;
 
-/** Raw MP3 bytes pending decode, refilled from the HTTP socket. */
+/** What one decode attempt achieved. */
+enum class Decoded { Played, NeedData, Skipped, OutputFailed };
+
+/** Raw MP3 bytes pending decode, refilled from the ring buffer. */
 struct InputBuffer {
-    std::uint8_t data[kInputBufSize];
+    std::array<std::uint8_t, kInputBufSize> data{};
     std::size_t filled = 0U;
-    std::uint8_t* readPtr = data;
+    std::size_t read = 0U;
+
+    [[nodiscard]] std::size_t unread() const { return filled - read; }
 };
 
-[[nodiscard]] esp_http_client_handle_t openStream(const std::string& url)
-{
-    esp_http_client_config_t cfg{};
-    cfg.url = url.c_str();
-    cfg.timeout_ms = kHttpTimeoutMs;
-    // Most public internet radio streams are HTTPS-only today; esp_http_client
-    // needs an explicit trust anchor for TLS verification or the handshake
-    // fails outright. CONFIG_MBEDTLS_CERTIFICATE_BUNDLE is already enabled
-    // (sdkconfig), so attach ESP-IDF's built-in CA bundle -- this is a no-op
-    // for plain http:// URLs.
-    cfg.crt_bundle_attach = esp_crt_bundle_attach;
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (client == nullptr) {
-        ESP_LOGE(kTag, "esp_http_client_init failed");
-        return nullptr;
-    }
-    if (esp_http_client_open(client, 0) != ESP_OK) {
-        ESP_LOGE(kTag, "esp_http_client_open failed: %s", url.c_str());
-        esp_http_client_cleanup(client);
-        return nullptr;
-    }
-    const int contentLength = esp_http_client_fetch_headers(client);
-    ESP_LOGI(kTag, "stream opened: %s (content-length=%d, status=%d)",
-             url.c_str(), contentLength,
-             esp_http_client_get_status_code(client));
+/** Player-side counters merged into the published status. */
+struct PlayerStats {
+    core::WebRadioState state{core::WebRadioState::Buffering};
+    core::WebRadioFault fault{core::WebRadioFault::None};
+    std::uint32_t sampleRateHz{0U};
+    std::uint8_t channels{0U};
+    std::uint16_t bitrateKbps{0U};
+    std::uint32_t underruns{0U};
+    std::int64_t lastPublishUs{0};
+};
 
-    char* contentType = nullptr;
-    if (esp_http_client_get_header(client, "Content-Type", &contentType)
-            == ESP_OK
-        && contentType != nullptr
-        && std::strncmp(contentType, "audio/", 6) != 0) {
-        ESP_LOGW(kTag,
-                 "Content-Type '%s' is not audio/* -- this URL is probably "
-                 "a website, not a direct MP3 stream link. Find the actual "
-                 "stream endpoint (often ends in .mp3, or is listed as a "
-                 "\"listen live\"/shoutcast/icecast URL on the station's "
-                 "site) and set that instead.",
-                 contentType);
-    }
-    return client;
+/** Lowest free heap seen while streaming is on (reset when it is turned
+ *  on): what GET /api/streaming reports as heap_min. */
+std::size_t gStreamHeapMin = 0U;
+
+struct Player {
+    webradio::WebRadioService* service{nullptr};
+    HMP3Decoder decoder{nullptr};
+    Session session;
+    InputBuffer in;
+    PlayerStats stats;
+    core::PcmResampler resampler;
+    int framesSinceTrim{0};
+};
+
+[[nodiscard]] unsigned fillPercent(const Session& s)
+{
+    const std::size_t used = xStreamBufferBytesAvailable(s.ring);
+    return static_cast<unsigned>(used * 100U / s.ringBytes);
 }
 
-/** Slide unread bytes to the front, then top up from the HTTP socket. */
-void refill(esp_http_client_handle_t client, InputBuffer& in)
+void publish(Player& p, bool force = false)
 {
-    const std::size_t unread =
-        in.filled - static_cast<std::size_t>(in.readPtr - in.data);
-    std::memmove(in.data, in.readPtr, unread);
-    const int freeSpace = static_cast<int>(kInputBufSize - unread);
-    const int nRead = freeSpace > 0
-        ? esp_http_client_read(client, reinterpret_cast<char*>(in.data)
-                                            + unread,
-                               freeSpace)
-        : 0;
-    in.filled = unread + (nRead > 0 ? static_cast<std::size_t>(nRead) : 0U);
-    in.readPtr = in.data;
+    const std::int64_t now = esp_timer_get_time();
+    if (!force && now - p.stats.lastPublishUs < kPublishPeriodUs) {
+        return;
+    }
+    p.stats.lastPublishUs = now;
+    core::WebRadioStatus status;
+    Session& s = p.session;
+    xSemaphoreTake(s.lock, portMAX_DELAY);
+    const bool netOk = s.netState == core::WebRadioState::Playing;
+    status.state = netOk ? p.stats.state : s.netState;
+    status.fault = netOk ? p.stats.fault : s.fault;
+    status.httpStatus = s.httpStatus;
+    status.codec = s.codec;
+    status.reconnects = s.reconnects;
+    status.title = s.title;
+    xSemaphoreGive(s.lock);
+    status.sampleRateHz = p.stats.sampleRateHz;
+    status.channels = p.stats.channels;
+    status.bitrateKbps = p.stats.bitrateKbps;
+    status.bufferPercent = static_cast<std::uint8_t>(fillPercent(s));
+    status.underruns = p.stats.underruns;
+    gStreamHeapMin = std::min(gStreamHeapMin,
+                              heap_caps_get_free_size(MALLOC_CAP_8BIT));
+    status.ringBytes = static_cast<std::uint32_t>(s.ringBytes);
+    status.heapMinBytes = static_cast<std::uint32_t>(gStreamHeapMin);
+    p.service->publishStatus(status);
 }
 
-/** Convert one decoded PCM frame to the ADAU's 32-bit-slot I2S format and
- *  hand the whole frame to the shared sink in a single write. One
- *  i2s_channel_write() call per sample (the previous approach) meant up to
- *  1152 separate driver calls per MP3 frame, each with its own locking/DMA
- *  bookkeeping overhead — a likely source of the reported stutter/crackle,
- *  independent of network jitter. */
-void writeFrame(const std::int16_t* pcm, int frameCount, int channels)
+[[nodiscard]] bool sessionCurrent(const Player& p, std::uint32_t generation)
 {
-    // MAX_NGRAN(2) * MAX_NSAMP(576) = 1152 samples/channel, stereo => 2304.
-    static std::int32_t out[MAX_NGRAN * MAX_NSAMP * 2];
-    const int sampleCount = frameCount > MAX_NGRAN * MAX_NSAMP
-                                 ? MAX_NGRAN * MAX_NSAMP
-                                 : frameCount;
-    for (int i = 0; i < sampleCount; ++i) {
-        const std::int16_t left = pcm[i * channels];
-        const std::int16_t right = channels > 1 ? pcm[i * channels + 1] : left;
-        out[i * 2] = static_cast<std::int32_t>(left) << 16;
-        out[i * 2 + 1] = static_cast<std::int32_t>(right) << 16;
-    }
-    (void)esp32_i2s_sink::writeSamples(out, static_cast<std::size_t>(sampleCount) * 2U);
+    return p.service->generation() == generation
+           && p.service->config().enabled;
 }
 
-/**
- * One refill+decode+play cycle.
- * @return false when the stream has ended (caller should reconnect).
- */
-[[nodiscard]] bool pumpOneFrame(esp_http_client_handle_t client,
-                                HMP3Decoder decoder, InputBuffer& in,
-                                std::int16_t* pcmOut, bool& loggedFormat)
+/** Waits until the ring is half full (or has enough after a timeout). */
+[[nodiscard]] bool waitForFill(Player& p, std::uint32_t generation)
 {
-    const std::size_t unread =
-        in.filled - static_cast<std::size_t>(in.readPtr - in.data);
-    if (unread < MAINBUF_SIZE) {
-        refill(client, in);
-    }
-    const std::size_t available =
-        in.filled - static_cast<std::size_t>(in.readPtr - in.data);
-    if (available == 0U) {
-        return false;
-    }
-
-    const int offset =
-        MP3FindSyncWord(in.readPtr, static_cast<int>(available));
-    if (offset < 0) {
-        in.readPtr += available; // no sync word in this chunk, drop it
-        return true;
-    }
-    in.readPtr += offset;
-
-    unsigned char* decodePtr = in.readPtr;
-    int bytesLeft = static_cast<int>(available - static_cast<std::size_t>(offset));
-    const int err =
-        MP3Decode(decoder, &decodePtr, &bytesLeft, pcmOut, 0);
-    in.readPtr = decodePtr;
-    if (err != ERR_MP3_NONE) {
-        if (err == ERR_MP3_MAINDATA_UNDERFLOW) {
-            return true; // needs more bytes; try again next cycle
+    p.stats.state = core::WebRadioState::Buffering;
+    const std::int64_t start = esp_timer_get_time();
+    while (sessionCurrent(p, generation)) {
+        const std::size_t used = xStreamBufferBytesAvailable(p.session.ring);
+        const bool timedOut = esp_timer_get_time() - start > kPrefillTimeoutUs;
+        if (fillPercent(p.session) >= kStartFillPercent
+            || (timedOut && used >= kMinStartBytes)) {
+            p.stats.state = core::WebRadioState::Playing;
+            return true;
         }
-        ESP_LOGW(kTag, "MP3 decode error %d, resyncing", err);
-        return true;
+        publish(p);
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
+    return false;
+}
 
-    MP3FrameInfo info{};
-    MP3GetLastFrameInfo(decoder, &info);
-    if (!loggedFormat) {
-        loggedFormat = true;
-        ESP_LOGI(kTag, "stream format: %d Hz, %d ch, %d bps%s", info.samprate,
-                 info.nChans, info.bitsPerSample,
-                 info.samprate != kSampleRateHz
-                     ? " (WARNING: != 48000 Hz, no resampler -> pitch off)"
-                     : "");
+/** Slides unread bytes to the front, then tops up from the ring.
+ *  @return bytes received from the ring. */
+std::size_t refill(Player& p)
+{
+    InputBuffer& in = p.in;
+    const std::size_t unread = in.unread();
+    std::memmove(in.data.data(), in.data.data() + in.read, unread);
+    in.filled = unread;
+    in.read = 0U;
+    const std::size_t got =
+        xStreamBufferReceive(p.session.ring, in.data.data() + unread,
+                             in.data.size() - unread, kRingReadTimeout);
+    in.filled += got;
+    return got;
+}
+
+/** Converts 16-bit stereo to the ADAU's 32-bit slots and writes it. */
+[[nodiscard]] bool writeI2s(std::span<const std::int16_t> stereo)
+{
+    static std::array<std::int32_t, kI2sChunkFrames * 2U> out;
+    const std::size_t frames = stereo.size() / 2U;
+    for (std::size_t done = 0U; done < frames; done += kI2sChunkFrames) {
+        const std::size_t batch = std::min(kI2sChunkFrames, frames - done);
+        for (std::size_t i = 0U; i < batch * 2U; ++i) {
+            out[i] = static_cast<std::int32_t>(stereo[done * 2U + i]) << 16;
+        }
+        if (!esp32_i2s_sink::writeSamples(out.data(), batch * 2U)) {
+            return false;
+        }
     }
-    const int frameCount = info.outputSamps / info.nChans;
-    writeFrame(pcmOut, frameCount, info.nChans);
     return true;
 }
 
-/** Stream until the config is disabled or the connection drops. */
-void streamWhileEnabled(webradio::WebRadioService& service,
-                        const std::string& url, HMP3Decoder decoder,
-                        std::int16_t* pcmOut)
+void steerDrift(Player& p)
 {
-    esp_http_client_handle_t client = openStream(url);
-    if (client == nullptr) {
-        vTaskDelay(kReconnectDelay);
+    if (++p.framesSinceTrim < kTrimEveryFrames) {
         return;
     }
+    p.framesSinceTrim = 0;
+    p.resampler.setTrimPpm(core::driftTrimPpm(fillPercent(p.session)));
+}
 
-    // esp_http_client_open() only establishes the TCP/TLS connection; a 4xx/
-    // 5xx HTTP response (wrong path, station offline, etc.) still returns a
-    // valid client handle here. Without this check, such a response reads
-    // as an empty body -> pumpOneFrame() returns false on its first call ->
-    // the reconnect delay below is skipped entirely, and run()'s outer loop
-    // immediately retries: a full TCP+TLS handshake in a tight loop, bounded
-    // only by network RTT, not kReconnectDelay. Observed live 2026-08-26 at
-    // roughly 2 attempts/second against a misconfigured URL, competing for
-    // CPU/heap with an unrelated concurrent FM scan on the same board.
-    const int status = esp_http_client_get_status_code(client);
-    if (status < 200 || status >= 300) {
-        ESP_LOGW(kTag, "stream %s returned HTTP %d, not audio -- backing off",
-                 url.c_str(), status);
-        esp_http_client_close(client);
-        esp_http_client_cleanup(client);
-        vTaskDelay(kReconnectDelay);
+/** Resamples one decoded frame (interleaved stereo) and plays it. */
+[[nodiscard]] bool playFrame(Player& p, std::span<const std::int16_t> stereo)
+{
+    static std::array<std::int16_t, kResampleOutFrames * 2U> out;
+    steerDrift(p);
+    for (std::size_t at = 0U; at < stereo.size(); at += kResampleBlockFrames * 2U) {
+        const std::size_t length =
+            std::min(kResampleBlockFrames * 2U, stereo.size() - at);
+        const std::size_t frames =
+            p.resampler.process(stereo.subspan(at, length), out);
+        if (!writeI2s(std::span<const std::int16_t>(out.data(), frames * 2U))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void noteFormat(Player& p, const MP3FrameInfo& info)
+{
+    p.stats.bitrateKbps = static_cast<std::uint16_t>(info.bitrate / 1000);
+    p.stats.channels = static_cast<std::uint8_t>(info.nChans);
+    if (p.resampler.inputRateHz() == static_cast<std::uint32_t>(info.samprate)) {
         return;
     }
-
-    InputBuffer in;
-    bool loggedFormat = false;
-    while (service.config().enabled
-           && pumpOneFrame(client, decoder, in, pcmOut, loggedFormat)) {
-        // keep pumping until disabled, the stream ends, or it drops
+    if (!p.resampler.setInputRate(static_cast<std::uint32_t>(info.samprate))) {
+        ESP_LOGW(kTag, "unsupported MP3 sample rate %d Hz", info.samprate);
+        return;
     }
+    p.stats.sampleRateHz = static_cast<std::uint32_t>(info.samprate);
+    ESP_LOGI(kTag, "stream format: %d Hz, %d ch, %d kbit/s -> 48000 Hz",
+             info.samprate, info.nChans, info.bitrate / 1000);
+}
 
-    esp_http_client_close(client);
-    esp_http_client_cleanup(client);
+/** Decodes one frame from the input buffer and plays it. */
+[[nodiscard]] Decoded decodeAndPlay(Player& p)
+{
+    static std::array<std::int16_t, MAX_NCHAN * MAX_NGRAN * MAX_NSAMP> pcm;
+    static std::array<std::int16_t, 2U * MAX_NGRAN * MAX_NSAMP> stereo;
+    InputBuffer& in = p.in;
+    const int offset = MP3FindSyncWord(in.data.data() + in.read,
+                                       static_cast<int>(in.unread()));
+    if (offset < 0) {
+        in.read = in.filled; // no sync word in what we have: drop it
+        return Decoded::Skipped;
+    }
+    in.read += static_cast<std::size_t>(offset);
+    unsigned char* ptr = in.data.data() + in.read;
+    int left = static_cast<int>(in.unread());
+    const int err = MP3Decode(p.decoder, &ptr, &left, pcm.data(), 0);
+    in.read = static_cast<std::size_t>(ptr - in.data.data());
+    if (err == ERR_MP3_INDATA_UNDERFLOW) {
+        return Decoded::NeedData;
+    }
+    if (err != ERR_MP3_NONE) {
+        if (err != ERR_MP3_MAINDATA_UNDERFLOW
+            && left == static_cast<int>(in.unread())) {
+            ++in.read; // corrupt header: skip past this sync word
+        }
+        return Decoded::Skipped;
+    }
+    MP3FrameInfo info{};
+    MP3GetLastFrameInfo(p.decoder, &info);
+    noteFormat(p, info);
+    if (p.resampler.inputRateHz() == 0U || info.nChans < 1) {
+        return Decoded::Skipped;
+    }
+    const auto frames = static_cast<std::size_t>(info.outputSamps / info.nChans);
+    for (std::size_t i = 0U; i < frames; ++i) {
+        stereo[i * 2U] = pcm[i * info.nChans];
+        stereo[i * 2U + 1U] = pcm[i * info.nChans + (info.nChans - 1)];
+    }
+    const auto out = std::span<const std::int16_t>(stereo.data(), frames * 2U);
+    return playFrame(p, out) ? Decoded::Played : Decoded::OutputFailed;
+}
+
+[[nodiscard]] bool rebuffer(Player& p, std::uint32_t generation)
+{
+    ++p.stats.underruns;
+    ESP_LOGW(kTag, "buffer empty (underrun %lu), rebuffering",
+             static_cast<unsigned long>(p.stats.underruns));
+    return waitForFill(p, generation);
+}
+
+void reportOutputFailure(Player& p)
+{
+    p.stats.fault = core::WebRadioFault::AudioOutput;
+    p.stats.state = core::WebRadioState::Error;
+    ESP_LOGE(kTag, "I2S write timed out: no BCLK/LRCLK from the ADAU1701?");
+    publish(p, true);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+}
+
+/** One step of the play loop; false ends the session. */
+[[nodiscard]] bool step(Player& p, std::uint32_t generation)
+{
+    const std::size_t got = p.in.unread() < MAINBUF_SIZE ? refill(p) : 1U;
+    const Decoded result =
+        p.in.unread() == 0U ? Decoded::NeedData : decodeAndPlay(p);
+    if (result == Decoded::NeedData && got == 0U) {
+        return rebuffer(p, generation);
+    }
+    if (result == Decoded::OutputFailed) {
+        reportOutputFailure(p);
+    } else if (result == Decoded::Played) {
+        p.stats.fault = core::WebRadioFault::None;
+        p.stats.state = core::WebRadioState::Playing;
+    }
+    publish(p);
+    return sessionCurrent(p, generation);
+}
+
+void stopFetch(Player& p)
+{
+    p.session.stop.store(true);
+    // The network task notices within one socket read (8 s timeout at
+    // worst, usually immediately on a live stream).
+    if (xSemaphoreTake(p.session.done, pdMS_TO_TICKS(15000)) != pdTRUE) {
+        ESP_LOGE(kTag, "network task did not stop; waiting");
+        xSemaphoreTake(p.session.done, portMAX_DELAY);
+    }
+}
+
+[[nodiscard]] bool prepareSession(Player& p, const std::string& url)
+{
+    Session& s = p.session;
+    xStreamBufferReset(s.ring);
+    s.url = url;
+    s.stop.store(false);
+    s.netState = core::WebRadioState::Connecting;
+    s.fault = core::WebRadioFault::None;
+    s.httpStatus = 0;
+    s.codec.clear();
+    s.reconnects = 0U;
+    s.title.reset();
+    p.in = InputBuffer{};
+    p.stats = PlayerStats{};
+    p.framesSinceTrim = 0;
+    if (p.decoder != nullptr) {
+        MP3FreeDecoder(p.decoder);
+    }
+    p.decoder = MP3InitDecoder();
+    return p.decoder != nullptr && startFetch(s);
+}
+
+void playSession(Player& p, const std::string& url, std::uint32_t generation)
+{
+    if (!prepareSession(p, url)) {
+        p.stats.state = core::WebRadioState::Error;
+        p.stats.fault = core::WebRadioFault::OutOfMemory;
+        publish(p, true);
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        return;
+    }
+    ESP_LOGI(kTag, "playing %s", url.c_str());
+    if (waitForFill(p, generation)) {
+        while (step(p, generation)) {
+        }
+    }
+    stopFetch(p);
+    // The network task frees its 10 KB stack only when the idle task reaps
+    // it after vTaskDelete; and the MP3 decoder is rebuilt for the next
+    // station. Release both before the next connect so two network stacks
+    // and two decoders never coexist (0.12.4 dipped to 1.7 KB right at
+    // station changes).
+    if (p.decoder != nullptr) {
+        MP3FreeDecoder(p.decoder);
+        p.decoder = nullptr;
+    }
+    vTaskDelay(kTaskReapDelay);
+}
+
+/** Ring sized from the free heap (core::chooseWebRadioRing): the MP3
+ *  decoder, the network task, HTTP(S) and Wi-Fi still need ~40-56 KB once
+ *  it exists. 0.12.3 took a ring regardless, the heap fell to 1.6 KB and
+ *  Wi-Fi stopped: now a start without enough heap is refused. */
+[[nodiscard]] bool createRing(Session& s, bool https)
+{
+    const std::size_t freeBytes = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    const std::size_t largest =
+        heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    const auto bytes = core::chooseWebRadioRing(freeBytes, largest, https);
+    if (bytes) {
+        s.ring = xStreamBufferCreate(*bytes, 1U);
+    }
+    if (s.ring == nullptr) {
+        ESP_LOGE(kTag, "not enough heap to stream (free %u, largest %u)",
+                 static_cast<unsigned>(freeBytes),
+                 static_cast<unsigned>(largest));
+        return false;
+    }
+    s.ringBytes = *bytes;
+    ESP_LOGI(kTag, "ring buffer %u bytes (heap free %u)",
+             static_cast<unsigned>(*bytes), static_cast<unsigned>(freeBytes));
+    return true;
+}
+
+void deleteRing(Session& s)
+{
+    vStreamBufferDelete(s.ring);
+    s.ring = nullptr;
+    s.ringBytes = 0U;
+}
+
+/** I2S channel and session semaphores; retried, never fatal: the task
+ *  must stay alive because system_diag keeps its handle. */
+[[nodiscard]] bool initPlayer(Player& p)
+{
+    if (p.session.done == nullptr) {
+        p.session.done = xSemaphoreCreateBinary();
+    }
+    if (p.session.lock == nullptr) {
+        p.session.lock = xSemaphoreCreateMutex();
+    }
+    return esp32_i2s_sink::open() && p.session.done != nullptr
+           && p.session.lock != nullptr;
+}
+
+void publishFault(Player& p, core::WebRadioFault fault)
+{
+    core::WebRadioStatus status;
+    status.state = core::WebRadioState::Error;
+    status.fault = fault;
+    p.service->publishStatus(status);
+}
+
+void publishIdle(Player& p)
+{
+    if (p.service->status().state == core::WebRadioState::Idle) {
+        return;
+    }
+    p.service->publishStatus(core::WebRadioStatus{});
+}
+
+/** Holds the sink and the ESP32 input for as long as streaming stays on. */
+void streamWhileEnabled(Player& p)
+{
+    if (!esp32_i2s_sink::tryAcquire()) {
+        vTaskDelay(kSinkBusyRetryDelay); // the phone stream has the sink
+        return;
+    }
+    const bool https = p.service->config().url.starts_with("https://");
+    gStreamHeapMin = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    if (!createRing(p.session, https)) {
+        esp32_i2s_sink::release();
+        publishFault(p, core::WebRadioFault::OutOfMemory);
+        vTaskDelay(kInitRetryDelay);
+        return;
+    }
+    if (!audio_routing::claimEsp32Input()) {
+        ESP_LOGW(kTag, "ADAU source switch failed; stream may be inaudible");
+    }
+    while (p.service->config().enabled) {
+        const std::uint32_t generation = p.service->generation();
+        playSession(p, p.service->config().url, generation);
+    }
+    audio_routing::restorePreviousSource();
+    esp32_i2s_sink::release();
+    deleteRing(p.session);
+    if (p.decoder != nullptr) {
+        MP3FreeDecoder(p.decoder); // give the heap back while idle
+        p.decoder = nullptr;
+    }
+    publishIdle(p);
 }
 
 } // namespace
 
 void run(void* arg)
 {
-    auto* service = static_cast<webradio::WebRadioService*>(arg);
-
-    if (!esp32_i2s_sink::open()) {
-        vTaskDelete(nullptr);
-        return;
+    static Player player;
+    player.service = static_cast<webradio::WebRadioService*>(arg);
+    while (!initPlayer(player)) {
+        ESP_LOGE(kTag, "web radio unavailable (I2S or memory), retrying");
+        publishFault(player, core::WebRadioFault::AudioOutput);
+        vTaskDelay(kInitRetryDelay);
     }
-
-    HMP3Decoder decoder = MP3InitDecoder();
-    if (decoder == nullptr) {
-        ESP_LOGE(kTag, "MP3InitDecoder failed");
-        vTaskDelete(nullptr);
-        return;
+    // A stream left on is resumed only once the system is up and a fresh
+    // OTA image is confirmed, so an update is never judged (or locked up,
+    // as 0.12.3 was) while a stream eats the heap during boot.
+    while (!system_diag::bootSettled()) {
+        vTaskDelay(kIdlePollDelay);
     }
-
-    static std::int16_t pcmOut[MAX_NCHAN * MAX_NGRAN * MAX_NSAMP];
-
     while (true) {
-        const core::WebRadioConfig cfg = service->config();
-        if (!cfg.enabled) {
+        if (player.service->config().enabled) {
+            streamWhileEnabled(player);
+        } else {
+            publishIdle(player);
             vTaskDelay(kIdlePollDelay);
-            continue;
         }
-        if (!esp32_i2s_sink::tryAcquire()) {
-            // A phone PCM stream currently owns the shared I2S sink.
-            vTaskDelay(kSinkBusyRetryDelay);
-            continue;
-        }
-        streamWhileEnabled(*service, cfg.url, decoder, pcmOut);
-        esp32_i2s_sink::release();
     }
 }
 

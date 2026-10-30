@@ -24,6 +24,7 @@ namespace {
 
 constexpr char kTag[] = "i2s_sink";
 constexpr int kSampleRateHz = 48000;
+constexpr std::uint32_t kWriteTimeoutMs = 1000U;
 
 i2s_chan_handle_t gTxHandle = nullptr;
 std::atomic<bool> gInUse{false};
@@ -44,6 +45,10 @@ bool open()
     // this channel.
     chanCfg.dma_desc_num = 12;
     chanCfg.dma_frame_num = 480;
+    // When a producer falls behind (network stall, end of stream), send
+    // silence instead of replaying the last DMA buffers over and over,
+    // which is heard as a loud buzz.
+    chanCfg.auto_clear = true;
 
     if (i2s_new_channel(&chanCfg, &gTxHandle, nullptr) != ESP_OK) {
         ESP_LOGE(kTag, "i2s_new_channel failed");
@@ -94,15 +99,23 @@ void release()
     gInUse.store(false);
 }
 
+bool inUse()
+{
+    return gInUse.load();
+}
+
 bool writeSamples(const std::int32_t* samples, std::size_t sampleCount)
 {
     if (gTxHandle == nullptr) {
         return false;
     }
     std::size_t written = 0U;
+    // The ADAU1701 is the I2S master: without its BCLK/LRCLK the DMA never
+    // drains. A bounded wait turns that into an error the player reports
+    // ("audio_output") instead of a task blocked forever.
     const esp_err_t err =
         i2s_channel_write(gTxHandle, samples, sampleCount * sizeof(std::int32_t),
-                          &written, portMAX_DELAY);
+                          &written, pdMS_TO_TICKS(kWriteTimeoutMs));
     return err == ESP_OK;
 }
 

@@ -58,12 +58,23 @@ void appendInt(std::string& out, const char* key, std::optional<int> value)
 SignalQuality computeSignalQuality(const TunerStatus& status)
 {
     if (status.band == TunerBand::Fm) {
-        return SignalQuality{status.band, status.locked, status.fmRssiDbuV,
-                             status.fmSnrDb, std::nullopt, fmScore(status)};
+        return SignalQuality{.band = status.band,
+                             .locked = status.locked,
+                             .levelDbuV = status.fmRssiDbuV,
+                             .snrDb = status.fmSnrDb,
+                             .ficQuality = std::nullopt,
+                             .fibErrors = std::nullopt,
+                             .ficErrors = std::nullopt,
+                             .quality = fmScore(status)};
     }
-    return SignalQuality{status.band, status.locked, status.dabRssiDbuV,
-                         status.dabCnrDb, status.dabFicQuality,
-                         dabScore(status)};
+    return SignalQuality{.band = status.band,
+                         .locked = status.locked,
+                         .levelDbuV = status.dabRssiDbuV,
+                         .snrDb = status.dabCnrDb,
+                         .ficQuality = status.dabFicQuality,
+                         .fibErrors = status.dabFibErrors,
+                         .ficErrors = status.dabFicErrors,
+                         .quality = dabScore(status)};
 }
 
 std::string_view signalGradeToken(std::uint8_t quality) noexcept
@@ -91,6 +102,11 @@ std::string serializeSignalQualityJson(const SignalQuality& signal)
     appendInt(out, "level_dbuv", asInt(signal.levelDbuV));
     appendInt(out, "snr_db", asInt(signal.snrDb));
     appendInt(out, "fic_quality", asInt(signal.ficQuality));
+    appendInt(out, "fib_errors", asInt(signal.fibErrors));
+    if (signal.ficErrors) {
+        out += std::string(R"(,"fic_errors":)")
+               + (*signal.ficErrors ? "true" : "false");
+    }
     out += R"(,"quality":)" + std::to_string(signal.quality) + R"(,"grade":")"
            + std::string(signalGradeToken(signal.quality)) + "\"}";
     return out;

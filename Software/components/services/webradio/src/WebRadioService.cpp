@@ -65,8 +65,32 @@ std::expected<void, core::StoreError> WebRadioService::setConfig(
 
     xSemaphoreTake(mutex_, portMAX_DELAY);
     config_ = config;
+    ++generation_;
     xSemaphoreGive(mutex_);
     return {};
+}
+
+std::uint32_t WebRadioService::generation() const
+{
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    const std::uint32_t value = generation_;
+    xSemaphoreGive(mutex_);
+    return value;
+}
+
+core::WebRadioStatus WebRadioService::status() const
+{
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    core::WebRadioStatus snapshot = status_;
+    xSemaphoreGive(mutex_);
+    return snapshot;
+}
+
+void WebRadioService::publishStatus(const core::WebRadioStatus& status)
+{
+    xSemaphoreTake(mutex_, portMAX_DELAY);
+    status_ = status;
+    xSemaphoreGive(mutex_);
 }
 
 } // namespace webradio

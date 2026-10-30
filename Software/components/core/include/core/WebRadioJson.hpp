@@ -14,6 +14,7 @@
 
 #include "core/ParseError.hpp"
 #include "core/WebRadioConfig.hpp"
+#include "core/WebRadioStatus.hpp"
 
 #include <expected>
 #include <string>
@@ -62,5 +63,23 @@ namespace core {
  * @date     2026-08-08
  */
 [[nodiscard]] std::string serializeWebRadioErrorJson(std::string_view reason);
+
+/**
+ * @brief    serializeWebRadioJson — config plus live player status.
+ *
+ * Superset of serializeWebRadioConfigJson(): older clients read only
+ * "enabled" and "url" and ignore the rest.
+ *
+ * @dname    serializeWebRadioJson
+ * @param    config  Current streaming configuration.
+ * @param    status  Latest snapshot from the player task.
+ * @return   JSON object string for GET/POST /api/streaming.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-26
+ */
+[[nodiscard]] std::string serializeWebRadioJson(const WebRadioConfig& config,
+                                                const WebRadioStatus& status);
 
 } // namespace core

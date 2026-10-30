@@ -70,7 +70,13 @@ namespace {
 void appendJsonString(std::ostringstream& out, std::string_view value)
 {
     out << '"';
+    static constexpr char kHex[] = "0123456789abcdef";
     for (char c : value) {
+        const auto byte = static_cast<unsigned char>(c);
+        if (byte < 0x20U) {
+            out << "\\u00" << kHex[byte >> 4U] << kHex[byte & 0x0FU];
+            continue;
+        }
         if (c == '"' || c == '\\') {
             out << '\\';
         }
@@ -88,6 +94,27 @@ void appendOptionalLabel(std::ostringstream& out,
     }
     out << ",\"" << key << "\":";
     appendJsonString(out, label->value());
+}
+
+// "<key>":{"title","artist"} (dab.dl_plus, fm.rt_plus): each key only
+// when tagged, object only when at least one is.
+void appendItemTags(std::ostringstream& out, std::string_view key,
+                    const std::optional<BroadcastLabel>& title,
+                    const std::optional<BroadcastLabel>& artist)
+{
+    if (!title && !artist) {
+        return;
+    }
+    out << ",\"" << key << "\":{";
+    if (title) {
+        out << "\"title\":";
+        appendJsonString(out, title->value());
+    }
+    if (artist) {
+        out << (title ? ",\"artist\":" : "\"artist\":");
+        appendJsonString(out, artist->value());
+    }
+    out << '}';
 }
 
 void appendAfList(std::ostringstream& out,
@@ -142,6 +169,11 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
                 << *status.dabPlayingComponentId;
         }
         appendOptionalLabel(out, "dynamic_label", status.dabDynamicLabel);
+        appendItemTags(out, "dl_plus", status.dabDlPlusTitle,
+                       status.dabDlPlusArtist);
+        if (status.dabSlideId) {
+            out << ",\"slide_id\":" << *status.dabSlideId;
+        }
         out << "},\"fm\":null";
     } else {
         out << ",\"fm\":{";
@@ -166,6 +198,8 @@ std::string serializeTunerStatusJson(const TunerStatus& status)
         }
         appendOptionalLabel(out, "station_name", status.fmStationName);
         appendOptionalLabel(out, "radiotext", status.fmRadiotext);
+        appendItemTags(out, "rt_plus", status.fmRtPlusTitle,
+                       status.fmRtPlusArtist);
         if (status.fmProgramId) {
             out << ",\"pi\":" << *status.fmProgramId;
         }

@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "src/AudioService.cpp"
+        "src/PresetService.cpp"
     INCLUDE_DIRS "include"
     REQUIRES core
 )

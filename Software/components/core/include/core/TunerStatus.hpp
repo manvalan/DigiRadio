@@ -59,6 +59,10 @@ struct TunerStatus {
     std::optional<std::uint8_t> dabFicQuality; ///< FIC quality 0–100 when DAB.
     std::optional<std::int8_t> dabCnrDb;    ///< CNR in dB when DAB.
     std::optional<std::int8_t> dabRssiDbuV; ///< RSSI in dBµV when DAB.
+    /** FIBs that failed CRC since tune (AN649 0xB2 FIB_ERROR_COUNT, wraps
+     *  at 65535). Clients diff successive readings for an error rate. */
+    std::optional<std::uint16_t> dabFibErrors;
+    std::optional<bool> dabFicErrors; ///< FICERR: FIC errors right now.
     std::optional<std::uint32_t> dabPlayingServiceId;    ///< Last played DAB service.
     std::optional<std::uint32_t> dabPlayingComponentId;  ///< Last played DAB component.
     std::optional<FrequencyKHz> fmFrequency; ///< Tuned FM centre frequency.
@@ -73,9 +77,16 @@ struct TunerStatus {
     std::optional<bool> fmStereo;           ///< FM stereo pilot detected.
     std::optional<BroadcastLabel> fmStationName; ///< FM RDS program service name.
     std::optional<BroadcastLabel> fmRadiotext;   ///< FM RDS radiotext (RT).
+    std::optional<BroadcastLabel> fmRtPlusTitle;  ///< RT+ ITEM.TITLE.
+    std::optional<BroadcastLabel> fmRtPlusArtist; ///< RT+ ITEM.ARTIST.
     std::vector<FrequencyKHz> fmAlternateFrequencies; ///< RDS AF list (group 0A).
     std::optional<std::uint16_t> fmProgramId;    ///< Confirmed RDS PI code.
     std::optional<BroadcastLabel> dabDynamicLabel; ///< DAB DLS now-playing label.
+    std::optional<BroadcastLabel> dabDlPlusTitle;  ///< DL Plus ITEM.TITLE.
+    std::optional<BroadcastLabel> dabDlPlusArtist; ///< DL Plus ITEM.ARTIST.
+    /** Id of the current MOT slideshow image (GET /api/tuner/slide);
+     *  changes with each new slide. Filled by the HTTP layer. */
+    std::optional<std::uint32_t> dabSlideId;
 };
 
 } // namespace core

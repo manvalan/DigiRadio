@@ -123,6 +123,9 @@ struct Si4684FmRdsStatus {
     std::uint16_t blockD; ///< RDS block D.
     bool received;        ///< Group received flag.
     std::uint8_t fifoUsed; ///< Remaining groups in the RDS FIFO.
+    /** AN649 FM_RDS_STATUS RESP11: BLEA[7:6] BLEB[5:4] BLEC[3:2]
+     *  BLED[1:0] block-error counts for the group above. */
+    std::uint8_t blockErrors;
 };
 
 /**
@@ -138,7 +141,9 @@ struct Si4684FmRdsStatus {
 struct Si4684DabServiceData {
     std::uint32_t serviceId;    ///< Associated DAB service identifier.
     std::uint32_t componentId;  ///< Associated component identifier.
+    std::uint8_t bufferCount;   ///< BUFF_COUNT: packets still queued (RESP5).
     std::uint8_t dataSrc;       ///< Payload source (2 = DLS PAD).
+    std::uint8_t dataType;      ///< TYPE[5:0] (DSCTy; 60 = MOT, AN649 Table 20).
     std::uint16_t byteCount;    ///< Payload byte count.
     std::uint16_t segmentIndex; ///< Zero-based segment index.
     std::uint16_t segmentCount; ///< Total segments for this label object.
@@ -160,6 +165,8 @@ struct Si4684DabDigRadStatus {
     std::int8_t snrDb;       ///< SNR in dB (RESP7).
     std::uint8_t ficQuality; ///< FIC quality 0–100.
     std::uint8_t cnrDb;      ///< CNR in dB.
+    std::uint16_t fibErrorCount; ///< FIBs failing CRC (RESP10-11).
+    bool ficErrors;          ///< FICERR: FIC errors right now (RESP5).
     bool acquired;           ///< Ensemble acquired flag.
     bool valid;              ///< DIGRAD valid flag.
 };

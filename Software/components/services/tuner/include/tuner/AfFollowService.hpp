@@ -13,6 +13,7 @@
 #pragma once
 
 #include "core/AlternateFrequencyFollower.hpp"
+#include "core/DabReturnPolicy.hpp"
 #include "core/DabServiceFollower.hpp"
 #include "tuner/TunerService.hpp"
 
@@ -84,6 +85,12 @@ private:
     void huntDab(const core::TunerStatus& status, std::uint32_t nowMs);
     [[nodiscard]] bool tryCandidate(const core::DabFollowCandidate& candidate,
                                     std::uint32_t serviceId);
+    void armDabReturn(const core::TunerStatus& status,
+                      const core::DabFollowCandidate& candidate,
+                      std::uint32_t nowMs);
+    [[nodiscard]] bool tickDabReturn(const core::TunerStatus& status,
+                                     std::uint32_t nowMs);
+    [[nodiscard]] bool returnToDab(const core::DabReturnTarget& target);
     [[nodiscard]] bool tryEnsemble(std::uint8_t freqIndex,
                                    std::uint32_t serviceId);
     [[nodiscard]] bool tryFm(core::FrequencyKHz frequency, std::uint16_t pi);
@@ -97,6 +104,7 @@ private:
     SleepFn sleep_;
     core::AlternateFrequencyFollower follower_;
     core::DabServiceFollower dabFollower_;
+    core::DabReturnPolicy dabReturn_;
     std::uint32_t ticks_{0U};
 };
 

@@ -13,6 +13,8 @@
 
 #include "si4684/Si4684Driver.hpp"
 
+#include "core/RadioSpectrum.hpp"
+
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_log.h"
@@ -31,6 +33,16 @@ namespace {
 
 constexpr char kTag[] = "Si4684";
 constexpr std::size_t kSpiBufferSize = 4096U;
+/** Longest reply read: a GET_DIGITAL_SERVICE_DATA frame with a full MSC
+ *  data group (AN649 §7.10: "up to 8191 bytes") behind its 25 header
+ *  bytes. Command writes stay within kSpiBufferSize. */
+constexpr std::size_t kMaxReplyBytes = 8224U;
+/** Largest command writeCommand() builds: opcode + ARG1 + the longest
+ *  argument list (START_DIGITAL_SERVICE, 10 bytes) with margin. Kept small
+ *  because the buffer lives on the caller's stack: the old 4 KB one
+ *  overflowed the 6 KB alarm task when the 07:00 alarm tuned DAB
+ *  (0.12.5 panic, 2026-10-27). HOST_LOAD uses its own heap buffer. */
+constexpr std::size_t kMaxCommandBytes = 64U;
 constexpr int kCtsPollMs = 2;
 constexpr int kCtsRetries = 5000;
 constexpr int kStcRetries = 250;
@@ -298,7 +310,7 @@ std::expected<void, Si4684Error> Si4684Driver::sendCommand(
 std::expected<void, Si4684Error> Si4684Driver::readRaw(
     std::span<std::uint8_t> buffer)
 {
-    if (buffer.empty() || buffer.size() > kSpiBufferSize) {
+    if (buffer.empty() || buffer.size() > kMaxReplyBytes) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
     std::fill(buffer.begin(), buffer.end(), 0U);
@@ -317,10 +329,10 @@ std::expected<void, Si4684Error> Si4684Driver::writeCommand(
     Command cmd, const std::uint8_t* payload, std::size_t length,
     std::uint8_t arg1)
 {
-    if (length + 2U > kSpiBufferSize) {
+    if (length + 2U > kMaxCommandBytes) {
         return std::unexpected(Si4684Error::CommandFailed);
     }
-    std::array<std::uint8_t, kSpiBufferSize> buffer = {};
+    std::array<std::uint8_t, kMaxCommandBytes> buffer = {};
     buffer[0] = static_cast<std::uint8_t>(cmd);
     buffer[1] = arg1;
     if (payload != nullptr && length > 0U) {
@@ -675,7 +687,7 @@ std::expected<void, Si4684Error> Si4684Driver::boot(
         busCfg.sclk_io_num = pins_.sclkGpio;
         busCfg.quadwp_io_num = -1;
         busCfg.quadhd_io_num = -1;
-        busCfg.max_transfer_sz = static_cast<int>(kSpiBufferSize);
+        busCfg.max_transfer_sz = static_cast<int>(kMaxReplyBytes);
 
         if (spi_bus_initialize(static_cast<spi_host_device_t>(pins_.spiHost),
                                &busCfg, SPI_DMA_CH_AUTO) != ESP_OK) {
@@ -1010,6 +1022,10 @@ std::expected<Si4684FmRdsStatus, Si4684Error> Si4684Driver::readFmRds()
     Si4684FmRdsStatus rds = {};
     rds.received = (raw[5] & 0x01U) != 0U;
     rds.fifoUsed = raw[11];
+    // RESP11 = BLEA/BLEB/BLEC/BLED, two bits each, for the blocks below.
+    // Read since 0.10.0: until then the decoder trusted every block the
+    // chip's BLETH thresholds (FM_RDS_CONFIG 0x3C02) let through.
+    rds.blockErrors = raw[12];
     rds.blockA = readLe16(raw.data() + 13U);
     rds.blockB = readLe16(raw.data() + 15U);
     rds.blockC = readLe16(raw.data() + 17U);
@@ -1055,27 +1071,40 @@ Si4684Driver::readDabServiceData(bool statusOnly, bool ack)
     if (byteCount == 0U) {
         return std::optional<Si4684DabServiceData>{};
     }
-    if (byteCount + 25U > kSpiBufferSize) {
+    if (byteCount + header.size() > kMaxReplyBytes) {
         return std::unexpected(Si4684Error::ReplyTooShort);
     }
 
-    std::vector<std::uint8_t> body(byteCount, 0U);
-    if (byteCount > 0U) {
-        if (auto rd = readRaw(body); !rd) {
-            return std::unexpected(rd.error());
-        }
+    // Every RD_REPLY returns the reply from its first byte (see
+    // fetchDabServiceList()), so the payload is read as the tail of one
+    // full frame: the 25 header bytes again, then BYTE_COUNT data bytes.
+    // (Reading byteCount bytes on their own returned the header, not the
+    // payload.)
+    std::vector<std::uint8_t> frame(header.size() + byteCount, 0U);
+    if (auto rd = readRaw(frame); !rd) {
+        return std::unexpected(rd.error());
     }
 
     Si4684DabServiceData data = {};
+    data.bufferCount = header[6];
     data.dataSrc = static_cast<std::uint8_t>((header[8] >> 6U) & 0x03U);
+    data.dataType = static_cast<std::uint8_t>(header[8] & 0x3FU);
     data.serviceId = readLe32(header.data() + 9);
     data.componentId = readLe32(header.data() + 13);
     data.byteCount = byteCount;
     data.segmentIndex = readLe16(header.data() + 21);
     data.segmentCount = readLe16(header.data() + 23);
-    data.payload = std::move(body);
+    data.payload.assign(frame.begin() + static_cast<std::ptrdiff_t>(header.size()),
+                        frame.end());
     return data;
 }
+
+// The spectrum sweep labels DAB freq indexes with the core Band III plan.
+static_assert(std::equal(kDefaultDabFrequencyKhz.begin(),
+                         kDefaultDabFrequencyKhz.end(),
+                         core::kDabBand3FrequenciesKhz.begin(),
+                         core::kDabBand3FrequenciesKhz.end()),
+              "DAB_SET_FREQ_LIST plan must match core::kDabBand3FrequenciesKhz");
 
 std::expected<void, Si4684Error> Si4684Driver::installDefaultDabFrequencyPlan()
 {
@@ -1150,8 +1179,14 @@ Si4684Driver::readDabDigRadStatus()
     status.snrDb = static_cast<std::int8_t>(raw[8]);
     status.ficQuality = raw[9];
     status.cnrDb = raw[10];
-    // raw[5]=RESP4 (see readFmRds()); ACQINT is RESP4 bit3.
-    status.acquired = (raw[5] & 0x08U) != 0U;
+    // RESP10-11 FIB_ERROR_COUNT: FIBs that failed CRC, 16-bit, counting
+    // since tune or the last FIBERR_ACK (never sent here). The live
+    // response has no BER field: AN649 BER figures need the §8 test mode.
+    status.fibErrorCount = readLe16(raw.data() + 11);
+    // raw[6]=RESP5: FICERR bit3, ACQ bit2 (RESP4 bit3 is ACQINT, the
+    // sticky "acquisition changed" interrupt, not the state).
+    status.ficErrors = (raw[6] & 0x08U) != 0U;
+    status.acquired = (raw[6] & 0x04U) != 0U;
     status.valid = status.ficQuality > 0U;
     return status;
 }

@@ -23,6 +23,7 @@
 
 namespace audio {
 class AudioService;
+class PresetService;
 } // namespace audio
 
 namespace si4684 {
@@ -101,6 +102,19 @@ public:
      * @date     2026-07-06
      */
     [[nodiscard]] static audio::AudioService& audioService();
+
+    /**
+     * @brief    presetService — borrow the audio preset service after boot.
+     *
+     * @dname    presetService
+     * @return   The static PresetService, or nullptr before a successful
+     *           boot().
+     * @pubstate reads static storage initialised by boot().
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-27
+     */
+    [[nodiscard]] static audio::PresetService* presetService() noexcept;
 
     /**
      * @brief    companionChipStatus — snapshot of companion-chip boot flags.
@@ -217,6 +231,22 @@ public:
     [[nodiscard]] static bool saveXtalCalibration(std::uint8_t ibias,
                                                   std::uint8_t ctun,
                                                   std::uint32_t xtalFreqHz);
+
+    /**
+     * @brief    imageStoreState — Si4684 image store status for diagnostics.
+     *
+     * A build that embeds the Si4684 images fills the store in the
+     * background after boot; a build without them refuses to start the
+     * tuner (and rolls back an unconfirmed OTA image) while it is missing.
+     *
+     * @dname    imageStoreState
+     * @return   "ready", "missing", "writing" or "unknown".
+     * @pubstate reads the store state.
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-26
+     */
+    [[nodiscard]] static const char* imageStoreState() noexcept;
 };
 
 } // namespace hardware
