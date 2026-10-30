@@ -7,7 +7,7 @@
 **Open-source digital radio — Si4684 tuner · ADAU1701 SigmaDSP · Bluetooth aptX Adaptive · ESP32-S3**
 
 ![Status](https://img.shields.io/badge/hardware-verified-brightgreen)
-![Firmware](https://img.shields.io/badge/firmware-0.8.5-blue)
+![Firmware](https://img.shields.io/badge/firmware-0.13.0-blue)
 ![CI](https://github.com/manvalan/DigiRadio/actions/workflows/ci.yml/badge.svg)
 ![PCB](https://img.shields.io/badge/PCB-6--layer-blue)
 ![Hardware License](https://img.shields.io/badge/hardware-CERN--OHL--S-lightgrey)
@@ -50,6 +50,8 @@ no analogue conversions are introduced between the tuner and the wireless link.
 
 ### Hardware
 
+> **v2 board:** the second board, with an ADAU1452 DSP, is in [`Hardware-v2/`](Hardware-v2/) (KiCad project and its own [firmware](Hardware-v2/firmware/)). Everything below describes the first board.
+
 - **DAB+ / DAB / FM** reception (Si4684) via external whip antenna (SMA)
 - **Fully digital audio path** — no avoidable A/D–D/A conversions
 - **Programmable audio processing** on the ADAU1701 SigmaDSP
@@ -59,7 +61,7 @@ no analogue conversions are introduced between the tuner and the wireless link.
 - **6-layer impedance-controlled PCB**, 50 × 90 mm, two ground planes
 - Three antennas (ESP32 2.4 GHz, BT1035 2.4 GHz, FM/DAB SMA) with proper keep-outs
 
-### Firmware (ESP-IDF, C++23 — fw **0.8.5**)
+### Firmware (ESP-IDF, C++23 — fw **0.13.0**)
 
 | Area | Capability |
 |------|------------|
@@ -81,10 +83,15 @@ drivers and FreeRTOS live in thin ESP-IDF components. See [`Software/AGENTS.md`]
 
 ## Firmware Progress
 
-Vertical slices landed on `main` (newest first):
+Releases on `main` (newest first; builds are published as [GitHub releases](https://github.com/manvalan/DigiRadio/releases)):
 
 | Version | Highlights |
 |---------|------------|
+| **0.13.0** | SigmaDSP program v2, audio presets stored in the radio, click-free input changes, alarm crash fix |
+| **0.12.x** | DAB DL+ and FM RT+ title/artist, complete FM RadioText, web radio heap headroom, hung OTA images roll back |
+| **0.11.x** | Alarm table and sleep timer; Si4684 image store; first release builds from GitHub Actions |
+| **0.10.x** | Working web radio, phone audio over TCP, OTA probation |
+| **0.9.x** | RDS alternate frequencies and DAB service following, `/api/tuner/signal`, Bluetooth on/off, Wi-Fi reset |
 | **0.8.5** | BT1035 I2S slave boot init (schematic-aligned); I2C pull-ups R1/R16 confirmed 2 kΩ; `Hardware/DATASHEET/` bundle |
 | **0.8.4** | Dual OTA + DSP blob updates, EEPROM identity, System tab OTA/DSP upload |
 | **0.8.3** | NVS + flash encryption (development mode), `initEncryptedStorage`, security docs |
@@ -96,7 +103,7 @@ Vertical slices landed on `main` (newest first):
 | **0.5–0.6** | ADAU1701 runtime EQ/mixer, Si4684 tuning & DAB service list, BT1035 driver |
 | **0.3–0.4** | Secure store, Wi-Fi provisioning, companion-chip boot, walking skeleton |
 
-**Next:** device HIL when the PCB arrives ([`Software/docs/security-flash-nvs.md`](Software/docs/security-flash-nvs.md),
+**Next:** firmware for the [v2 board](Hardware-v2/); see ([`Software/docs/security-flash-nvs.md`](Software/docs/security-flash-nvs.md),
 [`Software/docs/TODO.md`](Software/docs/TODO.md)). Contributing:
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -114,6 +121,9 @@ DigiRadio/
 │   ├── pick-and-place/       CPL / centroid
 │   ├── easyeda/              EasyEDA source
 │   └── 3d/                   Renders / STEP
+├── Hardware-v2/              Second board (ADAU1452) — see its README
+│   ├── kicad/                KiCad project
+│   └── firmware/             v2 firmware
 ├── Software/                 Firmware project root — open this in Cursor
 │   ├── AGENTS.md             Authoritative coding rules for agents
 │   ├── instructions.md       Agent kickoff & slice roadmap
@@ -242,10 +252,10 @@ Generated C++ API reference: run `doxygen Doxyfile` → `Software/docs/api/html/
 | **PCB layout** | 6-layer, DRC clean, plane continuity verified |
 | **BOM** | Finalised (manufacturable / sourced) |
 | **Prototype** | Fabricated and assembled by PCBWay, working |
-| **Firmware** | **0.8.5** on `main` — BT1035 I2S boot init, dual OTA, encrypted NVS, full Web UI |
+| **Firmware** | **0.13.0** on `main` — DAB+/FM, web radio, phone audio, alarms, OTA from the app |
 | **Web UI** | Tabbed SPA covering every REST endpoint |
-| **HIL** | Device validation pending PCB (`Software/docs/security-flash-nvs.md`) |
-| **Agent backlog** | Feature-complete on `main` (fw 0.8.5); see [`Software/docs/TODO.md`](Software/docs/TODO.md) |
+| **HIL** | Running on the assembled prototype |
+| **Agent backlog** | Feature-complete on `main` (fw 0.13.0); see [`Software/docs/TODO.md`](Software/docs/TODO.md) |
 
 ---
 

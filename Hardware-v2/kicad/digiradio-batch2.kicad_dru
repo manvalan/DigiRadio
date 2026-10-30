@@ -1,0 +1,21 @@
+(version 1)
+(rule "I2S_fanout_U2_ESP32"
+  (layer outer)
+  (constraint clearance (min 6mil))
+  (condition "A.hasNetclass('I2S') && B.Type != 'Zone' && A.intersectsCourtyard('U2')"))
+(rule "I2S_fanout_U13_ADAU1452"
+  (layer outer)
+  (constraint clearance (min 6mil))
+  (condition "A.hasNetclass('I2S') && B.Type != 'Zone' && A.intersectsCourtyard('U13')"))
+(rule "I2S_fanout_U6_BT1058"
+  (layer outer)
+  (constraint clearance (min 6mil))
+  (condition "A.hasNetclass('I2S') && B.Type != 'Zone' && A.intersectsCourtyard('U6')"))
+(rule "I2S_fanout_U8_Si4684"
+  (layer outer)
+  (constraint clearance (min 6mil))
+  (condition "A.hasNetclass('I2S') && B.Type != 'Zone' && A.intersectsCourtyard('U8')"))
+
+(rule "FinePitch_pads_power_ICs"
+  (constraint clearance (min 0.15mm))
+  (condition "A.Type == 'Pad' && B.Type == 'Pad' && A.insideCourtyard('U4') || A.Type == 'Pad' && B.Type == 'Pad' && A.insideCourtyard('U5') || A.Type == 'Pad' && B.Type == 'Pad' && A.insideCourtyard('U9') || A.Type == 'Pad' && B.Type == 'Pad' && A.insideCourtyard('U10') || A.Type == 'Pad' && B.Type == 'Pad' && A.insideCourtyard('U11') || A.Type == 'Pad' && B.Type == 'Pad' && A.insideCourtyard('J1')"))
