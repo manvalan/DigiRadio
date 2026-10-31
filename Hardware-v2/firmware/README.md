@@ -53,6 +53,16 @@ netlist.
 
 A DSP failure does not stop the boot, so the web server and OTA stay reachable.
 
+## Updating the DSP without reflashing
+
+| Request | Effect at next boot |
+|---|---|
+| `POST /api/dsp/program`, DRAD blob from `tools/sigma_export.py` | Runs this program over SPI with SELFBOOT low, ignoring the EEPROM. To try a program, or to recover |
+| `DELETE /api/dsp/program` | Back to the EEPROM, or to the program in the app |
+| `POST /api/dsp/eeprom`, raw self boot image | Writes it to the 25AA1024 with the writer program and verifies it, then boots from it. Takes minutes: keep the power on |
+
+Each request reboots the radio. Uploads stay in the `dsp` partition. An image already written is not written again even if it fails to boot; upload another one.
+
 ## To check at bring-up
 
 These were written from documents or by analogy, and only a board can confirm them.
@@ -68,5 +78,5 @@ These were written from documents or by analogy, and only a board can confirm th
 
 - **Self boot image.** SigmaStudio+ makes it only while writing to a board over USBi. On the first board: wire the USBi to the ADAU1452 SPI, write from SigmaStudio+, read the EEPROM back, and save that as `dsp/adau1452_selfboot.bin`. From then on the firmware writes it to other boards with the writer program. Until then every boot downloads the program over SPI, which is normal and not an error. To read it back, enable `CONFIG_DIGIRADIO_DUMP_DSP_EEPROM`, save the serial log and run `tools/eeprom_log_to_bin.py`.
 - **Published builds without Si4684 images.** The app must carry them, since it fills U7 and sends the patch.
-- **SigmaStudio TCP bridge and `POST /api/dsp/program`.** Both are ADAU1701 only and do nothing on v2.
+- **SigmaStudio TCP bridge.** It is ADAU1701 only and does nothing on v2.
 - **DSP to ESP32 audio (GPIO42) and the second flash (U3).** Wired, but unused.

@@ -93,6 +93,7 @@ public:
      * @brief    boot — reset, wait for self boot, fall back to a RAM download.
      *
      * @dname    boot
+     * @param    skipSelfBoot  Go straight to the RAM download.
      * @return   Ok when a program runs, or Adau1452Error.
      * @pubstate leaves the slave port in SPI mode even on failure, so the
      *           Si4684 can use the bus: until then the ADAU1452 would read
@@ -101,7 +102,8 @@ public:
      * @author   Michele Bigi
      * @date     2026-10-31
      */
-    [[nodiscard]] std::expected<void, Adau1452Error> boot();
+    [[nodiscard]] std::expected<void, Adau1452Error> boot(
+        bool skipSelfBoot = false);
 
     /**
      * @brief    resetIntoSpiMode — pulse RESET# and enter SPI slave mode.

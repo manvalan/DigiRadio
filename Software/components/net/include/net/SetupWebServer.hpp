@@ -287,6 +287,35 @@ using SystemDiagnosticsProvider = std::string (*)();
 void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept;
 
 /**
+ * @brief    DspStoreApi — DSP images kept in flash, owned by the v2 main.
+ *
+ * @dname    DspStoreApi
+ * @return   n/a (type)
+ * @pubstate set once at boot by setDspStoreApi(). Each call returns true when
+ *           the bytes are safely stored; they apply at the next boot.
+ *
+ * @author   Michele Bigi
+ * @date     2026-11-01
+ */
+struct DspStoreApi {
+    bool (*saveProgram)(std::span<const std::uint8_t> blob);
+    bool (*clearProgram)();
+    bool (*saveEepromImage)(std::span<const std::uint8_t> image);
+};
+
+/**
+ * @brief    setDspStoreApi — plug DSP uploads into the web server.
+ *
+ * @dname    setDspStoreApi
+ * @param    api  Static table of callbacks.
+ * @pubstate stores the pointer for POST and DELETE on the /api/dsp routes.
+ *
+ * @author   Michele Bigi
+ * @date     2026-11-01
+ */
+void setDspStoreApi(const DspStoreApi* api) noexcept;
+
+/**
  * @brief    AlarmApi — alarm table and sleep timer, owned by main.
  *
  * The clock, the NVS copy and the task that fires alarms live in main

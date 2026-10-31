@@ -14,9 +14,10 @@ idf_component_register(
         "src/Adau1452Dsp.cpp"
         "src/Adau1452Images.cpp"
         "src/Adau1452Eeprom.cpp"
+        "src/Adau1452Store.cpp"
     INCLUDE_DIRS "include" "${DSP_DIR}"
     REQUIRES core esp_driver_gpio esp_driver_spi freertos
-    PRIV_REQUIRES nvs_flash esp_rom
+    PRIV_REQUIRES nvs_flash esp_rom esp_partition
     EMBED_FILES ${ADAU1452_EMBED}
 )
 

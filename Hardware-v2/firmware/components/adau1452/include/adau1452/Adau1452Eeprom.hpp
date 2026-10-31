@@ -21,6 +21,8 @@
 #include "adau1452/Adau1452Driver.hpp"
 
 #include <cstddef>
+#include <cstdint>
+#include <span>
 
 namespace adau1452 {
 
@@ -37,24 +39,39 @@ namespace adau1452 {
 enum class EepromSync {
     UpToDate,      ///< The image last written is the one in this app.
     Written,       ///< Written and read back; reboot the DSP to run it.
-    NoImage,       ///< dsp/adau1452_selfboot.bin was not in this build.
+    NoImage,       ///< Neither uploaded nor built in.
     NoWriter,      ///< The writer program or its cells were not in this build.
     Failed,        ///< I/O failure or read-back mismatch.
 };
 
 /**
- * @brief    syncSelfBootEeprom — write the image once, verify, remember it.
+ * @brief    syncSelfBootEeprom — write an image once, verify, remember it.
  *
  * @dname    syncSelfBootEeprom
  * @param    driver  Reset is pulsed and the writer program replaces whatever
  *                   ran, so audio stops; call boot() after a Written.
+ * @param    image   Raw EEPROM bytes; empty means NoImage.
  * @return   Outcome; never leaves a half-written image marked as good.
- * @pubstate reads and writes the CRC of the last good image in NVS.
+ * @pubstate reads and writes the CRC of the last good image in NVS. An image
+ *           already written is not written again even if it fails to boot:
+ *           upload another one, or the EEPROM would wear out in a loop.
  *
  * @author   Michele Bigi
- * @date     2026-10-31
+ * @date     2026-11-01
  */
-[[nodiscard]] EepromSync syncSelfBootEeprom(Adau1452Driver& driver);
+[[nodiscard]] EepromSync syncSelfBootEeprom(
+    Adau1452Driver& driver, std::span<const std::uint8_t> image);
+
+/**
+ * @brief    forgetWrittenEepromImage — the next image is written even if equal.
+ *
+ * @dname    forgetWrittenEepromImage
+ * @pubstate erases the remembered CRC in NVS.
+ *
+ * @author   Michele Bigi
+ * @date     2026-11-01
+ */
+void forgetWrittenEepromImage();
 
 /**
  * @brief    dumpSelfBootEeprom — print the EEPROM to the console as hex.

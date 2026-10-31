@@ -361,20 +361,22 @@ std::expected<void, Adau1452Error> Adau1452Driver::download(
     return {};
 }
 
-std::expected<void, Adau1452Error> Adau1452Driver::boot()
+std::expected<void, Adau1452Error> Adau1452Driver::boot(bool skipSelfBoot)
 {
-    if (auto spi = resetIntoSpiMode(true); !spi) {
-        return spi;
-    }
-    const auto selfBoot = waitForSelfBoot();
-    if (!selfBoot) {
-        return std::unexpected(selfBoot.error());
-    }
-    if (*selfBoot) {
-        booted_ = true;
-        selfBooted_ = true;
-        ESP_LOGI(kTag, "running from the self boot EEPROM");
-        return {};
+    if (!skipSelfBoot) {
+        if (auto spi = resetIntoSpiMode(true); !spi) {
+            return spi;
+        }
+        const auto selfBoot = waitForSelfBoot();
+        if (!selfBoot) {
+            return std::unexpected(selfBoot.error());
+        }
+        if (*selfBoot) {
+            booted_ = true;
+            selfBooted_ = true;
+            ESP_LOGI(kTag, "running from the self boot EEPROM");
+            return {};
+        }
     }
     auto program = programSource_.loadProgram();
     if (!program) {
@@ -385,7 +387,7 @@ std::expected<void, Adau1452Error> Adau1452Driver::boot()
     if (auto spi = resetIntoSpiMode(false); !spi) {
         return spi;
     }
-    ESP_LOGW(kTag, "no self boot: downloading the program over SPI");
+    ESP_LOGI(kTag, "downloading the program over SPI");
     return download(*program);
 }
 

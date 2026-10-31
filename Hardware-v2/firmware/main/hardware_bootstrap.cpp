@@ -20,6 +20,7 @@
 #include "adau1452/Adau1452Dsp.hpp"
 #include "adau1452/Adau1452Eeprom.hpp"
 #include "adau1452/Adau1452Images.hpp"
+#include "adau1452/Adau1452Store.hpp"
 #include "audio/AudioService.hpp"
 #include "audio/PresetService.hpp"
 #include "board_pins.hpp"
@@ -43,6 +44,8 @@
 #include "freertos/task.h"
 
 #include <optional>
+#include <span>
+#include <vector>
 
 namespace hardware {
 
@@ -74,7 +77,7 @@ constexpr si4684::Si4684NvLayout kNvLayout{.dabOffset = 0x000000U,
                                            .fmOffset = 0x100000U};
 const char* gNvFlashState = "unknown";
 
-adau1452::EmbeddedProgramSource gDspProgram;
+adau1452::store::ProgramSource gDspProgram;
 adau1452::Adau1452Driver gAdau1452(
     adau1452::Adau1452Pins{
         .spiHost = SPI2_HOST,
@@ -164,7 +167,9 @@ void applyBt1035PostBootSetup()
  */
 void bringUpDsp()
 {
-    if (auto first = gAdau1452.boot(); !first) {
+    // An uploaded program is a deliberate choice: it wins over the EEPROM.
+    const bool useUpload = adau1452::store::hasProgram();
+    if (auto first = gAdau1452.boot(useUpload); !first) {
         ESP_LOGE(kTag, "ADAU1452 boot failed: error %d",
                  static_cast<int>(first.error()));
     }
@@ -173,10 +178,19 @@ void bringUpDsp()
                                       CONFIG_DIGIRADIO_DUMP_DSP_EEPROM_BYTES)) {
         ESP_LOGE(kTag, "EEPROM dump failed");
     }
-    (void)gAdau1452.boot();
+    (void)gAdau1452.boot(useUpload);
     return; // never rewrite the EEPROM being read
 #endif
-    const adau1452::EepromSync sync = adau1452::syncSelfBootEeprom(gAdau1452);
+    if (useUpload) {
+        return;
+    }
+    const std::vector<std::uint8_t> uploaded =
+        adau1452::store::loadEepromImage();
+    const std::span<const std::uint8_t> image =
+        uploaded.empty() ? adau1452::selfBootImage()
+                         : std::span<const std::uint8_t>(uploaded);
+    const adau1452::EepromSync sync =
+        adau1452::syncSelfBootEeprom(gAdau1452, image);
     ESP_LOGI(kTag, "ADAU1452 EEPROM sync: %d", static_cast<int>(sync));
     if (sync == adau1452::EepromSync::UpToDate
         || sync == adau1452::EepromSync::NoImage

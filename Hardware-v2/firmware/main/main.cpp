@@ -14,6 +14,7 @@
 #include "alarm_clock.hpp"
 #include "board_pins.hpp"
 #include "hardware_bootstrap.hpp"
+#include "adau1452/Adau1452Store.hpp"
 #include "audio/AudioService.hpp"
 #include "bluetooth/BluetoothService.hpp"
 #include "integration/IntegrationService.hpp"
@@ -277,6 +278,12 @@ extern "C" void app_main()
     static net::NetBootstrap net = std::move(netResult.value());
 
     net::setSystemDiagnosticsProvider(&power_monitor::systemJsonWithPower);
+    static const net::DspStoreApi dspStore{
+        .saveProgram = &adau1452::store::saveProgram,
+        .clearProgram = &adau1452::store::clearProgram,
+        .saveEepromImage = &adau1452::store::saveEepromImage,
+    };
+    net::setDspStoreApi(&dspStore);
     system_diag::watchTask("httpd", xTaskGetHandle("httpd"));
 
     TaskHandle_t handle = nullptr;

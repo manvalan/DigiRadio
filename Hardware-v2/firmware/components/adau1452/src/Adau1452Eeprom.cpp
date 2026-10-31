@@ -232,14 +232,28 @@ void storeCrc(std::uint32_t crc)
 
 } // namespace
 
-EepromSync syncSelfBootEeprom(Adau1452Driver& driver)
+void forgetWrittenEepromImage()
 {
-    const auto image = selfBootImage();
+    nvs_handle_t handle = 0;
+    if (nvs_open(kNvsNamespace, NVS_READWRITE, &handle) != ESP_OK) {
+        return;
+    }
+    (void)nvs_erase_key(handle, kNvsKey);
+    (void)nvs_commit(handle);
+    nvs_close(handle);
+}
+
+EepromSync syncSelfBootEeprom(Adau1452Driver& driver,
+                              std::span<const std::uint8_t> image)
+{
     if (image.empty()) {
         return EepromSync::NoImage;
     }
     const std::uint32_t crc = crcOf(image);
-    if (driver.selfBooted() && storedCrc() == crc) {
+    if (storedCrc() == crc) {
+        if (!driver.selfBooted()) {
+            ESP_LOGW(kTag, "the EEPROM image does not boot: upload another");
+        }
         return EepromSync::UpToDate;
     }
     const auto writerBlob = eepromWriterBlob();

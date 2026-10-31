@@ -79,6 +79,7 @@ namespace net {
 namespace {
 
 SystemDiagnosticsProvider gSystemDiagnostics = nullptr;
+const DspStoreApi* gDspStore = nullptr;
 const AlarmApi* gAlarmApi = nullptr;
 tuner::SpectrumScanService* gSpectrum = nullptr;
 const SlideApi* gSlideApi = nullptr;
@@ -1606,6 +1607,51 @@ esp_err_t wifiScanPostHandler(httpd_req_t* req)
     return httpd_resp_send(req, json.c_str(), json.size());
 }
 
+[[nodiscard]] bool readDspUpload(httpd_req_t* req,
+                                 std::vector<std::uint8_t>& body)
+{
+    constexpr int kMaxBlobSize = 200 * 1024;
+    const int contentLen = req->content_len;
+    if (contentLen <= 0 || contentLen > kMaxBlobSize) {
+        httpd_resp_set_status(req, "413 Payload Too Large");
+        httpd_resp_send(req, nullptr, 0);
+        return false;
+    }
+
+    body.resize(static_cast<std::size_t>(contentLen));
+    int received = 0;
+    while (received < contentLen) {
+        const int chunk = httpd_req_recv(req,
+                                         reinterpret_cast<char*>(body.data())
+                                             + received,
+                                         contentLen - received);
+        if (chunk <= 0) {
+            httpd_resp_set_status(req, "400 Bad Request");
+            httpd_resp_send(req, nullptr, 0);
+            return false;
+        }
+        received += chunk;
+    }
+    return true;
+}
+
+esp_err_t sendStoredAndReboot(httpd_req_t* req)
+{
+    const std::string json =
+        std::string(R"({"status":"stored","reboot_sec":)")
+        + std::to_string(kRebootDelaySec) + "}";
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json.c_str(), json.size());
+    xTaskCreate(rebootTask, "reboot", 2048, nullptr, 5, nullptr);
+    return ESP_OK;
+}
+
+esp_err_t sendDspStoreFailed(httpd_req_t* req)
+{
+    httpd_resp_set_status(req, "500 Internal Server Error");
+    return httpd_resp_send(req, nullptr, 0);
+}
+
 /**
  * @brief    dspProgramPostHandler — store validated ADAU program blob to flash.
  *
@@ -1619,25 +1665,9 @@ esp_err_t wifiScanPostHandler(httpd_req_t* req)
  */
 esp_err_t dspProgramPostHandler(httpd_req_t* req)
 {
-    constexpr int kMaxBlobSize = 200 * 1024;
-    const int contentLen = req->content_len;
-    if (contentLen <= 0 || contentLen > kMaxBlobSize) {
-        httpd_resp_set_status(req, "413 Payload Too Large");
-        return httpd_resp_send(req, nullptr, 0);
-    }
-
-    std::vector<std::uint8_t> body(static_cast<std::size_t>(contentLen));
-    int received = 0;
-    while (received < contentLen) {
-        const int chunk = httpd_req_recv(req,
-                                         reinterpret_cast<char*>(body.data())
-                                             + received,
-                                         contentLen - received);
-        if (chunk <= 0) {
-            httpd_resp_set_status(req, "400 Bad Request");
-            return httpd_resp_send(req, nullptr, 0);
-        }
-        received += chunk;
+    std::vector<std::uint8_t> body;
+    if (!readDspUpload(req, body)) {
+        return ESP_OK;
     }
 
     const auto parsed = core::parseDspProgramBlob(body);
@@ -1651,9 +1681,9 @@ esp_err_t dspProgramPostHandler(httpd_req_t* req)
     }
 
 #if CONFIG_IDF_TARGET_ESP32S31
-    // The ADAU1452 program lives in its self boot EEPROM, written at boot.
-    httpd_resp_set_status(req, "501 Not Implemented");
-    return httpd_resp_send(req, nullptr, 0);
+    if (gDspStore == nullptr || !gDspStore->saveProgram(body)) {
+        return sendDspStoreFailed(req);
+    }
 #else
     if (auto stored = adau1701::FlashDspProgramSource::storeBlob(body); !stored) {
         const std::string json = std::string(R"({"error":")")
@@ -1663,16 +1693,58 @@ esp_err_t dspProgramPostHandler(httpd_req_t* req)
         httpd_resp_set_type(req, "application/json");
         return httpd_resp_send(req, json.c_str(), json.size());
     }
-
-    const std::string json =
-        std::string(R"({"status":"stored","reboot_sec":)")
-        + std::to_string(kRebootDelaySec) + "}";
-    httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, json.c_str(), json.size());
-    xTaskCreate(rebootTask, "reboot", 2048, nullptr, 5, nullptr);
-    return ESP_OK;
 #endif
+    return sendStoredAndReboot(req);
 }
+
+#if CONFIG_IDF_TARGET_ESP32S31
+/**
+ * @brief    dspProgramDeleteHandler — go back to the EEPROM or built-in program.
+ *
+ * @dname    dspProgramDeleteHandler
+ * @param    req  HTTP request handle.
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate clears the uploaded program; schedules a reboot.
+ *
+ * @author   Michele Bigi
+ * @date     2026-11-01
+ */
+esp_err_t dspProgramDeleteHandler(httpd_req_t* req)
+{
+    if (gDspStore == nullptr || !gDspStore->clearProgram()) {
+        return sendDspStoreFailed(req);
+    }
+    return sendStoredAndReboot(req);
+}
+
+/**
+ * @brief    dspEepromPostHandler — store a self boot image to write at boot.
+ *
+ * @dname    dspEepromPostHandler
+ * @param    req  HTTP request handle (raw application/octet-stream body).
+ * @return   ESP_OK on success, or an esp_err_t error code.
+ * @pubstate writes the dsp partition; the next boot writes the EEPROM.
+ *
+ * @author   Michele Bigi
+ * @date     2026-11-01
+ */
+esp_err_t dspEepromPostHandler(httpd_req_t* req)
+{
+    constexpr std::uint8_t kSelfBootSentinel = 0xAAU; // data sheet, Figure 40
+    std::vector<std::uint8_t> body;
+    if (!readDspUpload(req, body)) {
+        return ESP_OK;
+    }
+    if (body[0] != kSelfBootSentinel) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_send(req, nullptr, 0);
+    }
+    if (gDspStore == nullptr || !gDspStore->saveEepromImage(body)) {
+        return sendDspStoreFailed(req);
+    }
+    return sendStoredAndReboot(req);
+}
+#endif
 
 /**
  * @brief    otaPostHandler — stream firmware image into inactive OTA slot.
@@ -3069,6 +3141,22 @@ std::expected<void, NetError> SetupWebServer::start(
         .user_ctx = routeCtx,
     };
     httpd_register_uri_handler(server_, &dspProgramUri);
+#if CONFIG_IDF_TARGET_ESP32S31
+    const httpd_uri_t dspProgramDeleteUri = {
+        .uri = "/api/dsp/program",
+        .method = HTTP_DELETE,
+        .handler = dspProgramDeleteHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &dspProgramDeleteUri);
+    const httpd_uri_t dspEepromUri = {
+        .uri = "/api/dsp/eeprom",
+        .method = HTTP_POST,
+        .handler = dspEepromPostHandler,
+        .user_ctx = routeCtx,
+    };
+    httpd_register_uri_handler(server_, &dspEepromUri);
+#endif
 
     const httpd_uri_t otaUri = {
         .uri = "/api/system/ota",
@@ -3252,6 +3340,11 @@ std::expected<void, NetError> SetupWebServer::start(
 
     ESP_LOGI(kTag, "HTTP server listening on port 80");
     return {};
+}
+
+void setDspStoreApi(const DspStoreApi* api) noexcept
+{
+    gDspStore = api;
 }
 
 void setSystemDiagnosticsProvider(SystemDiagnosticsProvider provider) noexcept
