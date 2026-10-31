@@ -58,6 +58,7 @@ struct Bt1035Pins {
                     ///< default function is PA_MUTE, not flow control
                     ///< (Feasycom programming guide). Diagnostic only
                     ///< (2026-08-22): read-only floating input.
+    bool bt1058 = false; ///< FSC-BT1058: its own settings, see runBt1058Init().
 };
 
 /**
@@ -404,6 +405,7 @@ private:
     [[nodiscard]] std::expected<std::string, Bt1035Error> transmitAndCollectUntil(
         std::string_view commandLine, std::string_view endMarker, int timeoutMs,
         std::uint8_t minScanSeconds = 0U);
+    [[nodiscard]] std::expected<void, Bt1035Error> runBt1058Init();
     [[nodiscard]] std::expected<void, Bt1035Error> transmitAndExpectOk(
         std::string_view commandLine);
     [[nodiscard]] std::expected<void, Bt1035Error> transmitAndExpectOkLogged(

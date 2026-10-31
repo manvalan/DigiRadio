@@ -1002,8 +1002,60 @@ std::expected<void, Bt1035Error> Bt1035Driver::connectA2dp(std::string_view mac)
     return {};
 }
 
+namespace {
+
+struct Bt1058Setting {
+    const char* query;
+    const char* reply;
+    const char* set;
+};
+
+// FSC-BT1058 AT Command Set: MODCFG 1 = source; AUXCFG 3 = I2S input; I2SCFG
+// 35 = enabled, slave, 48 kHz, left aligned, 1 bit delay, 24 bit. Bit[6-5]
+// has no 32 bit value on this module, so the BT1035's 67 does not apply.
+constexpr std::array<Bt1058Setting, 3> kBt1058Settings = {{
+    {"AT+MODCFG\r\n", "+MODCFG=1", "AT+MODCFG=1\r\n"},
+    {"AT+AUXCFG\r\n", "+AUXCFG=3", "AT+AUXCFG=3\r\n"},
+    {"AT+I2SCFG\r\n", "+I2SCFG=35", "AT+I2SCFG=35\r\n"},
+}};
+
+} // namespace
+
+/**
+ * AUXCFG and I2SCFG apply only after a restart, and they persist. So compare
+ * first and reboot once, only when something changed, not at every boot.
+ */
+std::expected<void, Bt1035Error> Bt1035Driver::runBt1058Init()
+{
+    if (auto ping = sendCommand(core::Bt1035AtCommand::Ping); !ping) {
+        return ping;
+    }
+    bool changed = false;
+    for (const Bt1058Setting& setting : kBt1058Settings) {
+        const auto current = transmitAndCollect(setting.query);
+        if (current && current->find(setting.reply) != std::string::npos) {
+            continue;
+        }
+        if (auto set = transmitAndExpectOk(setting.set); !set) {
+            return set;
+        }
+        changed = true;
+    }
+    if (changed) {
+        ESP_LOGW(kTag, "BT1058 settings changed: rebooting the module");
+        (void)transmitAndExpectOk("AT+REBOOT\r\n");
+        logRawUartBoot(uartPort_);
+        uart_flush_input(static_cast<uart_port_t>(uartPort_));
+        vTaskDelay(pdMS_TO_TICKS(kPostUartMs));
+    }
+    return sendCommand(core::Bt1035AtCommand::A2dpCodecConfig);
+}
+
 std::expected<void, Bt1035Error> Bt1035Driver::runInitSequence()
 {
+    if (pins_.bt1058) {
+        return runBt1058Init();
+    }
     for (const core::Bt1035AtCommand command : core::bootInitSequence()) {
         if (auto result = transmitAndExpectOk(core::buildBt1035AtLine(command));
             !result) {
@@ -1182,7 +1234,8 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
     ESP_LOGI(kTag, "auto-link disabled (AT+LINKCFG=0,0)");
 
     booted_ = true;
-    ESP_LOGI(kTag, "I2S slave mode enabled (AT+AUXCFG=3, AT+I2SCFG=67)");
+    ESP_LOGI(kTag, "I2S slave mode enabled (AT+AUXCFG=3, AT+I2SCFG=%d)",
+             pins_.bt1058 ? 35 : 67);
     return {};
 }
 

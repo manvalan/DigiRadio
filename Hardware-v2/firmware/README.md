@@ -33,7 +33,7 @@ The Si4684 images must be in `../../Software/Firmware/Si4684-Firmware`. They are
 |---|---|---|
 | Module | ESP32-S3-WROOM-1 | ESP32-S31-WROOM-3-N16R16V (RISC-V, 16 MB flash, 16 MB PSRAM) |
 | DSP | ADAU1701 on I2C, program sent at each boot | ADAU1452 on SPI, self boot from 25AA1024, SPI download if that fails |
-| Bluetooth | FSC-BT1035 | FSC-BT1058, UART without CTS/RTS |
+| Bluetooth | FSC-BT1035 | FSC-BT1058, UART without CTS/RTS, I2S 24 bit |
 | Tuner images | Sent by the ESP32 at each boot | Stored once in the W25Q16 behind the Si4684, then `FLASH_LOAD` |
 | Identity EEPROM | 24AA025E48 at 0x52 | 24AA025E64 at 0x50 |
 | Power | Always on | 3V3_AUDIO switched by ENABLE_ANALOG; MAX17048 and BQ25896 on I2C |
@@ -67,7 +67,7 @@ Each request reboots the radio. Uploads stay in the `dsp` partition. An image al
 
 These were written from documents or by analogy, and only a board can confirm them.
 
-- **BT1058 AT commands.** The driver is the BT1035 one, and no BT1058 programming guide is in the repo. `AT+AUXCFG` and `AT+I2SCFG=67` in particular may not apply. Feasycom has not yet answered about I2S slave mode, sample rate and BCLK ratio.
+- **BT1058.** The driver follows the [AT Command Set](https://document.feasycom.com/docs/audio/BT1058_EN/latest/at-cmd-set.html): source mode, `AT+AUXCFG=3`, `AT+I2SCFG=35`, one reboot when a setting changed. Still open: that 24 bit data works with the DSP's 64 BCLK per frame (32 bit slots), and the exact reply format of `AT+MODCFG`. If that format differs, the module reboots at every boot. The scan and pairing replies come from the BT1035 parser. Feasycom has not answered about I2S slave clocking.
 - **CRC of `FLASH_CHECK_CRC32`.** AN649 does not name the polynomial; the code uses CRC-32 IEEE. A wrong guess would rewrite the flash at every boot, and the log would show it.
 - **Self boot timing.** `waitForSelfBoot()` reads the status during the attempt. If that misbehaves, the timeout still ends in a reset with SELFBOOT low and an SPI download.
 - **MAX17048 and BQ25896 registers.** Their data sheets are not in the repo.

@@ -102,6 +102,7 @@ bt1035::Bt1035Driver gBt1058(
         .sysCtlGpio = board::pins::BtSysCtrl,
         .ctsGpio = -1,
         .rtsGpio = -1,
+        .bt1058 = true,
     });
 
 core::DeviceIdentity gDeviceIdentity = core::DeviceIdentity::unknown();
