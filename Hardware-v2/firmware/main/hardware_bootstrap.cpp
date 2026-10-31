@@ -80,6 +80,7 @@ adau1452::Adau1452Driver gAdau1452(
         .spiHost = SPI2_HOST,
         .csGpio = board::pins::AdauCs,
         .resetGpio = board::pins::AdauReset,
+        .selfBootGpio = board::pins::AdauSelfBoot,
     },
     gDspProgram);
 adau1452::Adau1452Dsp gAdau1452Dsp(gAdau1452);

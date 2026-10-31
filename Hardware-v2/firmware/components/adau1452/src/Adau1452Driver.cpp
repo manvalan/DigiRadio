@@ -275,7 +275,8 @@ std::expected<std::int32_t, Adau1452Error> Adau1452Driver::readCell(
         | (static_cast<std::uint32_t>(data[2]) << 8) | data[3]);
 }
 
-std::expected<void, Adau1452Error> Adau1452Driver::resetIntoSpiMode()
+std::expected<void, Adau1452Error> Adau1452Driver::resetIntoSpiMode(
+    bool selfBoot)
 {
     booted_ = false;
     selfBooted_ = false;
@@ -283,13 +284,20 @@ std::expected<void, Adau1452Error> Adau1452Driver::resetIntoSpiMode()
         return dev;
     }
     const auto reset = static_cast<gpio_num_t>(pins_.resetGpio);
+    const auto boot = static_cast<gpio_num_t>(pins_.selfBootGpio);
     gpio_set_level(reset, 0);
     if (gpio_set_direction(reset, GPIO_MODE_OUTPUT) != ESP_OK) {
+        return std::unexpected(Adau1452Error::SpiFailed);
+    }
+    gpio_set_level(boot, 0);
+    if (gpio_set_direction(boot, selfBoot ? GPIO_MODE_DISABLE
+                                          : GPIO_MODE_OUTPUT) != ESP_OK) {
         return std::unexpected(Adau1452Error::SpiFailed);
     }
     vTaskDelay(pdMS_TO_TICKS(kResetLowMs));
     gpio_set_level(reset, 1);
     vTaskDelay(pdMS_TO_TICKS(kPllLockMs));
+    gpio_set_direction(boot, GPIO_MODE_DISABLE);
 
     // SPI Slave Port section: three dummy writes count as the three SS
     // toggles and are not acknowledged. The port stays in SPI until reset.
@@ -355,7 +363,7 @@ std::expected<void, Adau1452Error> Adau1452Driver::download(
 
 std::expected<void, Adau1452Error> Adau1452Driver::boot()
 {
-    if (auto spi = resetIntoSpiMode(); !spi) {
+    if (auto spi = resetIntoSpiMode(true); !spi) {
         return spi;
     }
     const auto selfBoot = waitForSelfBoot();
@@ -372,6 +380,10 @@ std::expected<void, Adau1452Error> Adau1452Driver::boot()
     if (!program) {
         ESP_LOGE(kTag, "no self boot and no program to download");
         return std::unexpected(Adau1452Error::ProgramMissing);
+    }
+    // A clean start rather than a download into a chip left in panic.
+    if (auto spi = resetIntoSpiMode(false); !spi) {
+        return spi;
     }
     ESP_LOGW(kTag, "no self boot: downloading the program over SPI");
     return download(*program);

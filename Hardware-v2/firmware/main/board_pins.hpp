@@ -36,6 +36,7 @@ inline constexpr int Si4684Smode = 17; // SMODE (pin 5): low selects SPI
 // ---- ADAU1452 DSP ---------------------------------------------------
 inline constexpr int AdauCs    = 20; // SS/ADDR0 (pin 33), pull-up
 inline constexpr int AdauReset = 14; // RESET# (pin 24), 10k pull-down
+inline constexpr int AdauSelfBoot = 22; // SELFBOOT (pin 34), 10k pull-up (R57)
 
 // ---- I2C: 24AA025E64, MAX17048, BQ25896 (3V3_DIGITAL) ---------------
 inline constexpr int I2cScl = 50;

@@ -226,7 +226,7 @@ void storeCrc(std::uint32_t crc)
         ESP_LOGE(kTag, "writer program unreadable");
         return false;
     }
-    return driver.resetIntoSpiMode().has_value()
+    return driver.resetIntoSpiMode(false).has_value()
            && driver.download(*program).has_value();
 }
 

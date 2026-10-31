@@ -35,13 +35,13 @@ constexpr int kRailSettleMs = 20;
 constexpr int kSpiMaxTransfer = 8224;
 
 /** Everything on the 3V3_AUDIO side. ADAU_RESET# has its own pull-down. */
-constexpr std::array<int, 16> kAudioPins = {
+constexpr std::array<int, 17> kAudioPins = {
     board::pins::SpiSclk,    board::pins::SpiMosi,   board::pins::SpiMiso,
     board::pins::Si4684Cs,   board::pins::Si4684Rstb, board::pins::Si4684Intb,
     board::pins::Si4684Smode, board::pins::AdauCs,   board::pins::AdauReset,
     board::pins::I2sBclk,    board::pins::I2sWs,     board::pins::I2sDout,
     board::pins::I2sDin,     board::pins::BtUartRx,  board::pins::BtUartTx,
-    board::pins::BtSysCtrl,
+    board::pins::BtSysCtrl,  board::pins::AdauSelfBoot,
 };
 
 i2c_master_bus_handle_t gI2c = nullptr;

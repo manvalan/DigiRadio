@@ -45,7 +45,7 @@ netlist.
 ## Boot order
 
 1. ENABLE_ANALOG goes high with every audio pin floating, then SMODE goes low.
-2. ADAU1452: reset, three dummy writes to enter SPI mode, then check CORE_STATUS and PANIC_FLAG. This comes first because it would otherwise read Si4684 traffic as I2C.
+2. ADAU1452: reset with SELFBOOT released, three dummy writes to enter SPI mode, then check CORE_STATUS and PANIC_FLAG. This comes first because it would otherwise read Si4684 traffic as I2C. Without a self boot, a second reset with SELFBOOT low (GPIO22) and an SPI download.
 3. If the EEPROM image differs from the one in the app, write and verify it, then reboot the DSP.
 4. Si4684: load the patch, check both images with `FLASH_CHECK_CRC32`, rewrite them if different.
 5. Si4684 boots with `FLASH_LOAD`. If the flash step failed, it uses `HOST_LOAD` as on v1.
@@ -59,7 +59,7 @@ These were written from documents or by analogy, and only a board can confirm th
 
 - **BT1058 AT commands.** The driver is the BT1035 one, and no BT1058 programming guide is in the repo. `AT+AUXCFG` and `AT+I2SCFG=67` in particular may not apply. Feasycom has not yet answered about I2S slave mode, sample rate and BCLK ratio.
 - **CRC of `FLASH_CHECK_CRC32`.** AN649 does not name the polynomial; the code uses CRC-32 IEEE. A wrong guess would rewrite the flash at every boot, and the log would show it.
-- **Self boot timing and panic.** `waitForSelfBoot()` reads the status over a port that may behave differently after a failed self boot.
+- **Self boot timing.** `waitForSelfBoot()` reads the status during the attempt. If that misbehaves, the timeout still ends in a reset with SELFBOOT low and an SPI download.
 - **MAX17048 and BQ25896 registers.** Their data sheets are not in the repo.
 - **Si4684 crystal.** Run `tools/si4684_xtal_calibration.py`. The defaults are nominal frequency and CTUN 0, not the v1 trim.
 - **PMIC_INT and MAX17048_ALERT.** One open-drain line to GPIO7, per Michele's schematic change. The firmware polls as well, so a late edge only delays a reading.

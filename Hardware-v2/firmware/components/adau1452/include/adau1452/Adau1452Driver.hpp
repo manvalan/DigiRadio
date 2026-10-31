@@ -68,6 +68,7 @@ struct Adau1452Pins {
     int spiHost;   ///< Bus initialised elsewhere, shared with the Si4684.
     int csGpio;    ///< SS/ADDR0.
     int resetGpio; ///< RESET#, active low.
+    int selfBootGpio; ///< SELFBOOT, high impedance leaves it to its pull-up.
 };
 
 /**
@@ -106,13 +107,17 @@ public:
      * @brief    resetIntoSpiMode — pulse RESET# and enter SPI slave mode.
      *
      * @dname    resetIntoSpiMode
+     * @param    selfBoot  false holds SELFBOOT low across the reset edge, the
+     *                     only moment it is read, so nothing touches the
+     *                     EEPROM and no panic follows a blank one.
      * @return   Ok, or Adau1452Error.
-     * @pubstate clears booted_. A self boot starts if the EEPROM holds one.
+     * @pubstate clears booted_; leaves SELFBOOT released afterwards.
      *
      * @author   Michele Bigi
-     * @date     2026-10-31
+     * @date     2026-11-01
      */
-    [[nodiscard]] std::expected<void, Adau1452Error> resetIntoSpiMode();
+    [[nodiscard]] std::expected<void, Adau1452Error> resetIntoSpiMode(
+        bool selfBoot);
 
     /**
      * @brief    download — replay a program over the slave port.
