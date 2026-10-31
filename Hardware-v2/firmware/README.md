@@ -66,8 +66,7 @@ These were written from documents or by analogy, and only a board can confirm th
 
 ## Not done
 
-- **25AA1024 write.** The code is there, but it needs the writer program described in [`dsp/README.md`](dsp/README.md). Until then a blank EEPROM means an SPI download at every boot.
-- **Bluetooth as an audio source.** The program has the BT1058 input (mux 1), but nothing selects it yet; on v1 Bluetooth is only an output.
+- **Self boot image.** SigmaStudio+ makes it only while writing to a board over USBi. On the first board: wire the USBi to the ADAU1452 SPI, write from SigmaStudio+, read the EEPROM back, and save that as `dsp/adau1452_selfboot.bin`. From then on the firmware writes it to other boards with the writer program. Until then every boot downloads the program over SPI, which is normal and not an error. Reading the EEPROM back still needs a small addition to `Adau1452Eeprom.cpp`.
 - **Published builds without Si4684 images.** The app must carry them, since it fills U7 and sends the patch.
 - **SigmaStudio TCP bridge and `POST /api/dsp/program`.** Both are ADAU1701 only and do nothing on v2.
 - **DSP to ESP32 audio (GPIO42) and the second flash (U3).** Wired, but unused.

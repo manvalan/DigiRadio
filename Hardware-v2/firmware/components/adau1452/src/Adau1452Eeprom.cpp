@@ -60,6 +60,9 @@ constexpr std::uint8_t kStatusBusy = 0x01U;
 constexpr std::size_t kPageBytes = 256U;
 constexpr int kMaxBusyPolls = 100; // tWC is 6 ms; each poll waits 1 tick
 
+/** The cells are 8.24: high is 1.0. */
+constexpr std::int32_t kCellHigh = 0x01000000;
+
 /** Pins change once per sample: 21 us at 48 kHz, so a little more than one. */
 constexpr std::uint32_t kPinSettleUs = 25U;
 
@@ -94,7 +97,7 @@ public:
 private:
     void pin(std::uint16_t cell, int level)
     {
-        ok_ = ok_ && driver_.writeCell(cell, level).has_value();
+        ok_ = ok_ && driver_.writeCell(cell, level != 0 ? kCellHigh : 0).has_value();
         esp_rom_delay_us(kPinSettleUs);
     }
 
