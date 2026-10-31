@@ -7,7 +7,8 @@ adds the Mouser prices stored in that file, and picks the part with the lowest
 real purchase cost, including minimum order quantities.
 
     python3 build_bom.py --boards 5
-    python3 build_bom.py --cerca        # also suggest cheaper C and R on LCSC
+    python3 build_bom.py --boards 5 --solo-passivi
+    python3 build_bom.py --cerca       # also suggest cheaper C and R on LCSC
 
 Output in output/: the full BOM (semicolon CSV for Excel) and one order file
 per supplier. Rows missing from equivalents.json are marked DA MAPPARE and make
@@ -213,6 +214,8 @@ def main():
     parser.add_argument("--boards", type=int, default=1, help="numero di schede (default 1)")
     parser.add_argument("--spare", type=int, default=0, help="pezzi di scorta per ogni riga")
     parser.add_argument("--usd-eur", type=float, help="cambio USD-EUR, altrimenti quello BCE del giorno")
+    parser.add_argument("--solo-passivi", action="store_true",
+                        help="solo condensatori, resistenze, induttori, ferriti e quarzi")
     parser.add_argument("--cerca", action="store_true", help="suggerisce C e R più economici su LCSC")
     parser.add_argument("--out", type=Path, default=HERE / "output")
     args = parser.parse_args()
@@ -220,6 +223,8 @@ def main():
     data = json.loads((HERE / "equivalents.json").read_text(encoding="utf-8"))
     parts = data["parts"]
     rows = export_bom()
+    if args.solo_passivi:
+        rows = [r for r in rows if re.match(r"(C|R|L|FB|Y)\d", r["Reference"])]
     if args.cerca:
         suggest(rows, parts)
         return 0
@@ -280,7 +285,7 @@ def main():
         output.append(line)
 
     args.out.mkdir(parents=True, exist_ok=True)
-    suffix = f"{args.boards}-schede"
+    suffix = f"{args.boards}-schede" + ("-passivi" if args.solo_passivi else "")
     columns = ["Riferimenti", "Valore", "Qta scheda", "Qta necessaria", "Stato", "Fornitore", "Codice",
                "MPN scelto", "Marca", "Package", "Stock", "Pezzi da comprare", "Prezzo unit EUR",
                "Costo EUR", "Costo originale EUR", "Consegna", "MPN schema", "Impronta", "Note",
@@ -290,7 +295,8 @@ def main():
         writer = csv.DictWriter(handle, columns, delimiter=";")
         writer.writeheader()
         writer.writerows(output)
-        writer.writerow({"Riferimenti": "TOTALE, BT1058 e spedizione esclusi",
+        label = "TOTALE passivi, spedizione esclusa" if args.solo_passivi else "TOTALE, BT1058 e spedizione esclusi"
+        writer.writerow({"Riferimenti": label,
                          "Costo EUR": euro(total), "Costo originale EUR": euro(total_original)})
 
     for supplier, lines in orders.items():
