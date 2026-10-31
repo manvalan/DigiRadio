@@ -8452,7 +8452,7 @@
 				)
 			)
 		)
-		(property "Value" "RF/COAXIAL SMA BHD JACK STR 50OHM SOLDER"
+		(property "Value" "SMA-KE-P"
 			(at 33.528 143.764 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8462,7 +8462,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount"
+		(property "Footprint" "MIKILAB_SMA_KE_P:SMA-KE-P_EdgeMount"
 			(at 38.1 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -8484,7 +8484,7 @@
 				)
 			)
 		)
-		(property "Description" "RF/COAXIAL SMA BHD JACK STR 50OHM SOLDER"
+		(property "Description" "SMA female edge mount 50 ohm, 1.6 mm board, HanElectricity SMA-KE-P, LCSC C49118400"
 			(at 38.1 140.97 0)
 			(hide yes)
 			(show_name no)
@@ -8561,7 +8561,7 @@
 				)
 			)
 		)
-		(property "PNM" "RF/COAXIAL SMA BHD JACK STR 50OHM SOLDER"
+		(property "PNM" "SMA-KE-P"
 			(at 38.1 140.97 0)
 			(hide yes)
 			(show_name no)

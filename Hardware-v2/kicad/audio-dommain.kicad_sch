@@ -2726,17 +2726,17 @@
 						(type none)
 					)
 				)
-				(pin power_in line
-					(at 0 0 0)
+				(pin input line
+					(at 0 -5.08 0)
 					(length 5.08)
-					(name "GND"
+					(name "VIN"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "3"
+					(number "1"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2762,17 +2762,17 @@
 						)
 					)
 				)
-				(pin input line
-					(at 0 -5.08 0)
+				(pin power_in line
+					(at 0 0 0)
 					(length 5.08)
-					(name "VIN"
+					(name "GND"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "1"
+					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2974,17 +2974,17 @@
 						(type none)
 					)
 				)
-				(pin power_in line
-					(at 0 0 0)
+				(pin input line
+					(at 0 -5.08 0)
 					(length 5.08)
-					(name "GND"
+					(name "VIN"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "3"
+					(number "1"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3010,17 +3010,17 @@
 						)
 					)
 				)
-				(pin input line
-					(at 0 -5.08 0)
+				(pin power_in line
+					(at 0 0 0)
 					(length 5.08)
-					(name "VIN"
+					(name "GND"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "1"
+					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)

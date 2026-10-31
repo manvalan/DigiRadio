@@ -5089,6 +5089,10 @@
 		(uuid "5245bb2e-8bc3-4581-835b-c21478c68d09")
 	)
 	(no_connect
+		(at 97.79 62.23)
+		(uuid "59b949ad-fb46-4c8d-881d-d4f0787f4058")
+	)
+	(no_connect
 		(at 207.01 74.93)
 		(uuid "6239bfca-2a0f-4bc2-8b72-86cc99cca2e1")
 	)
@@ -5107,10 +5111,6 @@
 	(no_connect
 		(at 153.67 113.03)
 		(uuid "749a683a-c889-4feb-89d2-40afab40e165")
-	)
-	(no_connect
-		(at 97.79 62.23)
-		(uuid "7d0c6fde-6c2e-43ee-9112-da3e49c19925")
 	)
 	(no_connect
 		(at 171.45 104.14)
@@ -5135,10 +5135,6 @@
 	(no_connect
 		(at 161.29 113.03)
 		(uuid "b11b09db-2445-477e-a3b9-6f8741383d59")
-	)
-	(no_connect
-		(at 97.79 59.69)
-		(uuid "b8714b01-539c-4b20-9dcb-94c7e6d55f03")
 	)
 	(no_connect
 		(at 207.01 31.75)
@@ -6640,6 +6636,17 @@
 			(justify right)
 		)
 		(uuid "26125696-204b-4499-80d2-8c0b779c1c87")
+	)
+	(hierarchical_label "POWER_ALERT#"
+		(shape input)
+		(at 97.79 59.69 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "2f40da3e-7139-44ac-b587-64f49cc229f3")
 	)
 	(hierarchical_label "SPI_CS_ADAU"
 		(shape input)
