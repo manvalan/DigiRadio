@@ -45,7 +45,7 @@ inline constexpr int Max17048Addr = 0x36;
 inline constexpr int Bq25896Addr = 0x6B;
 
 // ---- Battery alert: PMIC_INT + MAX17048_ALERT on one open-drain line ----
-// Pad 13, LP-capable. Being added to the schematic (Michele, 2026-10-31);
+// Pad 13, LP-capable, not a strapping pin (WROOM-3 datasheet v0.7, Table 4-1).
 // -1 falls back to polling alone.
 inline constexpr int PowerAlert = 7;
 

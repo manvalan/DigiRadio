@@ -62,7 +62,7 @@ These were written from documents or by analogy, and only a board can confirm th
 - **Self boot timing and panic.** `waitForSelfBoot()` reads the status over a port that may behave differently after a failed self boot.
 - **MAX17048 and BQ25896 registers.** Their data sheets are not in the repo.
 - **Si4684 crystal.** Run `tools/si4684_xtal_calibration.py`. The defaults are nominal frequency and CTUN 0, not the v1 trim.
-- **PMIC_INT and MAX17048_ALERT.** One open-drain line to GPIO7, per Michele's schematic change. The firmware polls as well, so a late edge only delays a reading. Check on the S31 data sheet that GPIO7 is not a strapping pin.
+- **PMIC_INT and MAX17048_ALERT.** One open-drain line to GPIO7, per Michele's schematic change. The firmware polls as well, so a late edge only delays a reading.
 
 ## Not done
 
