@@ -167,6 +167,14 @@ void bringUpDsp()
         ESP_LOGE(kTag, "ADAU1452 boot failed: error %d",
                  static_cast<int>(first.error()));
     }
+#if CONFIG_DIGIRADIO_DUMP_DSP_EEPROM
+    if (!adau1452::dumpSelfBootEeprom(gAdau1452,
+                                      CONFIG_DIGIRADIO_DUMP_DSP_EEPROM_BYTES)) {
+        ESP_LOGE(kTag, "EEPROM dump failed");
+    }
+    (void)gAdau1452.boot();
+    return; // never rewrite the EEPROM being read
+#endif
     const adau1452::EepromSync sync = adau1452::syncSelfBootEeprom(gAdau1452);
     ESP_LOGI(kTag, "ADAU1452 EEPROM sync: %d", static_cast<int>(sync));
     if (sync == adau1452::EepromSync::UpToDate

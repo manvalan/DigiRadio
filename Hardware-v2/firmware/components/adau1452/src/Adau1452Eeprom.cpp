@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdio>
 #include <optional>
 #include <span>
 
@@ -259,6 +260,31 @@ EepromSync syncSelfBootEeprom(Adau1452Driver& driver)
     storeCrc(crc);
     ESP_LOGI(kTag, "self boot EEPROM written and verified");
     return EepromSync::Written;
+}
+
+bool dumpSelfBootEeprom(Adau1452Driver& driver, std::size_t bytes)
+{
+    const auto writerBlob = eepromWriterBlob();
+    if (writerBlob.empty() || !writer::kAvailable
+        || !startWriter(driver, writerBlob)) {
+        ESP_LOGE(kTag, "EEPROM dump needs the writer program");
+        return false;
+    }
+    constexpr std::size_t kLineBytes = 32U;
+    CellSpi spi(driver);
+    spi.idle();
+    spi.select();
+    (void)spi.transfer(kOpRead);
+    sendAddress(spi, 0U);
+    for (std::size_t at = 0U; at < bytes && spi.ok(); at += kLineBytes) {
+        std::printf("EEP %05X:", static_cast<unsigned>(at));
+        for (std::size_t i = 0U; i < kLineBytes; ++i) {
+            std::printf(" %02X", spi.transfer(0U));
+        }
+        std::printf("\n");
+    }
+    spi.deselect();
+    return spi.ok();
 }
 
 } // namespace adau1452

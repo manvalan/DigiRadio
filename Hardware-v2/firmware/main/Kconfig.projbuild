@@ -1,0 +1,18 @@
+menu "DigiRadio v2"
+
+config DIGIRADIO_DUMP_DSP_EEPROM
+    bool "Print the DSP self boot EEPROM to the console at boot"
+    default n
+    help
+        For the first board: after SigmaStudio+ wrote the 25AA1024 over USBi,
+        this prints it through the writer program. tools/eeprom_log_to_bin.py
+        turns the log into dsp/adau1452_selfboot.bin. Slow: each bit takes
+        several DSP samples, so 64 KiB takes minutes. Turn it off afterwards.
+
+config DIGIRADIO_DUMP_DSP_EEPROM_BYTES
+    int "Bytes to print"
+    depends on DIGIRADIO_DUMP_DSP_EEPROM
+    range 32 131072
+    default 65536
+
+endmenu

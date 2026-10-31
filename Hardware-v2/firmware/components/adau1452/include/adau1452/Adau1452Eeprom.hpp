@@ -20,6 +20,8 @@
 
 #include "adau1452/Adau1452Driver.hpp"
 
+#include <cstddef>
+
 namespace adau1452 {
 
 /**
@@ -53,5 +55,20 @@ enum class EepromSync {
  * @date     2026-10-31
  */
 [[nodiscard]] EepromSync syncSelfBootEeprom(Adau1452Driver& driver);
+
+/**
+ * @brief    dumpSelfBootEeprom — print the EEPROM to the console as hex.
+ *
+ * @dname    dumpSelfBootEeprom
+ * @param    driver  As for syncSelfBootEeprom(); call boot() afterwards.
+ * @param    bytes   How much to read from address 0.
+ * @return   true when all of it was read.
+ * @pubstate none. Lets the image SigmaStudio+ wrote over USBi on the first
+ *           board become dsp/adau1452_selfboot.bin (tools/eeprom_log_to_bin.py).
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-31
+ */
+[[nodiscard]] bool dumpSelfBootEeprom(Adau1452Driver& driver, std::size_t bytes);
 
 } // namespace adau1452
