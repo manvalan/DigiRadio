@@ -63,6 +63,10 @@ A DSP failure does not stop the boot, so the web server and OTA stay reachable.
 
 Each request reboots the radio. Uploads stay in the `dsp` partition. An image already written is not written again even if it fails to boot; upload another one.
 
+## Updating the BT1058
+
+Over the air with the FeasyBlue app, as [Feasycom documents](https://document.feasycom.com/docs/fsc-audio/EN/latest/bt1058/8-firmware-upgrade.html). The firmware needs no part in it, but do not restart or update the ESP32 meanwhile: a restart turns off 3V3_AUDIO and the module with it. To check at bring-up: that the app finds the module in source mode.
+
 ## To check at bring-up
 
 These were written from documents or by analogy, and only a board can confirm them.
