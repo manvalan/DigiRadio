@@ -2,22 +2,17 @@
 """Turn a SigmaStudio+ "Export System Files" folder into what the v2 firmware embeds.
 
   adau1452_program.bin  RAM download, DRAD format (core::parseDspProgramBlob)
-  adau1452_cells.inc    parameter addresses, from a cells JSON and the _PARAM.h
+  adau1452_cells.inc    parameter addresses and compiled values, from *_PARAM.h
 
 Usage:
-  tools/sigma_export.py EXPORT_DIR --ic IC_1 --cells dsp/cells.json -o dsp
+  tools/sigma_export.py EXPORT_DIR [-o dsp]
 
-cells.json gives, for each name below, the macro of the _PARAM.h file:
-  {"kSourceSelect": "MOD_..._ADDR", ..., "kEqBand": ["...", 6 macros],
-   "kLevel": ["...", 6 macros]}
-Each kEqBand macro is the first of five cells that must run b0 b1 b2 a1 a2.
-SigmaStudio exports some biquads as b2 b1 b0 a2 a1: check before relying on it.
+Rerun after every compilation: SigmaStudio+ moves the addresses each time.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import struct
 import sys
@@ -26,28 +21,42 @@ from pathlib import Path
 
 MAGIC = b"DRAD"
 VERSION = 1
-SCALARS = ["kSourceSelect", "kMasterLeft", "kMasterRight", "kBeepEnable",
-           "kBassAmount", "kStereoAmount"]
-ARRAYS = {"kEqBand": 6, "kLevel": 6}
+EQ_BANDS = 6
+BASS_TABLE_POINTS = 40
+# Cell order the driver writes in one safeload; the addresses must be contiguous.
+EQ_ORDER = ["B2", "B1", "B0", "A2", "A1"]
+BASS_ORDER = ["FILTERB0", "FILTERB2", "FILTERB1", "FILTERA2", "FILTERA1"]
+# core::AudioLevels order; "bluetooth" there means the ESP32 input, as on v1.
+METERS = ["RADIO_L", "RADIO_R", "ESP32_L", "ESP32_R", "OUT_L", "OUT_R"]
 
 
-def hex_bytes(text: str) -> bytes:
-    return bytes(int(x, 16) for x in re.findall(r"0x[0-9a-fA-F]{1,2}", text))
+def one_file(export: Path, pattern: str) -> Path:
+    found = sorted(export.glob(pattern))
+    if len(found) != 1:
+        raise ValueError(f"expected one {pattern}, found {len(found)}")
+    return found[0]
 
 
-def read_writes(export: Path, ic: str) -> list[tuple[int, bytes]]:
-    """NumBytes lists each transaction length; TxBuffer holds them in order,
-    each starting with its 16-bit address."""
-    tx = hex_bytes((export / f"TxBuffer_{ic}.dat").read_text())
+def read_writes(export: Path) -> list[tuple[int, bytes]]:
+    """TxBuffer holds each transaction as address + data, NumBytes its data length.
+
+    Steps named "... Delay" are not writes: the driver waits after the
+    registers that need it (Adau1452Driver::download), so they are dropped.
+    """
+    raw = one_file(export, "*_TxBuffer.dat").read_text()
+    names = re.findall(r"/\*\s*\(\d+\)\s*(.*?)\s*\*/", raw)
+    tx = bytes(int(x, 16) for x in
+               re.findall(r"0x[0-9a-fA-F]{1,2}", re.sub(r"/\*.*?\*/", "", raw)))
     counts = [int(x) for x in
-              re.findall(r"\d+", (export / f"NumBytes_{ic}.dat").read_text())]
-    if sum(counts) != len(tx):
-        raise ValueError(f"NumBytes adds to {sum(counts)}, TxBuffer has {len(tx)}")
+              re.findall(r"\d+", one_file(export, "*_NumBytes.dat").read_text())]
+    if len(names) != len(counts) or sum(counts) + 2 * len(counts) != len(tx):
+        raise ValueError("TxBuffer and NumBytes do not match")
     writes, at = [], 0
-    for count in counts:
+    for name, count in zip(names, counts):
         address = (tx[at] << 8) | tx[at + 1]
-        writes.append((address, tx[at + 2:at + count]))
-        at += count
+        if "delay" not in name.lower():
+            writes.append((address, tx[at + 2:at + 2 + count]))
+        at += 2 + count
     return writes
 
 
@@ -60,47 +69,95 @@ def pack(writes: list[tuple[int, bytes]]) -> bytes:
     return header + bytes(payload)
 
 
-def macros(header: Path) -> dict[str, int]:
-    found = {}
-    for name, value in re.findall(r"#define\s+(\w+)\s+(0x[0-9a-fA-F]+|\d+)\b",
-                                  header.read_text()):
-        found[name] = int(value, 0)
-    return found
+class Params:
+    def __init__(self, header: Path) -> None:
+        text = header.read_text()
+        self.addr = {m: int(v, 0) for m, v in
+                     re.findall(r"#define\s+(\w+)_ADDR\s+(\d+)\b", text)}
+        self.fix = dict(re.findall(r"#define\s+(\w+)_FIXPT\s+0x([0-9a-fA-F]+)", text))
+
+    def contiguous(self, names: list[str]) -> int:
+        first = self.addr[names[0]]
+        for offset, name in enumerate(names):
+            if self.addr[name] != first + offset:
+                raise ValueError(f"{name} is not at {first + offset}: the "
+                                 "block's cell order changed, fix the driver")
+        return first
+
+    def word(self, name: str) -> int:
+        return int(self.fix[name], 16)
+
+    def table(self, name: str, points: int) -> list[int]:
+        digits = self.fix[name]
+        if len(digits) != points * 8:
+            raise ValueError(f"{name} is not {points} words")
+        return [int(digits[i:i + 8], 16) for i in range(0, len(digits), 8)]
 
 
-def cells_inc(mapping: dict, values: dict[str, int]) -> str:
-    lines = ["// Generated by tools/sigma_export.py. Do not edit."]
-    for name in SCALARS:
-        lines.append(f"inline constexpr std::uint16_t {name} = "
-                     f"0x{values[mapping[name]]:04X}U;")
-    for name, size in ARRAYS.items():
-        if len(mapping[name]) != size:
-            raise ValueError(f"{name} needs {size} macros")
-        items = ", ".join(f"0x{values[m]:04X}U" for m in mapping[name])
-        lines.append(f"inline constexpr std::array<std::uint16_t, {size}> "
-                     f"{name} = {{{items}}};")
+def scalar(name: str, value: int) -> str:
+    return f"inline constexpr std::uint16_t {name} = 0x{value:04X}U;"
+
+
+def word(name: str, value: int) -> str:
+    return f"inline constexpr std::uint32_t {name} = 0x{value:08X}U;"
+
+
+def array(kind: str, name: str, values: list[int], digits: int) -> str:
+    items = ", ".join(f"0x{v:0{digits}X}U" for v in values)
+    return f"inline constexpr std::array<{kind}, {len(values)}> {name} = {{{items}}};"
+
+
+def bass_values(p: Params, ch: str) -> tuple[list[int], list[int]]:
+    filt = [p.word(f"MOD_BASSBOOST_{ch}_{c}") for c in BASS_ORDER]
+    return filt, p.table(f"MOD_BASSBOOST_{ch}_TABLE", BASS_TABLE_POINTS)
+
+
+def cells_inc(p: Params) -> str:
+    eq = [p.contiguous([f"MOD_EQ_STAGE{b}_{c}" for c in EQ_ORDER])
+          for b in range(EQ_BANDS)]
+    bass = [p.contiguous([f"MOD_BASSBOOST_{ch}_{c}" for c in BASS_ORDER])
+            for ch in "LR"]
+    filt, table = bass_values(p, "L")
+    if (filt, table) != bass_values(p, "R"):
+        raise ValueError("bass boost L and R differ: the driver assumes one curve")
+    lines = [
+        "// Generated by tools/sigma_export.py. Do not edit.",
+        scalar("kSourceSelect", p.addr["MOD_SOURCE_SELECT_INDEX"]),
+        scalar("kMasterLeft", p.addr["MOD_MASTERVOL_L_GAIN"]),
+        scalar("kMasterRight", p.addr["MOD_MASTERVOL_R_GAIN"]),
+        scalar("kBeepEnable", p.addr["MOD_BEEP_BEEPPRESSED"]),
+        scalar("kSpreadLevel", p.addr["MOD_STEREOSPREAD_SPREADLEVEL"]),
+        scalar("kAlphaSpread", p.addr["MOD_STEREOSPREAD_ALPHASPREAD"]),
+        word("kSpreadLevelValue", p.word("MOD_STEREOSPREAD_SPREADLEVEL")),
+        word("kAlphaSpreadValue", p.word("MOD_STEREOSPREAD_ALPHASPREAD")),
+        array("std::uint16_t", "kEqBand", eq, 4),
+        array("std::uint16_t", "kLevel",
+              [p.addr[f"MOD_METER_{m}_VALUE"] for m in METERS], 4),
+        array("std::uint16_t", "kBassFilter", bass, 4),
+        array("std::uint16_t", "kBassTable",
+              [p.addr[f"MOD_BASSBOOST_{ch}_TABLE"] for ch in "LR"], 4),
+        array("std::uint32_t", "kBassFilterValues", filt, 8),
+        array("std::uint32_t", "kBassTableValues", table, 8),
+    ]
     return "\n".join(lines) + "\n"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("export", type=Path)
-    parser.add_argument("--ic", default="IC_1")
     parser.add_argument("--name", default="adau1452_program.bin")
-    parser.add_argument("--cells", type=Path)
+    parser.add_argument("--no-cells", action="store_true",
+                        help="only the program, as for the EEPROM writer")
     parser.add_argument("-o", "--out", type=Path, default=Path("dsp"))
     args = parser.parse_args()
 
-    blob = pack(read_writes(args.export, args.ic))
+    writes = read_writes(args.export)
+    blob = pack(writes)
     (args.out / args.name).write_bytes(blob)
-    print(f"{args.name}: {len(blob)} bytes")
+    print(f"{args.name}: {len(writes)} writes, {len(blob)} bytes")
 
-    if args.cells:
-        headers = list(args.export.glob(f"*_{args.ic}_PARAM.h"))
-        if len(headers) != 1:
-            print("expected one *_PARAM.h file", file=sys.stderr)
-            return 1
-        inc = cells_inc(json.loads(args.cells.read_text()), macros(headers[0]))
+    if not args.no_cells:
+        inc = cells_inc(Params(one_file(args.export, "*_PARAM.h")))
         (args.out / "adau1452_cells.inc").write_text(inc)
         print("adau1452_cells.inc written")
     return 0

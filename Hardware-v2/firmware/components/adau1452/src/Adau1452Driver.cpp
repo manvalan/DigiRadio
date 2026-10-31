@@ -42,7 +42,6 @@ constexpr std::uint16_t kRegCoreStatus = 0xF405U;
 constexpr std::uint16_t kRegPanicFlag = 0xF427U;
 constexpr std::uint16_t kRegPanicCode = 0xF428U;
 constexpr std::uint16_t kRegFirst = 0xF000U;
-constexpr std::uint16_t kProgramRam = 0xC000U;
 
 /** Table 62, fixed since SigmaStudio 3.14. */
 constexpr std::uint16_t kSafeloadData = 0x6000U;
@@ -67,13 +66,36 @@ constexpr std::uint8_t kFixedHighPassBand = 0U;
 /** Three attempts of a full 25AA1024 at the 1 MHz the data sheet allows. */
 constexpr int kSelfBootTimeoutMs = 4000;
 
-/** Bytes per address step: registers 2, program memory 6, data memory 4. */
+/** Bytes per address step: registers 2; program and data memory 4 (the
+ *  export has 706 program words in 2824 bytes). */
 [[nodiscard]] std::size_t wordBytes(std::uint16_t address) noexcept
 {
-    if (address >= kRegFirst) {
-        return 2U;
+    return address >= kRegFirst ? 2U : 4U;
+}
+
+/** Program mux inputs. core::ActiveSource::Bluetooth is the ESP32 stream, as
+ *  on v1; input 1, the BT1058's own audio, has no ActiveSource yet. */
+[[nodiscard]] std::int32_t muxIndex(core::ActiveSource source) noexcept
+{
+    switch (source) {
+    case core::ActiveSource::Radio:
+        return 0;
+    case core::ActiveSource::Beep:
+        return 2;
+    case core::ActiveSource::Bluetooth:
+    default:
+        return 3;
     }
-    return address >= kProgramRam ? 6U : 4U;
+}
+
+/** From identity to the compiled value as t goes 0 to 1, as v1 did. */
+[[nodiscard]] std::int32_t blend(std::uint32_t compiled, float identity,
+                                 float t) noexcept
+{
+    const float value =
+        static_cast<float>(static_cast<std::int32_t>(compiled)) / 16777216.0F;
+    return static_cast<std::int32_t>(
+        std::lround((identity + (value - identity) * t) * 16777216.0F));
 }
 
 /** ADAU145x parameters are 8.24, not the 8.23 of the ADAU1701 helpers. */
@@ -388,8 +410,8 @@ std::expected<void, Adau1452Error> Adau1452Driver::selectSource(
     if (auto ready = ensureReady(); !ready) {
         return ready;
     }
-    // Plain integer pair index, as on the v1 program's mux.
-    const std::array<std::int32_t, 1> index = {static_cast<std::int32_t>(source)};
+    // SIGMASTUDIOTYPE_INTEGER in the export: a plain index, not 8.24.
+    const std::array<std::int32_t, 1> index = {muxIndex(source)};
     return safeload(cells::kSourceSelect, index);
 }
 
@@ -417,9 +439,11 @@ std::expected<void, Adau1452Error> Adau1452Driver::setEqBand(
         return ready;
     }
     const core::BiquadCoefficients c = core::designPeakingEq(center, gain, q);
+    // Address order of the export: b2 b1 b0 a2 a1. BiquadCoefficients calls
+    // the feedback terms a0 (the export's A1) and a1 (its A2), same sign.
     const std::array<std::int32_t, 5> words = {
-        toFixpoint824(c.b0), toFixpoint824(c.b1), toFixpoint824(c.b2),
-        toFixpoint824(c.a0), toFixpoint824(c.a1),
+        toFixpoint824(c.b2), toFixpoint824(c.b1), toFixpoint824(c.b0),
+        toFixpoint824(c.a1), toFixpoint824(c.a0),
     };
     return safeload(cells::kEqBand[band.value()], words);
 }
@@ -452,14 +476,44 @@ std::expected<void, Adau1452Error> Adau1452Driver::setBeepEnabled(bool enabled)
     return safeload(cells::kBeepEnable, value);
 }
 
+std::expected<void, Adau1452Error> Adau1452Driver::writeBassBlock(
+    std::size_t block, float t)
+{
+    // Filter order b0 b2 b1 a2 a1: only b0 is 1 in the identity filter.
+    std::array<std::int32_t, 5> filter = {};
+    for (std::size_t i = 0U; i < filter.size(); ++i) {
+        filter[i] = blend(cells::kBassFilterValues[i], i == 0U ? 1.0F : 0.0F, t);
+    }
+    if (auto sent = safeload(cells::kBassFilter[block], filter); !sent) {
+        return sent;
+    }
+    std::array<std::int32_t, kSafeloadMaxWords> words = {};
+    for (std::size_t at = 0U; at < cells::kBassTableValues.size();
+         at += words.size()) {
+        for (std::size_t i = 0U; i < words.size(); ++i) {
+            words[i] = blend(cells::kBassTableValues[at + i], 1.0F, t);
+        }
+        const auto cell =
+            static_cast<std::uint16_t>(cells::kBassTable[block] + at);
+        if (auto sent = safeload(cell, words); !sent) {
+            return sent;
+        }
+    }
+    return {};
+}
+
 std::expected<void, Adau1452Error> Adau1452Driver::setBassBoostLevel(
     core::EnhanceLevel level)
 {
     if (auto ready = ensureReady(); !ready) {
         return ready;
     }
-    const std::array<std::int32_t, 1> value = {toFixpoint824(level.fraction())};
-    return safeload(cells::kBassAmount, value);
+    for (std::size_t block = 0U; block < cells::kBassFilter.size(); ++block) {
+        if (auto sent = writeBassBlock(block, level.fraction()); !sent) {
+            return sent;
+        }
+    }
+    return {};
 }
 
 std::expected<void, Adau1452Error> Adau1452Driver::setStereoSpreadLevel(
@@ -468,8 +522,15 @@ std::expected<void, Adau1452Error> Adau1452Driver::setStereoSpreadLevel(
     if (auto ready = ensureReady(); !ready) {
         return ready;
     }
-    const std::array<std::int32_t, 1> value = {toFixpoint824(level.fraction())};
-    return safeload(cells::kStereoAmount, value);
+    const float t = level.fraction();
+    const std::array<std::int32_t, 1> spread = {
+        blend(cells::kSpreadLevelValue, 0.0F, t)};
+    if (auto sent = safeload(cells::kSpreadLevel, spread); !sent) {
+        return sent;
+    }
+    const std::array<std::int32_t, 1> alpha = {
+        blend(cells::kAlphaSpreadValue, 0.0F, t)};
+    return safeload(cells::kAlphaSpread, alpha);
 }
 
 std::expected<void, Adau1452Error> Adau1452Driver::writeRawParam(

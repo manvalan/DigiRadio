@@ -31,12 +31,20 @@ inline constexpr std::uint16_t kSourceSelect = 0U;
 inline constexpr std::uint16_t kMasterLeft = 0U;
 inline constexpr std::uint16_t kMasterRight = 0U;
 inline constexpr std::uint16_t kBeepEnable = 0U;
-inline constexpr std::uint16_t kBassAmount = 0U;
-inline constexpr std::uint16_t kStereoAmount = 0U;
-/** First of five cells per band, in the order b0 b1 b2 a1 a2. */
+inline constexpr std::uint16_t kSpreadLevel = 0U;
+inline constexpr std::uint16_t kAlphaSpread = 0U;
+inline constexpr std::uint32_t kSpreadLevelValue = 0U;
+inline constexpr std::uint32_t kAlphaSpreadValue = 0U;
+/** First of five cells per band, in the order b2 b1 b0 a2 a1. */
 inline constexpr std::array<std::uint16_t, 6> kEqBand = {};
 /** Radio L/R, ESP32 L/R, output L/R level meters. */
 inline constexpr std::array<std::uint16_t, 6> kLevel = {};
+/** L and R blocks: first of five cells in the order b0 b2 b1 a2 a1. */
+inline constexpr std::array<std::uint16_t, 2> kBassFilter = {};
+inline constexpr std::array<std::uint16_t, 2> kBassTable = {};
+/** Compiled curve, 8.24, shared by both blocks. */
+inline constexpr std::array<std::uint32_t, 5> kBassFilterValues = {};
+inline constexpr std::array<std::uint32_t, 40> kBassTableValues = {};
 #endif
 
 } // namespace adau1452::cells

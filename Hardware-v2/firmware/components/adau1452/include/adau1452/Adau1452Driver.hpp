@@ -28,6 +28,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <span>
@@ -220,6 +221,9 @@ private:
         std::uint16_t address, std::span<const std::uint8_t> data);
     [[nodiscard]] std::expected<void, Adau1452Error> safeload(
         std::uint16_t target, std::span<const std::int32_t> words);
+
+    [[nodiscard]] std::expected<void, Adau1452Error> writeBassBlock(
+        std::size_t block, float t);
 
     Adau1452Pins pins_;
     core::IDspProgramSource& programSource_;

@@ -58,7 +58,6 @@ A DSP failure does not stop the boot, so the web server and OTA stay reachable.
 These were written from documents or by analogy, and only a board can confirm them.
 
 - **BT1058 AT commands.** The driver is the BT1035 one, and no BT1058 programming guide is in the repo. `AT+AUXCFG` and `AT+I2SCFG=67` in particular may not apply. Feasycom has not yet answered about I2S slave mode, sample rate and BCLK ratio.
-- **Program RAM word size.** `Adau1452Driver` assumes 6 bytes per address when splitting long writes. Compare with the export.
 - **CRC of `FLASH_CHECK_CRC32`.** AN649 does not name the polynomial; the code uses CRC-32 IEEE. A wrong guess would rewrite the flash at every boot, and the log would show it.
 - **Self boot timing and panic.** `waitForSelfBoot()` reads the status over a port that may behave differently after a failed self boot.
 - **MAX17048 and BQ25896 registers.** Their data sheets are not in the repo.
@@ -68,7 +67,7 @@ These were written from documents or by analogy, and only a board can confirm th
 ## Not done
 
 - **25AA1024 write.** The code is there, but it needs the writer program described in [`dsp/README.md`](dsp/README.md). Until then a blank EEPROM means an SPI download at every boot.
-- **DSP program and cell addresses.** Without them the firmware builds, but it applies no audio settings.
+- **Bluetooth as an audio source.** The program has the BT1058 input (mux 1), but nothing selects it yet; on v1 Bluetooth is only an output.
 - **Published builds without Si4684 images.** The app must carry them, since it fills U7 and sends the patch.
 - **SigmaStudio TCP bridge and `POST /api/dsp/program`.** Both are ADAU1701 only and do nothing on v2.
 - **DSP to ESP32 audio (GPIO42) and the second flash (U3).** Wired, but unused.
