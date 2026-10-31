@@ -15,4 +15,9 @@
 	(pad "2" smd rect (at 0.64 2.675) (size 3.8 1.65) (layers "F.Cu" "F.Mask" "F.Paste"))
 	(pad "2" smd rect (at 0.64 -2.675) (size 3.8 1.65) (layers "B.Cu" "B.Mask" "B.Paste"))
 	(pad "2" smd rect (at 0.64 2.675) (size 3.8 1.65) (layers "B.Cu" "B.Mask" "B.Paste"))
+	(model "${MIKILAB}/3dmodels/rf/BWSMA-KE-P001.step"
+		(offset (xyz 3.04 0 0.475))
+		(scale (xyz 1 1 1))
+		(rotate (xyz 0 90 180))
+	)
 )
