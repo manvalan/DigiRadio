@@ -7298,7 +7298,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "1uF"
 			(at 224.028 25.146 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7331,7 +7331,7 @@
 				)
 			)
 		)
-		(property "Description" "CAP CER 100nF 50V ±10% X7R 0603"
+		(property "Description" "CAP CER 1uF 50V X7R 0603"
 			(at 223.52 22.86 0)
 			(hide yes)
 			(show_name no)
@@ -7342,7 +7342,7 @@
 				)
 			)
 		)
-		(property "PNM" "CC0603KRX7R9BB104"
+		(property "PNM" "CL10B105KB8NQNC"
 			(at 223.52 22.86 0)
 			(hide yes)
 			(show_name no)

@@ -25346,7 +25346,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "1uF"
 			(at 0 1.43 0)
 			(layer "F.Fab")
 			(uuid "c7687562-cf6f-4784-8ba2-04754928993a")
@@ -25368,7 +25368,7 @@
 				)
 			)
 		)
-		(property "Description" "CAP CER 100nF 50V ±10% X7R 0603"
+		(property "Description" "CAP CER 1uF 50V X7R 0603"
 			(at 0 0 0)
 			(layer "F.Fab")
 			(hide yes)
@@ -25391,7 +25391,7 @@
 				)
 			)
 		)
-		(property "PNM" "CC0603KRX7R9BB104"
+		(property "PNM" "CL10B105KB8NQNC"
 			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
