@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- * 
+ * This software is distributed in the hope that it will be useful, 
+ * but is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+ * CONDITIONS OF ANY KIND, without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ * 
+ * Copyright ©2026 Analog Devices, Inc. All rights reserved.
+ * 
+-->
+<!--NetList XML file-->
+<IC name="ADAU1452_0" partnumber="ADAU1452">
+  <Core name="ADAU145xCore_0">
+    <Schematic name="ADAU145xSchematic_0">
+      <Algorithm name="Safeload" friendlyname="Schematic Params" />
+      <Algorithm name="Cell_Ss" friendlyname="Use this control to test a DC voltage input" />
+      <Algorithm name="Pin_Ss" friendlyname="General Purpose Output" />
+      <Algorithm name="Cell_Mosi" friendlyname="Use this control to test a DC voltage input" />
+      <Algorithm name="Pin_Mosi" friendlyname="General Purpose Output" />
+      <Algorithm name="Cell_Sclk" friendlyname="Use this control to test a DC voltage input" />
+      <Algorithm name="Pin_Sclk" friendlyname="General Purpose Output" />
+      <Algorithm name="Pin_Miso" friendlyname="General Purpose Input" />
+      <Algorithm name="Cell_Miso" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+    </Schematic>
+  </Core>
+</IC>

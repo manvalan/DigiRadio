@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- * 
+ * This software is distributed in the hope that it will be useful, 
+ * but is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+ * CONDITIONS OF ANY KIND, without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ * 
+ * Copyright ©2026 Analog Devices, Inc. All rights reserved.
+ * 
+-->
+<!--NetList XML file-->
+<IC name="ADAU1452_0" partnumber="ADAU1452">
+  <Core name="ADAU145xCore_0">
+    <Schematic name="ADAU145xSchematic_0">
+      <Algorithm name="Safeload" friendlyname="Schematic Params" />
+      <Algorithm name="Radio_In" friendlyname="Input SDATA0" />
+      <Algorithm name="BT_In" friendlyname="Input SDATA0" />
+      <Algorithm name="ESP32_In" friendlyname="Input SDATA0" />
+      <Algorithm name="DC_Radio_L" friendlyname="Removes DC Components that may be Present" />
+      <Algorithm name="Level_Radio_L" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_Radio_L" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="DC_Radio_R" friendlyname="Removes DC Components that may be Present" />
+      <Algorithm name="Level_Radio_R" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_Radio_R" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="DC_BT_L" friendlyname="Removes DC Components that may be Present" />
+      <Algorithm name="Level_BT_L" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_BT_L" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="DC_BT_R" friendlyname="Removes DC Components that may be Present" />
+      <Algorithm name="Level_BT_R" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_BT_R" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="DC_ESP32_L" friendlyname="Removes DC Components that may be Present" />
+      <Algorithm name="Level_ESP32_L" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_ESP32_L" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="DC_ESP32_R" friendlyname="Removes DC Components that may be Present" />
+      <Algorithm name="Level_ESP32_R" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_ESP32_R" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="Beep" friendlyname="Generates a Sine Tone with selectable Frequency" />
+      <Algorithm name="Beep_Split" friendlyname="Splits one Input Signal into Multiple Outputs.&#xA; The Output is affected by the Gain Scaled by the Values Specified in the Gain Control Knob" />
+      <Algorithm name="Source_Select" friendlyname="Allows selecting a stereo input value and route it into variable number of signal paths" />
+      <Algorithm name="Compressor" friendlyname="Computes the RMS level of the input signal and applies the compressor gain to the input signal based on the RMS value. " />
+      <Algorithm name="Makeup_L" friendlyname="Multiplies the Input by desired Value" />
+      <Algorithm name="Makeup_R" friendlyname="Multiplies the Input by desired Value" />
+      <Algorithm name="EQ" friendlyname="Gives access to a variety of Second Order IIR filter algorithms.&#xA; Parametric, Shelving, General LP/HP/BP/BS, Tone Control etc." />
+      <Algorithm name="MasterVol_L" friendlyname="Multiplies the Input by desired Value" />
+      <Algorithm name="MasterVol_R" friendlyname="Multiplies the Input by desired Value" />
+      <Algorithm name="SuperBass" friendlyname="ADI Bass Enhancement Algorithm" />
+      <Algorithm name="StereoSpread" friendlyname="Uses stereo cross coupling to simulate surround sound in a stereo speakers" />
+      <Algorithm name="BassBoost_L" friendlyname="Provides variable Bass Boost dependent on Input Signal Level" />
+      <Algorithm name="Limiter_L" friendlyname="Limits the Gain of a Signal from Exceeding a set Threshold" />
+      <Algorithm name="Level_Out_L" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_Out_L" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="BassBoost_R" friendlyname="Provides variable Bass Boost dependent on Input Signal Level" />
+      <Algorithm name="Limiter_R" friendlyname="Limits the Gain of a Signal from Exceeding a set Threshold" />
+      <Algorithm name="Level_Out_R" friendlyname="Displays output Level on a single bar" />
+      <Algorithm name="Meter_Out_R" friendlyname="Reads Values Back from the DSP at any Point in the Schematic design" />
+      <Algorithm name="BT_Out_L" friendlyname="Output" />
+      <Algorithm name="BT_Out_R" friendlyname="Output" />
+      <Algorithm name="ESP32_Out_L" friendlyname="Output" />
+      <Algorithm name="ESP32_Out_R" friendlyname="Output" />
+      <Algorithm name="TOSLINK_L" friendlyname="SPDIF Output" />
+      <Algorithm name="TOSLINK_R" friendlyname="SPDIF Output" />
+    </Schematic>
+  </Core>
+</IC>

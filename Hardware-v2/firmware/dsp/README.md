@@ -2,8 +2,18 @@
 
 These files come from SigmaStudio+ and are picked up at build time. Each one is
 optional: the firmware builds and boots without them and says what is missing.
-They are git-ignored for now, because the exports carry an Analog Devices notice
-against redistribution and this repo is public.
+The SigmaStudio+ projects and exports they come from are in `sigmastudio/`. The
+Si4684 images never go in this repo: they are proprietary and stay local.
+
+Regenerate after a recompile, from `Hardware-v2/firmware`:
+
+```bash
+python3 tools/sigma_export.py dsp/sigmastudio/program/export -o dsp
+```
+
+```bash
+python3 tools/sigma_export.py dsp/sigmastudio/eeprom_writer/export --no-cells --name adau1452_eeprom_writer.bin -o dsp
+```
 
 | File | Made with | Used for |
 |---|---|---|

@@ -25,7 +25,7 @@ idf.py --preview set-target esp32s31
 idf.py build
 ```
 
-The Si4684 images must be in `../../Software/Firmware/Si4684-Firmware`.
+The Si4684 images must be in `../../Software/Firmware/Si4684-Firmware`. They are proprietary and not in this repo: see the README in that folder. The ADAU1452 program is in [`dsp/`](dsp/).
 
 ## What differs from v1
 

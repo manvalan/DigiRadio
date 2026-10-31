@@ -1,0 +1,1292 @@
+Module Name			= Safeload
+Parameter Name		= Data_SafeLoad0
+Parameter Address	= 24576
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Safeload
+Parameter Name		= Data_SafeLoad1
+Parameter Address	= 24577
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Safeload
+Parameter Name		= Data_SafeLoad2
+Parameter Address	= 24578
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Safeload
+Parameter Name		= Data_SafeLoad3
+Parameter Address	= 24579
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Safeload
+Parameter Name		= Data_SafeLoad4
+Parameter Address	= 24580
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Safeload
+Parameter Name		= Addr_SafeLoad
+Parameter Address	= 24581
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Safeload
+Parameter Name		= Num_SafeLoad
+Parameter Address	= 24582
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= DC_Radio_L
+Parameter Name		= pole
+Parameter Address	= 58
+Parameter Value		= 0,9999
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0xF9, 0x72, 
+
+
+
+Module Name			= Level_Radio_L
+Parameter Name		= level
+Parameter Address	= 313
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_Radio_L
+Parameter Name		= Value
+Parameter Address	= 314
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= DC_Radio_R
+Parameter Name		= pole
+Parameter Address	= 53
+Parameter Value		= 0,9999
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0xF9, 0x72, 
+
+
+
+Module Name			= Level_Radio_R
+Parameter Name		= level
+Parameter Address	= 54
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_Radio_R
+Parameter Name		= Value
+Parameter Address	= 55
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= DC_BT_L
+Parameter Name		= pole
+Parameter Address	= 48
+Parameter Value		= 0,9999
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0xF9, 0x72, 
+
+
+
+Module Name			= Level_BT_L
+Parameter Name		= level
+Parameter Address	= 49
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_BT_L
+Parameter Name		= Value
+Parameter Address	= 50
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= DC_BT_R
+Parameter Name		= pole
+Parameter Address	= 43
+Parameter Value		= 0,9999
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0xF9, 0x72, 
+
+
+
+Module Name			= Level_BT_R
+Parameter Name		= level
+Parameter Address	= 44
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_BT_R
+Parameter Name		= Value
+Parameter Address	= 45
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= DC_ESP32_L
+Parameter Name		= pole
+Parameter Address	= 38
+Parameter Value		= 0,9999
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0xF9, 0x72, 
+
+
+
+Module Name			= Level_ESP32_L
+Parameter Name		= level
+Parameter Address	= 39
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_ESP32_L
+Parameter Name		= Value
+Parameter Address	= 40
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= DC_ESP32_R
+Parameter Name		= pole
+Parameter Address	= 33
+Parameter Value		= 0,9999
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0xF9, 0x72, 
+
+
+
+Module Name			= Level_ESP32_R
+Parameter Name		= level
+Parameter Address	= 34
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_ESP32_R
+Parameter Name		= Value
+Parameter Address	= 35
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Beep
+Parameter Name		= Cos
+Parameter Address	= 28
+Parameter Value		= 0,00331636677194336
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0xD9, 0x57, 
+
+
+
+Module Name			= Beep
+Parameter Name		= BeepPressed
+Parameter Address	= 29
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Beep_Split
+Parameter Name		= Gain
+Parameter Address	= 315
+Parameter Value		= 2,51188643150958
+Data Memory			= DM0
+Parameter Data :
+0x02, 0x83, 0x0A, 0xFD, 
+
+
+
+Module Name			= Source_Select
+Parameter Name		= Index
+Parameter Address	= 332
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Compressor
+Parameter Name		= TimeConstant
+Parameter Address	= 333
+Parameter Value		= 0,000479820304650103
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x1F, 0x72, 
+
+
+
+Module Name			= Compressor
+Parameter Name		= Decay
+Parameter Address	= 335
+Parameter Value		= 2,17013888884368E-05
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x01, 0x6C, 
+
+
+
+Module Name			= Compressor
+Parameter Name		= Hold
+Parameter Address	= 334
+Parameter Value		= 2400
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x09, 0x60, 
+
+
+
+Module Name			= Compressor
+Parameter Name		= Table
+Parameter Address	= 67
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x00, 0xCC, 0x36, 
+0x01, 0x06, 0xA2, 0x00, 
+0x01, 0x0C, 0x99, 0xBA, 
+0x01, 0x12, 0xB4, 0x2C, 
+0x01, 0x18, 0xF2, 0x1C, 
+0x01, 0x1F, 0x54, 0x5E, 
+0x01, 0x25, 0xDB, 0xC2, 
+0x01, 0x2C, 0x89, 0x20, 
+0x01, 0x33, 0x5D, 0x54, 
+0x01, 0x3A, 0x59, 0x44, 
+0x01, 0x3F, 0x1C, 0xA8, 
+0x01, 0x3B, 0x7D, 0x94, 
+0x01, 0x37, 0xE9, 0x06, 
+0x01, 0x34, 0x5E, 0xDE, 
+0x01, 0x30, 0xDE, 0xFE, 
+0x01, 0x2D, 0x69, 0x4A, 
+0x01, 0x29, 0xFD, 0xA4, 
+0x01, 0x27, 0xEE, 0x1A, 
+0x01, 0x27, 0xBD, 0xA4, 
+0x01, 0x27, 0x8D, 0x36, 
+0x01, 0x27, 0x5C, 0xD0, 
+0x01, 0x27, 0x2C, 0x72, 
+0x01, 0x26, 0xFC, 0x1C, 
+0x01, 0x26, 0xCB, 0xCE, 
+0x00, 0xF5, 0x0A, 0x34, 
+0x00, 0xC3, 0xD1, 0x82, 
+0x00, 0x9C, 0x7B, 0xEC, 
+0x00, 0x7D, 0x0D, 0x0A, 
+0x00, 0x63, 0xEE, 0x88, 
+0x00, 0x4F, 0xDB, 0xBC, 
+0x00, 0x3F, 0xD1, 0x2E, 
+0x00, 0x2D, 0x20, 0x21, 
+
+
+
+Module Name			= Makeup_L
+Parameter Name		= Gain
+Parameter Address	= 341
+Parameter Value		= 1,25892541
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x42, 0x48, 0xF0, 
+
+
+
+Module Name			= Makeup_R
+Parameter Name		= Gain
+Parameter Address	= 340
+Parameter Value		= 1,25892541
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x42, 0x48, 0xF0, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage0_B0
+Parameter Address	= 123
+Parameter Value		= 0,99815046787262
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0x86, 0xCA, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage0_B1
+Parameter Address	= 122
+Parameter Value		= -1,99630105495453
+Data Memory			= DM0
+Parameter Data :
+0xFE, 0x00, 0xF2, 0x6A, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage0_B2
+Parameter Address	= 121
+Parameter Value		= 0,99815046787262
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0x86, 0xCA, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage0_A1
+Parameter Address	= 125
+Parameter Value		= 1,99629759788513
+Data Memory			= DM0
+Parameter Data :
+0x01, 0xFF, 0x0D, 0x5C, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage0_A2
+Parameter Address	= 124
+Parameter Value		= -0,996304392814636
+Data Memory			= DM0
+Parameter Data :
+0xFF, 0x00, 0xF2, 0x32, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage1_B0
+Parameter Address	= 24585
+Parameter Value		= 0,99921977519989
+Data Memory			= DM1
+Parameter Data :
+0x00, 0xFF, 0xCC, 0xDE, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage1_B1
+Parameter Address	= 24584
+Parameter Value		= -1,98560345172882
+Data Memory			= DM1
+Parameter Data :
+0xFE, 0x03, 0xAF, 0x7E, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage1_B2
+Parameter Address	= 24583
+Parameter Value		= 0,986564874649048
+Data Memory			= DM1
+Parameter Data :
+0x00, 0xFC, 0x8F, 0x84, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage1_A1
+Parameter Address	= 24587
+Parameter Value		= 1,98560345172882
+Data Memory			= DM1
+Parameter Data :
+0x01, 0xFC, 0x50, 0x82, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage1_A2
+Parameter Address	= 24586
+Parameter Value		= -0,985784649848938
+Data Memory			= DM1
+Parameter Data :
+0xFF, 0x03, 0xA3, 0x9E, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage2_B0
+Parameter Address	= 128
+Parameter Value		= 1,00035321712494
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x17, 0x26, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage2_B1
+Parameter Address	= 127
+Parameter Value		= -1,95086574554443
+Data Memory			= DM0
+Parameter Data :
+0xFE, 0x0C, 0x94, 0x10, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage2_B2
+Parameter Address	= 126
+Parameter Value		= 0,952795505523682
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xF3, 0xEA, 0x68, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage2_A1
+Parameter Address	= 130
+Parameter Value		= 1,95086574554443
+Data Memory			= DM0
+Parameter Data :
+0x01, 0xF3, 0x6B, 0xF0, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage2_A2
+Parameter Address	= 129
+Parameter Value		= -0,953148722648621
+Data Memory			= DM0
+Parameter Data :
+0xFF, 0x0B, 0xFE, 0x72, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage3_B0
+Parameter Address	= 24590
+Parameter Value		= 0,995041608810425
+Data Memory			= DM1
+Parameter Data :
+0x00, 0xFE, 0xBB, 0x0C, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage3_B1
+Parameter Address	= 24589
+Parameter Value		= -1,83803915977478
+Data Memory			= DM1
+Parameter Data :
+0xFE, 0x29, 0x76, 0x44, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage3_B2
+Parameter Address	= 24588
+Parameter Value		= 0,86321759223938
+Data Memory			= DM1
+Parameter Data :
+0x00, 0xDC, 0xFB, 0xD4, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage3_A1
+Parameter Address	= 24592
+Parameter Value		= 1,83803915977478
+Data Memory			= DM1
+Parameter Data :
+0x01, 0xD6, 0x89, 0xBC, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage3_A2
+Parameter Address	= 24591
+Parameter Value		= -0,858259201049805
+Data Memory			= DM1
+Parameter Data :
+0xFF, 0x24, 0x49, 0x20, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage4_B0
+Parameter Address	= 133
+Parameter Value		= 1,00251352787018
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0xA4, 0xBA, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage4_B1
+Parameter Address	= 132
+Parameter Value		= -1,5252513885498
+Data Memory			= DM0
+Parameter Data :
+0xFE, 0x79, 0x89, 0x20, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage4_B2
+Parameter Address	= 131
+Parameter Value		= 0,664113402366638
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xAA, 0x03, 0x56, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage4_A1
+Parameter Address	= 135
+Parameter Value		= 1,5252513885498
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x86, 0x76, 0xE0, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage4_A2
+Parameter Address	= 134
+Parameter Value		= -0,666626930236816
+Data Memory			= DM0
+Parameter Data :
+0xFF, 0x55, 0x57, 0xF0, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage5_B0
+Parameter Address	= 24595
+Parameter Value		= 1,01695561408997
+Data Memory			= DM1
+Parameter Data :
+0x01, 0x04, 0x57, 0x34, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage5_B1
+Parameter Address	= 24594
+Parameter Value		= -0,80655837059021
+Data Memory			= DM1
+Parameter Data :
+0xFF, 0x31, 0x85, 0x64, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage5_B2
+Parameter Address	= 24593
+Parameter Value		= 0,41073751449585
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x69, 0x26, 0x18, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage5_A1
+Parameter Address	= 24597
+Parameter Value		= 0,80655837059021
+Data Memory			= DM1
+Parameter Data :
+0x00, 0xCE, 0x7A, 0x9C, 
+
+
+
+Module Name			= EQ
+Parameter Name		= Stage5_A2
+Parameter Address	= 24596
+Parameter Value		= -0,427693128585815
+Data Memory			= DM1
+Parameter Data :
+0xFF, 0x92, 0x82, 0xB4, 
+
+
+
+Module Name			= MasterVol_L
+Parameter Name		= Gain
+Parameter Address	= 343
+Parameter Value		= 0,501187
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x80, 0x4D, 0xCB, 
+
+
+
+Module Name			= MasterVol_R
+Parameter Name		= Gain
+Parameter Address	= 342
+Parameter Value		= 0,501187
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x80, 0x4D, 0xCB, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Comp_base
+Parameter Address	= 136
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x2E, 0xC4, 0x63, 
+0x00, 0x20, 0x60, 0x9D, 
+0x00, 0x16, 0xBF, 0x3C, 
+0x00, 0x10, 0x1A, 0x88, 
+0x00, 0x0B, 0x66, 0x88, 
+0x00, 0x08, 0x12, 0x29, 
+0x00, 0x08, 0xB2, 0xBA, 
+0x00, 0x32, 0xB3, 0x1C, 
+0x00, 0xB2, 0x5B, 0x59, 
+0x01, 0x5E, 0x10, 0xC4, 
+0x02, 0x38, 0xD6, 0x79, 
+0x02, 0xFC, 0x38, 0x1B, 
+0x03, 0x86, 0x11, 0x94, 
+0x03, 0xE4, 0xEC, 0x51, 
+0x04, 0x13, 0xBE, 0x84, 
+0x04, 0x17, 0x7B, 0x8C, 
+0x03, 0xFB, 0x99, 0x9A, 
+0x03, 0xCD, 0xFC, 0x9E, 
+0x03, 0x96, 0xD6, 0xFA, 
+0x03, 0x43, 0xC4, 0x7B, 
+0x02, 0xED, 0xA6, 0x02, 
+0x02, 0xAB, 0x61, 0x8C, 
+0x02, 0x63, 0xCC, 0x26, 
+0x01, 0xFB, 0x32, 0xA0, 
+0x01, 0x92, 0x6A, 0x73, 
+0x01, 0x4F, 0x50, 0x42, 
+0x01, 0x17, 0xD8, 0xBB, 
+0x00, 0xD6, 0x75, 0x8B, 
+0x00, 0xA2, 0x2A, 0x4E, 
+0x00, 0x7F, 0xC5, 0x9A, 
+0x00, 0x60, 0x79, 0x4D, 
+0x00, 0x44, 0x4C, 0x5A, 
+0x00, 0x30, 0x59, 0xF9, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Alpha
+Parameter Address	= 185
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xFF, 0xE4, 0xB3, 
+0x00, 0x00, 0x1B, 0x4D, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= a6
+Parameter Address	= 24600
+Parameter Value		= 0,7
+Data Memory			= DM1
+Parameter Data :
+0x00, 0xB3, 0x33, 0x33, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= DC
+Parameter Address	= 190
+Parameter Value		= 0,7
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xB3, 0x33, 0x33, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= a0
+Parameter Address	= 24601
+Parameter Value		= 0,5
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x80, 0x00, 0x00, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Xl
+Parameter Address	= 189
+Parameter Value		= 1,34800615459728
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x59, 0x16, 0xEE, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Xoff
+Parameter Address	= 187
+Parameter Value		= 2,69601230919455
+Data Memory			= DM0
+Parameter Data :
+0x02, 0xB2, 0x2D, 0xDD, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Sat
+Parameter Address	= 188
+Parameter Value		= 12
+Data Memory			= DM0
+Parameter Data :
+0x0C, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= G_Out
+Parameter Address	= 191
+Parameter Value		= 0,5
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x80, 0x00, 0x00, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= RMS
+Parameter Address	= 24602
+Parameter Value		= 0,00138792440757007
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x5A, 0xF6, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Decay
+Parameter Address	= 24606
+Parameter Value		= 7,53982204861111E-06
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x7E, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= LogCoeff
+Parameter Address	= 63
+Parameter Value		= 0
+Parameter Data :
+0x00, 0xDE, 0x5B, 0xD9, 
+0x01, 0x15, 0xF2, 0xCF, 
+0x01, 0x72, 0x99, 0x14, 
+0x02, 0x2B, 0xE5, 0x9D, 
+0x04, 0x57, 0xCB, 0x3B, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= BassGain
+Parameter Address	= 24608
+Parameter Value		= 1,2
+Data Memory			= DM1
+Parameter Data :
+0x01, 0x33, 0x33, 0x33, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Bypass_ON
+Parameter Address	= 24610
+Parameter Value		= 0
+Data Memory			= DM1
+Parameter Data :
+0x00, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= XoverFreqTable
+Parameter Address	= 169
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xF7, 0xA0, 0xCC, 
+0xFE, 0x10, 0xBE, 0x68, 
+0x00, 0xF7, 0xA0, 0xCC, 
+0xFF, 0x10, 0x36, 0x88, 
+0x01, 0xEE, 0xB9, 0xB9, 
+0xFF, 0x08, 0x1D, 0x6B, 
+0x00, 0xF7, 0xE2, 0x95, 
+0x00, 0xEF, 0xC5, 0x2A, 
+0x00, 0x00, 0x43, 0xF0, 
+0x00, 0x00, 0x87, 0xE0, 
+0x00, 0x00, 0x43, 0xF0, 
+0xFF, 0x10, 0x36, 0x88, 
+0x01, 0xEE, 0xB9, 0xB9, 
+0x00, 0x08, 0x1D, 0x6B, 
+0x00, 0x08, 0x1D, 0x6B, 
+0x00, 0xEF, 0xC5, 0x2A, 
+
+
+
+Module Name			= SuperBass
+Parameter Name		= Intensity
+Parameter Address	= 24599
+Parameter Value		= 1,3
+Data Memory			= DM1
+Parameter Data :
+0x01, 0x4C, 0xCC, 0xCD, 
+
+
+
+Module Name			= StereoSpread
+Parameter Name		= SpreadLevel
+Parameter Address	= 192
+Parameter Value		= 0,0628781854118046
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x10, 0x18, 0xC9, 
+
+
+
+Module Name			= StereoSpread
+Parameter Name		= AlphaSpread
+Parameter Address	= 193
+Parameter Value		= 0,0193038143874401
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x04, 0xF1, 0x18, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= FilterA1
+Parameter Address	= 263
+Parameter Value		= 1,98148576456209
+Data Memory			= DM0
+Parameter Data :
+0x01, 0xFB, 0x42, 0xA7, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= FilterA2
+Parameter Address	= 262
+Parameter Value		= -0,981655537799498
+Data Memory			= DM0
+Parameter Data :
+0xFF, 0x04, 0xB2, 0x39, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= FilterB0
+Parameter Address	= 259
+Parameter Value		= 4,24433093514205E-05
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x02, 0xC8, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= FilterB1
+Parameter Address	= 261
+Parameter Value		= 8,48866187028411E-05
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x05, 0x90, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= FilterB2
+Parameter Address	= 260
+Parameter Value		= 4,24433093514205E-05
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x02, 0xC8, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= Table
+Parameter Address	= 268
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x86, 0x81, 0x67, 
+0x00, 0x8B, 0xB6, 0xCA, 
+0x00, 0x91, 0x1F, 0xCE, 
+0x00, 0x96, 0xBE, 0x75, 
+0x00, 0x9C, 0x94, 0xD2, 
+0x00, 0xA2, 0xA5, 0x0C, 
+0x00, 0xA8, 0xF1, 0x62, 
+0x00, 0xAF, 0x7C, 0x28, 
+0x00, 0xB6, 0x47, 0xC8, 
+0x00, 0xBD, 0x56, 0xC5, 
+0x00, 0xC4, 0xAB, 0xBC, 
+0x00, 0xCC, 0x49, 0x61, 
+0x00, 0xD4, 0x32, 0x86, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= TimeConstant
+Parameter Address	= 266
+Parameter Value		= 0,000208311633451363
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x0D, 0xA7, 
+
+
+
+Module Name			= BassBoost_L
+Parameter Name		= BassFrequency
+Parameter Address	= 257
+Parameter Value		= 0,00785396144863598
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x02, 0x02, 0xB8, 
+
+
+
+Module Name			= Limiter_L
+Parameter Name		= RMSTC
+Parameter Address	= 346
+Parameter Value		= 0,000239881380791562
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x0F, 0xB9, 
+
+
+
+Module Name			= Limiter_L
+Parameter Name		= Decay
+Parameter Address	= 347
+Parameter Value		= 0,000244140625
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x10, 0x00, 
+
+
+
+Module Name			= Limiter_L
+Parameter Name		= Threshold
+Parameter Address	= 308
+Parameter Value		= 0,891250938133746
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xE4, 0x29, 0x05, 
+
+
+
+Module Name			= Level_Out_L
+Parameter Name		= level
+Parameter Address	= 311
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_Out_L
+Parameter Name		= Value
+Parameter Address	= 312
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= FilterA1
+Parameter Address	= 204
+Parameter Value		= 1,98148576456209
+Data Memory			= DM0
+Parameter Data :
+0x01, 0xFB, 0x42, 0xA7, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= FilterA2
+Parameter Address	= 203
+Parameter Value		= -0,981655537799498
+Data Memory			= DM0
+Parameter Data :
+0xFF, 0x04, 0xB2, 0x39, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= FilterB0
+Parameter Address	= 200
+Parameter Value		= 4,24433093514205E-05
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x02, 0xC8, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= FilterB1
+Parameter Address	= 202
+Parameter Value		= 8,48866187028411E-05
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x05, 0x90, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= FilterB2
+Parameter Address	= 201
+Parameter Value		= 4,24433093514205E-05
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x02, 0xC8, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= Table
+Parameter Address	= 209
+Parameter Value		= 0
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x81, 0x7D, 0xBA, 
+0x00, 0x86, 0x81, 0x67, 
+0x00, 0x8B, 0xB6, 0xCA, 
+0x00, 0x91, 0x1F, 0xCE, 
+0x00, 0x96, 0xBE, 0x75, 
+0x00, 0x9C, 0x94, 0xD2, 
+0x00, 0xA2, 0xA5, 0x0C, 
+0x00, 0xA8, 0xF1, 0x62, 
+0x00, 0xAF, 0x7C, 0x28, 
+0x00, 0xB6, 0x47, 0xC8, 
+0x00, 0xBD, 0x56, 0xC5, 
+0x00, 0xC4, 0xAB, 0xBC, 
+0x00, 0xCC, 0x49, 0x61, 
+0x00, 0xD4, 0x32, 0x86, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= TimeConstant
+Parameter Address	= 207
+Parameter Value		= 0,000208311633451363
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x0D, 0xA7, 
+
+
+
+Module Name			= BassBoost_R
+Parameter Name		= BassFrequency
+Parameter Address	= 198
+Parameter Value		= 0,00785396144863598
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x02, 0x02, 0xB8, 
+
+
+
+Module Name			= Limiter_R
+Parameter Name		= RMSTC
+Parameter Address	= 344
+Parameter Value		= 0,000239881380791562
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x0F, 0xB9, 
+
+
+
+Module Name			= Limiter_R
+Parameter Name		= Decay
+Parameter Address	= 345
+Parameter Value		= 0,000244140625
+Data Memory			= DM0
+Parameter Data :
+0x00, 0x00, 0x10, 0x00, 
+
+
+
+Module Name			= Limiter_R
+Parameter Name		= Threshold
+Parameter Address	= 249
+Parameter Value		= 0,891250938133746
+Data Memory			= DM0
+Parameter Data :
+0x00, 0xE4, 0x29, 0x05, 
+
+
+
+Module Name			= Level_Out_R
+Parameter Name		= level
+Parameter Address	= 252
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
+Module Name			= Meter_Out_R
+Parameter Name		= Value
+Parameter Address	= 253
+Parameter Value		= 1
+Data Memory			= DM0
+Parameter Data :
+0x01, 0x00, 0x00, 0x00, 
+
+
+
