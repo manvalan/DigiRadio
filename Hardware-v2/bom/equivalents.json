@@ -2,169 +2,890 @@
   "_info": "Approved parts per schematic PNM. 'candidates' may be auto-selected by build_bom.py; 'options' are listed only, because something still has to be checked by hand. Mouser prices are in EUR and copied by hand from mouser.it on the date in 'mouser_checked'.",
   "mouser_checked": "2026-10-31",
   "parts": {
-    "TS3425UA-3x4x2.5-160": {"candidates": [{"lcsc": "C51927439", "orig": true}]},
-
-    "CC0603KRX7R9BB104": {"candidates": [{"lcsc": "C14663", "orig": true}, {"lcsc": "C282519"}, {"lcsc": "C1591"}]},
-    "CL10B105KB8NQNC": {"candidates": [{"lcsc": "C5199872", "orig": true}, {"lcsc": "C90540"}]},
+    "TS3425UA-3x4x2.5-160": {
+      "candidates": [
+        {
+          "lcsc": "C51927439",
+          "orig": true
+        }
+      ]
+    },
+    "CC0603KRX7R9BB104": {
+      "candidates": [
+        {
+          "lcsc": "C14663",
+          "orig": true
+        },
+        {
+          "lcsc": "C282519"
+        },
+        {
+          "lcsc": "C1591"
+        }
+      ]
+    },
+    "CL10B105KB8NQNC": {
+      "candidates": [
+        {
+          "lcsc": "C5199872",
+          "orig": true
+        },
+        {
+          "lcsc": "C90540"
+        }
+      ]
+    },
     "GRM21BZ71A226ME15L": {
-      "candidates": [{"lcsc": "C907991", "orig": true}, {"lcsc": "C45783"}, {"lcsc": "C92814"}, {"lcsc": "C77074"}],
+      "candidates": [
+        {
+          "lcsc": "C907991",
+          "orig": true
+        },
+        {
+          "lcsc": "C45783"
+        },
+        {
+          "lcsc": "C92814"
+        },
+        {
+          "lcsc": "C77074"
+        }
+      ],
       "note": "Su 3V3_DIGITAL. Gli alternativi sono X5R invece di X7R, che a 3,3 V va bene."
     },
     "CL31A106KBHNNNE": {
-      "candidates": [{"lcsc": "C13585", "orig": true}, {"lcsc": "C105482"}, {"lcsc": "C318763"}],
+      "candidates": [
+        {
+          "lcsc": "C13585",
+          "orig": true
+        },
+        {
+          "lcsc": "C105482"
+        },
+        {
+          "lcsc": "C318763"
+        }
+      ],
       "note": "Da 50 V a 25 V negli alternativi. La tensione più alta sulla riga è V_USB/PMID, 5 V."
     },
     "1206B475K500NT": {
-      "candidates": [{"lcsc": "C29823", "orig": true}, {"lcsc": "C1872"}, {"lcsc": "C51205"}],
+      "candidates": [
+        {
+          "lcsc": "C29823",
+          "orig": true
+        },
+        {
+          "lcsc": "C1872"
+        },
+        {
+          "lcsc": "C51205"
+        }
+      ],
       "note": "Da 50 V a 25 V con CL31B475KAHNNNE. La riga lavora su VSYS e REGN, massimo 5 V."
     },
-    "GRM21BR61E106KA73L": {"candidates": [{"lcsc": "C84416", "orig": true}, {"lcsc": "C15850"}]},
+    "GRM21BR61E106KA73L": {
+      "candidates": [
+        {
+          "lcsc": "C84416",
+          "orig": true
+        },
+        {
+          "lcsc": "C15850"
+        }
+      ]
+    },
     "GQM1875C2E330JB12D": {
-      "candidates": [{"lcsc": "C913596", "orig": true}],
-      "options": [{"lcsc": "C1663", "note": "C0G standard 50 V, Q più basso"}],
+      "candidates": [
+        {
+          "lcsc": "C913596",
+          "orig": true
+        }
+      ],
+      "options": [
+        {
+          "lcsc": "C1663",
+          "note": "C0G standard 50 V, Q più basso"
+        }
+      ],
       "note": "Rete di adattamento dell'antenna del Si4684: tengo il Murata ad alto Q, il risparmio è di centesimi."
     },
-    "CC0603JRNPO9BN8R2": {"candidates": [{"lcsc": "C962145", "orig": true}, {"lcsc": "C376804"}]},
+    "CC0603JRNPO9BN8R2": {
+      "candidates": [
+        {
+          "lcsc": "C962145",
+          "orig": true
+        },
+        {
+          "lcsc": "C376804"
+        }
+      ]
+    },
     "GQM1875C2E2R7BB12D": {
-      "candidates": [{"lcsc": "C2178971", "orig": true}],
+      "candidates": [
+        {
+          "lcsc": "C2178971",
+          "orig": true
+        }
+      ],
       "note": "Rete di adattamento dell'antenna del Si4684, tolleranza ±0,1 pF: tengo il Murata."
     },
-    "CL10B222KB8NNNC": {"candidates": [{"lcsc": "C16033", "orig": true}, {"lcsc": "C1604"}]},
-    "GRM188R71H102KA01D": {"candidates": [{"lcsc": "C71653", "orig": true}, {"lcsc": "C1588"}]},
-    "CL10A106KP8NNNC": {"candidates": [{"lcsc": "C19702", "orig": true}, {"lcsc": "C77044"}]},
+    "CL10B222KB8NNNC": {
+      "candidates": [
+        {
+          "lcsc": "C16033",
+          "orig": true
+        },
+        {
+          "lcsc": "C1604"
+        }
+      ]
+    },
+    "GRM188R71H102KA01D": {
+      "candidates": [
+        {
+          "lcsc": "C71653",
+          "orig": true
+        },
+        {
+          "lcsc": "C1588"
+        }
+      ]
+    },
+    "CL10A106KP8NNNC": {
+      "candidates": [
+        {
+          "lcsc": "C19702",
+          "orig": true
+        },
+        {
+          "lcsc": "C77044"
+        }
+      ]
+    },
     "CL21B473KBCNNNC": {
-      "candidates": [{"lcsc": "C53134", "orig": true}, {"lcsc": "C282770"}, {"lcsc": "C107154"}],
+      "candidates": [
+        {
+          "lcsc": "C53134",
+          "orig": true
+        },
+        {
+          "lcsc": "C282770"
+        },
+        {
+          "lcsc": "C107154"
+        }
+      ],
       "note": "Bootstrap del BQ25896. L'originale ha stock LCSC a zero."
     },
-    "CC0603KRX7R9BB103": {"candidates": [{"lcsc": "C100042", "orig": true}]},
+    "CC0603KRX7R9BB103": {
+      "candidates": [
+        {
+          "lcsc": "C100042",
+          "orig": true
+        }
+      ]
+    },
     "CL31A226KAHNNNE": {
-      "candidates": [{"lcsc": "C12891", "orig": true}, {"lcsc": "C1859"}],
+      "candidates": [
+        {
+          "lcsc": "C12891",
+          "orig": true
+        },
+        {
+          "lcsc": "C1859"
+        }
+      ],
       "note": "Da 25 V a 10 V con 1206X226K100NT. La riga lavora sul lato 1,2 V."
     },
-    "CC0603JRNPO9BN151": {"candidates": [{"lcsc": "C107038", "orig": true}]},
-    "CC0603KRX7R9BB562": {"candidates": [{"lcsc": "C107095", "orig": true}, {"lcsc": "C282685"}]},
-    "CC0603JRNPO9BN120": {"candidates": [{"lcsc": "C107034", "orig": true}, {"lcsc": "C1642"}]},
-
-    "PESD5V0X1BL": {
-      "candidates": [{"lcsc": "C294611", "orig": true}, {"lcsc": "C53114188"}, {"lcsc": "C2682295"}],
-      "note": "DA VERIFICARE: protezione di USB D+/D-. Nexperia ha stock LCSC a zero e LCSC non pubblica la capacità dei cloni. Controlla il datasheet prima di ordinare: deve restare sotto 1-2 pF."
+    "CC0603JRNPO9BN151": {
+      "candidates": [
+        {
+          "lcsc": "C107038",
+          "orig": true
+        }
+      ]
     },
-    "LTST-C170KGKT": {"candidates": [{"lcsc": "C98221", "orig": true}]},
+    "CC0603KRX7R9BB562": {
+      "candidates": [
+        {
+          "lcsc": "C107095",
+          "orig": true
+        },
+        {
+          "lcsc": "C282685"
+        }
+      ]
+    },
+    "CC0603JRNPO9BN120": {
+      "candidates": [
+        {
+          "lcsc": "C107034",
+          "orig": true
+        },
+        {
+          "lcsc": "C1642"
+        }
+      ]
+    },
+    "PESD5V0X1BL": {
+      "candidates": [
+        {
+          "lcsc": "C294611",
+          "orig": true
+        },
+        {
+          "lcsc": "C53114188"
+        }
+      ],
+      "note": "Protezione di USB D+/D-. Nexperia ha stock LCSC a zero. JSMSEMI verificato sul datasheet: 5 V, bidirezionale, DFN1006, Cj 0,7 pF tipica e 0,8 pF massima."
+    },
+    "LTST-C170KGKT": {
+      "candidates": [
+        {
+          "lcsc": "C98221",
+          "orig": true
+        }
+      ]
+    },
     "ESD9L5.0ST5G": {
-      "candidates": [{"lcsc": "C82326", "orig": true}],
-      "options": [{"lcsc": "C5199180", "note": "ElecSuper SOD-923, capacità non pubblicata"}],
-      "note": "Sul nodo antenna: la capacità del clone non è nota, quindi tengo onsemi."
+      "candidates": [
+        {
+          "lcsc": "C82326",
+          "orig": true
+        },
+        {
+          "lcsc": "C5199180"
+        }
+      ],
+      "note": "Sul nodo antenna. ElecSuper verificato sul datasheet: SOD-923, 5 V, unidirezionale, Cj 0,5 pF tipica e 0,7 pF massima. Pin 1 su IO, pin 2 a massa."
     },
     "SMF6V0A": {
-      "candidates": [{"lcsc": "C968582", "orig": true}, {"lcsc": "C42411346"}],
+      "candidates": [
+        {
+          "lcsc": "C968582",
+          "orig": true
+        },
+        {
+          "lcsc": "C42411346"
+        }
+      ],
       "note": "TVS su V_USB. FUXINSEMI ha gli stessi 6 V, 10,3 V di clamp e 200 W; LCSC lo indica SOD-123, i terminali cadono sui pad di D_SMF, ma controlla la banda del catodo al montaggio."
     },
     "BLM18SG121TN1D": {
-      "candidates": [{"lcsc": "C113030", "orig": true}, {"lcsc": "C52178221"}],
+      "candidates": [
+        {
+          "lcsc": "C113030",
+          "orig": true
+        },
+        {
+          "lcsc": "C52178221"
+        }
+      ],
       "note": "PROD Tech: stesso 120 Ω a 100 MHz e 3 A, DCR 50 mΩ contro 25 mΩ. Conviene solo da qualche scheda in su per il minimo d'ordine di 20."
     },
-
-    "TYPE-C-31-M-12": {"candidates": [{"lcsc": "C165948", "orig": true}]},
-    "RF/COAXIAL SMA BHD JACK STR 50OHM SOLDER": {
-      "candidates": [{"mouser": "132289", "mpn": "132289", "brand": "Amphenol RF", "stock": 13634, "eur": [[1, 7.83]], "orig": true}],
-      "note": "Non ho trovato su LCSC un SMA a bordo scheda economico e compatibile con questa impronta. È la voce non IC più cara: il Samtec SMA-J-P-H-ST-EM1 (C5199907, 5,45 $) ha un'altra impronta."
+    "TYPE-C-31-M-12": {
+      "candidates": [
+        {
+          "lcsc": "C165948",
+          "orig": true
+        }
+      ]
     },
-    "S2B-PH-K-S(LF)(SN)": {"candidates": [{"lcsc": "C173752", "orig": true}]},
-    "PLT237/T10WH": {"candidates": [{"lcsc": "C17296340", "orig": true}]},
-
+    "RF/COAXIAL SMA BHD JACK STR 50OHM SOLDER": {
+      "candidates": [
+        {
+          "mouser": "132289",
+          "mpn": "132289",
+          "brand": "Amphenol RF",
+          "stock": 13634,
+          "eur": [
+            [
+              1,
+              7.83
+            ]
+          ],
+          "orig": true
+        }
+      ],
+      "note": "Nessun equivalente economico verificato per il PCB attuale, che ha le masse a ±4,25 mm: SMA-KE-P ha le masse a circa ±2,8 mm e KH-SMA-KE5.4 a circa ±2,55 mm, con quattro pin d'angolo.",
+      "options": [
+        {
+          "lcsc": "C49118400",
+          "note": "HanElectricity SMA-KE-P, a bordo scheda su 1,6 mm, ma con masse a circa ±2,8 mm: richiede di cambiare l'impronta sul PCB"
+        }
+      ]
+    },
+    "S2B-PH-K-S(LF)(SN)": {
+      "candidates": [
+        {
+          "lcsc": "C173752",
+          "orig": true
+        }
+      ]
+    },
+    "PLT237/T10WH": {
+      "candidates": [
+        {
+          "lcsc": "C17296340",
+          "orig": true
+        }
+      ]
+    },
     "LQW18AN18NJ00D": {
-      "candidates": [{"lcsc": "C113263", "orig": true}],
-      "options": [{"lcsc": "C6807995", "note": "APV AHW1608C-18NJTF, simile, Q 35"}],
+      "candidates": [
+        {
+          "lcsc": "C113263",
+          "orig": true
+        }
+      ],
+      "options": [
+        {
+          "lcsc": "C6807995",
+          "note": "APV AHW1608C-18NJTF, simile, Q 35"
+        }
+      ],
       "note": "Rete RF del Si4684: tengo il Murata."
     },
     "LQW18ANR12J00D": {
-      "candidates": [{"lcsc": "C341697", "orig": true}],
-      "options": [{"lcsc": "C6364700", "note": "APV AHW1608C-R12JTF, simile, Q 32, SRF 1,3 GHz"}],
+      "candidates": [
+        {
+          "lcsc": "C341697",
+          "orig": true
+        }
+      ],
+      "options": [
+        {
+          "lcsc": "C6364700",
+          "note": "APV AHW1608C-R12JTF, simile, Q 32, SRF 1,3 GHz"
+        }
+      ],
       "note": "Rete RF del Si4684: tengo il Murata. Stock LCSC basso."
     },
     "LQW18AN22NH00D": {
-      "candidates": [{"lcsc": "C84341"}],
+      "candidates": [
+        {
+          "lcsc": "C84341"
+        }
+      ],
       "note": "L'originale ±3% non è a catalogo LCSC: uso la stessa serie Murata a ±2%."
     },
-    "HPLA-201210-1R5-M": {"candidates": [{"lcsc": "C54421974", "orig": true}]},
-    "LVF303015-1R0T-N": {"candidates": [{"lcsc": "C280505", "orig": true}]},
+    "HPLA-201210-1R5-M": {
+      "candidates": [
+        {
+          "lcsc": "C54421974",
+          "orig": true
+        }
+      ]
+    },
+    "LVF303015-1R0T-N": {
+      "candidates": [
+        {
+          "lcsc": "C280505",
+          "orig": true
+        }
+      ]
+    },
     "SDER041H-2R2MS": {
-      "candidates": [{"lcsc": "C7427099"}, {"lcsc": "C844952"}],
+      "candidates": [
+        {
+          "lcsc": "C7427099"
+        },
+        {
+          "lcsc": "C844952"
+        }
+      ],
       "note": "L'originale Cyntec non è più acquistabile. APV ANR4018T2R2M è l'impronta già sul PCB: 2,6 A nominali e 3,2 A di saturazione, abbondanti per il buck da 1 A TLV62568."
     },
-
-    "RC0603FR-0710KL": {"candidates": [{"lcsc": "C98220", "orig": true}, {"lcsc": "C25804"}]},
-    "FRC0603F5101TS": {"candidates": [{"lcsc": "C2907044", "orig": true}, {"lcsc": "C23186"}]},
-    "0603WAF2201T5E": {"candidates": [{"lcsc": "C4190", "orig": true}]},
-    "0603WAF4700T5E": {"candidates": [{"lcsc": "C23179", "orig": true}]},
-    "FRC0603F5600TS": {"candidates": [{"lcsc": "C2907052", "orig": true}, {"lcsc": "C23204"}]},
-    "FRL0603FR470TS": {"candidates": [{"lcsc": "C3013349", "orig": true}, {"lcsc": "C103895"}]},
-    "0603WAF1003T5E": {"candidates": [{"lcsc": "C25803", "orig": true}]},
-    "0603WAF330JT5E": {"candidates": [{"lcsc": "C23140", "orig": true}]},
-    "FRC0603F4301TS": {"candidates": [{"lcsc": "C2930099", "orig": true}]},
-    "RC0603FR-07100RL": {"candidates": [{"lcsc": "C105588", "orig": true}, {"lcsc": "C22775"}]},
-    "0603WAF2200T5E": {"candidates": [{"lcsc": "C22962", "orig": true}]},
-    "RC0603FR-071KL": {"candidates": [{"lcsc": "C22548", "orig": true}, {"lcsc": "C21190"}]},
-
+    "RC0603FR-0710KL": {
+      "candidates": [
+        {
+          "lcsc": "C98220",
+          "orig": true
+        },
+        {
+          "lcsc": "C25804"
+        }
+      ]
+    },
+    "FRC0603F5101TS": {
+      "candidates": [
+        {
+          "lcsc": "C2907044",
+          "orig": true
+        },
+        {
+          "lcsc": "C23186"
+        }
+      ]
+    },
+    "0603WAF2201T5E": {
+      "candidates": [
+        {
+          "lcsc": "C4190",
+          "orig": true
+        }
+      ]
+    },
+    "0603WAF4700T5E": {
+      "candidates": [
+        {
+          "lcsc": "C23179",
+          "orig": true
+        }
+      ]
+    },
+    "FRC0603F5600TS": {
+      "candidates": [
+        {
+          "lcsc": "C2907052",
+          "orig": true
+        },
+        {
+          "lcsc": "C23204"
+        }
+      ]
+    },
+    "FRL0603FR470TS": {
+      "candidates": [
+        {
+          "lcsc": "C3013349",
+          "orig": true
+        },
+        {
+          "lcsc": "C103895"
+        }
+      ]
+    },
+    "0603WAF1003T5E": {
+      "candidates": [
+        {
+          "lcsc": "C25803",
+          "orig": true
+        }
+      ]
+    },
+    "0603WAF330JT5E": {
+      "candidates": [
+        {
+          "lcsc": "C23140",
+          "orig": true
+        }
+      ]
+    },
+    "FRC0603F4301TS": {
+      "candidates": [
+        {
+          "lcsc": "C2930099",
+          "orig": true
+        }
+      ]
+    },
+    "RC0603FR-07100RL": {
+      "candidates": [
+        {
+          "lcsc": "C105588",
+          "orig": true
+        },
+        {
+          "lcsc": "C22775"
+        }
+      ]
+    },
+    "0603WAF2200T5E": {
+      "candidates": [
+        {
+          "lcsc": "C22962",
+          "orig": true
+        }
+      ]
+    },
+    "RC0603FR-071KL": {
+      "candidates": [
+        {
+          "lcsc": "C22548",
+          "orig": true
+        },
+        {
+          "lcsc": "C21190"
+        }
+      ]
+    },
     "24AA025E64": {
       "candidates": [
-        {"mouser": "579-24AA025E64-I/SN", "mpn": "24AA025E64-I/SN", "brand": "Microchip", "stock": 154, "eur": [[1, 0.344], [10, 0.34], [25, 0.33], [100, 0.321]], "orig": true},
-        {"lcsc": "C615601", "orig": true}
+        {
+          "mouser": "579-24AA025E64-I/SN",
+          "mpn": "24AA025E64-I/SN",
+          "brand": "Microchip",
+          "stock": 154,
+          "eur": [
+            [
+              1,
+              0.344
+            ],
+            [
+              10,
+              0.34
+            ],
+            [
+              25,
+              0.33
+            ],
+            [
+              100,
+              0.321
+            ]
+          ],
+          "orig": true
+        },
+        {
+          "lcsc": "C615601",
+          "orig": true
+        }
       ],
       "note": "L'EUI-64 è programmato in fabbrica, non esiste un equivalente generico. Serve la versione SOIC-8 150 mil."
     },
     "ESP32-S31-WROOM-3": {
       "candidates": [
-        {"mouser": "ESP32-S31-WROOM-3-N16R16V", "mpn": "ESP32-S31-WROOM-3-N16R16V", "brand": "Espressif", "stock": 0, "eta": "1.869 pezzi previsti il 16/11/2026", "eur": [[1, 6.28]], "orig": true},
-        {"lcsc": "C55371223", "orig": true}
+        {
+          "mouser": "ESP32-S31-WROOM-3-N16R16V",
+          "mpn": "ESP32-S31-WROOM-3-N16R16V",
+          "brand": "Espressif",
+          "stock": 0,
+          "eta": "1.869 pezzi previsti il 16/11/2026",
+          "eur": [
+            [
+              1,
+              6.28
+            ]
+          ],
+          "orig": true
+        },
+        {
+          "lcsc": "C55371223",
+          "orig": true
+        }
       ],
       "note": "OGGI NON DISPONIBILE: stock zero sia su LCSC sia su Mouser. Prima della conferma controlla anche che N16R16V sia la variante voluta."
     },
     "W25Q128JVS": {
-      "candidates": [{"lcsc": "C97521", "orig": true}, {"lcsc": "C2928891"}],
+      "candidates": [
+        {
+          "lcsc": "C97521",
+          "orig": true
+        },
+        {
+          "lcsc": "C2928891"
+        }
+      ],
       "note": "GD25Q128E: SOP-8 208 mil, 2,7-3,6 V, 133 MHz, stessa piedinatura. Il firmware v2 non è ancora scritto, quindi non c'è nulla da adattare."
     },
-    "TLV62568DBV": {"candidates": [{"lcsc": "C163219", "orig": true}], "note": "TI costa meno del clone MSKSEMI, quindi resta TI."},
-    "TPS63031DSKR": {"candidates": [{"lcsc": "C15516", "orig": true}, {"mouser": "595-TPS63031DSKR", "mpn": "TPS63031DSKR", "brand": "TI", "stock": 16338, "eur": [[1, 2.06], [10, 1.54], [25, 1.40], [100, 1.26]], "orig": true}]},
+    "TLV62568DBV": {
+      "candidates": [
+        {
+          "lcsc": "C163219",
+          "orig": true
+        }
+      ],
+      "note": "TI costa meno del clone MSKSEMI, quindi resta TI."
+    },
+    "TPS63031DSKR": {
+      "candidates": [
+        {
+          "lcsc": "C15516",
+          "orig": true
+        },
+        {
+          "mouser": "595-TPS63031DSKR",
+          "mpn": "TPS63031DSKR",
+          "brand": "TI",
+          "stock": 16338,
+          "eur": [
+            [
+              1,
+              2.06
+            ],
+            [
+              10,
+              1.54
+            ],
+            [
+              25,
+              1.4
+            ],
+            [
+              100,
+              1.26
+            ]
+          ],
+          "orig": true
+        }
+      ]
+    },
     "FSC-BT1058": {
       "external": "Feasycom",
       "note": "NON INCLUSO NEI TOTALI: non è su LCSC né su Mouser. Va comprato direttamente da Feasycom."
     },
     "W25Q16JWSSIQ": {
-      "candidates": [{"lcsc": "C7117005", "orig": true}, {"mouser": "454-W25Q16JWSSIQ", "mpn": "W25Q16JWSSIQ", "brand": "Winbond", "stock": 2365, "eur": [[1, 1.62]], "orig": true}],
+      "candidates": [
+        {
+          "lcsc": "C7117005",
+          "orig": true
+        },
+        {
+          "mouser": "454-W25Q16JWSSIQ",
+          "mpn": "W25Q16JWSSIQ",
+          "brand": "Winbond",
+          "stock": 2365,
+          "eur": [
+            [
+              1,
+              1.62
+            ]
+          ],
+          "orig": true
+        }
+      ],
       "note": "Flash a 1,8 V del Si4684, deve essere la versione 208 mil."
     },
     "Si4684-A10-GM": {
-      "candidates": [{"lcsc": "C1526088", "orig": true}, {"mouser": "634-SI4684-A10-GM", "mpn": "Si4684-A10-GM", "brand": "Skyworks", "stock": 537, "eur": [[1, 8.68], [10, 7.77], [25, 7.50], [100, 7.14]], "orig": true}],
+      "candidates": [
+        {
+          "lcsc": "C1526088",
+          "orig": true
+        },
+        {
+          "mouser": "634-SI4684-A10-GM",
+          "mpn": "Si4684-A10-GM",
+          "brand": "Skyworks",
+          "stock": 537,
+          "eur": [
+            [
+              1,
+              8.68
+            ],
+            [
+              10,
+              7.77
+            ],
+            [
+              25,
+              7.5
+            ],
+            [
+              100,
+              7.14
+            ]
+          ],
+          "orig": true
+        }
+      ],
       "note": "Nessun equivalente."
     },
-    "MAX17048G_T10": {"candidates": [{"lcsc": "C2682616", "orig": true}, {"mouser": "700-MAX17048G+T10", "mpn": "MAX17048G+T10", "brand": "Analog Devices", "stock": 18463, "eur": [[1, 3.83]], "orig": true}]},
+    "MAX17048G_T10": {
+      "candidates": [
+        {
+          "lcsc": "C2682616",
+          "orig": true
+        },
+        {
+          "mouser": "700-MAX17048G+T10",
+          "mpn": "MAX17048G+T10",
+          "brand": "Analog Devices",
+          "stock": 18463,
+          "eur": [
+            [
+              1,
+              3.83
+            ]
+          ],
+          "orig": true
+        }
+      ]
+    },
     "BQ25896RTWT": {
-      "candidates": [{"lcsc": "C2876371", "orig": true}, {"mouser": "595-BQ25896RTWT", "mpn": "BQ25896RTWT", "brand": "TI", "stock": 0, "eta": "26 settimane", "eur": [[1, 5.39], [10, 4.13], [25, 3.82], [100, 3.47]], "orig": true}],
+      "candidates": [
+        {
+          "lcsc": "C2876371",
+          "orig": true
+        },
+        {
+          "mouser": "595-BQ25896RTWT",
+          "mpn": "BQ25896RTWT",
+          "brand": "TI",
+          "stock": 0,
+          "eta": "26 settimane",
+          "eur": [
+            [
+              1,
+              5.39
+            ],
+            [
+              10,
+              4.13
+            ],
+            [
+              25,
+              3.82
+            ],
+            [
+              100,
+              3.47
+            ]
+          ],
+          "orig": true
+        }
+      ],
       "note": "Su Mouser la consegna è a 26 settimane, quindi conviene LCSC finché ha stock."
     },
     "TPS7A2018PDBVR": {
-      "candidates": [{"lcsc": "C963430", "orig": true}],
-      "options": [{"lcsc": "C45367203", "note": "MSKSEMI, rumore e PSRR da verificare"}, {"lcsc": "C49452005", "note": "TECH PUBLIC, rumore e PSRR da verificare"}],
+      "candidates": [
+        {
+          "lcsc": "C963430",
+          "orig": true
+        }
+      ],
+      "options": [
+        {
+          "lcsc": "C45367203",
+          "note": "MSKSEMI, rumore e PSRR da verificare"
+        },
+        {
+          "lcsc": "C49452005",
+          "note": "TECH PUBLIC, rumore e PSRR da verificare"
+        }
+      ],
       "note": "LDO a basso rumore del Si4684: tengo TI, il risparmio è di 15-20 centesimi."
     },
     "ADI ADAU1452KCPZ": {
-      "candidates": [{"lcsc": "C468504", "orig": true}, {"mouser": "584-ADAU1452KCPZ", "mpn": "ADAU1452KCPZ", "brand": "Analog Devices", "stock": 176, "eur": [[1, 18.73], [10, 14.84], [25, 13.87], [100, 12.81]], "orig": true}],
+      "candidates": [
+        {
+          "lcsc": "C468504",
+          "orig": true
+        },
+        {
+          "mouser": "584-ADAU1452KCPZ",
+          "mpn": "ADAU1452KCPZ",
+          "brand": "Analog Devices",
+          "stock": 176,
+          "eur": [
+            [
+              1,
+              18.73
+            ],
+            [
+              10,
+              14.84
+            ],
+            [
+              25,
+              13.87
+            ],
+            [
+              100,
+              12.81
+            ]
+          ],
+          "orig": true
+        }
+      ],
       "note": "Nessun equivalente. LCSC è in promozione ma ha un solo pezzo: per più schede serve Mouser."
     },
     "25AA1024-I/SM": {
-      "candidates": [{"lcsc": "C616138", "orig": true}, {"mouser": "579-25AA1024-I/SM", "mpn": "25AA1024-I/SM", "brand": "Microchip", "stock": 3136, "eur": [[1, 3.53], [90, 3.35]], "orig": true}],
+      "candidates": [
+        {
+          "lcsc": "C616138",
+          "orig": true
+        },
+        {
+          "mouser": "579-25AA1024-I/SM",
+          "mpn": "25AA1024-I/SM",
+          "brand": "Microchip",
+          "stock": 3136,
+          "eur": [
+            [
+              1,
+              3.53
+            ],
+            [
+              90,
+              3.35
+            ]
+          ],
+          "orig": true
+        }
+      ],
       "note": "SOIJ-8 208 mil, come richiesto dall'impronta."
     },
     "ABM8-19.200MHZ-10-1-U-T": {
-      "candidates": [{"lcsc": "C1986852", "orig": true}, {"mouser": "ABM8-19.200MHZ-10-1-U-T", "mpn": "ABM8-19.200MHZ-10-1-U-T", "brand": "Abracon", "stock": 3469, "eur": [[1, 0.421], [10, 0.368], [25, 0.334], [100, 0.32]], "orig": true}, {"lcsc": "C7423063"}, {"lcsc": "C7302008"}],
-      "options": [{"lcsc": "C718671", "note": "LIMING ±10 ppm 10 pF, ESR non pubblicata"}],
+      "candidates": [
+        {
+          "lcsc": "C1986852",
+          "orig": true
+        },
+        {
+          "mouser": "ABM8-19.200MHZ-10-1-U-T",
+          "mpn": "ABM8-19.200MHZ-10-1-U-T",
+          "brand": "Abracon",
+          "stock": 3469,
+          "eur": [
+            [
+              1,
+              0.421
+            ],
+            [
+              10,
+              0.368
+            ],
+            [
+              25,
+              0.334
+            ],
+            [
+              100,
+              0.32
+            ]
+          ],
+          "orig": true
+        },
+        {
+          "lcsc": "C7423063"
+        },
+        {
+          "lcsc": "C7302008"
+        }
+      ],
+      "options": [
+        {
+          "lcsc": "C718671",
+          "note": "LIMING ±10 ppm 10 pF, ESR non pubblicata"
+        }
+      ],
       "note": "Quarzo del Si4684: Lucki e SCTF hanno 10 pF, ±10 ppm e ESR pubblicata (30 e 60 Ω). Con un quarzo diverso da Abracon ricalibra CTUN e XTAL_FREQ."
     },
     "ABM3B-12.288MHZ-10-1-U-T": {
-      "candidates": [{"lcsc": "C1985371", "orig": true}, {"mouser": "ABM3B-12.288MHZ-10-1-U-T", "mpn": "ABM3B-12.288MHZ-10-1-U-T", "brand": "Abracon", "stock": 305, "eur": [[1, 0.671]], "orig": true}],
-      "options": [{"lcsc": "C557167", "note": "SJK 10 pF, ±20 ppm, ESR non pubblicata: controlla che rientri nelle specifiche ADAU1452"}],
-      "note": "Clock dell'ADAU1452, con C141/C142 da 12 pF calcolati su CL 10 pF."
+      "candidates": [
+        {
+          "lcsc": "C1985371",
+          "orig": true
+        },
+        {
+          "mouser": "ABM3B-12.288MHZ-10-1-U-T",
+          "mpn": "ABM3B-12.288MHZ-10-1-U-T",
+          "brand": "Abracon",
+          "stock": 305,
+          "eur": [
+            [
+              1,
+              0.671
+            ]
+          ],
+          "orig": true
+        },
+        {
+          "lcsc": "C557167"
+        }
+      ],
+      "note": "Clock dell'ADAU1452. SJK verificato sul datasheet: 5032, quarzo sui pin 1 e 3, massa su 2 e 4, 10 pF, ESR massima 40 Ω. C141/C142 da 12 pF restano validi."
     }
   }
 }
