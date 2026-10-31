@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hardware · DigiRadio</title>
+<meta name="description" content="DigiRadio: an open-source DAB+/FM receiver with a DSP and aptX Adaptive Bluetooth output, and its iPhone and iPad app.">
+<meta property="og:title" content="Hardware · DigiRadio">
+<meta property="og:description" content="DigiRadio: an open-source DAB+/FM receiver with a DSP and aptX Adaptive Bluetooth output, and its iPhone and iPad app.">
+<meta property="og:image" content="https://digiradio.michelebigi.it/img/scheda.jpg">
+<link rel="alternate" hreflang="it" href="https://digiradio.michelebigi.it/hardware.html">
+<link rel="alternate" hreflang="en" href="https://digiradio.michelebigi.it/en/hardware.html">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../img/app-icon.png">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="index.html"><img src="../img/app-icon.png" alt="">DigiRadio</a>
+  <nav class="nav"><a href="index.html">Home</a><a href="v2.html">New: v2</a><a href="hardware.html" aria-current="page">Hardware</a><a href="app.html">iOS app</a><a href="firmware.html">Firmware</a><a href="sviluppo.html">Development</a><a href="privacy.html">Privacy</a></nav>
+  <a class="lang" href="../hardware.html" hreflang="it">Italiano</a>
+</div></header>
+<main><div class="wrap">
+<h1>Hardware</h1>
+<p class="lead">A 6-layer, 50 × 90 mm board with four main chips, powered over USB-C.</p>
+
+<div class="cards">
+  <a class="card" href="https://github.com/manvalan/DigiRadio/tree/main/Hardware"><h3>Board v1 →</h3><p class="muted">The one described on this page: ADAU1701, BT1035. Schematic, Gerbers, BOM and assembly files.</p></a>
+  <a class="card" href="v2.html"><h3>Board v2 →</h3><p class="muted">ADAU1452, battery, BT1058, optical S/PDIF output. All the details on the v2 page.</p></a>
+</div>
+
+<div class="cards">
+  <div class="card"><h3>Si4684</h3><p class="muted">Silicon Labs</p><p>DAB+/DAB/FM tuner, external antenna on an SMA connector, its own low-noise 1.8 V rail.</p></div>
+  <div class="card"><h3>ADAU1701</h3><p class="muted">Analog Devices SigmaDSP</p><p>EQ, source mixing, bass and stereo enhancement. It is the I²S clock master (12.288 MHz crystal) and every audio source goes through it.</p></div>
+  <div class="card"><h3>FSC-BT1035</h3><p class="muted">Feasycom, Qualcomm QCC3056</p><p>Bluetooth 5.2 output with aptX, aptX HD and aptX Adaptive.</p></div>
+  <div class="card"><h3>ESP32-S3</h3><p class="muted">Espressif</p><p>Host controller with Wi-Fi and BLE: boots the other chips, streams web radio into the DSP, serves the REST API and handles updates.</p></div>
+</div>
+
+<h2>Block diagram</h2>
+<pre>FM/DAB antenna → [ Si4684 ] --I²S--> [ ADAU1701 DSP ] --I²S--> [ FSC-BT1035 ] → aptX
+                      ↑                     ↑                        ↑
+                      └──── SPI ──── [ ESP32-S3 host ] ──── UART ────┘
+                                            │  I²C
+                                     Wi-Fi · NVS · HTTP API</pre>
+
+<h2>The board</h2>
+<ul>
+  <li>6 layers, impedance-controlled, two solid ground planes under the RF, crystals and USB.</li>
+  <li>Three antenna zones: the two 2.4 GHz antennas (ESP32 and BT1035) on opposite corners, FM/DAB on SMA, with keep-outs on every layer.</li>
+  <li>USB-C, 3.3 V from a buck plus a low-noise 1.8 V LDO for the tuner.</li>
+  <li>The DSP program is designed in SigmaStudio and can be updated over Wi-Fi without reflashing the ESP32.</li>
+</ul>
+
+<h2>Schematic</h2>
+<p class="muted">Tap an image for full resolution. The PDF and KiCad files are on <a href="https://github.com/manvalan/DigiRadio">GitHub</a>.</p>
+<div class="gallery"><figure><a href="../img/esp32-usb-power.jpg"><img src="../img/esp32-usb-power.jpg" loading="lazy" alt="ESP32-S3, USB-C and power"></a><figcaption>ESP32-S3, USB-C and power</figcaption></figure><figure><a href="../img/si4684-tuner.jpg"><img src="../img/si4684-tuner.jpg" loading="lazy" alt="Si4684 tuner"></a><figcaption>Si4684 tuner</figcaption></figure><figure><a href="../img/bt1035-bluetooth.jpg"><img src="../img/bt1035-bluetooth.jpg" loading="lazy" alt="FSC-BT1035 Bluetooth"></a><figcaption>FSC-BT1035 Bluetooth</figcaption></figure><figure><a href="../img/adau1701-dsp.jpg"><img src="../img/adau1701-dsp.jpg" loading="lazy" alt="ADAU1701 DSP"></a><figcaption>ADAU1701 DSP</figcaption></figure></div>
+
+<h2>Fabrication</h2>
+<p>The board was fabricated and assembled by <a href="https://www.pcbway.com/">PCBWay</a>, who sponsored part of the cost. With a QFN tuner, an LQFP DSP, two 2.4 GHz modules and a USB-C connector on 6 layers, hand assembly wasn't realistic. The only part they don't stock is the FSC-BT1035, which I soldered by hand.</p>
+<p>You can order it from the <a href="https://www.pcbway.com/project/shareproject/DigiRadio_Open_Source_Hi_Fi_DAB_FM_Receiver_with_DSP_and_aptX_Adaptive_Blueto_a1952812.html">project page on PCBWay</a>. Disclosure: PCBWay gives me a small percentage of those orders as store credit.</p>
+
+<h2>Version 2</h2>
+<p>All the details are on the <a href="v2.html">v2 page</a>. In short: an ADAU1452 DSP instead of the ADAU1701, a BQ25896 charger for battery operation and an FSC-BT1058 Bluetooth module. The layout has been reviewed with <a href="https://boardlab.it">BoardLab</a>, a PCB analysis tool I develop: <a href="sviluppo.html#boardlab">what it found</a>. The files are in the <a href="https://github.com/manvalan/DigiRadio/tree/main/Hardware-v2">Hardware-v2</a> folder on GitHub.</p>
+</div></main>
+<footer class="site-footer"><div class="wrap">
+  <span>DigiRadio is an open-source project by Michele Bigi. Hardware CERN-OHL-S v2, firmware Apache 2.0.</span>
+  <span><a href="https://github.com/manvalan/DigiRadio">GitHub</a> · <a href="https://hackaday.io/project/207209-digiradio">Hackaday</a> · <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster</a></span>
+</div></footer>
+</body>
+</html>
