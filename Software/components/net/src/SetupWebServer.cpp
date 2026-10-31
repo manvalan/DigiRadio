@@ -18,6 +18,8 @@
 
 #include "net/SetupWebServer.hpp"
 
+#include "sdkconfig.h"
+
 #include "core/AudioProfile.hpp"
 #include "core/AudioProfileJson.hpp"
 #include "core/BluetoothJson.hpp"
@@ -45,8 +47,10 @@
 #include "bluetooth/BluetoothService.hpp"
 #include "station/StationService.hpp"
 #include "integration/IntegrationService.hpp"
+#if !CONFIG_IDF_TARGET_ESP32S31
 #include "adau1701/FlashDspProgramSource.hpp"
 #include "adau1701/Adau1701ParamTable.hpp"
+#endif
 #include "ota/OtaService.hpp"
 #include "ota/OtaError.hpp"
 #include "core/OtaAppDescriptor.hpp"
@@ -1223,10 +1227,12 @@ esp_err_t audioLevelsGetHandler(httpd_req_t* req)
 esp_err_t dspParamsGetHandler(httpd_req_t* req)
 {
     std::vector<core::DspParamInfo> params;
+#if !CONFIG_IDF_TARGET_ESP32S31
     params.reserve(adau1701::kAdau1701ParamTable.size());
     for (const auto& entry : adau1701::kAdau1701ParamTable) {
         params.push_back(core::DspParamInfo{entry.name, entry.address});
     }
+#endif
     const std::string json = core::serializeDspParamListJson(params);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json.c_str(), json.size());
@@ -1269,7 +1275,11 @@ esp_err_t dspParamPutHandler(httpd_req_t* req)
         return httpd_resp_send(req, json.c_str(), json.size());
     }
 
+#if CONFIG_IDF_TARGET_ESP32S31
+    const std::optional<unsigned> address; // no named table on the ADAU1452 yet
+#else
     const auto address = adau1701::findAdau1701ParamAddress(parsed->name);
+#endif
     if (!address) {
         const std::string json =
             core::serializeDspParamErrorJson("unknown_param");
@@ -1640,6 +1650,11 @@ esp_err_t dspProgramPostHandler(httpd_req_t* req)
         return httpd_resp_send(req, json.c_str(), json.size());
     }
 
+#if CONFIG_IDF_TARGET_ESP32S31
+    // The ADAU1452 program lives in its self boot EEPROM, written at boot.
+    httpd_resp_set_status(req, "501 Not Implemented");
+    return httpd_resp_send(req, nullptr, 0);
+#else
     if (auto stored = adau1701::FlashDspProgramSource::storeBlob(body); !stored) {
         const std::string json = std::string(R"({"error":")")
                                  + core::dspProgramErrorToken(stored.error())
@@ -1656,6 +1671,7 @@ esp_err_t dspProgramPostHandler(httpd_req_t* req)
     httpd_resp_send(req, json.c_str(), json.size());
     xTaskCreate(rebootTask, "reboot", 2048, nullptr, 5, nullptr);
     return ESP_OK;
+#endif
 }
 
 /**

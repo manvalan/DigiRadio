@@ -102,7 +102,7 @@ bool s_bleFallbackActive = false;
 void applyStaLinkTuning() noexcept
 {
     esp_wifi_set_ps(WIFI_PS_NONE);
-    esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW_HT20);
+    esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW20);
     esp_wifi_set_inactive_time(WIFI_IF_STA, 0);
     ESP_LOGI(kTag, "STA link tuning applied (PS off, HT20, inactive off)");
 }

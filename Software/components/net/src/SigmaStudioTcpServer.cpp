@@ -18,6 +18,29 @@
 
 #include "net/SigmaStudioTcpServer.hpp"
 
+#include "sdkconfig.h"
+
+// The bridge drives the ADAU1701 helpers; the ADAU1452 board goes without it
+// and start() is a no-op there. SigmaStudio+ connects over USBi instead.
+#if CONFIG_IDF_TARGET_ESP32S31
+
+namespace net {
+
+SigmaStudioTcpServer::SigmaStudioTcpServer() : listenFd_(-1), task_(nullptr) {}
+SigmaStudioTcpServer::~SigmaStudioTcpServer() = default;
+SigmaStudioTcpServer::SigmaStudioTcpServer(SigmaStudioTcpServer&&) noexcept = default;
+SigmaStudioTcpServer& SigmaStudioTcpServer::operator=(SigmaStudioTcpServer&&) noexcept = default;
+void SigmaStudioTcpServer::stop() noexcept {}
+void SigmaStudioTcpServer::acceptLoopTask(void* /*arg*/) {}
+std::expected<void, NetError> SigmaStudioTcpServer::start()
+{
+    return {};
+}
+
+} // namespace net
+
+#else
+
 #include "adau1701/FlashDspProgramSource.hpp"
 
 #include "core/DspProgram.hpp"
@@ -645,3 +668,5 @@ void SigmaStudioTcpServer::acceptLoopTask(void* /*arg*/)
 }
 
 } // namespace net
+
+#endif // CONFIG_IDF_TARGET_ESP32S31

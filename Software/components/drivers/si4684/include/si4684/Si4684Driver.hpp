@@ -45,6 +45,22 @@ struct Si4684Pins {
     int sclkGpio; ///< SCLK GPIO.
     int rstbGpio; ///< RESET# GPIO (active low).
     int intbGpio; ///< INTB GPIO (optional status interrupt).
+    bool sharedBus = false; ///< Bus already initialised by the caller.
+};
+
+/**
+ * @brief    Si4684NvLayout — where the images sit on the NVSPI flash.
+ *
+ * @dname    Si4684NvLayout
+ * @return   n/a (type)
+ * @pubstate Plain byte offsets; AN649 FLASH_LOAD needs contiguous images.
+ *
+ * @author   Michele Bigi
+ * @date     2026-10-31
+ */
+struct Si4684NvLayout {
+    std::uint32_t dabOffset; ///< First byte of the DAB image.
+    std::uint32_t fmOffset;  ///< First byte of the FM image.
 };
 
 /**
@@ -94,6 +110,40 @@ public:
 
     Si4684Driver(const Si4684Driver&) = delete;
     Si4684Driver& operator=(const Si4684Driver&) = delete;
+
+    /**
+     * @brief    syncNvFlash — make the NVSPI flash hold the current images.
+     *
+     * @dname    syncNvFlash
+     * @param    layout     Where the images belong on the flash.
+     * @param    xtalIbias  As for boot().
+     * @param    xtalCtun   As for boot().
+     * @param    xtalFreqHz As for boot().
+     * @return   true when the flash had to be written, false when it already
+     *           matched, or Si4684Error.
+     * @pubstate leaves the chip patched but not booted; boot() resets it.
+     *           Checks with FLASH_CHECK_CRC32 and writes with
+     *           FLASH_WRITE_BLOCK_READBACK_VERIFY (AN649 §6.5.1.1).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-31
+     */
+    [[nodiscard]] std::expected<bool, Si4684Error> syncNvFlash(
+        Si4684NvLayout layout, std::uint8_t xtalIbias, std::uint8_t xtalCtun,
+        std::uint32_t xtalFreqHz);
+
+    /**
+     * @brief    bootFromNvFlash — load images with FLASH_LOAD from now on.
+     *
+     * @dname    bootFromNvFlash
+     * @param    layout  Offsets verified by syncNvFlash().
+     * @pubstate later boot() calls stop streaming images over HOST_LOAD; the
+     *           patch still comes from the host (AN649 §5.8).
+     *
+     * @author   Michele Bigi
+     * @date     2026-10-31
+     */
+    void bootFromNvFlash(Si4684NvLayout layout) noexcept;
 
     /**
      * @brief    boot — cold-start: pulse RSTB#, load patch/image, configure I/O.
@@ -500,6 +550,17 @@ private:
         const core::IFirmwareBlobReader& blob, std::size_t chunkPayload);
     [[nodiscard]] std::expected<void, Si4684Error> configureAfterBoot(
         Si4684Band band);
+    [[nodiscard]] std::expected<void, Si4684Error> powerUpAndPatch(
+        std::uint8_t xtalIbias, std::uint8_t xtalCtun,
+        std::uint32_t xtalFreqHz);
+    [[nodiscard]] std::expected<bool, Si4684Error> flashCommandOk(
+        std::span<const std::uint8_t> bytes);
+    [[nodiscard]] std::expected<void, Si4684Error> flashLoad(
+        std::uint32_t offset);
+    [[nodiscard]] std::expected<bool, Si4684Error> flashImageMatches(
+        const core::IFirmwareBlobReader& image, std::uint32_t offset);
+    [[nodiscard]] std::expected<void, Si4684Error> flashWriteImage(
+        const core::IFirmwareBlobReader& image, std::uint32_t offset);
 
     Si4684Pins pins_;
     const core::IFirmwareBlobReader& patch_;
@@ -509,6 +570,7 @@ private:
     Si4684Band loadedBand_;
     bool spiBusActive_;
     void* spiDevice_;
+    std::optional<Si4684NvLayout> nvLayout_;
 };
 
 } // namespace si4684

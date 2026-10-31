@@ -25,6 +25,7 @@
 #include <array>
 #include <cstring>
 #include <span>
+#include "core/BlobStore.hpp"
 #include "esp_heap_caps.h"
 
 namespace si4684 {
@@ -46,6 +47,13 @@ constexpr std::size_t kMaxCommandBytes = 64U;
 constexpr int kCtsPollMs = 2;
 constexpr int kCtsRetries = 5000;
 constexpr int kStcRetries = 250;
+/** AN649 Command 0x05 and its pass-through subcommands (§6.5.1.1). */
+constexpr std::uint8_t kCmdFlashLoad = 0x05U;
+/** W25Q16JW sector, the property default ERASE_SECTOR_CMD 0x20 erases. */
+constexpr std::uint32_t kNvSectorBytes = 4096U;
+constexpr std::size_t kNvWriteHeader = 16U;
+/** Under AN649's 4084 limit, a multiple of 4, and inside kSpiBufferSize. */
+constexpr std::size_t kNvWriteChunk = 2032U;
 constexpr int kStcPollMs = 20;
 /** SPI readRaw: byte 0 is a lead-in; STATUS0 is at index 1 (AN649). */
 constexpr std::size_t kSpiReplyLeadIn = 1U;
@@ -128,6 +136,14 @@ std::uint32_t readLe32(const std::uint8_t* p)
            | (static_cast<std::uint32_t>(p[1]) << 8)
            | (static_cast<std::uint32_t>(p[2]) << 16)
            | (static_cast<std::uint32_t>(p[3]) << 24);
+}
+
+void putLe32(std::uint8_t* p, std::uint32_t value) noexcept
+{
+    p[0] = static_cast<std::uint8_t>(value);
+    p[1] = static_cast<std::uint8_t>(value >> 8);
+    p[2] = static_cast<std::uint8_t>(value >> 16);
+    p[3] = static_cast<std::uint8_t>(value >> 24);
 }
 
 /** FM_TUNE_FREQ uses 10 kHz units (AN649); API uses kHz. */
@@ -649,25 +665,9 @@ std::expected<void, Si4684Error> Si4684Driver::configureAfterBoot(
     return {};
 }
 
-std::expected<void, Si4684Error> Si4684Driver::boot(
-    Si4684Band band, std::uint8_t xtalIbias, std::uint8_t xtalCtun,
-    std::uint32_t xtalFreqHz)
+std::expected<void, Si4684Error> Si4684Driver::powerUpAndPatch(
+    std::uint8_t xtalIbias, std::uint8_t xtalCtun, std::uint32_t xtalFreqHz)
 {
-    if (booted_ && loadedBand_ == band) {
-        return {};
-    }
-
-    if (booted_) {
-        booted_ = false;
-        if (spiDevice_ != nullptr) {
-            spi_bus_remove_device(static_cast<spi_device_handle_t>(spiDevice_));
-            spiDevice_ = nullptr;
-        }
-    }
-
-    const core::IFirmwareBlobReader& image =
-        (band == Si4684Band::Fm) ? fmImage_ : dabImage_;
-
     gpio_config_t rstCfg = {};
     rstCfg.pin_bit_mask = 1ULL << pins_.rstbGpio;
     rstCfg.mode = GPIO_MODE_OUTPUT;
@@ -680,7 +680,7 @@ std::expected<void, Si4684Error> Si4684Driver::boot(
     gpio_set_level(static_cast<gpio_num_t>(pins_.rstbGpio), 1);
     vTaskDelay(pdMS_TO_TICKS(20));
 
-    if (!spiBusActive_) {
+    if (!spiBusActive_ && !pins_.sharedBus) {
         spi_bus_config_t busCfg = {};
         busCfg.miso_io_num = pins_.misoGpio;
         busCfg.mosi_io_num = pins_.mosiGpio;
@@ -762,8 +762,180 @@ std::expected<void, Si4684Error> Si4684Driver::boot(
         return std::unexpected(Si4684Error::ImageLoadFailed);
     }
 
-    if (auto fw = hostLoadBlob(image, 2044U); !fw) {
+    return {};
+}
+
+std::expected<bool, Si4684Error> Si4684Driver::flashCommandOk(
+    std::span<const std::uint8_t> bytes)
+{
+    if (auto sent = sendCommand(bytes); !sent) {
+        return std::unexpected(sent.error());
+    }
+    std::array<std::uint8_t, 5> status = {};
+    if (auto rd = readRaw(status); !rd) {
+        return std::unexpected(rd.error());
+    }
+    // STATUS0 follows the SPI lead-in byte; ERR_CMD is its bit 6.
+    return (status[kSpiReplyLeadIn] & 0x40U) == 0U;
+}
+
+std::expected<void, Si4684Error> Si4684Driver::flashLoad(std::uint32_t offset)
+{
+    // AN649 Command 0x05: three zero arguments, the address, four zeros.
+    std::array<std::uint8_t, 12> cmd = {kCmdFlashLoad};
+    putLe32(&cmd[4], offset);
+    const auto ok = flashCommandOk(cmd);
+    if (!ok || !*ok) {
         return std::unexpected(Si4684Error::ImageLoadFailed);
+    }
+    return {};
+}
+
+std::expected<bool, Si4684Error> Si4684Driver::flashImageMatches(
+    const core::IFirmwareBlobReader& image, std::uint32_t offset)
+{
+    std::array<std::byte, 1024> buffer = {};
+    std::uint32_t crc = 0U;
+    for (std::size_t at = 0U; at < image.size();) {
+        const std::size_t got = image.read(at, buffer);
+        if (got == 0U) {
+            return std::unexpected(Si4684Error::ImageLoadFailed);
+        }
+        crc = core::blobCrc32(std::span<const std::byte>(buffer).first(got),
+                              crc);
+        at += got;
+    }
+    // AN649 Command 0x05 0x02 FLASH_CHECK_CRC32.
+    std::array<std::uint8_t, 16> cmd = {kCmdFlashLoad, 0x02U};
+    putLe32(&cmd[4], crc);
+    putLe32(&cmd[8], offset);
+    putLe32(&cmd[12], static_cast<std::uint32_t>(image.size()));
+    const auto ok = flashCommandOk(cmd);
+    if (!ok) {
+        return ok;
+    }
+    // A mismatch latches ERR_CMD until the next LOAD_INIT.
+    if (auto li = writeCommand(Command::LoadInit, nullptr, 0U); !li) {
+        return std::unexpected(li.error());
+    }
+    return *ok;
+}
+
+std::expected<void, Si4684Error> Si4684Driver::flashWriteImage(
+    const core::IFirmwareBlobReader& image, std::uint32_t offset)
+{
+    for (std::uint32_t at = 0U; at < image.size(); at += kNvSectorBytes) {
+        // AN649 Command 0x05 0xFE FLASH_ERASE_SECTOR, keys 0xC0 0xDE.
+        std::array<std::uint8_t, 8> erase = {kCmdFlashLoad, 0xFEU, 0xC0U, 0xDEU};
+        putLe32(&erase[4], offset + at);
+        const auto ok = flashCommandOk(erase);
+        if (!ok || !*ok) {
+            return std::unexpected(Si4684Error::ImageLoadFailed);
+        }
+    }
+
+    auto* tx = static_cast<std::uint8_t*>(heap_caps_malloc(
+        kNvWriteHeader + kNvWriteChunk, MALLOC_CAP_DMA | MALLOC_CAP_8BIT));
+    if (tx == nullptr) {
+        return std::unexpected(Si4684Error::ImageLoadFailed);
+    }
+    bool failed = false;
+    for (std::size_t at = 0U; at < image.size() && !failed;) {
+        const std::span<std::byte> data(
+            reinterpret_cast<std::byte*>(tx + kNvWriteHeader), kNvWriteChunk);
+        const std::size_t got = image.read(at, data);
+        // AN649 allows only multiples of 4 bytes; the images are.
+        if (got == 0U || got % 4U != 0U) {
+            failed = true;
+            break;
+        }
+        // AN649 Command 0x05 0xF1 FLASH_WRITE_BLOCK_READBACK_VERIFY.
+        tx[0] = kCmdFlashLoad;
+        tx[1] = 0xF1U;
+        tx[2] = 0x0CU;
+        tx[3] = 0xEDU;
+        putLe32(tx + 4, core::blobCrc32(data.first(got), 0U));
+        putLe32(tx + 8, offset + static_cast<std::uint32_t>(at));
+        putLe32(tx + 12, static_cast<std::uint32_t>(got));
+        const auto ok = flashCommandOk({tx, kNvWriteHeader + got});
+        failed = !ok || !*ok;
+        at += got;
+    }
+    heap_caps_free(tx);
+    if (failed) {
+        return std::unexpected(Si4684Error::ImageLoadFailed);
+    }
+    return {};
+}
+
+std::expected<bool, Si4684Error> Si4684Driver::syncNvFlash(
+    Si4684NvLayout layout, std::uint8_t xtalIbias, std::uint8_t xtalCtun,
+    std::uint32_t xtalFreqHz)
+{
+    booted_ = false;
+    if (auto ready = powerUpAndPatch(xtalIbias, xtalCtun, xtalFreqHz); !ready) {
+        return std::unexpected(ready.error());
+    }
+    const auto dabOk = flashImageMatches(dabImage_, layout.dabOffset);
+    if (!dabOk) {
+        return dabOk;
+    }
+    const auto fmOk = flashImageMatches(fmImage_, layout.fmOffset);
+    if (!fmOk) {
+        return fmOk;
+    }
+    if (*dabOk && *fmOk) {
+        return false;
+    }
+    ESP_LOGW(kTag, "NVSPI flash differs (dab=%d fm=%d): writing images",
+             *dabOk, *fmOk);
+    if (auto done = flashWriteImage(dabImage_, layout.dabOffset); !done) {
+        return std::unexpected(done.error());
+    }
+    if (auto done = flashWriteImage(fmImage_, layout.fmOffset); !done) {
+        return std::unexpected(done.error());
+    }
+    return true;
+}
+
+void Si4684Driver::bootFromNvFlash(Si4684NvLayout layout) noexcept
+{
+    nvLayout_ = layout;
+}
+
+std::expected<void, Si4684Error> Si4684Driver::boot(
+    Si4684Band band, std::uint8_t xtalIbias, std::uint8_t xtalCtun,
+    std::uint32_t xtalFreqHz)
+{
+    if (booted_ && loadedBand_ == band) {
+        return {};
+    }
+
+    if (booted_) {
+        booted_ = false;
+        if (spiDevice_ != nullptr) {
+            spi_bus_remove_device(static_cast<spi_device_handle_t>(spiDevice_));
+            spiDevice_ = nullptr;
+        }
+    }
+
+    if (auto ready = powerUpAndPatch(xtalIbias, xtalCtun, xtalFreqHz); !ready) {
+        return ready;
+    }
+
+    if (nvLayout_) {
+        const std::uint32_t offset = band == Si4684Band::Fm
+                                         ? nvLayout_->fmOffset
+                                         : nvLayout_->dabOffset;
+        if (auto fw = flashLoad(offset); !fw) {
+            return fw;
+        }
+    } else {
+        const core::IFirmwareBlobReader& image =
+            (band == Si4684Band::Fm) ? fmImage_ : dabImage_;
+        if (auto fw = hostLoadBlob(image, 2044U); !fw) {
+            return std::unexpected(Si4684Error::ImageLoadFailed);
+        }
     }
 
     if (auto bootCmd = writeCommand(Command::BootCmd, nullptr, 0U); !bootCmd) {

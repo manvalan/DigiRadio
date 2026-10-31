@@ -1,0 +1,54 @@
+dependencies:
+  chmorgan/esp-libhelix-mp3:
+    component_hash: cbb76089dc2c5749f7b470e2e70aedc44c9da519e04eb9a67d4c7ec275229e53
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.1.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.0.3
+  espressif/json_generator:
+    component_hash: 7433f3e206d8ed81dc8335b77710a5186f36c9e8c8b5375b277d6f2b9b430496
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 2.1.0
+  espressif/mdns:
+    component_hash: ef0766474b37459f6ad22461e453a8713e780e831a7c993b16919d817988dff6
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.14.1
+  espressif/network_provisioning:
+    component_hash: ac8dc8e10dd26b0307697049f6358caa1d17696db2e23903512098b7ad86f848
+    dependencies:
+    - name: espressif/json_generator
+      registry_url: https://components.espressif.com
+      require: private
+      version: ^2.0.0
+    - name: idf
+      require: private
+      version: '>=5.1'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.4.0
+  idf:
+    source:
+      type: idf
+    version: 6.1.0
+direct_dependencies:
+- chmorgan/esp-libhelix-mp3
+- espressif/mdns
+- espressif/network_provisioning
+- idf
+manifest_hash: fe2f24b04ac82589b4635c065c6bfe1a5a830ffcbc627016066f79ff287ae221
+target: esp32s31
+version: 3.0.0

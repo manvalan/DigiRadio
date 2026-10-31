@@ -46,12 +46,15 @@ struct Bt1035Pins {
     int sysCtlGpio; ///< SYS_CTL (pin 34), active-high. Driven LOW/HIGH on
                     ///< every resetAndInitOnce() call, together with
                     ///< resetGpio, to force a real power-cycle each retry.
-    int ctsGpio;    ///< Host->module UART_CTS (module pin 15). ESP32 UART
+    int ctsGpio;    ///< -1 where not wired (the BT1058 of board v2 leaves
+                    ///< it floating: hardware flow control is off by
+                    ///< default, Feasycom 2026-08-24).
+                    ///< Host->module UART_CTS (module pin 15). ESP32 UART
                     ///< flow control stays off (UART_HW_FLOWCTRL_DISABLE);
                     ///< this pad is driven LOW so the module's own CTS
                     ///< input is asserted (clear-to-send). A floating HIGH
                     ///< here gated module UART TX and made boot intermittent.
-    int rtsGpio;    ///< Module UART_RTS/PIO2 (module pin 16), factory
+    int rtsGpio;    ///< -1 where not wired. Module UART_RTS/PIO2 (module pin 16), factory
                     ///< default function is PA_MUTE, not flow control
                     ///< (Feasycom programming guide). Diagnostic only
                     ///< (2026-08-22): read-only floating input.

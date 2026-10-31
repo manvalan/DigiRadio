@@ -1,0 +1,6 @@
+dependencies:
+  idf:
+    version: '>=6.1.0'
+  espressif/mdns: '*'
+  espressif/network_provisioning: '*'
+  chmorgan/esp-libhelix-mp3: ^1.0.3

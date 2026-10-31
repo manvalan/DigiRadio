@@ -70,6 +70,12 @@ constexpr int kSysCtlDeassertMs = 2500;
  *  apart. */
 constexpr int kBootBannerWaitMs = 25000;
 
+/** Diagnostic read of an optional pad; -1 where the board has none. */
+[[nodiscard]] int padLevel(int gpio) noexcept
+{
+    return gpio >= 0 ? gpio_get_level(static_cast<gpio_num_t>(gpio)) : -1;
+}
+
 void flushUartRx(int uartPort) noexcept
 {
     uart_flush_input(static_cast<uart_port_t>(uartPort));
@@ -1021,8 +1027,8 @@ std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
     // a real power-cycle. Asserting RESET# is the documented way to do it.
     const auto sysCtlPin = static_cast<gpio_num_t>(pins_.sysCtlGpio);
     const auto resetPin = static_cast<gpio_num_t>(pins_.resetGpio);
-    const auto ctsPin = static_cast<gpio_num_t>(pins_.ctsGpio);
-    const auto rtsPin = static_cast<gpio_num_t>(pins_.rtsGpio);
+    const int ctsPin = pins_.ctsGpio;
+    const int rtsPin = pins_.rtsGpio;
 
     // Assert RESET# (active-low) and deassert SYS_CTRL together, held past
     // the ~1.8s Reset Protection timeout so the module actually powers
@@ -1041,11 +1047,11 @@ std::expected<void, Bt1035Error> Bt1035Driver::resetAndInitOnce()
              gpio_get_level(sysCtlPin), gpio_get_level(resetPin));
     ESP_LOGI(kTag, "before banner wait: CTS=%d (want 0, driven low) "
                    "RTS/PIO2=%d (module PA_MUTE, input)",
-             gpio_get_level(ctsPin), gpio_get_level(rtsPin));
+             padLevel(ctsPin), padLevel(rtsPin));
 
     logRawUartBoot(uartPort_);
     ESP_LOGI(kTag, "after banner wait: CTS=%d RTS/PIO2=%d",
-             gpio_get_level(ctsPin), gpio_get_level(rtsPin));
+             padLevel(ctsPin), padLevel(rtsPin));
     uart_flush_input(static_cast<uart_port_t>(uartPort_));
     vTaskDelay(pdMS_TO_TICKS(kPostUartMs));
 
@@ -1114,35 +1120,37 @@ std::expected<void, Bt1035Error> Bt1035Driver::boot()
     // matches the intermittent "0 banner bytes / silent at every baud" boot
     // (CTS read back as 1). ESP32 UART flow control stays disabled; we only
     // drive this GPIO LOW so the module is allowed to transmit.
-    gpio_config_t ctsCfg = {};
-    ctsCfg.pin_bit_mask = 1ULL << pins_.ctsGpio;
-    ctsCfg.mode = GPIO_MODE_INPUT_OUTPUT;
-    ctsCfg.pull_up_en = GPIO_PULLUP_DISABLE;
-    ctsCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    if (gpio_config(&ctsCfg) != ESP_OK) {
-        return std::unexpected(Bt1035Error::ResetFailed);
+    if (pins_.ctsGpio >= 0) {
+        gpio_config_t ctsCfg = {};
+        ctsCfg.pin_bit_mask = 1ULL << pins_.ctsGpio;
+        ctsCfg.mode = GPIO_MODE_INPUT_OUTPUT;
+        ctsCfg.pull_up_en = GPIO_PULLUP_DISABLE;
+        ctsCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        if (gpio_config(&ctsCfg) != ESP_OK) {
+            return std::unexpected(Bt1035Error::ResetFailed);
+        }
+        gpio_set_level(static_cast<gpio_num_t>(pins_.ctsGpio), 0);
     }
-    gpio_set_level(static_cast<gpio_num_t>(pins_.ctsGpio), 0);
 
-    gpio_config_t rtsCfg = {};
-    rtsCfg.pin_bit_mask = 1ULL << pins_.rtsGpio;
-    rtsCfg.mode = GPIO_MODE_INPUT;
-    rtsCfg.pull_up_en = GPIO_PULLUP_DISABLE;
-    rtsCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    if (gpio_config(&rtsCfg) != ESP_OK) {
-        return std::unexpected(Bt1035Error::ResetFailed);
+    if (pins_.rtsGpio >= 0) {
+        gpio_config_t rtsCfg = {};
+        rtsCfg.pin_bit_mask = 1ULL << pins_.rtsGpio;
+        rtsCfg.mode = GPIO_MODE_INPUT;
+        rtsCfg.pull_up_en = GPIO_PULLUP_DISABLE;
+        rtsCfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        if (gpio_config(&rtsCfg) != ESP_OK) {
+            return std::unexpected(Bt1035Error::ResetFailed);
+        }
     }
 
     if (!uartInstalled_) {
-        const uart_config_t uartCfg = {
-            .baud_rate = kBaudRate,
-            .data_bits = UART_DATA_8_BITS,
-            .parity = UART_PARITY_DISABLE,
-            .stop_bits = UART_STOP_BITS_1,
-            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-            .rx_flow_ctrl_thresh = 0,
-            .source_clk = UART_SCLK_DEFAULT,
-        };
+        uart_config_t uartCfg = {};
+        uartCfg.baud_rate = kBaudRate;
+        uartCfg.data_bits = UART_DATA_8_BITS;
+        uartCfg.parity = UART_PARITY_DISABLE;
+        uartCfg.stop_bits = UART_STOP_BITS_1;
+        uartCfg.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+        uartCfg.source_clk = UART_SCLK_DEFAULT;
 
         if (uart_driver_install(static_cast<uart_port_t>(uartPort_), kUartRxBuffer,
                               kUartTxBuffer, 0, nullptr, 0)

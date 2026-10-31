@@ -1,0 +1,37 @@
+# DigiRadio v2 — default Kconfig. Same choices as ../../Software/sdkconfig.defaults
+# where they apply; see the comments there for the reasons.
+
+CONFIG_IDF_TARGET="esp32s31"
+
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_CXX_RTTI=n
+CONFIG_COMPILER_CXX_STD=23
+
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# WROOM-3-N16R16V: 16 MB of octal PSRAM. v1 ran out of internal RAM with the
+# web radio, so mbedTLS and malloc may use it.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
+
+CONFIG_ESP_TASK_WDT_PANIC=y
+
+# The patch and the images come from the app until the Si4684 flash (U7) is
+# filled at first boot; hardware_bootstrap.cpp needs at least the patch.
+CONFIG_SI4684_EMBEDDED_IMAGES=y
+
+# BLE provisioning runs without proof of possession, like the open SoftAP.
+CONFIG_ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_0=y

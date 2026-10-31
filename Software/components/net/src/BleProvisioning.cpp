@@ -26,8 +26,27 @@
 #include "esp_wifi_types.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+// IDF 6 moved this to the network_provisioning component, same calls renamed.
+#include "network_provisioning/manager.h"
+#include "network_provisioning/scheme_ble.h"
+#define wifi_prov_cb_event_t network_prov_cb_event_t
+#define WIFI_PROV_CRED_RECV NETWORK_PROV_WIFI_CRED_RECV
+#define WIFI_PROV_CRED_FAIL NETWORK_PROV_WIFI_CRED_FAIL
+#define WIFI_PROV_CRED_SUCCESS NETWORK_PROV_WIFI_CRED_SUCCESS
+#define wifi_prov_mgr_config_t network_prov_mgr_config_t
+#define wifi_prov_scheme_ble network_prov_scheme_ble
+#define WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM \
+    NETWORK_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM
+#define wifi_prov_mgr_init network_prov_mgr_init
+#define wifi_prov_mgr_deinit network_prov_mgr_deinit
+#define wifi_prov_mgr_start_provisioning network_prov_mgr_start_provisioning
+#define WIFI_PROV_SECURITY_0 NETWORK_PROV_SECURITY_0
+#else
 #include "wifi_provisioning/manager.h"
 #include "wifi_provisioning/scheme_ble.h"
+#endif
 
 #include <cstring>
 #include <optional>
@@ -129,12 +148,11 @@ start(core::ISecureStore& store, const core::DeviceIdentity& deviceIdentity)
     // provisioning only borrows this pointer, it does not take ownership.
     static const std::string serviceName(deviceIdentity.softApSsid());
 
-    const wifi_prov_mgr_config_t config{
-        .scheme = wifi_prov_scheme_ble,
-        .scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM,
-        .app_event_handler = {.event_cb = provEventHandler,
-                              .user_data = nullptr},
-    };
+    wifi_prov_mgr_config_t config = {};
+    config.scheme = wifi_prov_scheme_ble;
+    config.scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM;
+    config.app_event_handler = {.event_cb = provEventHandler,
+                                .user_data = nullptr};
     if (wifi_prov_mgr_init(config) != ESP_OK) {
         ESP_LOGE(kTag, "wifi_prov_mgr_init failed");
         return std::unexpected(NetError::BleProvisioningFailed);
