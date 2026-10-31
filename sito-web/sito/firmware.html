@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firmware e aggiornamenti · DigiRadio</title>
+<meta name="description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:title" content="Firmware e aggiornamenti · DigiRadio">
+<meta property="og:description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:image" content="https://digiradio.michelebigi.it/img/scheda.jpg">
+<link rel="alternate" hreflang="it" href="https://digiradio.michelebigi.it/firmware.html">
+<link rel="alternate" hreflang="en" href="https://digiradio.michelebigi.it/en/firmware.html">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="img/app-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="index.html"><img src="img/app-icon.png" alt="">DigiRadio</a>
+  <nav class="nav"><a href="index.html">Home</a><a href="v2.html">Novità v2</a><a href="hardware.html">Hardware</a><a href="app.html">App iOS</a><a href="firmware.html" aria-current="page">Firmware</a><a href="sviluppo.html">Sviluppo</a><a href="privacy.html">Privacy</a></nav>
+  <a class="lang" href="en/firmware.html" hreflang="en">English</a>
+</div></header>
+<main><div class="wrap">
+<h1>Firmware e aggiornamenti</h1>
+<p class="lead">Il firmware gira sull'ESP32-S3 ed è scritto con ESP-IDF in C++23. Versione attuale: <strong>0.13.0</strong>.</p>
+
+<h2>Come si aggiorna</h2>
+<ol>
+  <li>Apri igiRadio e vai in <em>Impostazioni</em> → <em>Firmware</em> → <em>Cerca aggiornamenti</em>.</li>
+  <li>L'app scarica la nuova versione dalle <a href="https://github.com/manvalan/DigiRadio/releases">release su GitHub</a> e la manda alla radio via Wi-Fi.</li>
+  <li>La radio si riavvia con il nuovo firmware. Se entro 60 secondi qualcosa non va, torna da sola alla versione precedente.</li>
+</ol>
+<div class="note">Non serve un cavo né un computer, e le impostazioni e i preset restano sulla radio.</div>
+
+<h2>Cosa c'è dentro</h2>
+<div class="cards">
+  <div class="card"><h3>Radio</h3><ul><li>FM con RDS e frequenze alternative</li><li>DAB+ con testi, DL+, slideshow</li><li>Scansione della banda</li></ul></div>
+  <div class="card"><h3>Rete</h3><ul><li>Webradio, anche https</li><li>Audio dal telefono via Wi-Fi</li><li>API REST e scoperta mDNS</li></ul></div>
+  <div class="card"><h3>Audio</h3><ul><li>EQ e preset audio salvati sulla radio</li><li>Cambio sorgente senza click</li><li>Bluetooth aptX Adaptive</li></ul></div>
+  <div class="card"><h3>Sistema</h3><ul><li>Sveglie, sleep timer, orologio NTP</li><li>OTA a doppia partizione con rollback</li><li>Dati salvati cifrati</li></ul></div>
+</div>
+
+<h2>Storia delle versioni</h2>
+<div class="table-wrap"><table>
+  <tr><th>Versione</th><th>Novità</th></tr>
+  <tr><td>0.13</td><td>DSP v2, preset audio salvati sulla radio, cambio sorgente senza click</td></tr>
+  <tr><td>0.12</td><td>DAB DL+, scansione della banda, slideshow MOT, correzioni a memoria e stream</td></tr>
+  <tr><td>0.11</td><td>Sveglie, sleep timer, orologio NTP, release automatiche</td></tr>
+  <tr><td>0.10</td><td>Webradio, audio dal telefono, OTA con conferma e rollback</td></tr>
+  <tr><td>0.9</td><td>FM con frequenze alternative, DAB, accensione e standby dall'app</td></tr>
+</table></div>
+<p>Il codice e tutte le release sono su <a href="https://github.com/manvalan/DigiRadio">GitHub</a>.</p>
+</div></main>
+<footer class="site-footer"><div class="wrap">
+  <span>DigiRadio è un progetto open source di Michele Bigi. Hardware CERN-OHL-S v2, firmware Apache 2.0.</span>
+  <span><a href="https://github.com/manvalan/DigiRadio">GitHub</a> · <a href="https://hackaday.io/project/207209-digiradio">Hackaday</a> · <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster</a></span>
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DigiRadio v2 · DigiRadio</title>
+<meta name="description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:title" content="DigiRadio v2 · DigiRadio">
+<meta property="og:description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:image" content="https://digiradio.michelebigi.it/img/scheda.jpg">
+<link rel="alternate" hreflang="it" href="https://digiradio.michelebigi.it/v2.html">
+<link rel="alternate" hreflang="en" href="https://digiradio.michelebigi.it/en/v2.html">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="img/app-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="index.html"><img src="img/app-icon.png" alt="">DigiRadio</a>
+  <nav class="nav"><a href="index.html">Home</a><a href="v2.html" aria-current="page">Novità v2</a><a href="hardware.html">Hardware</a><a href="app.html">App iOS</a><a href="firmware.html">Firmware</a><a href="sviluppo.html">Sviluppo</a><a href="privacy.html">Privacy</a></nav>
+  <a class="lang" href="en/v2.html" hreflang="en">English</a>
+</div></header>
+<main><div class="wrap">
+<section class="hero">
+  <div>
+    <p class="tag">Novità</p>
+    <h1>DigiRadio v2</h1>
+    <p class="lead">La seconda versione di DigiRadio va a batteria, ha un DSP molto più potente e un'uscita ottica S/PDIF. Tutto su una scheda a 6 strati da 60 × 80 mm.</p>
+    <div class="buttons">
+      <a class="btn primary" href="https://www.pcbway.com/project/shareproject/DigiRadio_v2_44bdc08b.html">Il progetto su PCBWay</a>
+      <a class="btn" href="https://github.com/manvalan/DigiRadio/tree/main/Hardware-v2">File KiCad su GitHub</a>
+    </div>
+    <a class="pcbway-badge" href="https://www.pcbway.com/project/shareproject/DigiRadio_v2_44bdc08b.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
+  </div>
+  <img src="img/v2-render.jpg" width="974" height="1080" alt="Render 3D della scheda DigiRadio v2">
+</section>
+
+<div class="note"><strong>A che punto è.</strong> Il progetto è completo e verificato: DRC con 0 errori, schema e PCB allineati, 0 bloccanti nella revisione di <a href="https://boardlab.it">BoardLab</a>. Il prossimo passo è produrre e montare il primo prototipo.</div>
+
+<h2>Cosa cambia rispetto alla v1</h2>
+<div class="table-wrap"><table>
+  <tr><th></th><th>v1</th><th>v2</th></tr>
+  <tr><td>DSP</td><td>ADAU1701</td><td><strong>ADAU1452</strong>: molta più potenza di calcolo, più porte I²S, ASRC, avvio da EEPROM</td></tr>
+  <tr><td>Controller</td><td>ESP32-S3</td><td><strong>ESP32-S31-WROOM-3</strong> con 128 Mbit di flash esterna</td></tr>
+  <tr><td>Bluetooth</td><td>FSC-BT1035</td><td><strong>FSC-BT1058</strong>, su una sua 3,3 V filtrata</td></tr>
+  <tr><td>Uscite</td><td>Bluetooth</td><td>Bluetooth e <strong>ottica S/PDIF</strong> (TOSLINK)</td></tr>
+  <tr><td>Alimentazione</td><td>USB-C</td><td>USB-C e <strong>batteria Li-ion</strong> con caricabatterie e misura della carica</td></tr>
+  <tr><td>Scheda</td><td>6 strati, 50 × 90 mm</td><td>6 strati, <strong>60 × 80 mm</strong></td></tr>
+</table></div>
+
+<h2>Come funziona</h2>
+<p>Il percorso audio resta tutto digitale. L'ADAU1452 è il centro: riceve tre ingressi I²S (radio, Bluetooth ed ESP32), rimanda l'audio al modulo Bluetooth e all'ESP32 e pilota l'uscita ottica S/PDIF, così la radio si collega anche a un amplificatore o a una soundbar.</p>
+<div class="flow"><span class="chip">FM / DAB+</span><span class="arrow">→</span><span class="chip">Si4684</span><span class="arrow">→ I²S →</span><span class="chip">ADAU1452 DSP</span><span class="arrow">→ I²S →</span><span class="chip">BT1058</span><span class="arrow">·</span><span class="chip">S/PDIF uscita ottica</span></div>
+
+<div class="cards">
+  <div class="card"><h3>Si4684</h3><p class="muted">Silicon Labs</p><p>Sintonizzatore DAB/DAB+/FM con antenna su SMA, quarzo da 19,2 MHz e flash SPI per il suo firmware.</p></div>
+  <div class="card"><h3>ADAU1452</h3><p class="muted">Analog Devices SigmaDSP</p><p>Il cuore audio: EQ, preset, mixer delle sorgenti e uscita S/PDIF. Si avvia da una EEPROM SPI da 1 Mbit.</p></div>
+  <div class="card"><h3>FSC-BT1058</h3><p class="muted">Feasycom</p><p>Modulo Bluetooth audio comandato dall'ESP32 via UART.</p></div>
+  <div class="card"><h3>ESP32-S31</h3><p class="muted">Espressif, modulo WROOM-3</p><p>Esegue il firmware, comanda radio e DSP, porta webradio e audio dal telefono nel DSP. Flash esterna da 128 Mbit e USB-C.</p></div>
+</div>
+
+<h2>A batteria</h2>
+<p>La v2 è pensata per essere portatile. Un BQ25896 di Texas Instruments carica la batteria dalla USB-C e un MAX17048 misura quanta carica resta, così l'app potrà mostrarla.</p>
+<ul>
+  <li>Due buck-boost TPS63031 per le 3,3 V digitale e audio, separate.</li>
+  <li>Un LDO TPS7A20 a basso rumore per la 1,8 V del sintonizzatore.</li>
+  <li>Un buck TLV62568 per la 1,2 V del core del DSP.</li>
+</ul>
+<p class="muted">Per la batteria sto valutando due celle 18650 in parallelo oppure una batteria slim: la scelta non è ancora fatta.</p>
+
+<h2>La scheda</h2>
+<p>Sei strati a impedenza controllata, 50 Ω per la RF e 90 Ω differenziali per l'USB, in 60 × 80 mm. Tocca un'immagine per vederla a piena risoluzione.</p>
+<div class="gallery two">
+  <figure><a href="img/v2-render.jpg"><img src="img/v2-render.jpg" loading="lazy" alt="Render 3D della scheda v2"></a><figcaption>Render 3D: in alto l'ESP32-S31 e il sintonizzatore, al centro l'ADAU1452, in basso alimentazione e caricabatterie.</figcaption></figure>
+  <figure><a href="img/v2-layout.jpg"><img src="img/v2-layout.jpg" loading="lazy" alt="Layout dello strato superiore della scheda v2"></a><figcaption>Il layout in KiCad, strato superiore.</figcaption></figure>
+</div>
+
+<h2>Verificata con BoardLab</h2>
+<p>Prima di ordinarla ho fatto revisionare la scheda da <a href="https://boardlab.it">BoardLab</a>, un software di analisi dei PCB che sviluppo io. Legge schema, layout e il datasheet di ogni integrato e dice se la scheda si può ordinare, citando la pagina del datasheet da cui viene ogni osservazione. Sulle revisioni precedenti ha trovato problemi veri, come pull-up I²C mancanti, il carico e il drive level dei quarzi e il filtro del PLL del DSP. La storia completa è nella pagina <a href="sviluppo.html#boardlab">Sviluppo</a>.</p>
+
+<h2>Produzione</h2>
+<p>Il progetto è pubblicato su <a href="https://www.pcbway.com/project/shareproject/DigiRadio_v2_44bdc08b.html">PCBWay</a>, con Gerber e distinta componenti, e partecipa al loro 9° Project Design Contest. Questa volta la scheda la monto io: da PCBWay ordino solo le PCB e i componenti li saldo a mano.</p>
+<a class="pcbway-badge" href="https://www.pcbway.com/project/shareproject/DigiRadio_v2_44bdc08b.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
+
+<h2>Firmware e app</h2>
+<p>L'obiettivo è usare lo stesso firmware della v1, adattato ai nuovi pin e al nuovo DSP, e la stessa app <a href="app.html">igiRadio</a> per entrambe le schede.</p>
+
+<h2>Tutto aperto</h2>
+<p>Progetto KiCad, schema e distinta componenti sono nella cartella <a href="https://github.com/manvalan/DigiRadio/tree/main/Hardware-v2">Hardware-v2</a> su GitHub, con licenza CERN-OHL-S v2. Il <a href="download/digiradio-v2-step.zip">modello 3D STEP della scheda</a> (2,6 MB, zip) si può scaricare per progettare il contenitore.</p>
+</div></main>
+<footer class="site-footer"><div class="wrap">
+  <span>DigiRadio è un progetto open source di Michele Bigi. Hardware CERN-OHL-S v2, firmware Apache 2.0.</span>
+  <span><a href="https://github.com/manvalan/DigiRadio">GitHub</a> · <a href="https://hackaday.io/project/207209-digiradio">Hackaday</a> · <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster</a></span>
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DigiRadio</title>
+<meta name="description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:title" content="DigiRadio">
+<meta property="og:description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:image" content="https://digiradio.michelebigi.it/img/scheda.jpg">
+<link rel="alternate" hreflang="it" href="https://digiradio.michelebigi.it/index.html">
+<link rel="alternate" hreflang="en" href="https://digiradio.michelebigi.it/en/index.html">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="img/app-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="index.html"><img src="img/app-icon.png" alt="">DigiRadio</a>
+  <nav class="nav"><a href="index.html" aria-current="page">Home</a><a href="v2.html">Novità v2</a><a href="hardware.html">Hardware</a><a href="app.html">App iOS</a><a href="firmware.html">Firmware</a><a href="sviluppo.html">Sviluppo</a><a href="privacy.html">Privacy</a></nav>
+  <a class="lang" href="en/index.html" hreflang="en">English</a>
+</div></header>
+<main><div class="wrap">
+<section class="hero">
+  <div>
+    <h1>DigiRadio</h1>
+    <p class="lead">Una radio DAB+ e FM open source che manda l'audio alle tue cuffie o alla tua cassa Bluetooth in aptX Adaptive, con un DSP nel mezzo e un'app per iPhone e iPad.</p>
+    <div class="buttons">
+      <a class="btn primary" href="v2.html">Scopri la v2</a>
+      <a class="btn" href="hardware.html">Com'è fatta</a>
+      <a class="btn" href="app.html">L'app igiRadio</a>
+      <a class="btn" href="https://github.com/manvalan/DigiRadio">GitHub</a>
+    </div>
+  </div>
+  <img src="img/scheda.jpg" width="1600" height="1200" alt="La scheda DigiRadio montata: ESP32-S3, sintonizzatore Si4684, DSP ADAU1701 e modulo Bluetooth Feasycom">
+</section>
+
+<a class="banner" href="v2.html">
+  <img src="img/v2-render.jpg" width="974" height="1080" alt="Render 3D della scheda DigiRadio v2">
+  <div>
+    <span class="tag">Novità</span>
+    <h2>DigiRadio v2</h2>
+    <p>Va a batteria, ha un DSP ADAU1452 molto più potente, il Bluetooth FSC-BT1058 e un'uscita ottica S/PDIF. Tutto su una scheda a 6 strati da 60 × 80 mm.</p>
+    <span class="more">Scopri la v2 →</span>
+  </div>
+</a>
+
+<h2>Perché</h2>
+<p>Volevo una radio che ricevesse DAB+ e FM e suonasse sulla mia cassa o sulle mie cuffie Bluetooth con una buona qualità, senza passare dal telefono. Quasi tutte le radio DAB+ hanno un loro altoparlante, e quelle con il Bluetooth di solito lo ricevono invece di trasmetterlo. Così l'ho progettata io.</p>
+
+<h2>Come funziona</h2>
+<p>Il percorso audio è tutto digitale, I²S a 48 kHz e 24 bit: nessuna conversione tra il sintonizzatore e il Bluetooth. L'unico DAC è quello delle cuffie o della cassa.</p>
+<div class="flow"><span class="chip">FM / DAB+</span><span class="arrow">→</span><span class="chip">Si4684</span><span class="arrow">→ I²S →</span><span class="chip">ADAU1701 DSP</span><span class="arrow">→ I²S →</span><span class="chip">BT1035</span><span class="arrow">→</span><span class="chip">aptX</span></div>
+
+<div class="cards">
+  <div class="card"><h3>Radio</h3><p>DAB+, DAB e FM con RDS, testi scorrevoli, slideshow, frequenze alternative e scansione della banda.</p></div>
+  <div class="card"><h3>Webradio e telefono</h3><p>Le webradio e l'audio del telefono via Wi-Fi passano dallo stesso DSP e arrivano in Bluetooth.</p></div>
+  <div class="card"><h3>Suono</h3><p>Equalizzatore, preset audio, bassi e stereo allargato, calcolati dal SigmaDSP ADAU1701.</p></div>
+  <div class="card"><h3>Sveglia</h3><p>Sveglie, timer di spegnimento e orologio sincronizzato via Internet.</p></div>
+</div>
+
+<h2>Tutto aperto</h2>
+<p>Schema, PCB, distinta componenti e firmware sono pubblici: l'hardware con licenza CERN-OHL-S v2, il firmware con Apache 2.0. Su GitHub trovi la <a href="https://github.com/manvalan/DigiRadio/tree/main/Hardware">scheda v1</a> e la <a href="https://github.com/manvalan/DigiRadio/tree/main/Hardware-v2">scheda v2</a>, che è anche <a href="https://www.pcbway.com/project/shareproject/DigiRadio_v2_44bdc08b.html">su PCBWay</a>.</p>
+<a class="pcbway-badge" href="https://www.pcbway.com/project/shareproject/DigiRadio_v2_44bdc08b.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
+
+<div class="cards">
+  <a class="card" href="https://github.com/manvalan/DigiRadio"><h3>GitHub</h3><p class="muted">Schema, Gerber, BOM e firmware.</p></a>
+  <a class="card" href="https://hackaday.io/project/207209-digiradio"><h3>Hackaday.io</h3><p class="muted">La storia del progetto e i log.</p></a>
+  <a class="card" href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6"><h3>Hackster.io</h3><p class="muted">Il progetto con schema e componenti.</p></a>
+  <a class="card" href="https://www.pcbway.com/project/shareproject/DigiRadio_Open_Source_Hi_Fi_DAB_FM_Receiver_with_DSP_and_aptX_Adaptive_Blueto_a1952812.html"><h3>PCBWay</h3><p class="muted">Ordina la scheda già pronta.</p></a>
+</div>
+</div></main>
+<footer class="site-footer"><div class="wrap">
+  <span>DigiRadio è un progetto open source di Michele Bigi. Hardware CERN-OHL-S v2, firmware Apache 2.0.</span>
+  <span><a href="https://github.com/manvalan/DigiRadio">GitHub</a> · <a href="https://hackaday.io/project/207209-digiradio">Hackaday</a> · <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster</a></span>
+</div></footer>
+</body>
+</html>

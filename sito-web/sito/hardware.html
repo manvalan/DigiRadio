@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hardware · DigiRadio</title>
+<meta name="description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:title" content="Hardware · DigiRadio">
+<meta property="og:description" content="DigiRadio: ricevitore DAB+/FM open source con DSP e uscita Bluetooth aptX Adaptive, e la sua app per iPhone e iPad.">
+<meta property="og:image" content="https://digiradio.michelebigi.it/img/scheda.jpg">
+<link rel="alternate" hreflang="it" href="https://digiradio.michelebigi.it/hardware.html">
+<link rel="alternate" hreflang="en" href="https://digiradio.michelebigi.it/en/hardware.html">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="img/app-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="index.html"><img src="img/app-icon.png" alt="">DigiRadio</a>
+  <nav class="nav"><a href="index.html">Home</a><a href="v2.html">Novità v2</a><a href="hardware.html" aria-current="page">Hardware</a><a href="app.html">App iOS</a><a href="firmware.html">Firmware</a><a href="sviluppo.html">Sviluppo</a><a href="privacy.html">Privacy</a></nav>
+  <a class="lang" href="en/hardware.html" hreflang="en">English</a>
+</div></header>
+<main><div class="wrap">
+<h1>Hardware</h1>
+<p class="lead">Una scheda a 6 strati da 50 × 90 mm con quattro chip principali, alimentata da USB-C.</p>
+
+<div class="cards">
+  <a class="card" href="https://github.com/manvalan/DigiRadio/tree/main/Hardware"><h3>Scheda v1 →</h3><p class="muted">Quella descritta in questa pagina: ADAU1701, BT1035. Schema, Gerber, BOM e file di montaggio.</p></a>
+  <a class="card" href="v2.html"><h3>Scheda v2 →</h3><p class="muted">ADAU1452, batteria, BT1058, uscita ottica S/PDIF. Tutti i dettagli nella pagina della v2.</p></a>
+</div>
+
+<div class="cards">
+  <div class="card"><h3>Si4684</h3><p class="muted">Silicon Labs</p><p>Sintonizzatore DAB+/DAB/FM, antenna esterna su connettore SMA, alimentazione dedicata a 1,8 V a basso rumore.</p></div>
+  <div class="card"><h3>ADAU1701</h3><p class="muted">Analog Devices SigmaDSP</p><p>EQ, mixer delle sorgenti, bassi e stereo. È il master del clock I²S (quarzo 12,288 MHz) e tutto l'audio passa da lui.</p></div>
+  <div class="card"><h3>FSC-BT1035</h3><p class="muted">Feasycom, Qualcomm QCC3056</p><p>Bluetooth 5.2 in uscita con aptX, aptX HD e aptX Adaptive.</p></div>
+  <div class="card"><h3>ESP32-S3</h3><p class="muted">Espressif</p><p>Controller con Wi-Fi e BLE: avvia gli altri chip, porta le webradio nel DSP, espone l'API REST e gestisce gli aggiornamenti.</p></div>
+</div>
+
+<h2>Schema a blocchi</h2>
+<pre>FM/DAB antenna → [ Si4684 ] --I²S--> [ ADAU1701 DSP ] --I²S--> [ FSC-BT1035 ] → aptX
+                      ↑                     ↑                        ↑
+                      └──── SPI ──── [ ESP32-S3 host ] ──── UART ────┘
+                                            │  I²C
+                                     Wi-Fi · NVS · HTTP API</pre>
+
+<h2>La scheda</h2>
+<ul>
+  <li>6 strati a impedenza controllata, due piani di massa continui sotto RF, quarzi e USB.</li>
+  <li>Tre zone d'antenna: le due a 2,4 GHz (ESP32 e BT1035) su angoli opposti, FM/DAB su SMA, con keep-out su tutti gli strati.</li>
+  <li>USB-C, 3,3 V da un buck più un LDO a basso rumore a 1,8 V per il sintonizzatore.</li>
+  <li>Il programma del DSP è fatto in SigmaStudio e si aggiorna via Wi-Fi senza riprogrammare l'ESP32.</li>
+</ul>
+
+<h2>Lo schema elettrico</h2>
+<p class="muted">Tocca un'immagine per vederla a piena risoluzione. Il PDF e i file KiCad sono su <a href="https://github.com/manvalan/DigiRadio">GitHub</a>.</p>
+<div class="gallery"><figure><a href="img/esp32-usb-power.jpg"><img src="img/esp32-usb-power.jpg" loading="lazy" alt="ESP32-S3, USB-C e alimentazione"></a><figcaption>ESP32-S3, USB-C e alimentazione</figcaption></figure><figure><a href="img/si4684-tuner.jpg"><img src="img/si4684-tuner.jpg" loading="lazy" alt="Sintonizzatore Si4684"></a><figcaption>Sintonizzatore Si4684</figcaption></figure><figure><a href="img/bt1035-bluetooth.jpg"><img src="img/bt1035-bluetooth.jpg" loading="lazy" alt="Bluetooth FSC-BT1035"></a><figcaption>Bluetooth FSC-BT1035</figcaption></figure><figure><a href="img/adau1701-dsp.jpg"><img src="img/adau1701-dsp.jpg" loading="lazy" alt="DSP ADAU1701"></a><figcaption>DSP ADAU1701</figcaption></figure></div>
+
+<h2>Produzione</h2>
+<p>La scheda è stata prodotta e montata da <a href="https://www.pcbway.com/">PCBWay</a>, che ha sponsorizzato parte del costo. Con un sintonizzatore QFN, un DSP LQFP, due moduli a 2,4 GHz e un connettore USB-C su 6 strati, il montaggio a mano non era realistico. L'unico componente che non avevano è il modulo FSC-BT1035, che ho saldato io.</p>
+<p>Puoi ordinarla dalla <a href="https://www.pcbway.com/project/shareproject/DigiRadio_Open_Source_Hi_Fi_DAB_FM_Receiver_with_DSP_and_aptX_Adaptive_Blueto_a1952812.html">pagina del progetto su PCBWay</a>. Trasparenza: PCBWay mi riconosce una piccola percentuale di quegli ordini come credito.</p>
+
+<h2>Versione 2</h2>
+<p>Tutti i dettagli sono nella <a href="v2.html">pagina della v2</a>. In breve: DSP ADAU1452 al posto dell'ADAU1701, caricabatterie BQ25896 per funzionare a batteria e modulo Bluetooth FSC-BT1058. Il layout è stato verificato con <a href="https://boardlab.it">BoardLab</a>, uno strumento di analisi dei PCB che sviluppo io: <a href="sviluppo.html#boardlab">cosa ha trovato</a>. I file sono nella cartella <a href="https://github.com/manvalan/DigiRadio/tree/main/Hardware-v2">Hardware-v2</a> su GitHub.</p>
+</div></main>
+<footer class="site-footer"><div class="wrap">
+  <span>DigiRadio è un progetto open source di Michele Bigi. Hardware CERN-OHL-S v2, firmware Apache 2.0.</span>
+  <span><a href="https://github.com/manvalan/DigiRadio">GitHub</a> · <a href="https://hackaday.io/project/207209-digiradio">Hackaday</a> · <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster</a></span>
+</div></footer>
+</body>
+</html>

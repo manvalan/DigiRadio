@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firmware and updates · DigiRadio</title>
+<meta name="description" content="DigiRadio: an open-source DAB+/FM receiver with a DSP and aptX Adaptive Bluetooth output, and its iPhone and iPad app.">
+<meta property="og:title" content="Firmware and updates · DigiRadio">
+<meta property="og:description" content="DigiRadio: an open-source DAB+/FM receiver with a DSP and aptX Adaptive Bluetooth output, and its iPhone and iPad app.">
+<meta property="og:image" content="https://digiradio.michelebigi.it/img/scheda.jpg">
+<link rel="alternate" hreflang="it" href="https://digiradio.michelebigi.it/firmware.html">
+<link rel="alternate" hreflang="en" href="https://digiradio.michelebigi.it/en/firmware.html">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../img/app-icon.png">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="index.html"><img src="../img/app-icon.png" alt="">DigiRadio</a>
+  <nav class="nav"><a href="index.html">Home</a><a href="v2.html">New: v2</a><a href="hardware.html">Hardware</a><a href="app.html">iOS app</a><a href="firmware.html" aria-current="page">Firmware</a><a href="sviluppo.html">Development</a><a href="privacy.html">Privacy</a></nav>
+  <a class="lang" href="../firmware.html" hreflang="it">Italiano</a>
+</div></header>
+<main><div class="wrap">
+<h1>Firmware and updates</h1>
+<p class="lead">The firmware runs on the ESP32-S3 and is written with ESP-IDF in C++23. Current version: <strong>0.13.0</strong>.</p>
+
+<h2>How to update</h2>
+<ol>
+  <li>Open igiRadio and go to <em>Settings</em> → <em>Firmware</em> → <em>Check for updates</em>.</li>
+  <li>The app downloads the new version from the <a href="https://github.com/manvalan/DigiRadio/releases">GitHub releases</a> and sends it to the radio over Wi-Fi.</li>
+  <li>The radio restarts with the new firmware. If something goes wrong within 60 seconds, it rolls back to the previous version on its own.</li>
+</ol>
+<div class="note">No cable or computer needed, and your settings and presets stay on the radio.</div>
+
+<h2>What's inside</h2>
+<div class="cards">
+  <div class="card"><h3>Radio</h3><ul><li>FM with RDS and alternate frequencies</li><li>DAB+ with text, DL+, slideshow</li><li>Band scan</li></ul></div>
+  <div class="card"><h3>Network</h3><ul><li>Web radio, https too</li><li>Phone audio over Wi-Fi</li><li>REST API and mDNS discovery</li></ul></div>
+  <div class="card"><h3>Audio</h3><ul><li>EQ and audio presets stored on the radio</li><li>Click-free source switching</li><li>aptX Adaptive Bluetooth</li></ul></div>
+  <div class="card"><h3>System</h3><ul><li>Alarms, sleep timer, NTP clock</li><li>Dual-partition OTA with rollback</li><li>Encrypted storage</li></ul></div>
+</div>
+
+<h2>Version history</h2>
+<div class="table-wrap"><table>
+  <tr><th>Version</th><th>Highlights</th></tr>
+  <tr><td>0.13</td><td>DSP v2, audio presets stored on the radio, click-free source switching</td></tr>
+  <tr><td>0.12</td><td>DAB DL+, band scan, MOT slideshow, memory and stream fixes</td></tr>
+  <tr><td>0.11</td><td>Alarms, sleep timer, NTP clock, automatic releases</td></tr>
+  <tr><td>0.10</td><td>Web radio, phone audio, OTA with confirm and rollback</td></tr>
+  <tr><td>0.9</td><td>FM alternate frequencies, DAB, power and standby from the app</td></tr>
+</table></div>
+<p>The code and all releases are on <a href="https://github.com/manvalan/DigiRadio">GitHub</a>.</p>
+</div></main>
+<footer class="site-footer"><div class="wrap">
+  <span>DigiRadio is an open-source project by Michele Bigi. Hardware CERN-OHL-S v2, firmware Apache 2.0.</span>
+  <span><a href="https://github.com/manvalan/DigiRadio">GitHub</a> · <a href="https://hackaday.io/project/207209-digiradio">Hackaday</a> · <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster</a></span>
+</div></footer>
+</body>
+</html>

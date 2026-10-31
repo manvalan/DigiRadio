@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Development story · DigiRadio</title>
+<meta name="description" content="DigiRadio: an open-source DAB+/FM receiver with a DSP and aptX Adaptive Bluetooth output, and its iPhone and iPad app.">
+<meta property="og:title" content="Development story · DigiRadio">
+<meta property="og:description" content="DigiRadio: an open-source DAB+/FM receiver with a DSP and aptX Adaptive Bluetooth output, and its iPhone and iPad app.">
+<meta property="og:image" content="https://digiradio.michelebigi.it/img/scheda.jpg">
+<link rel="alternate" hreflang="it" href="https://digiradio.michelebigi.it/sviluppo.html">
+<link rel="alternate" hreflang="en" href="https://digiradio.michelebigi.it/en/sviluppo.html">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../img/app-icon.png">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header class="site-header"><div class="wrap">
+  <a class="brand" href="index.html"><img src="../img/app-icon.png" alt="">DigiRadio</a>
+  <nav class="nav"><a href="index.html">Home</a><a href="v2.html">New: v2</a><a href="hardware.html">Hardware</a><a href="app.html">iOS app</a><a href="firmware.html">Firmware</a><a href="sviluppo.html" aria-current="page">Development</a><a href="privacy.html">Privacy</a></nav>
+  <a class="lang" href="../sviluppo.html" hreflang="it">Italiano</a>
+</div></header>
+<main><div class="wrap">
+<h1>How DigiRadio was built</h1>
+<p class="lead">How the radio came to be, from the first board to firmware 0.13, and how the second version was reviewed with BoardLab before going to fabrication.</p>
+
+<h2>Where it started</h2>
+<p>I wanted a DAB+ and FM radio that sent its audio to my Bluetooth speaker without going through a phone and without losing quality. I couldn't find one, so I designed it.</p>
+<p>The core idea never changed: a fully digital audio path, I²S at 48 kHz and 24 bits, from the tuner to the Bluetooth link. In the middle there's a DSP for equalisation, source mixing and presets. An ESP32-S3 runs everything and talks to an iPhone app.</p>
+<div class="flow"><span class="chip">FM / DAB+</span><span class="arrow">→</span><span class="chip">Si4684</span><span class="arrow">→ I²S →</span><span class="chip">ADAU1701 DSP</span><span class="arrow">→ I²S →</span><span class="chip">BT1035</span><span class="arrow">→</span><span class="chip">aptX</span></div>
+
+<h2>Board v1</h2>
+<div class="split">
+  <img src="../img/scheda.jpg" width="1600" height="1200" loading="lazy" alt="The assembled DigiRadio v1 board">
+  <div>
+    <p>The first board is a 6-layer, 50 × 90 mm design with four main chips: the Silicon Labs Si4684 tuner, the Analog Devices ADAU1701 DSP, the FSC-BT1035 Bluetooth module with aptX Adaptive, and the ESP32-S3.</p>
+    <p>A QFN tuner, an LQFP DSP, two 2.4 GHz modules and a USB-C connector on 6 impedance-controlled layers can't be assembled by hand. The board was fabricated and assembled by PCBWay, who sponsored part of the cost. The only part they didn't stock was the BT1035, which I soldered myself.</p>
+  </div>
+</div>
+<p>The first weeks were spent bringing it up. Two examples:</p>
+<ul>
+  <li><strong>The Bluetooth I²S format.</strong> The DSP sends 32-bit frames per channel, and the BT1035 had to be configured to receive them that way. A wrong setting shows up straight away as noise or silence.</li>
+  <li><strong>The Si4684 crystal.</strong> The 19.2 MHz crystal ran a few ppm low. Instead of changing parts, the firmware calibrates it: it measures the offset on FM stations, corrects it and stores the value in EEPROM. The residual error is now about 3 ppm.</li>
+</ul>
+
+<h2>The firmware, one version at a time</h2>
+<p>The firmware runs on the ESP32-S3, is written with ESP-IDF in C++23, and grew version by version:</p>
+<ul>
+  <li><strong>0.9:</strong> FM with RDS and alternate frequencies, DAB, power and standby from the app.</li>
+  <li><strong>0.10:</strong> web radio, phone audio over Wi-Fi, OTA updates. If a new version doesn't confirm itself within 60 seconds, the radio rolls back to the previous one on its own.</li>
+  <li><strong>0.11:</strong> alarms, sleep timer, NTP clock. From here on, releases are published automatically on GitHub and the app installs them with "Check for updates".</li>
+  <li><strong>0.12:</strong> DAB DL+, band scan, MOT slideshow, memory and stream fixes.</li>
+  <li><strong>0.13:</strong> the new DSP program, audio presets stored on the radio and click-free source switching.</li>
+</ul>
+<div class="note">One story sums up the work well: one morning the radio rebooted exactly when the alarm went off. The cause was a 4 KB buffer created on the stack for every command sent to the tuner. It worked from the app, because that task has a large stack, but the alarm task only had 6 KB. With a 64-byte buffer and more stack for the alarm the problem went away, and the next day the alarm played without a reboot.</div>
+
+<h2>The igiRadio app</h2>
+<p>The iPhone and iPad app is the radio's remote: stations, presets, equaliser, alarms, updates. It talks to the radio over Wi-Fi through a REST API and finds it on its own with mDNS. Audio presets live on the radio, not on the phone, so they stay even if you switch devices.</p>
+<p>The app will soon be on the App Store for iOS, and the Android version will be available to download from this site. In the meantime, if you'd like to try it, open an <a href="https://github.com/manvalan/DigiRadio/issues">issue on GitHub</a> and you'll get the test version.</p>
+
+<h2>The sound: the DSP</h2>
+<p>The ADAU1701 program is designed in SigmaStudio. The ESP32 reloads it at every power-up, so it can be updated over Wi-Fi without reflashing anything.</p>
+<p>With version 2 of the program I reworked the chain: a lighter compressor that no longer cuts the quiet passages, more headroom before the bass stage, six factory presets (Neutral, Voice, Music, Bass, Classical, Night) and up to ten user presets. Some of the SigmaStudio changes were made by script, so the project is reproducible.</p>
+
+<h2>Board v2</h2>
+<p>v1 works and I use it every day, but it has clear limits. https web radio streams are tight on memory, the DSP is full, and the radio only runs on mains power. v2 is designed to fix that:</p>
+<ul>
+  <li><strong>ADAU1452 instead of the ADAU1701.</strong> Much more processing power, more I²S ports, sample rate converters (ASRC) and self-boot from EEPROM.</li>
+  <li><strong>ESP32-S3 with PSRAM</strong>, for stable https web radio.</li>
+  <li><strong>BQ25896 charger</strong>, to run on battery and make it portable. For the battery I'm considering two 18650 cells in parallel or a slim pack: the choice isn't made yet.</li>
+  <li><strong>FSC-BT1058 Bluetooth module</strong>, still with aptX Adaptive.</li>
+  <li>The same 6-layer stack-up: 50 Ω for RF, 90 Ω differential for USB.</li>
+</ul>
+<p>The ADAU1452 is not a drop-in swap. It needs a 1.2 V rail that can reach almost 700 mA, so I added a dedicated buck converter. It comes in an LFCSP-72 package with a thermal pad, with different clocking and a different pin map. Every pin was checked against the datasheet.</p>
+<p>So as not to rely on memory alone, I compared v2 with Analog Devices' evaluation board for the ADAU1452. That brought a few fixes: NP0 crystal capacitors, an extra 1 µF on the 1.2 V rail, ESD protection on the antenna and the right footprint for the EEPROM.</p>
+
+<h2 id="boardlab">BoardLab: the review before the Gerbers</h2>
+<p class="lead">I had the v2 layout reviewed by <a href="https://boardlab.it">BoardLab</a>, a PCB analysis tool I develop myself.</p>
+
+<h3>What it is</h3>
+<p>KiCad's DRC checks geometric rules: clearances, widths, connections. It knows nothing about what the chips do. A board can pass DRC with zero errors and still not power up.</p>
+<p>BoardLab starts where DRC stops. It reads the schematic and the PCB, reads the component datasheets and checks the design against them, the way an experienced colleague would in a design review:</p>
+<div class="cards">
+  <div class="card"><h3>Connections and power</h3><p>Checks that every chip is powered, that mandatory pins are connected and that power domains don't back-feed each other.</p></div>
+  <div class="card"><h3>Datasheet rules</h3><p>Decoupling capacitors next to the right pins, short power loops, ground vias where they're needed. Every finding cites the datasheet page.</p></div>
+  <div class="card"><h3>Traces and currents</h3><p>Checks that power traces are wide enough for the current they carry.</p></div>
+  <div class="card"><h3>Antennas and noise</h3><p>Estimates how much the 2.4 GHz modules couple into nearby traces, scenario by scenario.</p></div>
+  <div class="card"><h3>Ground planes</h3><p>Flags plane splits under differential pairs and under switching nodes.</p></div>
+</div>
+<p>Each finding is classified as <strong>blocker</strong>, <strong>to review</strong> or <strong>info</strong>, together with how much of the board the analysis covered.</p>
+
+<h3>What it found on v2</h3>
+<p>The first reviews were the most valuable. On a schematic that passed KiCad's checks, BoardLab found problems that would have made the board useless:</p>
+<ul>
+  <li><strong>The BT1058 Bluetooth module had no power.</strong> Its 3.3 V rail existed, with its capacitors, but wasn't connected to any source.</li>
+  <li><strong>The BQ25896 charger was isolated.</strong> Its input wasn't connected to USB and its output powered nothing: the battery would never have powered the board.</li>
+  <li><strong>The charger's interrupt didn't reach the ESP32.</strong></li>
+</ul>
+<p>These are the kind of mistakes you only find once the board is assembled, with a new order and a few weeks lost.</p>
+<p>In later reviews the findings became subtler:</p>
+<ul>
+  <li><strong>Pull-ups on the wrong domain.</strong> Two SPI pull-ups were on the always-on digital 3.3 V, while the chips they served were on the audio 3.3 V, which can be switched off. With audio off, those chips would have been powered through their pins' protection diodes.</li>
+  <li><strong>An LED that would never light.</strong> A blue LED, which needs about 3.2 V, on 3.3 V with 1 kΩ in series.</li>
+  <li><strong>0.127 mm power traces</strong> in the regulators' inductor loops, which carry about 1 A peak.</li>
+  <li><strong>A thin margin on the 1.2 V buck enable</strong>: 1.34 V against a 1.2 V threshold. A different resistor raised it to 1.65 V.</li>
+  <li><strong>The DSP reset trace next to the ESP32 antenna</strong>, and a forgotten copper zone on an I²S signal.</li>
+  <li><strong>Capacitors and ground vias</strong> to move closer to the pins, per the charger, Bluetooth module and regulator datasheets.</li>
+</ul>
+
+<h3>From one report to the next</h3>
+<div class="table-wrap"><table><tr><th></th><th>Report 4</th><th>Report 6</th><th>Report 7</th></tr><tr><td>Blockers</td><td>0</td><td>0</td><td>0</td></tr><tr><td>To review</td><td>17</td><td>22</td><td>21</td></tr><tr><td>Info</td><td>125</td><td>106</td><td>—</td></tr><tr><td>Coverage</td><td>49 %</td><td>62 %</td><td>—</td></tr></table></div>
+<p>Between report 4 and report 6 the "to review" count went up, but not because the board got worse. Report 6 checked one more part and applied the layout rules from the Bluetooth module, charger and regulator datasheets. Coverage went from 49 to 62 %.</p>
+<p>Report 7 closed every recommendation from report 6 and added a new one: a 1 µF capacitor on the DSP's 1.2 V rail, as the datasheet asks on page 193. It's the same point that came out of the evaluation board comparison.</p>
+<div class="note">In the end v2 reached <strong>0 blockers, 0 DRC errors and a schematic and PCB in sync</strong>: ready for Gerbers.</div>
+
+<h3>How I use it</h3>
+<p>BoardLab doesn't decide for me. I check every finding against the netlist and the datasheet, then I choose. Some I accepted as they are: 18 vias under the DSP's thermal pad instead of 49 are enough for half a watt. Others were false positives, for example a badly extracted Si4684 pin table.</p>
+<p>What matters is that the review happens before ordering, when a fix costs a click and not a new board.</p>
+
+<h2>Fabrication and community</h2>
+<p>The v1 PCB was fabricated and assembled by <a href="https://www.pcbway.com/">PCBWay</a> (except the Bluetooth module), who sponsored part of the cost, and you can order it from the <a href="https://www.pcbway.com/project/shareproject/DigiRadio_Open_Source_Hi_Fi_DAB_FM_Receiver_with_DSP_and_aptX_Adaptive_Blueto_a1952812.html">project page</a>: always kind, courteous and very professional. I'm assembling v2 myself: I order only the bare PCBs from PCBWay and solder the components on my own.</p>
+<p>The project is also documented on <a href="https://hackaday.io/project/207209-digiradio">Hackaday.io</a>, on <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster.io</a> and on r/esp32.</p>
+
+<h2>Fully open</h2>
+<p>Schematic, PCB, bill of materials and firmware are on <a href="https://github.com/manvalan/DigiRadio">GitHub</a>: hardware under CERN-OHL-S v2, firmware under Apache 2.0.</p>
+
+<h2>What's next</h2>
+<ul>
+  <li>Assemble and test v2.</li>
+  <li>Recalibrate the Si4684 crystal on the new board.</li>
+  <li>Port the firmware to the ADAU1452 and PSRAM.</li>
+  <li>Choose the battery: two 18650s in parallel or a slim pack.</li>
+  <li>The app on the App Store, and the Android version.</li>
+</ul>
+</div></main>
+<footer class="site-footer"><div class="wrap">
+  <span>DigiRadio is an open-source project by Michele Bigi. Hardware CERN-OHL-S v2, firmware Apache 2.0.</span>
+  <span><a href="https://github.com/manvalan/DigiRadio">GitHub</a> · <a href="https://hackaday.io/project/207209-digiradio">Hackaday</a> · <a href="https://www.hackster.io/mikbigi/digiradio-open-source-dab-fm-receiver-with-aptx-bluetooth-42d2b6">Hackster</a></span>
+</div></footer>
+</body>
+</html>
