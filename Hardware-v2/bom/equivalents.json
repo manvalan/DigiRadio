@@ -291,30 +291,6 @@
         }
       ]
     },
-    "RF/COAXIAL SMA BHD JACK STR 50OHM SOLDER": {
-      "candidates": [
-        {
-          "mouser": "132289",
-          "mpn": "132289",
-          "brand": "Amphenol RF",
-          "stock": 13634,
-          "eur": [
-            [
-              1,
-              7.83
-            ]
-          ],
-          "orig": true
-        }
-      ],
-      "note": "Nessun equivalente economico verificato per il PCB attuale, che ha le masse a ±4,25 mm: SMA-KE-P ha le masse a circa ±2,8 mm e KH-SMA-KE5.4 a circa ±2,55 mm, con quattro pin d'angolo.",
-      "options": [
-        {
-          "lcsc": "C49118400",
-          "note": "HanElectricity SMA-KE-P, a bordo scheda su 1,6 mm, ma con masse a circa ±2,8 mm: richiede di cambiare l'impronta sul PCB"
-        }
-      ]
-    },
     "S2B-PH-K-S(LF)(SN)": {
       "candidates": [
         {
@@ -894,7 +870,7 @@
           "orig": true
         }
       ],
-      "note": "Richiede l'impronta MIKILAB_SMA_KE_P:SMA-KE-P_EdgeMount al posto di quella Amphenol."
+      "note": "Sostituisce l'Amphenol 132289, da 7,83 € a pezzo su Mouser. Impronta dal disegno del costruttore: prova un connettore prima di ordinare i PCB."
     }
   }
 }

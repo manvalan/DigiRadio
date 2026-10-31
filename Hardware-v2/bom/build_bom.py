@@ -305,7 +305,11 @@ def main():
                          "Costo EUR": euro(total), "Costo originale EUR": euro(total_original)})
 
     for supplier, lines in orders.items():
-        with (args.out / f"ordine-{supplier.lower()}-{suffix}.csv").open("w", newline="", encoding="utf-8") as handle:
+        order_path = args.out / f"ordine-{supplier.lower()}-{suffix}.csv"
+        if not lines:
+            order_path.unlink(missing_ok=True)
+            continue
+        with order_path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
             writer.writerow(["Part Number", "MPN", "Quantity", "Customer Reference"])
             for code, mpn, pieces, reference in lines:

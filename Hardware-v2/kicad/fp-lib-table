@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "MIKILAB_SMA_KE_P")(type "KiCad")(uri "${KIPRJMOD}/MIKILAB_SMA_KE_P.pretty")(options "")(descr "SMA-KE-P edge connector"))
+)
