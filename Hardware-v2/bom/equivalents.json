@@ -56,9 +56,8 @@
       "note": "Sul nodo antenna: la capacità del clone non è nota, quindi tengo onsemi."
     },
     "SMF6V0A": {
-      "candidates": [{"lcsc": "C968582", "orig": true}],
-      "options": [{"lcsc": "C42411346", "note": "FUXINSEMI: LCSC indica SOD-123, va controllato sull'impronta SMF"}],
-      "note": "TVS su V_USB."
+      "candidates": [{"lcsc": "C968582", "orig": true}, {"lcsc": "C42411346"}],
+      "note": "TVS su V_USB. FUXINSEMI ha gli stessi 6 V, 10,3 V di clamp e 200 W; LCSC lo indica SOD-123, i terminali cadono sui pad di D_SMF, ma controlla la banda del catodo al montaggio."
     },
     "BLM18SG121TN1D": {
       "candidates": [{"lcsc": "C113030", "orig": true}, {"lcsc": "C52178221"}],
@@ -158,9 +157,9 @@
       "note": "SOIJ-8 208 mil, come richiesto dall'impronta."
     },
     "ABM8-19.200MHZ-10-1-U-T": {
-      "candidates": [{"lcsc": "C1986852", "orig": true}, {"mouser": "ABM8-19.200MHZ-10-1-U-T", "mpn": "ABM8-19.200MHZ-10-1-U-T", "brand": "Abracon", "stock": 3469, "eur": [[1, 0.421], [10, 0.368], [25, 0.334], [100, 0.32]], "orig": true}],
-      "options": [{"lcsc": "C718671", "note": "LIMING ±10 ppm 10 pF, ESR non pubblicata"}, {"lcsc": "C7302008", "note": "SCTF ±10 ppm, stabilità ±30 ppm, ESR 60 Ω"}],
-      "note": "Quarzo del Si4684, già calibrato su v1. Il risparmio con i cinesi è minimo, quindi tengo Abracon."
+      "candidates": [{"lcsc": "C1986852", "orig": true}, {"mouser": "ABM8-19.200MHZ-10-1-U-T", "mpn": "ABM8-19.200MHZ-10-1-U-T", "brand": "Abracon", "stock": 3469, "eur": [[1, 0.421], [10, 0.368], [25, 0.334], [100, 0.32]], "orig": true}, {"lcsc": "C7423063"}, {"lcsc": "C7302008"}],
+      "options": [{"lcsc": "C718671", "note": "LIMING ±10 ppm 10 pF, ESR non pubblicata"}],
+      "note": "Quarzo del Si4684: Lucki e SCTF hanno 10 pF, ±10 ppm e ESR pubblicata (30 e 60 Ω). Con un quarzo diverso da Abracon ricalibra CTUN e XTAL_FREQ."
     },
     "ABM3B-12.288MHZ-10-1-U-T": {
       "candidates": [{"lcsc": "C1985371", "orig": true}, {"mouser": "ABM3B-12.288MHZ-10-1-U-T", "mpn": "ABM3B-12.288MHZ-10-1-U-T", "brand": "Abracon", "stock": 305, "eur": [[1, 0.671]], "orig": true}],

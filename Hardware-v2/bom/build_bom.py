@@ -8,6 +8,7 @@ real purchase cost, including minimum order quantities.
 
     python3 build_bom.py --boards 5
     python3 build_bom.py --boards 5 --solo-passivi
+    python3 build_bom.py --boards 5 --senza-ic
     python3 build_bom.py --cerca       # also suggest cheaper C and R on LCSC
 
 Output in output/: the full BOM (semicolon CSV for Excel) and one order file
@@ -216,6 +217,8 @@ def main():
     parser.add_argument("--usd-eur", type=float, help="cambio USD-EUR, altrimenti quello BCE del giorno")
     parser.add_argument("--solo-passivi", action="store_true",
                         help="solo condensatori, resistenze, induttori, ferriti e quarzi")
+    parser.add_argument("--senza-ic", action="store_true",
+                        help="passivi, quarzi, diodi e connettori, senza IC e pulsanti")
     parser.add_argument("--cerca", action="store_true", help="suggerisce C e R più economici su LCSC")
     parser.add_argument("--out", type=Path, default=HERE / "output")
     args = parser.parse_args()
@@ -225,6 +228,8 @@ def main():
     rows = export_bom()
     if args.solo_passivi:
         rows = [r for r in rows if re.match(r"(C|R|L|FB|Y)\d", r["Reference"])]
+    if args.senza_ic:
+        rows = [r for r in rows if re.match(r"(C|R|L|FB|Y|D|J)\d", r["Reference"])]
     if args.cerca:
         suggest(rows, parts)
         return 0
@@ -285,7 +290,7 @@ def main():
         output.append(line)
 
     args.out.mkdir(parents=True, exist_ok=True)
-    suffix = f"{args.boards}-schede" + ("-passivi" if args.solo_passivi else "")
+    suffix = f"{args.boards}-schede" + ("-passivi" if args.solo_passivi else "-senza-ic" if args.senza_ic else "")
     columns = ["Riferimenti", "Valore", "Qta scheda", "Qta necessaria", "Stato", "Fornitore", "Codice",
                "MPN scelto", "Marca", "Package", "Stock", "Pezzi da comprare", "Prezzo unit EUR",
                "Costo EUR", "Costo originale EUR", "Consegna", "MPN schema", "Impronta", "Note",
@@ -295,7 +300,7 @@ def main():
         writer = csv.DictWriter(handle, columns, delimiter=";")
         writer.writeheader()
         writer.writerows(output)
-        label = "TOTALE passivi, spedizione esclusa" if args.solo_passivi else "TOTALE, BT1058 e spedizione esclusi"
+        label = "TOTALE parziale, spedizione esclusa" if args.solo_passivi or args.senza_ic else "TOTALE, BT1058 e spedizione esclusi"
         writer.writerow({"Riferimenti": label,
                          "Costo EUR": euro(total), "Costo originale EUR": euro(total_original)})
 
