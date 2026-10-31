@@ -467,3 +467,8 @@ bool HardwareBootstrap::saveXtalCalibration(std::uint8_t ibias,
 }
 
 } // namespace hardware
+
+adau1452::Adau1452Driver& board_v2::dsp() noexcept
+{
+    return hardware::gAdau1452;
+}

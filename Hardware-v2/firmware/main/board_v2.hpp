@@ -12,6 +12,8 @@
  */
 #pragma once
 
+#include "adau1452/Adau1452Driver.hpp"
+
 #include "driver/i2c_master.h"
 
 namespace board_v2 {
@@ -63,5 +65,17 @@ void disableAnalog();
  * @date     2026-10-31
  */
 [[nodiscard]] i2c_master_bus_handle_t i2cBus() noexcept;
+
+/**
+ * @brief    dsp — borrow the DSP driver, defined by the bootstrap.
+ *
+ * @dname    dsp
+ * @return   Driver with static lifetime.
+ * @pubstate none
+ *
+ * @author   Michele Bigi
+ * @date     2026-11-01
+ */
+[[nodiscard]] adau1452::Adau1452Driver& dsp() noexcept;
 
 } // namespace board_v2

@@ -13,6 +13,7 @@
 
 #include "alarm_clock.hpp"
 #include "board_pins.hpp"
+#include "board_v2.hpp"
 #include "hardware_bootstrap.hpp"
 #include "adau1452/Adau1452Store.hpp"
 #include "audio/AudioService.hpp"
@@ -35,6 +36,7 @@
 #include "phone_pcm_server.hpp"
 #include "phone_stream.hpp"
 #include "power_monitor.hpp"
+#include "sigma_bridge.hpp"
 #include "system_diag.hpp"
 #include "web_radio_stream.hpp"
 #include "webradio/WebRadioService.hpp"
@@ -336,6 +338,10 @@ extern "C" void app_main()
     };
     if (!alarm_clock::start(alarmServices)) {
         ESP_LOGW(kTag, "alarm task create failed");
+    }
+
+    if (!sigma_bridge::start(board_v2::dsp())) {
+        ESP_LOGW(kTag, "SigmaStudio+ bridge task create failed");
     }
 
     if (!power_monitor::start()) {

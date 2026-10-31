@@ -160,6 +160,51 @@ public:
     [[nodiscard]] std::expected<core::AudioLevels, Adau1452Error> readLevels();
 
     /**
+     * @brief    writeRaw — write bytes straight to the DSP's memory map.
+     *
+     * @dname    writeRaw
+     * @param    address  First address.
+     * @param    data     Whole words for that memory.
+     * @return   Ok, or Adau1452Error.
+     * @pubstate none. For the SigmaStudio+ bridge.
+     *
+     * @author   Michele Bigi
+     * @date     2026-11-01
+     */
+    [[nodiscard]] std::expected<void, Adau1452Error> writeRaw(
+        std::uint16_t address, std::span<const std::uint8_t> data);
+
+    /**
+     * @brief    safeloadRaw — safeload 4-byte words, five at a time.
+     *
+     * @dname    safeloadRaw
+     * @param    address  First target address.
+     * @param    data     Big-endian words.
+     * @return   Ok, or Adau1452Error.
+     * @pubstate none. For the SigmaStudio+ bridge.
+     *
+     * @author   Michele Bigi
+     * @date     2026-11-01
+     */
+    [[nodiscard]] std::expected<void, Adau1452Error> safeloadRaw(
+        std::uint16_t address, std::span<const std::uint8_t> data);
+
+    /**
+     * @brief    readRaw — read bytes straight from the DSP's memory map.
+     *
+     * @dname    readRaw
+     * @param    address  First address.
+     * @param    data     Receives whole words for that memory.
+     * @return   Ok, or Adau1452Error.
+     * @pubstate none. For the SigmaStudio+ bridge.
+     *
+     * @author   Michele Bigi
+     * @date     2026-11-01
+     */
+    [[nodiscard]] std::expected<void, Adau1452Error> readRaw(
+        std::uint16_t address, std::span<std::uint8_t> data);
+
+    /**
      * @brief    writeRegister — write one 16-bit control register.
      *
      * @dname    writeRegister

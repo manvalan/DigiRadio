@@ -418,6 +418,67 @@ std::expected<void, Adau1452Error> Adau1452Driver::safeload(
     return {};
 }
 
+std::expected<void, Adau1452Error> Adau1452Driver::writeRaw(
+    std::uint16_t address, std::span<const std::uint8_t> data)
+{
+    if (auto dev = ensureDevice(); !dev) {
+        return dev;
+    }
+    return writeBlock(address, data);
+}
+
+std::expected<void, Adau1452Error> Adau1452Driver::safeloadRaw(
+    std::uint16_t address, std::span<const std::uint8_t> data)
+{
+    constexpr std::size_t kWordBytes = 4U;
+    if (auto dev = ensureDevice(); !dev) {
+        return dev;
+    }
+    if (data.size() % kWordBytes != 0U) {
+        return std::unexpected(Adau1452Error::InvalidParameter);
+    }
+    std::array<std::int32_t, kSafeloadMaxWords> words = {};
+    for (std::size_t done = 0U; done < data.size() / kWordBytes;) {
+        const std::size_t count =
+            std::min(kSafeloadMaxWords, data.size() / kWordBytes - done);
+        for (std::size_t i = 0U; i < count; ++i) {
+            const std::uint8_t* p = &data[(done + i) * kWordBytes];
+            words[i] = static_cast<std::int32_t>(
+                (static_cast<std::uint32_t>(p[0]) << 24)
+                | (static_cast<std::uint32_t>(p[1]) << 16)
+                | (static_cast<std::uint32_t>(p[2]) << 8) | p[3]);
+        }
+        const auto target = static_cast<std::uint16_t>(address + done);
+        if (auto sent = safeload(target,
+                                 std::span<const std::int32_t>(words.data(),
+                                                               count));
+            !sent) {
+            return sent;
+        }
+        done += count;
+    }
+    return {};
+}
+
+std::expected<void, Adau1452Error> Adau1452Driver::readRaw(
+    std::uint16_t address, std::span<std::uint8_t> data)
+{
+    if (auto dev = ensureDevice(); !dev) {
+        return dev;
+    }
+    const std::size_t step = wordBytes(address);
+    for (std::size_t done = 0U; done < data.size();) {
+        const std::size_t chunk = std::min(kBlockBytes, data.size() - done);
+        const auto at = static_cast<std::uint16_t>(address + done / step);
+        if (auto got = transfer(kRead, at, {}, data.subspan(done, chunk));
+            !got) {
+            return got;
+        }
+        done += chunk;
+    }
+    return {};
+}
+
 std::expected<void, Adau1452Error> Adau1452Driver::selectSource(
     core::ActiveSource source)
 {

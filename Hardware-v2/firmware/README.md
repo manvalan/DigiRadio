@@ -63,6 +63,10 @@ A DSP failure does not stop the boot, so the web server and OTA stay reachable.
 
 Each request reboots the radio. Uploads stay in the `dsp` partition. An image already written is not written again even if it fails to boot; upload another one.
 
+## SigmaStudio+ over the network
+
+The firmware serves the SigmaStudio+ TCP/IP channel on port 8086, as v1 did with SigmaStudio, so no USBi is needed. In the hardware tab use the TCP/IP adaptor in place of the USBi, with the radio's IP. Then SigmaStudio+ can download and tune live, and write the EEPROM with Self Boot Memory, Write latest compilation through DSP. Read it back with `CONFIG_DIGIRADIO_DUMP_DSP_EEPROM` to get the image for other boards.
+
 ## Updating the BT1058
 
 Over the air with the FeasyBlue app, as [Feasycom documents](https://document.feasycom.com/docs/fsc-audio/EN/latest/bt1058/8-firmware-upgrade.html). The firmware needs no part in it, but do not restart or update the ESP32 meanwhile: a restart turns off 3V3_AUDIO and the module with it. To check at bring-up: that the app finds the module in source mode.
@@ -70,6 +74,8 @@ Over the air with the FeasyBlue app, as [Feasycom documents](https://document.fe
 ## To check at bring-up
 
 These were written from documents or by analogy, and only a board can confirm them.
+
+- **SigmaStudio+ TCP/IP channel.** Written from the ADI wiki and sigma_tcp, never connected to SigmaStudio+. Other firmware tasks may also use the DSP while it runs.
 
 - **BT1058.** The driver follows the [AT Command Set](https://document.feasycom.com/docs/audio/BT1058_EN/latest/at-cmd-set.html): source mode, `AT+AUXCFG=3`, `AT+I2SCFG=35`, one reboot when a setting changed. Still open: that 24 bit data works with the DSP's 64 BCLK per frame (32 bit slots), and the exact reply format of `AT+MODCFG`. If that format differs, the module reboots at every boot. The scan and pairing replies come from the BT1035 parser. Feasycom has not answered about I2S slave clocking.
 - **CRC of `FLASH_CHECK_CRC32`.** AN649 does not name the polynomial; the code uses CRC-32 IEEE. A wrong guess would rewrite the flash at every boot, and the log would show it.
@@ -80,7 +86,6 @@ These were written from documents or by analogy, and only a board can confirm th
 
 ## Not done
 
-- **Self boot image.** SigmaStudio+ makes it only while writing to a board over USBi. On the first board: wire the USBi to the ADAU1452 SPI, write from SigmaStudio+, read the EEPROM back, and save that as `dsp/adau1452_selfboot.bin`. From then on the firmware writes it to other boards with the writer program. Until then every boot downloads the program over SPI, which is normal and not an error. To read it back, enable `CONFIG_DIGIRADIO_DUMP_DSP_EEPROM`, save the serial log and run `tools/eeprom_log_to_bin.py`.
+- **Self boot image.** SigmaStudio+ makes it only while writing a board, over USBi or the network channel above. On the first board: write from SigmaStudio+, enable `CONFIG_DIGIRADIO_DUMP_DSP_EEPROM`, save the serial log, run `tools/eeprom_log_to_bin.py`, and save the result as `dsp/adau1452_selfboot.bin`. From then on the firmware writes it to other boards with the writer program. Until then every boot downloads the program over SPI, which is normal and not an error.
 - **Published builds without Si4684 images.** The app must carry them, since it fills U7 and sends the patch.
-- **SigmaStudio TCP bridge.** It is ADAU1701 only and does nothing on v2.
 - **DSP to ESP32 audio (GPIO42) and the second flash (U3).** Wired, but unused.

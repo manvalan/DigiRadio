@@ -9,6 +9,7 @@ idf_component_register(
         "hardware_bootstrap.cpp"
         "esp32_i2s_sink.cpp"
         "power_monitor.cpp"
+        "sigma_bridge.cpp"
         "${V1_MAIN}/web_radio_stream.cpp"
         "${V1_MAIN}/web_radio_fetch.cpp"
         "${V1_MAIN}/audio_routing.cpp"
