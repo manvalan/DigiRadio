@@ -886,6 +886,15 @@
         }
       ],
       "note": "Clock dell'ADAU1452. SJK verificato sul datasheet: 5032, quarzo sui pin 1 e 3, massa su 2 e 4, 10 pF, ESR massima 40 Ω. C141/C142 da 12 pF restano validi."
+    },
+    "SMA-KE-P": {
+      "candidates": [
+        {
+          "lcsc": "C49118400",
+          "orig": true
+        }
+      ],
+      "note": "Richiede l'impronta MIKILAB_SMA_KE_P:SMA-KE-P_EdgeMount al posto di quella Amphenol."
     }
   }
 }
