@@ -225,6 +225,14 @@ BODY["it", "v2"] = lambda: f"""
   <figure><a href="img/v2-layout.jpg"><img src="img/v2-layout.jpg" loading="lazy" alt="Layout dello strato superiore della scheda v2"></a><figcaption>Il layout in KiCad, strato superiore.</figcaption></figure>
 </div>
 
+<h2>Il contenitore</h2>
+<p>Il contenitore è fatto di due gusci che si chiudono a scatto, stampati in 3D su una Bambu Lab X1C, e misura 65,6 × 84,6 × 25 mm. Nelle foto si vede il guscio superiore in PETG bianco traslucido con le scritte nere. Dentro, al posto della scheda vera, c'è una scheda finta stampata color oro, che serve a provare gli ingombri.</p>
+<div class="gallery">
+  <figure><a href="img/v2-case-fronte.jpg"><img src="img/v2-case-fronte.jpg" width="1200" height="1600" loading="lazy" alt="Il contenitore stampato della v2 visto di fronte"></a><figcaption>Il frontale, con il nome, le scritte dei connettori e il tasto RESET.</figcaption></figure>
+  <figure><a href="img/v2-case-alto.jpg"><img src="img/v2-case-alto.jpg" width="1200" height="1600" loading="lazy" alt="Il contenitore stampato della v2 visto dall'alto su un panno nero"></a><figcaption>Dall'alto: dalle feritoie a forma di onda sonora si vede la scheda finta.</figcaption></figure>
+  <figure><a href="img/v2-case-tre-quarti.jpg"><img src="img/v2-case-tre-quarti.jpg" width="1200" height="1600" loading="lazy" alt="Il contenitore stampato della v2 con la luce che attraversa il guscio"></a><figcaption>Con un'altra luce, che attraversa il guscio traslucido.</figcaption></figure>
+</div>
+
 <h2>Verificata con BoardLab</h2>
 <p>Prima di ordinarla ho fatto revisionare la scheda da <a href="https://boardlab.it">BoardLab</a>, un software di analisi dei PCB che sviluppo io. Legge schema, layout e il datasheet di ogni integrato e dice se la scheda si può ordinare, citando la pagina del datasheet da cui viene ogni osservazione. Sulle revisioni precedenti ha trovato problemi veri, come pull-up I²C mancanti, il carico e il drive level dei quarzi e il filtro del PLL del DSP. La storia completa è nella pagina <a href="sviluppo.html#boardlab">Sviluppo</a>.</p>
 
@@ -292,6 +300,14 @@ BODY["en", "v2"] = lambda: f"""
 <div class="gallery two">
   <figure><a href="../img/v2-render.jpg"><img src="../img/v2-render.jpg" loading="lazy" alt="3D render of the v2 board"></a><figcaption>3D render: the ESP32-S31 and the tuner at the top, the ADAU1452 in the middle, power and charger at the bottom.</figcaption></figure>
   <figure><a href="../img/v2-layout.jpg"><img src="../img/v2-layout.jpg" loading="lazy" alt="Top layer layout of the v2 board"></a><figcaption>The KiCad layout, top layer.</figcaption></figure>
+</div>
+
+<h2>The case</h2>
+<p>The case is made of two shells that snap together, 3D printed on a Bambu Lab X1C, and measures 65.6 × 84.6 × 25 mm. The photos show the upper shell in translucent white PETG with black lettering. Inside, in place of the real board, there is a dummy board printed in gold, used to check the fit.</p>
+<div class="gallery">
+  <figure><a href="../img/v2-case-fronte.jpg"><img src="../img/v2-case-fronte.jpg" width="1200" height="1600" loading="lazy" alt="The printed v2 case seen from the front"></a><figcaption>The front, with the name, the connector labels and the RESET button.</figcaption></figure>
+  <figure><a href="../img/v2-case-alto.jpg"><img src="../img/v2-case-alto.jpg" width="1200" height="1600" loading="lazy" alt="The printed v2 case seen from above on a black cloth"></a><figcaption>From above: the dummy board shows through the sound-wave slots.</figcaption></figure>
+  <figure><a href="../img/v2-case-tre-quarti.jpg"><img src="../img/v2-case-tre-quarti.jpg" width="1200" height="1600" loading="lazy" alt="The printed v2 case with light passing through the shell"></a><figcaption>In different light, passing through the translucent shell.</figcaption></figure>
 </div>
 
 <h2>Checked with BoardLab</h2>

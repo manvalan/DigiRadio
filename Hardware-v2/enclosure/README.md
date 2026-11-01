@@ -8,6 +8,7 @@ Two-part snap-fit case for the v2 board, for a Bambu Lab X1C with AMS. Outside s
 | `stl/` | Single-colour shells in print orientation |
 | `step/` | Every part, in the coordinates of `../3d/digiradio-v2.step` |
 | `renders/` | Previews |
+| `foto/` | Photos of the printed case: translucent white PETG with black lettering, and a gold printed dummy board inside |
 | `digiradio_v2_case.py` | Parametric CadQuery model that generates all of the above |
 | `check_fit.py` | Clash check against the board STEP and the battery |
 
