@@ -46,7 +46,7 @@ netlist.
 
 1. ENABLE_ANALOG goes high with every audio pin floating, then SMODE goes low.
 2. ADAU1452: reset with SELFBOOT released, three dummy writes to enter SPI mode, then check CORE_STATUS and PANIC_FLAG. This comes first because it would otherwise read Si4684 traffic as I2C. Without a self boot, a second reset with SELFBOOT low (GPIO22) and an SPI download.
-3. If the EEPROM image differs from the one in the app, write and verify it, then reboot the DSP.
+3. If the image in the app has not been written yet, write and verify it (about half a minute, as a rough estimate), then reboot the DSP.
 4. Si4684: load the patch, check both images with `FLASH_CHECK_CRC32`, rewrite them if different.
 5. Si4684 boots with `FLASH_LOAD`. If the flash step failed, it uses `HOST_LOAD` as on v1.
 6. BT1058 starts in the background, as on v1.
@@ -59,13 +59,13 @@ A DSP failure does not stop the boot, so the web server and OTA stay reachable.
 |---|---|
 | `POST /api/dsp/program`, DRAD blob from `tools/sigma_export.py` | Runs this program over SPI with SELFBOOT low, ignoring the EEPROM. To try a program, or to recover |
 | `DELETE /api/dsp/program` | Back to the EEPROM, or to the program in the app |
-| `POST /api/dsp/eeprom`, raw self boot image | Writes it to the 25AA1024 with the writer program and verifies it, then boots from it. Takes minutes: keep the power on |
+| `POST /api/dsp/eeprom`, raw self boot image | Writes it to the 25AA1024 with the writer program and verifies it, then boots from it. Takes a while: keep the power on |
 
 Each request reboots the radio. Uploads stay in the `dsp` partition. An image already written is not written again even if it fails to boot; upload another one.
 
 ## SigmaStudio+ over the network
 
-The firmware serves the SigmaStudio+ TCP/IP channel on port 8086, as v1 did with SigmaStudio, so no USBi is needed. In the hardware tab use the TCP/IP adaptor in place of the USBi, with the radio's IP. Then SigmaStudio+ can download and tune live, and write the EEPROM with Self Boot Memory, Write latest compilation through DSP. Read it back with `CONFIG_DIGIRADIO_DUMP_DSP_EEPROM` to get the image for other boards.
+The firmware serves the SigmaStudio+ TCP/IP channel on port 8086, as v1 did with SigmaStudio, so no USBi is needed. In the hardware tab use the TCP/IP adaptor in place of the USBi, with the radio's IP. Then SigmaStudio+ can download and tune live.
 
 ## Updating the BT1058
 
@@ -74,6 +74,8 @@ Over the air with the FeasyBlue app, as [Feasycom documents](https://document.fe
 ## To check at bring-up
 
 These were written from documents or by analogy, and only a board can confirm them.
+
+- **Self boot image and writer.** `dsp/adau1452_selfboot.bin` matches the program word for word and its checksum holds, but no chip has read it, and the writer has never driven a real EEPROM. If it does not boot, the firmware downloads the program over SPI at every boot and logs a warning. To read back what is in the EEPROM, enable `CONFIG_DIGIRADIO_DUMP_DSP_EEPROM` and use `tools/eeprom_log_to_bin.py`.
 
 - **SigmaStudio+ TCP/IP channel.** Written from the ADI wiki and sigma_tcp, never connected to SigmaStudio+. Other firmware tasks may also use the DSP while it runs.
 
@@ -86,6 +88,5 @@ These were written from documents or by analogy, and only a board can confirm th
 
 ## Not done
 
-- **Self boot image.** SigmaStudio+ makes it only while writing a board, over USBi or the network channel above. On the first board: write from SigmaStudio+, enable `CONFIG_DIGIRADIO_DUMP_DSP_EEPROM`, save the serial log, run `tools/eeprom_log_to_bin.py`, and save the result as `dsp/adau1452_selfboot.bin`. From then on the firmware writes it to other boards with the writer program. Until then every boot downloads the program over SPI, which is normal and not an error.
 - **Published builds without Si4684 images.** The app must carry them, since it fills U7 and sends the patch.
 - **DSP to ESP32 audio (GPIO42) and the second flash (U3).** Wired, but unused.

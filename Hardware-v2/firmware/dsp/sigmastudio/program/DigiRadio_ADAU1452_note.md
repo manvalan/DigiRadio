@@ -72,11 +72,12 @@ Tutte in formato 8.24, scrittura con safeload. Gli indirizzi completi sono in `e
 I file esportati riportano la nota di Analog Devices sulla non distribuzione a terzi. Il repo pubblico li contiene già per l'ADAU1701; decidi tu se pubblicare anche questi.
 
 ## EEPROM e self-boot
-**Immagine `adau1452_selfboot.bin`: non c'è.** SigmaStudio+ la genera solo scrivendo su una scheda via USBi, e le note di rilascio dicono che l'esportazione su file non è supportata. Il datasheet descrive header, blocchi e footer, ma non spiega come vengono impostati i registri né il campo di velocità EEPROM, e sul programma di SigmaStudio+ il formato è interno: un'immagine fatta a mano qui non sarebbe verificabile.
+**Immagine `adau1452_selfboot.bin`: c'è.** 4864 byte, da scrivere dall'indirizzo 0 della 25AA1024. L'ha generata SigmaStudio+ stesso: ho collegato il progetto a un finto target TCP sul laptop, ho avviato la scrittura attraverso il DSP (`WriteCompilation`) e ho salvato le pagine inviate alla cella 0x3C, con `extract_selfboot.py`.
 
-Strada proposta:
-1. Finché non c'è, l'ESP32 carica il programma in RAM via SPI slave a ogni avvio.
-2. Con la prima scheda: USBi cablato su SPI_ADAU, in SigmaStudio+ "Write Latest Compilation to E2PROM".
-3. Il writer legge la EEPROM e salva l'immagine, che diventa `adau1452_selfboot.bin`.
+Verificato: header, blocchi e footer rispettano il datasheet Rev. D, pag. 52-53; PLL_CHECKSUM e checksum finale tornano; il blocco PM coincide byte per byte con `Program.dat`; i blocchi DM stanno in `DMem0.dat` e `DMem1.dat`; i registri sono quelli dell'export. Il progetto usato per la cattura differisce da quello consegnato solo per la porta di comunicazione: `Program.bin`, `DMem0.dat` e `DMem1.dat` hanno lo stesso hash. **Non è mai stata letta da un ADAU1452 reale.**
+
+Particolarità: la prima scrittura dopo l'avvio di SigmaStudio+ aveva nel campo velocità 0x9D2F35, chiaramente non inizializzato; le tre successive, identiche, hanno 0x0F, che è lo stesso valore configurato nel programmatore. Uso quelle. Se ricompili il programma, l'immagine va rigenerata.
+
+**Programmatore di SigmaStudio+:** `adau1452_ss_eeprom_programmer.jsonl` è la sequenza completa: programma scaricato nel DSP, celle di configurazione da 0x27 a 0x34, poi per ogni pagina 0x36 indirizzo, 0x3C dati, 0x35 lunghezza. È un'alternativa al writer qui sotto, ma non conosco l'attesa necessaria fra le pagine, perché il finto target risponde subito: il writer resta la strada del firmware.
 
 **Writer `eeprom_writer/`:** MP0 SS, MP1 MOSI, MP2 SCLK uscite senza pull-up, MP3 MISO ingresso, porte audio spente, 48 kHz, 0 errori e 0 avvisi. Celle: `MOD_CELL_SS_DCVALUE_ADDR` 23, `MOD_CELL_MOSI_DCVALUE_ADDR` 22, `MOD_CELL_SCLK_DCVALUE_ADDR` 21, `MOD_CELL_MISO_VALUE_ADDR` 20. Le celle DC sono 8.24: alto = 0x01000000, basso = 0. Mai provato su hardware; **il valore che il pin vede sopra una certa soglia va verificato all'accensione**.
