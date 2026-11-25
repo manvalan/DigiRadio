@@ -25,6 +25,7 @@
 #include "v2bringup/selftest.hpp"
 
 #include "v2bringup/hal.hpp"
+#include "v2bringup/wireless.hpp"
 
 #include "board_pins.hpp"
 
@@ -36,6 +37,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdarg>
 #include <cstdio>
@@ -639,6 +641,43 @@ void testExtFlash()
         id[0], id[1], id[2]);
 }
 
+// ---- ESP32 radios -------------------------------------------------------
+
+void testWireless()
+{
+    section("Wi-Fi e Bluetooth LE dell'ESP32-S31");
+    std::uint8_t mac[6] = {};
+    (void)wifiMac(mac);
+    std::vector<WifiAp> aps;
+    const esp_err_t err = wifiScan(aps);
+    if (err != ESP_OK) {
+        rep(St::Fail, "Wi-Fi", "scansione non avviata: %s", esp_err_to_name(err));
+    } else {
+        int best = -127;
+        for (const WifiAp& ap : aps) {
+            best = std::max(best, ap.rssi);
+        }
+        rep(!aps.empty() ? St::Ok : St::Warn, "Wi-Fi",
+            "MAC %02X:%02X:%02X:%02X:%02X:%02X, %u reti trovate, la piu' forte"
+            " %d dBm", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+            static_cast<unsigned>(aps.size()), best);
+        for (std::size_t i = 0; i < aps.size() && i < 5; ++i) {
+            std::printf("    %-32s %4d dBm  canale %d\n", aps[i].ssid,
+                        aps[i].rssi, aps[i].channel);
+        }
+    }
+    int devices = 0, adverts = 0, rssi = -127;
+    const esp_err_t ble = bleScan(4, devices, adverts, rssi);
+    if (ble != ESP_OK) {
+        rep(St::Fail, "BLE", "stack non avviato: %s", esp_err_to_name(ble));
+        return;
+    }
+    rep(devices > 0 ? St::Ok : St::Warn, "BLE",
+        "scansione 4 s: %d dispositivi, %d pacchetti, il piu' forte %d dBm%s",
+        devices, adverts, rssi,
+        devices > 0 ? "" : " (nessuno in giro? accendi un telefono vicino)");
+}
+
 // ---- Bus scan and summary -----------------------------------------------
 
 void testI2cScan()
@@ -706,6 +745,7 @@ int runSelfTest(bool withBluetooth)
     const int64_t t0 = esp_timer_get_time();
     std::printf("\n########## DigiRadio v2 - test hardware ##########\n");
     printEsp();
+    testWireless();
     testI2cScan();
     testCharger();
     testGauge();

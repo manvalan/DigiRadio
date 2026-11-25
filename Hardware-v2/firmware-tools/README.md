@@ -11,8 +11,8 @@ so a faulty block shows up as the bus operation that fails.
 | [`monitor`](monitor) | Interactive console: I2C, SPI, GPIO, power, DSP and tuner registers, BT1058 AT commands, I2S clocks and test tone. Starts with 3V3_AUDIO off. |
 | [`components/v2bringup`](components/v2bringup) | The shared bus code, the self test and the console commands. |
 
-Neither firmware has Wi-Fi, PSRAM or the Si4684 images: nothing proprietary
-is in the binaries.
+Neither firmware uses PSRAM or carries the Si4684 images: nothing proprietary
+is in the binaries. Wi-Fi and BLE run only to scan.
 
 ## Flash
 
@@ -43,6 +43,8 @@ cd hwtest && idf.py --preview set-target esp32s31 && idf.py build
 
 | Block | Check |
 |---|---|
+| Wi-Fi | MAC, scan of the networks around, strongest RSSI: proves the module's RF path and antenna. |
+| BLE | 4 s passive scan: devices, packets, strongest RSSI. |
 | I2C | Scan; 0x36, 0x50 and 0x6B must answer. |
 | BQ25896 | Part number (REG14), I2C watchdog off (REG07) so the settings stay, charge current set to 256 mA (REG04), one ADC conversion: VBAT, VSYS, VBUS, charge current, TS, status and faults. |
 | MAX17048 | VERSION, VCELL, SOC, CRATE, CONFIG, STATUS; VCELL against the BQ25896 VBAT. |
@@ -78,6 +80,7 @@ until the battery is disconnected. The radio firmware does not write them.
 | `alert`, `alert clear` | PWR_ALERT level and falling edges counted. |
 | `spi hz 4000000` | Control SPI speed (default 1 MHz). |
 | `flash` | U3 JEDEC ID. |
+| `wifi`, `ble 5` | Wi-Fi and BLE scans. |
 | `run`, `run nobt` | The whole hardware test. |
 | `reboot` | 3V3_AUDIO off, then restart. |
 

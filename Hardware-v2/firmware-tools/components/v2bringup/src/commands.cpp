@@ -17,6 +17,7 @@
 
 #include "v2bringup/hal.hpp"
 #include "v2bringup/selftest.hpp"
+#include "v2bringup/wireless.hpp"
 
 #include "board_pins.hpp"
 
@@ -32,6 +33,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace bu {
 
@@ -590,6 +592,29 @@ int cmdFlash(int /*argc*/, char** /*argv*/)
     return err("lettura", e);
 }
 
+int cmdWifi(int /*argc*/, char** /*argv*/)
+{
+    std::vector<WifiAp> aps;
+    const esp_err_t e = wifiScan(aps);
+    for (const WifiAp& ap : aps) {
+        std::printf("%-32s %4d dBm  canale %d\n", ap.ssid, ap.rssi, ap.channel);
+    }
+    return err("scansione Wi-Fi", e);
+}
+
+int cmdBle(int argc, char** argv)
+{
+    long s = 5;
+    if (argc > 1 && (!num(argv[1], s) || s < 1 || s > 60)) {
+        return usage("ble [secondi]");
+    }
+    int devices = 0, adverts = 0, rssi = 0;
+    const esp_err_t e = bleScan(static_cast<int>(s), devices, adverts, rssi);
+    std::printf("%d dispositivi, %d pacchetti, il piu' forte %d dBm\n", devices,
+                adverts, rssi);
+    return err("scansione BLE", e);
+}
+
 int cmdReboot(int /*argc*/, char** /*argv*/)
 {
     analogOff();
@@ -633,6 +658,8 @@ void registerMonitorCommands()
     add("i2s", "i2s clocks | tone [hz] [s] | peak [ms]", cmdI2s);
     add("alert", "alert [clear]: livello e fronti su PWR_ALERT", cmdAlert);
     add("flash", "flash: JEDEC ID di U3", cmdFlash);
+    add("wifi", "wifi: scansione delle reti", cmdWifi);
+    add("ble", "ble [secondi]: scansione Bluetooth LE", cmdBle);
     add("reboot", "spegne 3V3_AUDIO e riavvia", cmdReboot);
 }
 
